@@ -277,14 +277,6 @@ hist(sumstat$tstat)
 
 var(sumstat$tstat)
 
-# might not want to take variance if the mean is shifted, we will sign portfolios
-# later
-var_tstat_adj = mean(sumstat$tstat^2)
-
-var_tstat_adj
-
-1-1/var_tstat_adj
-
 # check alphas don't matter ====
 library(lme4)
 
