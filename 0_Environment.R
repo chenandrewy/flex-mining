@@ -21,6 +21,8 @@ library(lme4)
 library(stringr)
 library(ggplot2)
 
+## git test -- rebecca
+
 # SET PATHS ====
 
 # code assumes that working directory is the directory with the R scripts
