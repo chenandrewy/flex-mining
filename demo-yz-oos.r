@@ -118,7 +118,7 @@ signalsum %>%
   scale_x_continuous(breaks = seq(-3,5,1))
 
 # more precisely
-F_t_oos = ecdf(signalsum$tstat)
+F_t_oos = ecdf(signalsum$past_tabs)
 
 tlist = c(2,2.5,3)
 
