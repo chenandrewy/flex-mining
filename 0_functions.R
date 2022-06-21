@@ -1,6 +1,13 @@
 
 # function for creating a list of possible variable combinations used in strategies
-strategy_list = function(xvars, signalnum, scale_vars = NULL) {
+strategy_list = function(xvars, signalnum, scale_vars = NULL, rs) {
+  
+  #' @param xvars Unique names of variables used for creating strategies
+  #' @param signalnum Number of signals to sample from full list
+  #' @param scale_vars Scaling variables used in ratios (or NULL for unrestricted)
+  #' @param rs Random seed
+  
+  set.seed(rs)
   
   # make list of all possible xused combinations
   tmp = expand.grid(v1 = xnames, v2 = xnames, stringsAsFactors = FALSE) %>% 
@@ -19,7 +26,9 @@ strategy_list = function(xvars, signalnum, scale_vars = NULL) {
   }
   
   # sample from full list
-  if (nrow(tmp > signalnum)) {
+  if (signalnum == TRUE) {
+    tmp = tmp
+  } else if (nrow(tmp) > signalnum) {
     tmp = tmp %>% 
       sample_n(signalnum) 
   }
@@ -38,12 +47,13 @@ dataset_to_signal = function(form, dt, v1, v2){
     # ratio (for accounting)
     return = dt[, v1]/dt[, v2] #xusedcurr[,1]/xusedcurr[,2]
   } else if (form == 'ratiodiff') {
+    
     dt[,'tmp'] = dt[, v1]/dt[, v2]
     return(
-      owe = dt %>% 
+      dt %>% 
         arrange(permno, ret_yearm) %>% 
         group_by(permno) %>%
-        mutate(tmp2 = tmp - lag(tmp, 1)) %>% 
+        mutate(tmp2 = tmp - lag(tmp, 12)) %>% 
         ungroup() %>% 
         pull(tmp2)
     )

@@ -1,11 +1,8 @@
-# 2023 03: takes in a dataset and constructs a sample of long-short strategies
+# Takes in a dataset and constructs a sample of long-short strategies
 
 # ASSUMPTIONS ON DATASET MADE FOR SPEED
 #   1) everything except for returns is lagged
 #   2) data is sorted by c(permno, date)
-
-# TO DO: 
-#   move some data cleaning earlier
 
 # ENVIRONMENT ====
 source('0_Environment.R')
@@ -19,24 +16,22 @@ data_avail_lag = 6 # months
 toostale_months = 12 
 
 # signal choices
-#   for random ratios, use filterstr = TRUE
-#   for yz style, use filterstr = '(V1 %in% scaling_variables) | (V2 %in% scaling_variables)' 
-signal_form = 'ratio' # 'ratio' or 'product' or 'sin+cos' or 'noise' or 'ratiodiff'
-#xusednum    = 2 # number of x's used in function
-#filterstr   = TRUE
-signalnum   = 200 # number of signals to sample (need at least 200, it seems)
+signal_form = c('ratio', 'ratiodiff')
+signalnum   = TRUE # number of signals to sample or TRUE for all (need at least 200, it seems)
 seednumber  = 1235 # seed sampling
 
 # portfolio choices
 reup_months    = c(6) # stocks are traded using new data at end of these months
 longshort_form = 'ls_extremes'
-portnum        = 10
-sweight        = 'ew' # 'ew' or 'vw'
+portnum        = c(5, 10)
+sweight        = c('ew', 'vw') 
 trim           = NULL  # or some quantile e.g. .005
 
 # variable choices
 scaling_variables <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
                        "ceq", "seq", "icapt", "sale", "cogs", "xsga", "me", "emp")
+
+#scaling_variables = NULL
 
 # accounting_variables <- c("acchg", "aco", "acox", "act", "am", "ao", "aoloch", "aox", "ap", "apalch", 
 #                           "aqc", "aqi", "aqs", "at", "bast", "caps", "capx", "capxv", "ceq", "ceql", "ceqt", "ch", "che", "chech",
@@ -58,6 +53,11 @@ scaling_variables <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
 #                           "wcap", "wcapc", "wcapch", "xacc", "xad", "xdepl", "xi", "xido", "xidoc", "xint", "xopr", "xpp", "xpr", "xrd", "xrent",
 #                           "xsga")
 
+
+dataCombinations = expand.grid(signal_form = signal_form,
+                               longshort_form = longshort_form, 
+                               portnum = portnum, 
+                               sweight = sweight)
 
 # DATA PREP (about 2 minutes) ====
 
@@ -100,8 +100,8 @@ alldat[ , me_monthly := me]
 
 # all the x vars under consideration
 xnames = setdiff(names(alldat), c('gvkey', 'datadate', 'conm', 'fyear', 'tic', 'cusip',
-                                 'naicsh', 'sich', "timeLinkStart_d", "timeLinkEnd_d", "time_avail_d", "time_avail_y", 'permno',
-                                 'ret_yearm', 'ret_date', 'ret', 'temp_lag_months', 'signaldate', 'me_monthly'))
+                                  'naicsh', 'sich', "timeLinkStart_d", "timeLinkEnd_d", "time_avail_d", "time_avail_y", 'permno',
+                                  'ret_yearm', 'ret_date', 'ret', 'temp_lag_months', 'signaldate', 'me_monthly'))
 
 
 # force x to NA in non-reup-months
@@ -126,147 +126,107 @@ gc()
 
 # SAMPLE STRATEGIES ====
 
-## draw sample of variable combinations ====
-set.seed(seednumber)
-xused_list = strategy_list(xvars = xnames, 
-                           signalnum = signalnum,
-                           scale_vars = NULL)
-
-# initialize retmat data
-ret_dates = alldat %>%  pull(ret_date) %>% unique() %>% sort()
-retmat = matrix(nrow = length(ret_dates), ncol = signalnum)
-
-## loop over signals  ====
-
-for (signali in 1:nrow(xused_list)){
+# Loop over data configurations
+for (ii in 1:nrow(dataCombinations)) {
   
-  ### make one portdat ====
-  # # select xused for making signal 
-  # xusednamecurr = xused_list[signali, ] %>% as.matrix %>% as.character()
+  signal_form = dataCombinations$signal_form[ii]
+  longshort_form = dataCombinations$longshort_form[ii]
+  sweight = dataCombinations$sweight[ii]
+  portnum = dataCombinations$portnum[ii]
   
-  # import small dataset with return, me, xusedcurr, and add signal
-  smalldat = alldat %>% select(permno, ret_yearm, ret, me_monthly, 
-                               xused_list$v1[signali], xused_list$v2[signali]) %>% 
-    as_tibble()
+  ## draw sample of variable combinations ====
+  xused_list = strategy_list(xvars = xnames, 
+                             signalnum = signalnum,
+                             scale_vars = scaling_variables,
+                             rs = seednumber)
   
-  smalldat$signal = dataset_to_signal(form = signal_form, 
-                                      dt = smalldat, 
-                                      v1 =  xused_list$v1[signali],
-                                      v2 = xused_list$v2[signali]) # makes a signal
+  # initialize retmat data
+  ret_dates = alldat %>%  pull(ret_date) %>% unique() %>% sort()
+  retmat = matrix(nrow = length(ret_dates), ncol = nrow(xused_list))
   
-  # assign to portfolios
-  portdat = signal_to_longshort(dt = smalldat, 
-                                form = longshort_form, 
-                                portnum = portnum, 
-                                sweight = sweight,
-                                trim = NULL)
+  ## loop over signals  ====
   
-  retmat[, signali] = portdat$ret_ls
+  for (signali in 1:nrow(xused_list)){
+    
+    ### make one portdat ====
+    # # select xused for making signal 
+    # xusednamecurr = xused_list[signali, ] %>% as.matrix %>% as.character()
+    
+    # import small dataset with return, me, xusedcurr, and add signal
+    smalldat = alldat %>% select(permno, ret_yearm, ret, me_monthly, 
+                                 xused_list$v1[signali], xused_list$v2[signali]) %>% 
+      as_tibble()
+    
+    smalldat$signal = dataset_to_signal(form = signal_form, 
+                                        dt = smalldat, 
+                                        v1 =  xused_list$v1[signali],
+                                        v2 = xused_list$v2[signali]) # makes a signal
+    
+    # assign to portfolios
+    portdat = signal_to_longshort(dt = smalldat, 
+                                  form = longshort_form, 
+                                  portnum = portnum, 
+                                  sweight = sweight,
+                                  trim = trim)
+    
+    retmat[, signali] = portdat$ret_ls
+    
+    # feedback ===
+    
+    tstat = colMeans(retmat, na.rm=TRUE)/apply(retmat,2,sd,na.rm=T)*sqrt(apply(!is.na(retmat), 2, sum))
+    var_tstat = var(tstat, na.rm =T)
+    
+    print(paste0(
+      'signali = ', signali, ' of ', nrow(xused_list)
+      , ' | v1 = ', xused_list$v1[signali]
+      , ' | v2 = ', xused_list$v2[signali]
+      , ' | Var(tstat) = ', round(var_tstat,2)
+    ))
+    
+    # hist(tstat)
+    
+    ## end make one portdat ====
+    
+  } # end for signali
   
-  # feedback ===
   
-  tstat = colMeans(retmat, na.rm=TRUE)/apply(retmat,2,sd,na.rm=T)*sqrt(apply(!is.na(retmat), 2, sum))
-  var_tstat = var(tstat, na.rm =T)
+  # CLEAN UP AND SAVE ====
+  ls_dat = cbind(ret_dates, as.data.frame(retmat)) %>% 
+    rename(date = ret_dates) %>% 
+    pivot_longer(
+      cols = -date, names_to = 'signali', names_prefix = 'V', values_to = 'ret'
+    ) %>% 
+    left_join(
+      xused_list %>% 
+        mutate(signali = row_number() %>% as.character(),
+               signalname = paste0(signal_form, '_', longshort_form, '_', v1, '_', v2))
+    ) %>% 
+    select(-signali, -v1, -v2)
   
-  print(paste0(
-    'signali = ', signali, ' of ', signalnum
-    , ' | v1 = ', xused_list$v1[signali]
-    , ' | v2 = ', xused_list$v2[signali]
-    , ' | Var(tstat) = ', round(var_tstat,2)
-  ))
   
-  # hist(tstat)
-  
-  ## end make one portdat ====
-  
-} # end for signali
-
-
-# CLEAN UP AND SAVE ====
-ls_dat = cbind(ret_dates, as.data.frame(retmat)) %>% 
-  rename(date = ret_dates) %>% 
-  pivot_longer(
-    cols = -date, names_to = 'signali', names_prefix = 'V', values_to = 'ret'
-  ) %>% 
-  left_join(
-    xused_list %>% 
-      mutate(signali = row_number() %>% as.character(),
-             signalname = paste0(signal_form, '_', longshort_form, '_', v1, '_', v2))
-  ) %>% 
-  select(-signali, -v1, -v2)
-
-
-# compile all info into one list
-stratdat = list(
-  ret = ls_dat
-  , signal_form = signal_form
-  , longshort_form = longshort_form
-  , portnum = portnum
-  , trim = trim
-  , reup_months = reup_months
-  , sweight = sweight
-  , data_avail_lag = data_avail_lag
-  , scaling_variables = scaling_variables
-)
-
-# save
-saveRDS(stratdat, paste0('../Data/LongShortPortfolios/stratdat_',
-                         signal_form, '_', longshort_form, portnum, sweight, 
-                         '.RData'))
-
-
-# Demo results ====
-
-sumstat = stratdat$ret %>% 
-  filter(!is.na(ret)) %>% 
-  filter(year(date) >= 1963, year(date)<=1993) %>% 
-  group_by(signalname) %>% 
-  summarize(
-    rbar = mean(ret), vol = sd(ret), T = n(), tstat = rbar/vol*sqrt(T)
-  ) 
-
-hist(sumstat$tstat)
-
-var(sumstat$tstat)
-
-# check alphas don't matter ====
-library(lme4)
-
-ffdat <- read_fst('../Data/Intermediate/m_FamaFrenchFactors.fst') %>% 
-  as_tibble() 
-
-ffdat
-
-
-strat_ff = stratdat$ret %>% 
-  filter(!is.na(ret)) %>% 
-  mutate(yyyymm = year(date)*100 + month(date)) %>% 
-  left_join(ffdat)
-
-factor_bench = 'mktrf'
-
-model = as.formula(
-  paste0(
-    'ret ~ 1'
-    ,' + ', paste(factor_bench, collapse = ' + ')
-    ,' | signali'
+  # compile all info into one list
+  stratdat = list(
+    ret = ls_dat
+    , signal_form = signal_form
+    , longshort_form = longshort_form
+    , portnum = portnum
+    , trim = trim
+    , reup_months = reup_months
+    , sweight = sweight
+    , data_avail_lag = data_avail_lag
+    , scaling_variables = scaling_variables
   )
-)
-
-
-# fit model
-fit = lmList(model , data=strat_ff) 
-
-coef = summary(fit)$coefficients[ , , 1] # element 1 is for the intercept
-port = rownames(coef)
-
-# package nicely
-alpha = coef %>% as_tibble 
-colnames(alpha) = c('est','se','tstat','pval') # rename for convenience
-alpha$port = port
-alpha = alpha %>% select(port, everything())
-alpha
-
-hist(alpha$tstat)
-
-var(alpha$tstat)
+  
+  # save
+  if (is.null(scaling_variables)) {
+    saveRDS(stratdat, paste0('../Data/LongShortPortfolios/stratdat_',
+                             signal_form, '_', longshort_form, portnum, sweight, 
+                             '_NoScaleVars.RData'))
+    
+  } else {
+    saveRDS(stratdat, paste0('../Data/LongShortPortfolios/stratdat_',
+                             signal_form, '_', longshort_form, portnum, sweight, 
+                             '_ScaleVars.RData'))
+  }
+  
+}
