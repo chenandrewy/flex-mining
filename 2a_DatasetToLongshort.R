@@ -16,8 +16,8 @@ data_avail_lag = 6 # months
 toostale_months = 12 
 
 # signal choices
-signal_form = c('ratio', 'ratiodiff')
-signalnum   = TRUE # number of signals to sample or TRUE for all (need at least 200, it seems)
+signal_form = c('ratio')
+signalnum   = 5000 # number of signals to sample or TRUE for all (need at least 200, it seems)
 seednumber  = 1235 # seed sampling
 
 # portfolio choices
