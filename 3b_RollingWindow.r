@@ -201,35 +201,9 @@ port_past_perf = ret_signed %>%
     , past_rbar_shrink = mean(abs(past_rbar)*(1-past_shrink))
   )
 
-# ----
+## plot ----
 plotme = port_past_perf %>% 
-  filter(year(date) <= 2005, year(date) >= 1963) %>% 
-  group_by(port) %>% 
-  summarize(
-    rbar = mean(ret), past_rbar_shrink = mean(past_rbar_shrink)
-    , vol = sd(ret), ndate = n(), tstat = rbar/vol*sqrt(ndate)
-    , se = vol/sqrt(ndate)
-  )
-
-
-plotme %>% 
-  ggplot(aes(x=port)) +
-  geom_point(
-    aes(y=rbar), color = 'black', size = 4
-  ) +
-  geom_errorbar(
-    aes(ymin = rbar - 2*se, ymax = rbar + 2*se)
-  ) +
-  geom_point(
-    data = plotme, aes(y=past_rbar_shrink), color = 'blue', size = 3
-  ) +
-  geom_abline(
-    slope = 0
-  )
-
-# ----
-plotme = port_past_perf %>% 
-  filter(year(date) > 2005) %>% 
+  # filter(year(date) <= 2000, year(date) >= 1990) %>% 
   group_by(port) %>% 
   summarize(
     rbar = mean(ret), past_rbar_shrink = mean(past_rbar_shrink)
@@ -255,102 +229,57 @@ plotme %>%
 
 
 
-
-# Box plot w/ shrinkage ---------------------------------------------------
+# Signal level evaluations ------------------------------------------------
 
 nbin = 50
 
-# Summarize shrunk rbar by bins of past stats
-binrets = ret_signed %>% 
-  mutate(
-    past_rbar_shrink = past_rbar * (1-past_shrink)
-  ) %>% 
-  filter(!is.na(past_rbar_shrink)) %>% 
-  group_by(date) %>% 
-  mutate(
-    bin = ntile(past_tstat, nbin)
-  ) %>% 
-  group_by(date,bin) %>% 
-  summarize(
-    ret = mean(ret)
-    , past_alpha_shrink = mean(past_rbar_shrink)
-    , past_alpha = mean(past_rbar)
-  ) 
-  
-binsum = binrets %>% 
-  group_by(bin) %>% 
-  summarize()
-  
-
-
-binshrink = stratSum %>% 
-  filter(stattype == 'stein_ez', samp == 'train') %>% 
-  mutate(
-    bin = ntile(alpha, nbin)
-  ) %>% 
-  group_by(bin) %>% 
-  summarize(
-    alpha = mean(alpha), tstat= mean(tstat)
-  )
-
-# merge all data together
-plotme = stratSum %>% 
-  filter(stattype == 'stein_ez', samp == 'train') %>% 
-  mutate(
-    bin = ntile(alpha, nbin)
-  ) %>%  
-  select(signalname, bin) %>% 
-  left_join(
-    binshrink %>% rename(alpha_shrink = alpha, tstat_shrink = tstat)
-    , by = 'bin'
-  ) %>% 
-  left_join(
-    stratSum %>% 
-      filter(stattype == 'classical', samp == 'test') %>% 
-      rename(alpha_test = alpha, tstat_test = tstat)
-    , by = 'signalname'
-  )
-
-
-# plot
-outliersU = quantile(plotme$alpha_test, .995, na.rm = TRUE)
-outliersD = quantile(plotme$alpha_test, .005, na.rm = TRUE)
-plotme %>% 
-  ggplot(aes(x=bin)) +
-  geom_boxplot(aes(y=alpha_test, group = bin), outlier.shape = '')  +
-  geom_point(
-    aes(y=alpha_shrink ), color = 'blue', size = 3
-  ) +
-  coord_cartesian(ylim = c(outliersD -.1, outliersU + .1)) +
-  labs(x = 'Training data alpha bin', y = 'Test data alpha') +
-  theme_bw(base_size = 14)
-
-ggsave(paste0('../Results/TrainVsTest_', plotString, '.png'), width = 12, height = 10)
-
-
-
-# Old stuff ---------------------------------------------------------------
-
-
-# Sign strategies ====
-# based on past rbar
-
-# summarize
+# summarize rets by signal
 signalsum = ret_signed %>% 
   group_by(signalname) %>% 
   summarize(
-    past_tabs = abs(mean(past_tstat)), rbar = mean(ret), vol = sd(ret)
-    , ndate = n(), tstat = rbar/vol*sqrt(ndate)
-    , past_tstat = mean(past_tstat)
+    rbar = mean(ret), vol = sd(ret), ndate = n(), tstat = rbar/vol*sqrt(ndate)
+    , past_perf = mean(abs(past_tstat))
+    , past_rbar_shrink = mean(abs(past_rbar)*(1-past_shrink))
+    , sd_past_rbar_shrink = sd(abs(past_rbar)*(1-past_shrink))
+  ) %>% 
+  mutate(
+    bin = ntile(past_perf, nbin)
+  )
+
+# summarize signals by bins (shrinkage only)
+binshrink = signalsum %>% 
+  group_by(bin) %>% 
+  mutate(
+    mean = mean(past_rbar_shrink, na.rm=T)
+    , sd = mean(sd_past_rbar_shrink, na.rm=T)
+  )
+  
+# group signals by bins
+ggplot(signalsum, aes(x=bin, group = bin), outlier.shape = '') +
+  geom_boxplot(
+    aes(y=rbar, group = bin)
+  ) +
+  geom_point(
+    data = binshrink
+    , aes(y=mean), color = 'blue', size = 3
+  ) +
+  geom_errorbar(
+    data = binshrink
+    ,   aes(ymin = mean - sd, ymax = mean + sd)
+    , color = 'blue'
   )
 
 
-# Check ====
+# test --------------------------------------------------------------------
 
-# should see a positive slope
-signalsum %>% 
-  ggplot(aes(x=past_tstat, y = rbar)) +
-  geom_point()
+x = past_stat %>% filter(year(tradedate) == 2005)
+
+hist(x$past_tstat)
+
+mean(x$past_tstat)
+
+# Old stuff ---------------------------------------------------------------
+
 
 # should see more in tails thatn standard normal
 signalsum %>% 
@@ -371,7 +300,7 @@ print(fdrmax)
 
 
 
-# simple FDR ====
+# simple FDR ===
 # super simple Storey 2002 algo
 pcut = 0.9
 
@@ -393,9 +322,5 @@ fdr_bh = 0.05/Fp(0.05)
 fdr_bh
 
 fdr_bh*pif
-
-
-
-# strats grouped by past stats ====
 
 
