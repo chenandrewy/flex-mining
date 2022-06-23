@@ -29,6 +29,7 @@ trade_months = c(6) # which months we evaluate past stats and trade
 past_stat_lag_max = 12 # max number of months to use past stats for 
 min_nsignal_each_tradedate = 2000 # drop tradedates if less than these many signals
 
+
 # Prepare rets data ------------------------------------------------------------
 
 ## Load data ----
