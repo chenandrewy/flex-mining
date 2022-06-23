@@ -7,6 +7,7 @@
 # rm(list =ls())
 source('0_Environment.R')
 source('0_functions.R')
+library(zoo) # for yearmonth
 
 useData = list(
   dataset = 'all_data'  # all_data
@@ -20,10 +21,13 @@ useData = list(
 # number of strategies to sample 
 nstrat = 100*1000
 
+# number of past months to use
+nmonth_past = 240
+
 
 # Prepare data ------------------------------------------------------------
-# Load data
 
+## Load data ----
 
 if (useData$dataset == 'all_data') {
   
@@ -94,17 +98,28 @@ if (useData$dataset == 'all_data') {
 
 
 
+
+## Clean ----
+# maybe we should do this earlier
+retsclean = rets %>% 
+  filter(!is.na(ret)) %>% 
+  mutate(yearm = as.yearmon(date)) %>% 
+  select(signalname, yearm, ret)
+
+
 # Rolling window stats -----------------------------------------------
 
+# for ease of renaming
+temprets = retsclean
+  
 
 ## Evaluate strategies  ----
-# output is rets2
 
 # maybe want to do each month eventually
-datelist = rets %>% 
-  distinct(date) %>% 
-  filter(month(date) == 6) %>% 
-  arrange(date) %>% 
+datelist = temprets %>% 
+  distinct(yearm) %>% 
+  filter(month(yearm) %in% c(6)) %>% 
+  arrange(yearm) %>% 
   pull
 
 
@@ -116,58 +131,76 @@ for (i in 1:length(datelist)){
   
   print(currdate)
   
-  samp = rets %>% filter(date <= currdate, date >= currdate %m-% months(240) )
+  samp = temprets %>% filter(yearm <= currdate, yearm >= currdate - nmonth_past/12 )
   
   sampsum = samp %>% 
     group_by(signalname) %>% 
     filter(!is.na(ret)) %>% 
     summarize(
-      rbar = mean(ret), vol = sd(ret), n = sum(!is.na(ret)), tstat = rbar/vol*sqrt(n)
+      rbar = mean(ret), vol = sd(ret), ndate = sum(!is.na(ret)), tstat = rbar/vol*sqrt(ndate)
     ) 
   
-  sampsum$tradedate = currdate # date when this info can be used to trade
+  sampsum$tradedate = currdate # yearm when this info can be used to trade
   
   past_stat = rbind(past_stat, sampsum)
   
 } # for i
- 
-# rename to sanity
+
+# rename for sanity
 past_stat = 
   past_stat %>% 
   rename(
-    past_rbar = rbar, past_tstat = tstat, past_vol = vol, past_n = n
+    past_rbar = rbar, past_tstat = tstat, past_vol = vol, past_n = ndate
   )
 
 
 # add past stats to rets, careful with timing
 # do this early cuz it's slow
-rets2 = rets %>% 
+temprets2 = temprets %>% 
   left_join(
-    past_stat %>% mutate(date = tradedate %m+% months(1)) # stats from tradedate used for returns next month
-    , by = c('signalname', 'date')
+    past_stat %>% mutate(yearm = tradedate + 1/12) # stats from tradedate used for returns next month
+    , by = c('signalname', 'yearm')
   )  %>% 
   arrange(
-    signalname, date
+    signalname, yearm
   )
 
 
-## Add shrinkage  ----
+rets3 = temprets2
 
-temp = rets2 %>% 
+## debug ----
+# 
+# signalselect = 'ratio_ls_extremes_acchg_act'
+# 
+# rets3 %>% filter(!is.na(ret), signalname == signalselect) %>% 
+#   select(signalname,yearm,ret,past_rbar,tradedate) %>% print(n=36)
+# 
+# past_stat %>% filter(signalname == signalselect) %>% 
+#   mutate(date = ceiling_date(tradedate %m+% months(1), 'month'))
+
+
+## Add shrinkage and fill  ----
+
+temp = past_stat %>% 
   group_by(tradedate) %>% 
   filter(past_n >= 60) %>% 
   summarize(
     past_shrink = (mean(past_tstat^2))^(-1)
     , past_muhat = mean(past_tstat)
+    , nstrat = n()
   ) 
 
-rets3 = rets2 %>% 
+temp %>% ggplot(aes(x=tradedate)) + geom_point(aes(y=past_shrink))
+temp %>% ggplot(aes(x=tradedate)) + geom_point(aes(y=nstrat))
+
+# this is a little slow, but not that bad
+rets4 = rets3 %>% 
   left_join(
     temp, by = c('tradedate')
   ) %>% 
-  arrange(signalname,date) %>% 
+  arrange(signalname,yearm) %>% 
   group_by(signalname) %>% 
-  fill(starts_with('past_')) %>% 
+  fill(starts_with('past_'), tradedate) %>% 
   filter(
     !is.na(ret*past_rbar*past_shrink)
   ) %>% 
@@ -176,27 +209,49 @@ rets3 = rets2 %>%
   )
 
 
+# Check data availability  -----------------------------------------------------------
+
+# eyeball number of strategies
+#   seems like a lot are added in 1985.  
+#   So only data post 1986
+nstrat_ts = rets4 %>% 
+  filter(!is.na(ret)) %>% 
+  group_by(yearm) %>% 
+  summarize(nstrat = n(), past_shrink = mean(past_shrink)) 
+
+
+ggplot(nstrat_ts, aes(x=yearm)) + geom_point(aes(y=nstrat)) +
+  geom_line(aes(y=past_shrink*4000))
+
+
+
 # Past Stat Sorts  --------------------------------------------------------
 
 # sort strats into portfolios based on past stats
 # this is easier to conceptualize but hard to map to YZ and multiple testing
 
-port_past_perf = rets3 %>% 
-  group_by(date) %>% 
+nport = 100
+
+use_sign = 1
+
+port_past_perf = rets4 %>% 
+  group_by(yearm) %>% 
   mutate(
-    past_perf = abs(past_tstat)
-    , port = ntile(past_perf, 20)
+    sign_switch = sign(past_rbar)^use_sign
+    , past_perf = past_rbar_shrink*sign_switch
+    , port = ntile(past_perf, nport)
   ) %>% 
-  group_by(port,date) %>% 
+  filter(!is.na(port)) %>% 
+  group_by(port,yearm) %>% 
   summarize(
-    ret = mean(ret*sign(past_rbar))
+    ret = mean(ret*sign_switch)
     , past_perf = mean(past_perf)
-    , past_rbar_shrink = mean(past_rbar_shrink*sign(past_rbar))
+    , past_rbar_shrink = mean(past_rbar_shrink*sign_switch)
   )
 
 ## plot ----
 plotme = port_past_perf %>% 
-  # filter(year(date) <= 2000, year(date) >= 1990) %>% 
+  filter(year(yearm) <= 1998, year(yearm) >= 1990) %>%
   group_by(port) %>% 
   summarize(
     rbar = mean(ret), past_rbar_shrink = mean(past_rbar_shrink)
@@ -219,106 +274,4 @@ plotme %>%
   geom_abline(
     slope = 0
   )
-
-
-
-# Signal level evaluations ------------------------------------------------
-
-nbin = 50
-
-# summarize rets by signal
-signalsum = rets3 %>%
-  # filter(year(date) >= 2005) %>% 
-  group_by(signalname) %>% 
-  summarize(
-    rbar = mean(ret), vol = sd(ret), ndate = n(), tstat = rbar/vol*sqrt(ndate)
-    , past_perf = mean(past_tstat)
-    , past_rbar_shrink = mean(past_rbar_shrink)
-    , sd_past_rbar_shrink = sd(past_rbar_shrink)
-  ) %>% 
-  mutate(
-    bin = ntile(past_perf, nbin)
-  )
-
-# summarize signals by bins (shrinkage only)
-binshrink = signalsum %>% 
-  group_by(bin) %>% 
-  mutate(
-    mean = mean(past_rbar_shrink, na.rm=T)
-    , sd = mean(sd_past_rbar_shrink, na.rm=T)
-  )
-  
-# group signals by bins
-ggplot(signalsum, aes(x=bin, group = bin), outlier.shape = '') +
-  geom_boxplot(
-    aes(y=rbar, group = bin)
-  ) +
-  geom_point(
-    data = binshrink
-    , aes(y=mean), color = 'blue', size = 3
-  ) +
-  geom_errorbar(
-    data = binshrink
-    ,   aes(ymin = mean - sd, ymax = mean + sd)
-    , color = 'blue'
-  ) +
-  geom_abline(slope = 0)
-
-
-# test --------------------------------------------------------------------
-
-
-x = past_stat %>% filter(year(tradedate) == 2005)
-
-hist(x$past_tstat)
-
-mean(x$past_tstat)
-
-mean(x$past_rbar)
-
-# Old stuff ---------------------------------------------------------------
-
-
-# should see more in tails thatn standard normal
-signalsum %>% 
-  ggplot(aes(x=tstat)) +
-  geom_histogram() +
-  xlab('out of sample long-short t-stat') +
-  scale_x_continuous(breaks = seq(-3,5,1))
-
-# more precisely
-F_t_oos = ecdf(signalsum$past_tabs)
-
-tlist = c(2,2.5,3)
-
-fdrmax = (1-pnorm(tlist))/(1-F_t_oos(tlist))
-  
-print('fdr max estimates')
-print(fdrmax)
-
-
-
-# simple FDR ===
-# super simple Storey 2002 algo
-pcut = 0.9
-
-pval = past_stat %>% 
-  mutate(
-    pval = 2*(1-pnorm(abs(past_tstat)))
-  ) %>% 
-  arrange(pval) %>% 
-  pull(pval)
-
-Fp = ecdf(pval)
-
-pif = (1-Fp(pcut))/(1-pcut)
-
-pif  
-
-fdr_bh = 0.05/Fp(0.05)
-
-fdr_bh
-
-fdr_bh*pif
-
 
