@@ -4,13 +4,13 @@
 
 # Setup -------------------------------------------------------------------
 
-# rm(list =ls())
+rm(list =ls())
 source('0_Environment.R')
 source('0_functions.R')
 library(zoo) # for yearmonth
 
 useData = list(
-  dataset = 'all_data'  # all_data
+  dataset = 'yz_data'  # all_data
   , signal_form = 'ratio'
   , portnum = 10
   , weights = 'ew'
@@ -18,14 +18,17 @@ useData = list(
   , scale_vars = 'ScaleVars' # 'Scalevars' or 'NoScaleVars'
 )
 
-# number of strategies to sample 
+# number of strategies to sample (fix me) 
 nstrat = 100*1000
 
-# number of past months to use
-nmonth_past = 240
 
+nmonth_past = 240 # number of past months to use
+nmonth_min = 240 # with 240, real-time returns only start in 1994 or so
+fixed_signals = T # T uses only signals in 1980
+trade_months = c(6) # which months we evaluate past stats and trade
+past_stat_lag_max = 12 # max number of months to use past stats for 
 
-# Prepare data ------------------------------------------------------------
+# Prepare rets data ------------------------------------------------------------
 
 ## Load data ----
 
@@ -107,27 +110,35 @@ signalselect = rets %>%
   distinct(signalname) %>% 
   pull()
 
+# data.table is much faster here
+setDT(rets)
 
-# maybe we should do this earlier
-retsclean = rets %>% 
-  filter(!is.na(ret)) %>% 
-  filter(signalname %in% signalselect) %>% 
-  mutate(yearm = as.yearmon(date)) %>% 
+if (fixed_signals){
+  rets = rets[signalname %in% signalselect, ]
+}
+
+rets = rets[
+  !is.na(ret)
+][
+  , yearm := as.yearmon(date)
+][
+  order(signalname, yearm)
+] %>% 
   select(signalname, yearm, ret)
 
-
-# Rolling window stats -----------------------------------------------
+# Rolling "past" stats -----------------------------------------------
 
 # for ease of renaming
-temprets = retsclean
+temprets = rets
   
 
-## Evaluate strategies  ----
+## Loop over "tradedates"  ----
+# please make me faster
 
 # maybe want to do each month eventually
 datelist = temprets %>% 
   distinct(yearm) %>% 
-  filter(month(yearm) %in% c(6)) %>% 
+  filter(month(yearm) %in% trade_months) %>% 
   arrange(yearm) %>% 
   pull
 
@@ -135,12 +146,13 @@ datelist = temprets %>%
 past_stat = tibble()
 for (i in 1:length(datelist)){
   
-  
   currdate = datelist[i]
   
   print(currdate)
   
   samp = temprets %>% filter(yearm <= currdate, yearm >= currdate - nmonth_past/12 )
+  
+    # debug   sampsum %>% filter(signalname == 'ratio_ls_extremes_aco_act')
   
   sampsum = samp %>% 
     group_by(signalname) %>% 
@@ -155,84 +167,127 @@ for (i in 1:length(datelist)){
   
 } # for i
 
-# rename for sanity
-past_stat = 
-  past_stat %>% 
-  rename(
-    past_rbar = rbar, past_tstat = tstat, past_vol = vol, past_ndate = ndate
-  )
+## find shrinkage ----
 
-
-# add past stats to rets, careful with timing
-# do this early cuz it's slow
-temprets2 = temprets %>% 
-  left_join(
-    past_stat %>% mutate(yearm = tradedate + 1/12) # stats from tradedate used for returns next month
-    , by = c('signalname', 'yearm')
-  )  %>% 
-  arrange(
-    signalname, yearm
-  )
-
-
-rets3 = temprets2
-
-
-## Add shrinkage and fill  ----
-
-temp = past_stat %>% 
+past_shrink = past_stat %>% 
   group_by(tradedate) %>% 
-  filter(past_ndate >= 120) %>% 
+  filter(ndate >= nmonth_min) %>% 
   summarize(
-    past_shrink = (mean(past_tstat^2))^(-1)
-    , past_muhat = mean(past_tstat)
-    , past_nstratok = n()
+    shrink = (mean(tstat^2))^(-1)
+    , muhat = mean(tstat)
+    , nstratok = n()
+    , mean_ndate = mean(ndate)
   ) 
 
-temp %>% ggplot(aes(x=tradedate)) + geom_point(aes(y=past_shrink))
-temp %>% ggplot(aes(x=tradedate)) + geom_point(aes(y=past_nstratok))
 
-# this is a little slow, but not that bad
-rets4 = rets3 %>% 
-  left_join(
-    temp, by = c('tradedate')
-  ) %>% 
-  arrange(signalname,yearm) %>% 
-  group_by(signalname) %>% 
-  fill(starts_with('past_'), tradedate) %>% 
+# Real-time returns -------------------------------------------------------
+
+## Clean for data availability ----
+tempstat = past_stat
+
+# remove signalname-tradedate if not enough months of rets
+tempstat = tempstat %>% 
+  filter(ndate >= nmonth_min)
+
+# then remove tradedates if not enough signalnames
+tempsum = tempstat %>% 
+  group_by(tradedate) %>% 
+  summarize(nsignal = n())
+
+tempstat = tempstat %>% 
+  left_join(tempsum, by = 'tradedate') %>% 
   filter(
-    !is.na(ret*past_rbar*past_shrink)
-  ) %>% 
-  mutate(
-    past_rbar_shrink = (1-past_shrink)*past_rbar
+    nsignal >= 2000
   )
 
+past_stat2 = tempstat
 
-# Clean rolling windows  -----------------------------------------------------------
 
 
-## eyeball nstrats and shrinkage comp ----
+## Expand stats and join w/ rets ----
 
-# eyeball number of strategies
-#   seems like a lot are added in 1985.  
-#   So only data post 1986
-nstrat_ts = rets4 %>% 
-  filter(!is.na(ret)) %>% 
+temprets = rets
+tempstat = past_stat2
+
+# set everything as data tables for speed
+temprets = setDT(temprets)
+setkey(temprets, signalname, yearm)
+setDT(tempstat)[ , yearm := tradedate + 1/12] # info @ tradedate is used to make rets in yearm and later
+setkey(tempstat, signalname, yearm)
+
+
+# allow tempstat to be used for one year
+tempstat2 = tempstat
+for (i in 1:(past_stat_lag_max-1)){
+  tempstat2 = rbind(
+    tempstat2
+    , tempstat %>% mutate(yearm = yearm + i/12)
+    )
+}
+setkey(tempstat2, signalname, yearm)
+
+# keep unique, most recent tradedate
+tempstat2 = tempstat2[ , statlag := yearm - tradedate][
+  order(signalname, yearm, statlag)
+]
+tempstat3 = unique(tempstat2, by = c('signalname','yearm'))
+
+# check
+tempstat3 %>% filter(statlag > 1, yearm <= 2020) %>% as.data.frame()
+
+# merge stats onto rets
+#   data.table is much faster here
+temprets[
+  tempstat3, on = c('signalname','yearm')
+  , ':=' (
+    tradedate = tradedate
+    , past_tstat = tstat
+    , past_rbar  = rbar
+    , past_ndate = ndate
+  )
+]
+
+rets2 = temprets %>% 
+  filter(!is.na(tradedate))
+
+
+## Add shrinkage ----
+
+temprets = rets2
+
+# find shrinkage each month
+tempshrink = temprets %>% 
   group_by(yearm) %>% 
-  summarize(nstrat = n(), past_shrink = mean(past_shrink)) 
+  summarize(
+    shrink = mean(past_tstat^2)^(-1)
+  )
 
-ggplot(nstrat_ts, aes(x=yearm)) + geom_point(aes(y=nstrat)) +
-  geom_line(aes(y=past_shrink*4000))
+# merge and shrink past rbar
+temprets = temprets %>% 
+  left_join(tempshrink, by = 'yearm') %>% 
+  mutate(
+    past_rbar_shrink = past_rbar*(1-shrink)
+  )
+
+rets3 = temprets
+
+# Plot time-series overview  -----------------------------------------------------------
+# at this point all returns are valid
+# improve meeee
+
+nstrat_ts = rets3 %>% 
+  distinct(signalname, tradedate, .keep_all = T) %>% 
+  group_by(tradedate) %>% 
+  summarize(
+    nstrat_valid = n(), shrink = mean(shrink), past_ndate = mean(past_ndate)
+  ) 
+
+ggplot(nstrat_ts, aes(x=tradedate)) + geom_point(aes(y=nstrat_valid)) +
+  geom_line(aes(y=shrink*4000)) +
+  geom_line(aes(y=past_ndate*10))
 
 
-## debug ----
 
-temp = rets4 %>% 
-  group_by(yearm) %>% 
-  summarize(past_ndate = mean(past_ndate), nsignal = n())  
-
-ggplot(temp, aes(x=yearm)) + geom_point(aes(y=past_ndate)) +
-  geom_line(aes(y=nsignal/10))
 
 # Past Stat Sorts  --------------------------------------------------------
 
@@ -243,7 +298,7 @@ nport = 20
 
 use_sign = 1
 
-port_past_perf = rets4 %>% 
+port_past_perf = rets3 %>% 
   group_by(yearm) %>% 
   mutate(
     sign_switch = sign(past_rbar)^use_sign
