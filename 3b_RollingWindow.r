@@ -8,14 +8,6 @@
 source('0_Environment.R')
 source('0_functions.R')
 
-# training sample
-train_start = 1963
-train_end   = 1993
-
-# test sample
-test_start = train_end+1
-test_end = test_start + 2
-
 useData = list(
   dataset = 'all_data'  # all_data
   , signal_form = 'ratio'
@@ -105,7 +97,9 @@ if (useData$dataset == 'all_data') {
 # Rolling window stats -----------------------------------------------
 
 
-## Evaluate strategies ----
+## Evaluate strategies  ----
+# output is rets2
+
 # maybe want to do each month eventually
 datelist = rets %>% 
   distinct(date) %>% 
@@ -144,25 +138,10 @@ past_stat =
     past_rbar = rbar, past_tstat = tstat, past_vol = vol, past_n = n
   )
 
-## Add shrinkage  ----
-
-temp = past_stat %>% 
-  group_by(tradedate) %>% 
-  filter(past_n >= 60) %>% 
-  summarize(
-    past_shrink = var(past_tstat)^-1
-  ) 
-
-past_stat = past_stat %>% 
-  left_join(
-    temp, by = c('tradedate')
-  )
-
-
-## Sign strategies----
 
 # add past stats to rets, careful with timing
-temp = rets %>% 
+# do this early cuz it's slow
+rets2 = rets %>% 
   left_join(
     past_stat %>% mutate(date = tradedate %m+% months(1)) # stats from tradedate used for returns next month
     , by = c('signalname', 'date')
@@ -172,14 +151,29 @@ temp = rets %>%
   )
 
 
-# fill past_stats (for non-july ret months) and sign returns
-ret_signed = temp %>% 
+## Add shrinkage  ----
+
+temp = rets2 %>% 
+  group_by(tradedate) %>% 
+  filter(past_n >= 60) %>% 
+  summarize(
+    past_shrink = (mean(past_tstat^2))^(-1)
+    , past_muhat = mean(past_tstat)
+  ) 
+
+rets3 = rets2 %>% 
+  left_join(
+    temp, by = c('tradedate')
+  ) %>% 
+  arrange(signalname,date) %>% 
   group_by(signalname) %>% 
   fill(starts_with('past_')) %>% 
-  mutate(
-    ret = ret*sign(past_rbar)
+  filter(
+    !is.na(ret*past_rbar*past_shrink)
   ) %>% 
-  filter(!is.na(ret))
+  mutate(
+    past_rbar_shrink = (1-past_shrink)*past_rbar
+  )
 
 
 # Past Stat Sorts  --------------------------------------------------------
@@ -187,8 +181,7 @@ ret_signed = temp %>%
 # sort strats into portfolios based on past stats
 # this is easier to conceptualize but hard to map to YZ and multiple testing
 
-port_past_perf = ret_signed %>% 
-  filter(!is.na(ret), !is.na(past_rbar), !is.na(past_shrink)) %>% 
+port_past_perf = rets3 %>% 
   group_by(date) %>% 
   mutate(
     past_perf = abs(past_tstat)
@@ -196,9 +189,9 @@ port_past_perf = ret_signed %>%
   ) %>% 
   group_by(port,date) %>% 
   summarize(
-    ret = mean(ret)
+    ret = mean(ret*sign(past_rbar))
     , past_perf = mean(past_perf)
-    , past_rbar_shrink = mean(abs(past_rbar)*(1-past_shrink))
+    , past_rbar_shrink = mean(past_rbar_shrink*sign(past_rbar))
   )
 
 ## plot ----
@@ -234,13 +227,14 @@ plotme %>%
 nbin = 50
 
 # summarize rets by signal
-signalsum = ret_signed %>% 
+signalsum = rets3 %>%
+  # filter(year(date) >= 2005) %>% 
   group_by(signalname) %>% 
   summarize(
     rbar = mean(ret), vol = sd(ret), ndate = n(), tstat = rbar/vol*sqrt(ndate)
-    , past_perf = mean(abs(past_tstat))
-    , past_rbar_shrink = mean(abs(past_rbar)*(1-past_shrink))
-    , sd_past_rbar_shrink = sd(abs(past_rbar)*(1-past_shrink))
+    , past_perf = mean(past_tstat)
+    , past_rbar_shrink = mean(past_rbar_shrink)
+    , sd_past_rbar_shrink = sd(past_rbar_shrink)
   ) %>% 
   mutate(
     bin = ntile(past_perf, nbin)
@@ -267,16 +261,20 @@ ggplot(signalsum, aes(x=bin, group = bin), outlier.shape = '') +
     data = binshrink
     ,   aes(ymin = mean - sd, ymax = mean + sd)
     , color = 'blue'
-  )
+  ) +
+  geom_abline(slope = 0)
 
 
 # test --------------------------------------------------------------------
+
 
 x = past_stat %>% filter(year(tradedate) == 2005)
 
 hist(x$past_tstat)
 
 mean(x$past_tstat)
+
+mean(x$past_rbar)
 
 # Old stuff ---------------------------------------------------------------
 
