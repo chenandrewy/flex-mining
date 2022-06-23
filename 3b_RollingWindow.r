@@ -100,9 +100,18 @@ if (useData$dataset == 'all_data') {
 
 
 ## Clean ----
+
+# use only signals in 1980 for stability (?)
+signalselect = rets %>% 
+  filter(!is.na(ret), year(date) == 1980) %>% 
+  distinct(signalname) %>% 
+  pull()
+
+
 # maybe we should do this earlier
 retsclean = rets %>% 
   filter(!is.na(ret)) %>% 
+  filter(signalname %in% signalselect) %>% 
   mutate(yearm = as.yearmon(date)) %>% 
   select(signalname, yearm, ret)
 
@@ -150,7 +159,7 @@ for (i in 1:length(datelist)){
 past_stat = 
   past_stat %>% 
   rename(
-    past_rbar = rbar, past_tstat = tstat, past_vol = vol, past_n = ndate
+    past_rbar = rbar, past_tstat = tstat, past_vol = vol, past_ndate = ndate
   )
 
 
@@ -168,30 +177,20 @@ temprets2 = temprets %>%
 
 rets3 = temprets2
 
-## debug ----
-# 
-# signalselect = 'ratio_ls_extremes_acchg_act'
-# 
-# rets3 %>% filter(!is.na(ret), signalname == signalselect) %>% 
-#   select(signalname,yearm,ret,past_rbar,tradedate) %>% print(n=36)
-# 
-# past_stat %>% filter(signalname == signalselect) %>% 
-#   mutate(date = ceiling_date(tradedate %m+% months(1), 'month'))
-
 
 ## Add shrinkage and fill  ----
 
 temp = past_stat %>% 
   group_by(tradedate) %>% 
-  filter(past_n >= 60) %>% 
+  filter(past_ndate >= 120) %>% 
   summarize(
     past_shrink = (mean(past_tstat^2))^(-1)
     , past_muhat = mean(past_tstat)
-    , nstrat = n()
+    , past_nstratok = n()
   ) 
 
 temp %>% ggplot(aes(x=tradedate)) + geom_point(aes(y=past_shrink))
-temp %>% ggplot(aes(x=tradedate)) + geom_point(aes(y=nstrat))
+temp %>% ggplot(aes(x=tradedate)) + geom_point(aes(y=past_nstratok))
 
 # this is a little slow, but not that bad
 rets4 = rets3 %>% 
@@ -209,7 +208,10 @@ rets4 = rets3 %>%
   )
 
 
-# Check data availability  -----------------------------------------------------------
+# Clean rolling windows  -----------------------------------------------------------
+
+
+## eyeball nstrats and shrinkage comp ----
 
 # eyeball number of strategies
 #   seems like a lot are added in 1985.  
@@ -219,18 +221,25 @@ nstrat_ts = rets4 %>%
   group_by(yearm) %>% 
   summarize(nstrat = n(), past_shrink = mean(past_shrink)) 
 
-
 ggplot(nstrat_ts, aes(x=yearm)) + geom_point(aes(y=nstrat)) +
   geom_line(aes(y=past_shrink*4000))
 
 
+## debug ----
+
+temp = rets4 %>% 
+  group_by(yearm) %>% 
+  summarize(past_ndate = mean(past_ndate), nsignal = n())  
+
+ggplot(temp, aes(x=yearm)) + geom_point(aes(y=past_ndate)) +
+  geom_line(aes(y=nsignal/10))
 
 # Past Stat Sorts  --------------------------------------------------------
 
 # sort strats into portfolios based on past stats
 # this is easier to conceptualize but hard to map to YZ and multiple testing
 
-nport = 100
+nport = 20
 
 use_sign = 1
 
@@ -244,34 +253,55 @@ port_past_perf = rets4 %>%
   filter(!is.na(port)) %>% 
   group_by(port,yearm) %>% 
   summarize(
-    ret = mean(ret*sign_switch)
+    nstratok = sum(!is.na(ret))
+    , ret = mean(ret*sign_switch)
     , past_perf = mean(past_perf)
     , past_rbar_shrink = mean(past_rbar_shrink*sign_switch)
   )
 
 ## plot ----
-plotme = port_past_perf %>% 
-  filter(year(yearm) <= 1998, year(yearm) >= 1990) %>%
-  group_by(port) %>% 
-  summarize(
-    rbar = mean(ret), past_rbar_shrink = mean(past_rbar_shrink)
-    , vol = sd(ret), ndate = n(), tstat = rbar/vol*sqrt(ndate)
-    , se = vol/sqrt(ndate)
-  )
+
+plotfun = function(yearmin, yearmax, title){
+  p = port_past_perf %>% 
+    filter(yearm >= yearmin, yearm <= yearmax) %>% 
+    group_by(port) %>% 
+    summarize(
+      rbar = mean(ret)
+      , past_rbar_shrink = mean(past_rbar_shrink), sd_shrink = sd(past_rbar_shrink)
+      , vol = sd(ret), ndate = n(), tstat = rbar/vol*sqrt(ndate)
+      , se = vol/sqrt(ndate)
+    ) %>% 
+    ggplot(aes(x=port)) +
+    geom_point(
+      aes(y=rbar), color = 'black', size = 4
+    ) +
+    geom_errorbar(
+      aes(ymin = rbar - 2*se, ymax = rbar + 2*se)
+    ) +
+    geom_point(
+      aes(y=past_rbar_shrink), color = 'blue', size = 3
+    ) +
+    geom_errorbar(
+      aes(ymin = past_rbar_shrink - 2*sd_shrink, ymax = past_rbar_shrink + 2*sd_shrink)
+      , color = 'blue', size = 3
+    ) +    
+    geom_abline(
+      slope = 0
+    ) +
+    ggtitle(title)
+  
+  return = p
+} # end plotfun
+
+p1 = plotfun(1980,3000,'1980-2020')
+p2 = plotfun(1980,2005, '1980-2005')
+p3 = plotfun(1990,2000, '1990-2000')
+p4 = plotfun(1990,2000, '1990-2005')
+p5 = plotfun(1990,2020, '1990-2020')
+
+p6 = plotfun(1980,1990, '1980-1990')
 
 
-plotme %>% 
-  ggplot(aes(x=port)) +
-  geom_point(
-    aes(y=rbar), color = 'black', size = 4
-  ) +
-  geom_errorbar(
-    aes(ymin = rbar - 2*se, ymax = rbar + 2*se)
-  ) +
-  geom_point(
-    data = plotme, aes(y=past_rbar_shrink), color = 'blue', size = 3
-  ) +
-  geom_abline(
-    slope = 0
-  )
+library(gridExtra)
+grid.arrange(p1, p2, p3, p4, p5, p6, nrow = 3)
 
