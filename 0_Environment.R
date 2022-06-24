@@ -20,10 +20,8 @@ library(readr)
 library(lme4)
 library(stringr)
 library(ggplot2)
+library(gridExtra)
 
-## git test -- rebecca
-
-## git test -- andrew
 
 # SET PATHS ====
 
@@ -37,6 +35,7 @@ if (!file.exists('0_Environment.R')){
 dir.create('../Data/', showWarnings = F)
 dir.create('../Data/Intermediate/', showWarnings = F)
 dir.create('../Data/LongShortPortfolios/', showWarnings = F)
+dir.create('../Data/RollingWindow/', showWarnings = F)
 dir.create('../Results', showWarnings = F)
 
 

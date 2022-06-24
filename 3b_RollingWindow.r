@@ -12,25 +12,30 @@ library(zoo) # for yearmonth
 # Dataset Selection 
 #   searches for patterns
 #   use * to use everything
-dataset_list = c('yz_ew', 'yz_vw')
-# dataset_list = 
-nstrat = 1000 # number of strategies to sample (fix me) 
+dataset_list = c('yz_ew')
+# dataset_list = 'stratdat_ratio_ls_extremes10ew_ScaleVars'
+nstrat = 20*1000 # number of strategies to sample
 
 
-# Rolling Window Settings
+# Past Stat Settings
 nmonth_past = 240 # number of past months to use
-nmonth_min = 240 # with 240, real-time returns only start in 1994 or so
+nmonth_min = 120 # with 240, real-time returns only start in 1994 or so
 fixed_signals = T # T uses only signals in 1980
 trade_months = c(6) # which months we evaluate past stats and trade
 past_stat_lag_max = 12 # max number of months to use past stats for 
 min_nsignal_each_tradedate = 20 # drop tradedates if less than these many signals
+
+# Portfolio Settings
+nport = 100
+use_sign = 1
+
 
 
 # Rolling Window Function ----------------------------------------------- 
 
 RollingWindow = function(filename){
   
-  ## Load stuff ----
+  ## Load large sample ----
   rets = readRDS(filename)$ret
   
   # data.table is much faster here
@@ -101,20 +106,6 @@ RollingWindow = function(filename){
     
   } # for i
   
-  ## find shrinkage ----
-  
-  past_shrink = past_stat %>% 
-    group_by(tradedate) %>% 
-    filter(ndate >= nmonth_min) %>% 
-    summarize(
-      shrink = (mean(tstat^2))^(-1)
-      , muhat = mean(tstat)
-      , nstratok = n()
-      , mean_ndate = mean(ndate)
-    ) 
-  
-  
-  # Real-time returns -------------------------------------------------------
   
   ## Clean for data availability ----
   tempstat = past_stat
@@ -134,14 +125,27 @@ RollingWindow = function(filename){
       nsignal >= min_nsignal_each_tradedate
     )
   
-  past_stat2 = tempstat
+  past_stat_ok = tempstat
   
   
+  ## find shrinkage ----
   
-  ## Expand stats and join w/ rets ----
+  past_shrink = past_stat_ok %>% 
+    group_by(tradedate) %>% 
+    filter(ndate >= nmonth_min) %>% 
+    summarize(
+      shrink = (mean(tstat^2))^(-1)
+      , muhat = mean(tstat)
+      , nstratok = n()
+      , mean_ndate = mean(ndate)
+    ) 
+
+  
+  
+  ## Join w/ rets ----
   
   temprets = rets
-  tempstat = past_stat2
+  tempstat = past_stat_ok
   
   # set everything as data tables for speed
   temprets = setDT(temprets)
@@ -205,77 +209,114 @@ RollingWindow = function(filename){
   
   rets3 = temprets
   
-  return = rets3
+  ## Combine into Portfolios -----
+  port_past_perf = rets3 %>% 
+    group_by(yearm) %>% 
+    mutate(
+      sign_switch = sign(past_rbar)^use_sign
+      , past_perf = past_rbar_shrink*sign_switch
+      , port = ntile(past_perf, nport)
+    ) %>% 
+    filter(!is.na(port)) %>% 
+    group_by(port,yearm) %>% 
+    summarize(
+      nstratok = sum(!is.na(ret))
+      , ret = mean(ret*sign_switch)
+      , past_perf = mean(past_perf)
+      , past_rbar_shrink = mean(past_rbar_shrink*sign_switch)
+    )
+  
+  ## Write to disk ----
+  shortname = filename %>% 
+    str_remove('../Data/LongShortPortfolios/') %>% 
+    str_remove('.RData')
+  
+  rollports = list(
+    rets = port_past_perf
+    , past_stat_ok = past_stat_ok
+    , past_shrink = past_shrink
+    , nstrat = nstrat
+  )  
+  
+  saveRDS(rollports
+    , paste0('../Data/RollingWindow/', shortname, '.RData'))
+  
+  return = rollports
   
 } # End Rolling Window ------------------------------------------ #
 
 
 
-# Finalize Dataset List ---------------------------------------------------
+# Loop over Large Samples -------------------------------------------------
+
+## finalize dataset list ---------------------------------------------------
 
 datanames_full = character()
 for (name_curr in dataset_list){
-  datanames_full = rbind(
+  datanames_full = c(
     datanames_full
     , dir('../Data/LongShortPortfolios/', pattern = name_curr, full.names = T)
   )
 }
+datanames_full = unique(datanames_full)
+
+print('datanames_full is ')
+print(datanames_full)
+
+
+## actual loop --------------------------------------------------------------------
+
+for (filename in datanames_full){
+  shortname = filename %>% 
+    str_remove('../Data/LongShortPortfolios/') %>% 
+    str_remove('.RData')
+  
+  print(paste0('Rolling Window for ', shortname))
+  rolldat = RollingWindow(filename)
+}
 
 
 
-# test --------------------------------------------------------------------
+# Check out a saved rolldat -----------------------------------------------
 
-rets3 = RollingWindow(datanames_full[1])
+## load rolldat ----
 
+rolldat = readRDS('../Data/RollingWindow/yz_ew.RData')
 
+## time-series overview  ---
 
-# Plot time-series overview  -----------------------------------------------------------
-# at this point all returns are valid
-# improve meeee
-
-nstrat_ts = rets3 %>% 
-  distinct(signalname, tradedate, .keep_all = T) %>% 
-  group_by(tradedate) %>% 
-  summarize(
-    nstrat_valid = n(), shrink = mean(shrink), past_ndate = mean(past_ndate)
-  ) 
-
-ggplot(nstrat_ts, aes(x=tradedate)) + geom_point(aes(y=nstrat_valid)) +
-  geom_line(aes(y=shrink*4000)) +
-  geom_line(aes(y=past_ndate*10))
+rolldat$past_shrink %>% 
+  select(-muhat) %>% 
+  pivot_longer(-c('tradedate')) %>% 
+  ggplot(aes(x=tradedate)) + 
+  geom_point(aes(y=value)) +
+  facet_wrap(~name, scale = 'free_y', nrow = 3)
 
 
+## Vol over time ----
 
-
-# Past Stat Sorts  --------------------------------------------------------
-
-# sort strats into portfolios based on past stats
-# this is easier to conceptualize but hard to map to YZ and multiple testing
-
-nport = 20
-
-use_sign = 1
-
-port_past_perf = rets3 %>% 
-  group_by(yearm) %>% 
+plotme = rolldat$rets %>% 
+  group_by(port) %>% 
+  arrange(port, yearm) %>% 
   mutate(
-    sign_switch = sign(past_rbar)^use_sign
-    , past_perf = past_rbar_shrink*sign_switch
-    , port = ntile(past_perf, nport)
-  ) %>% 
-  filter(!is.na(port)) %>% 
-  group_by(port,yearm) %>% 
-  summarize(
-    nstratok = sum(!is.na(ret))
-    , ret = mean(ret*sign_switch)
-    , past_perf = mean(past_perf)
-    , past_rbar_shrink = mean(past_rbar_shrink*sign_switch)
-  )
+    vol = rollmean(ret, k=40, fill = NA, align = 'right')
+    , port = factor(port)
+  ) %>%
+  filter(!is.na(vol))
 
-## plot ----
+ggplot(plotme, aes(x=yearm, group  = port)) +
+  geom_line(aes(y=vol, color = port), size = 1) +
+  scale_color_grey()
 
-plotfun = function(yearmin, yearmax, title){
-  p = port_past_perf %>% 
+
+## X-sec of ports by subsamp ----
+
+plotfun = function(yearmin, yearmax){
+  
+  yearmin = max(min(rolldat$rets$yearm), yearmin)
+  yearmax = min(max(rolldat$rets$yearm), yearmax)
+  
+  p = rolldat$rets %>% 
     filter(yearm >= yearmin, yearm <= yearmax) %>% 
     group_by(port) %>% 
     summarize(
@@ -301,20 +342,15 @@ plotfun = function(yearmin, yearmax, title){
     geom_abline(
       slope = 0
     ) +
-    ggtitle(title)
+    ggtitle(paste0(yearmin, '-', yearmax))
   
   return = p
 } # end plotfun
 
-p1 = plotfun(1980,3000,'1980-2020')
-p2 = plotfun(1980,2005, '1980-2005')
-p3 = plotfun(1990,2000, '1990-2000')
-p4 = plotfun(1990,2000, '1990-2005')
-p5 = plotfun(1990,2020, '1990-2020')
-
-p6 = plotfun(1980,1990, '1980-1990')
+p1 = plotfun(1900,2030)
+p2 = plotfun(1900,2005)
+p3 = plotfun(2005,2030)
 
 
-library(gridExtra)
-grid.arrange(p1, p2, p3, p4, p5, p6, nrow = 3)
+grid.arrange(p1, p2, p3, nrow = 3)
 
