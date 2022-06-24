@@ -28,10 +28,10 @@ sweight        = c('ew', 'vw')
 trim           = NULL  # or some quantile e.g. .005
 
 # variable choices
-scaling_variables <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
-                       "ceq", "seq", "icapt", "sale", "cogs", "xsga", "me", "emp")
+#scaling_variables <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
+#                       "ceq", "seq", "icapt", "sale", "cogs", "xsga", "me", "emp")
 
-#scaling_variables = NULL
+scaling_variables = NULL
 
 # accounting_variables <- c("acchg", "aco", "acox", "act", "am", "ao", "aoloch", "aox", "ap", "apalch", 
 #                           "aqc", "aqi", "aqs", "at", "bast", "caps", "capx", "capxv", "ceq", "ceql", "ceqt", "ch", "che", "chech",
