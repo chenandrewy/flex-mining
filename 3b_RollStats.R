@@ -12,12 +12,16 @@ source('0_functions.R')
 # Dataset Selection 
 #   searches for patterns
 #   use * to use everything
-dataset_list = c('10ew')
+
+dataset_list = '*.RData'
+# dataset_list = c('10ew')
 # dataset_list = 'stratdat_ratio_ls_extremes10ew_ScaleVars'
+
+
 nstrat = 20*1000 # number of strategies to sample if impatient
 
 # past stat  settings
-nmonth_past = 240 # number of past months to use
+nmonth_past = 120 # number of past months to use
 trade_months = c(6) # which months we evaluate past stats and trade
 
 

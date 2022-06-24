@@ -122,8 +122,9 @@ MakeRollPorts = function(rollstatok, rollshrink){
 
 
 ## user spec ----
-# specname = 'stratdat_ratio_ls_extremes10ew_ScaleVars'
-specname = 'stratdat_ratio_ls_extremes5ew_ScaleVars'
+specname = 'stratdat_ratio_ls_extremes10ew_ScaleVars'
+# specname = 'stratdat_ratio_ls_extremes5ew_ScaleVars'
+# specname = 'yz_vw'
 
 # data avail settings
 nmonth_min = 120 # with 240, real-time returns only start in 1994 or so
@@ -147,8 +148,7 @@ setDT(famdat)
 # read in data on rolling stats and filter
 rollstat = readRDS(paste0(
   '../Data/RollingStats/', specname, '.RData'
-))$past_stat %>% 
-  select(-nsignal)
+))$past_stat 
 
 # remove signalname-tradedate if not enough months of rets
 rollstatok = rollstat %>% filter(ndate >= nmonth_min) 
@@ -156,7 +156,7 @@ rollstatok = rollstat %>% filter(ndate >= nmonth_min)
 # then remove tradedates if not enough signalnames
 rollstatok = rollstatok %>% 
   left_join(
-    rollstat %>% group_by(tradedate) %>% summarize(nsignal = n())
+    rollstatok %>% group_by(tradedate) %>% summarize(nsignal = n())
     , by = 'tradedate'
   ) %>% 
   filter(
@@ -168,7 +168,7 @@ rollshrink = rollstatok %>%
   group_by(tradedate) %>% 
   filter(ndate >= nmonth_min) %>% 
   summarize(
-    shrink = (mean(tstat^2))^(-1)
+    shrink = min((mean(tstat^2))^(-1), 1.0)
     , muhat = mean(tstat)
     , nstratok = n()
     , mean_ndate = mean(ndate)
@@ -202,7 +202,7 @@ plotme = rollport %>%
   group_by(port) %>% 
   arrange(port, yearm) %>% 
   mutate(
-    vol = rollmean(ret, k=40, fill = NA, align = 'right')
+    vol = rollmean(ret, k=12*5, fill = NA, align = 'right')
     , port = factor(port)
   ) %>%
   filter(!is.na(vol))
