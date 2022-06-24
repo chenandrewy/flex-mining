@@ -19,6 +19,7 @@ useData = list(
   , portnum = 10
   , weights = 'ew'
   , longshort_form = 'ls_extremes'
+  , scaleVar = 'ScaleVars' # NoScaleVars
 )
 
 
@@ -33,66 +34,42 @@ if (useData$dataset == 'all_data') {
            useData$signal_form, '_', 
            useData$longshort_form,
            useData$portnum, 
-           useData$weights, '.RData')
+           useData$weights, '_',
+           useData$scaleVar, '.RData')
   )
-  
-  rets = tmp$ret %>% 
-    transmute(signalname, 
-              date,
-              ret)
   
   plotString = paste0(useData$dataset, '_',  # For saving plots
            useData$signal_form, '_', 
            useData$longshort_form,
            useData$portnum, 
-           useData$weights)
+           useData$weights, '_',
+           useData$scaleVar)
   
   # yz_data
 } else if (useData$dataset == 'yz_data') {
   
-  # number of strategies to sample
-  nstrat = 1000
-  
-  temp = read_sas('../Data Yan-Zheng/Yan_Zheng_RFS_Data.sas7bdat')
-  
-  # clean, select ew or vw
-  temp1 = temp %>%
-    mutate(
-      signalname = paste(transformation, fsvariable, sep = '.')
-    ) %>%
-    transmute(
-      signalname, date = DATE, ret = 100*ddiff_ew
-    )
-  
-  # sample strats (aka signals)
-  stratlist = temp1$signalname %>% unique()
-  stratselect = tibble(
-    signalname = sample(stratlist, nstrat, replace = F)
-    , strati = 1:nstrat
+  tmp = readRDS(
+    paste0('../Data/LongShortPortfolios/yz_',
+           useData$weights, '.RData')
   )
   
   
-  rets = temp1 %>%
-    inner_join(
-      stratselect, by = 'signalname'
-    ) %>%
-    select(signalname, date, ret)
 
   plotString = paste0(useData$dataset, '_',
-                      useData$signal_form, '_', 
-                      useData$longshort_form,
-                      useData$portnum, 
                       useData$weights)
   
-  # clean up
-  rm(list = ls(pattern = 'temp'))
-  gc()
-  
+
 } else {
   
   message(paste('dataset must be one of yz_data or all_data'))
   
 }
+
+# Extract returns object from list
+rets = tmp$ret %>% 
+  transmute(signalname, 
+            date,
+            ret)
 
 
 
