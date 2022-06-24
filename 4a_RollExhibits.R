@@ -5,6 +5,26 @@ source('0_Environment.R')
 source('0_functions.R')
 
 
+# User --------------------------------------------------------------------
+
+specname = 'stratdat_ratio_ls_extremes10ew_ScaleVars'
+# specname = 'stratdat_ratio_ls_extremes5ew_ScaleVars'
+# specname = 'yz_ew'
+
+# data avail settings
+set.avail = list(
+  nmonth_past = 240 # size of windows in rolling windows
+  , nmonth_min = 120 # drop signals if nmonths < this
+  , fixed_signals = F # T uses only signals in 1980 (this addsa lot of time)
+  , past_stat_lag_max = 12 # max number of months to use past stats for 
+  , min_nsignal_each_tradedate = 1000 # drop tradedates if less than these many signals
+)
+
+# direct portfolio settings
+nport = 10
+use_sign = 1
+
+
 # Portfolio Function ------------------------------------------------------
 
 
@@ -26,7 +46,8 @@ MakeRollPorts = function(rollstatok, rollshrink){
   setkey(famdat, signalname, yearm)
   
   # use only signals in 1980 if desired
-  if (fixed_signals){
+  #  this is annoying slow if used
+  if (set.avail$fixed_signals){
     signalselect2 = famdat %>% 
       filter(!is.na(ret), year(yearm) == 1980) %>% 
       distinct(signalname) %>% 
@@ -43,7 +64,7 @@ MakeRollPorts = function(rollstatok, rollshrink){
   
   # allow tempstat to be used for one year
   tempstat2 = tempstat
-  for (i in 1:(past_stat_lag_max-1)){
+  for (i in 1:(set.avail$past_stat_lag_max-1)){
     tempstat2 = rbind(
       tempstat2
       , tempstat %>% mutate(yearm = yearm + i/12)
@@ -69,7 +90,7 @@ MakeRollPorts = function(rollstatok, rollshrink){
       tradedate = tradedate
       , past_tstat = tstat
       , past_rbar  = rbar
-      , past_ndate = ndate
+      , past_nmonth = nmonth
     )
   ]
   
@@ -120,23 +141,6 @@ MakeRollPorts = function(rollstatok, rollshrink){
 
 # Prep Data -------------------------------------------------------------------------
 
-
-## user spec ----
-specname = 'stratdat_ratio_ls_extremes10ew_ScaleVars'
-# specname = 'stratdat_ratio_ls_extremes5ew_ScaleVars'
-# specname = 'yz_vw'
-
-# data avail settings
-nmonth_min = 120 # with 240, real-time returns only start in 1994 or so
-fixed_signals = F # T uses only signals in 1980 (this addsa lot of time)
-past_stat_lag_max = 12 # max number of months to use past stats for 
-min_nsignal_each_tradedate = 500 # drop tradedates if less than these many signals
-
-
-# direct portfolio settings
-nport = 40
-use_sign = 1
-
 ## read in stuff ----
 # read in data on the strategy "family"
 famdat = readRDS(paste0(
@@ -148,10 +152,11 @@ setDT(famdat)
 # read in data on rolling stats and filter
 rollstat = readRDS(paste0(
   '../Data/RollingStats/', specname, '.RData'
-))$past_stat 
+))$past_stat %>% 
+  filter(nmonth_past == set.avail$nmonth_past)
 
 # remove signalname-tradedate if not enough months of rets
-rollstatok = rollstat %>% filter(ndate >= nmonth_min) 
+rollstatok = rollstat %>% filter(nmonth >= set.avail$nmonth_min) 
 
 # then remove tradedates if not enough signalnames
 rollstatok = rollstatok %>% 
@@ -160,18 +165,17 @@ rollstatok = rollstatok %>%
     , by = 'tradedate'
   ) %>% 
   filter(
-    nsignal >= min_nsignal_each_tradedate
+    nsignal >= set.avail$min_nsignal_each_tradedate
   )
 
 ## find shrinkage ----
 rollshrink = rollstatok %>% 
   group_by(tradedate) %>% 
-  filter(ndate >= nmonth_min) %>% 
   summarize(
     shrink = min((mean(tstat^2))^(-1), 1.0)
     , muhat = mean(tstat)
     , nstratok = n()
-    , mean_ndate = mean(ndate)
+    , mean_nmonth = mean(nmonth)
   ) 
 setDT(rollshrink)
 
@@ -241,8 +245,8 @@ plotfun = function(yearmin, yearmax){
     group_by(port) %>% 
     summarize(
       rbar = mean(ret)
-      , vol = sd(ret), ndate = n(), tstat = rbar/vol*sqrt(ndate)
-      , se = vol/sqrt(ndate)
+      , vol = sd(ret), nmonth = n(), tstat = rbar/vol*sqrt(nmonth)
+      , se = vol/sqrt(nmonth)
     )
   
   p = samprealtime %>% 
@@ -258,7 +262,7 @@ plotfun = function(yearmin, yearmax){
     geom_line(
       data = sampshrink
       , aes(y=rbar_shrink, group = shrink_time, color = shrink_time)
-      , size = 1.5
+      , size = 1.1
     )  +
     geom_abline(
       slope = 0
@@ -271,7 +275,8 @@ plotfun = function(yearmin, yearmax){
 p1 = plotfun(1900,2030)
 p2 = plotfun(1900,2005)
 p3 = plotfun(2005,2030)
+p4 = plotfun(1990,2000)
 
 
-grid.arrange(p1, p2, p3, nrow = 2)
+grid.arrange(p1, p2, p3, p4, nrow = 2)
 

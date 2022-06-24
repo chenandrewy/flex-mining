@@ -14,14 +14,14 @@ source('0_functions.R')
 #   use * to use everything
 
 dataset_list = '*.RData'
-# dataset_list = c('10ew')
+# dataset_list = c('ratio_ls')
 # dataset_list = 'stratdat_ratio_ls_extremes10ew_ScaleVars'
 
 
 nstrat = 20*1000 # number of strategies to sample if impatient
 
 # past stat  settings
-nmonth_past = 120 # number of past months to use
+nmonth_list = c(60,120,240) # list of number of past months to use
 trade_months = c(6) # which months we evaluate past stats and trade
 
 
@@ -71,18 +71,31 @@ RollingStats = function(filename){
     
     currdate = datelist[i]
     
+    # feedback
     print(currdate)
     
-    samp = temprets %>% filter(yearm <= currdate, yearm >= currdate - nmonth_past/12 )
-
-    sampsum = samp %>% 
-      group_by(signalname) %>% 
-      filter(!is.na(ret)) %>% 
-      summarize(
-        rbar = mean(ret), vol = sd(ret), ndate = sum(!is.na(ret)), tstat = rbar/vol*sqrt(ndate)
-      ) 
+    samp = temprets %>% filter(yearm <= currdate, yearm >= currdate - max(nmonth_list)/12 )
     
-    sampsum$tradedate = currdate # yearm when this info can be used to trade
+    sampsum = tibble()
+    for (nmonth_past in nmonth_list){    
+      temp = samp %>% 
+        filter(yearm >= currdate - nmonth_past/12) %>% 
+        group_by(signalname) %>% 
+        filter(!is.na(ret)) %>% 
+        summarize(
+          rbar = mean(ret), vol = sd(ret), nmonth = sum(!is.na(ret)), tstat = rbar/vol*sqrt(nmonth)
+        ) %>% 
+        mutate(nmonth_past = nmonth_past) 
+      
+      sampsum = rbind(sampsum, temp)
+    } # end for nmonth_past
+    
+    # clean up
+    sampsum = sampsum %>% 
+      mutate(tradedate = currdate) %>% 
+      select(
+        signalname, tradedate, nmonth_past, everything()
+      )
     
     past_stat = rbind(past_stat, sampsum)
     
@@ -138,6 +151,8 @@ for (filename in datanames_full){
   
   print(paste0('Rolling Window for ', shortname))
   roll_stat = RollingStats(filename)
+  
+  gc() # get some weird elapsed time limit errors, maybe this will help?
 }
 
 
