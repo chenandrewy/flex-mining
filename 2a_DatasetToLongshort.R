@@ -215,6 +215,7 @@ for (ii in 1:nrow(dataCombinations)) {
     , sweight = sweight
     , data_avail_lag = data_avail_lag
     , scaling_variables = scaling_variables
+    , usedData = 'allData'
   )
   
   # save
