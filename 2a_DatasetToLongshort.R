@@ -16,8 +16,9 @@ data_avail_lag = 6 # months
 toostale_months = 12 
 
 # signal choices
-signal_form = c('ratio')
-signalnum   = 5000 # number of signals to sample or TRUE for all (need at least 200, it seems)
+signal_form = c('ratio', 'ratioChange', 'ratioChangePct',
+                'levelChangePct', 'levelChangeScaled', 'levelsChangePct_Change') # 'noise'
+signalnum   = 5 # number of signals to sample or TRUE for all (need at least 200, it seems)
 seednumber  = 1235 # seed sampling
 
 # portfolio choices
@@ -28,7 +29,7 @@ sweight        = c('ew', 'vw')
 trim           = NULL  # or some quantile e.g. .005
 
 # variable choices
-#scaling_variables <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
+# scaling_variables <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
 #                       "ceq", "seq", "icapt", "sale", "cogs", "xsga", "me", "emp")
 
 scaling_variables = NULL
@@ -57,7 +58,8 @@ scaling_variables = NULL
 dataCombinations = expand.grid(signal_form = signal_form,
                                longshort_form = longshort_form, 
                                portnum = portnum, 
-                               sweight = sweight)
+                               sweight = sweight,
+                               stringsAsFactors = FALSE)
 
 # DATA PREP (about 2 minutes) ====
 
@@ -135,10 +137,15 @@ for (ii in 1:nrow(dataCombinations)) {
   portnum = dataCombinations$portnum[ii]
   
   ## draw sample of variable combinations ====
-  xused_list = strategy_list(xvars = xnames, 
-                             signalnum = signalnum,
-                             scale_vars = scaling_variables,
-                             rs = seednumber)
+  
+  if (signal_form == 'levelChangePct') { # If only one variable needed to construct signal
+    xused_list = tibble(v1 = xnames, v2 = NA_real_)
+  } else {
+    xused_list = strategy_list(xvars = xnames, 
+                               signalnum = signalnum,
+                               scale_vars = scaling_variables,
+                               rs = seednumber)
+  }
   
   # initialize retmat data
   ret_dates = alldat %>%  pull(ret_date) %>% unique() %>% sort()
@@ -178,6 +185,7 @@ for (ii in 1:nrow(dataCombinations)) {
     
     print(paste0(
       'signali = ', signali, ' of ', nrow(xused_list)
+      , ' | signalform = ', signal_form
       , ' | v1 = ', xused_list$v1[signali]
       , ' | v2 = ', xused_list$v2[signali]
       , ' | Var(tstat) = ', round(var_tstat,2)
@@ -199,7 +207,9 @@ for (ii in 1:nrow(dataCombinations)) {
     left_join(
       xused_list %>% 
         mutate(signali = row_number() %>% as.character(),
-               signalname = paste0(signal_form, '_', longshort_form, '_', v1, '_', v2))
+               signalname = ifelse(is.na(v2),
+                                   paste0(signal_form, '_', longshort_form, '_', v1),
+                                   paste0(signal_form, '_', longshort_form, '_', v1, '_', v2)))
     ) %>% 
     select(-signali, -v1, -v2)
   

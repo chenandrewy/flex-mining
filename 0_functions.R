@@ -40,13 +40,16 @@ strategy_list = function(xvars, signalnum, scale_vars = NULL, rs) {
 # function for turning xused into a signal
 dataset_to_signal = function(form, dt, v1, v2){
   
-  # make matrix from xused
-  #  xusedcurr = smalldat %>% select(xusednamecurr) %>% as.matrix()
+  stopifnot("form must be one of ratio, ratioChange, ratioChangePct,
+            levelChangePct, levelChangeScaled, levelsChangePct_Change, noise" = 
+              form %in% c('ratio', 'ratioChange', 'ratioChangePct',
+                          'levelChangePct', 'levelChangeScaled', 'levelsChangePct_Change', 'noise'))
   
-  if (form == 'ratio'){ 
+  if (form == 'ratio'){
+    
     # ratio (for accounting)
-    return = dt[, v1]/dt[, v2] #xusedcurr[,1]/xusedcurr[,2]
-  } else if (form == 'ratiodiff') {
+    return = dt[, v1]/dt[, v2] 
+  } else if (form == 'ratioChange') {
     
     dt[,'tmp'] = dt[, v1]/dt[, v2]
     return(
@@ -57,10 +60,55 @@ dataset_to_signal = function(form, dt, v1, v2){
         ungroup() %>% 
         pull(tmp2)
     )
+  } else if (form == 'ratioChangePct') {
+    
+    dt[,'tmp'] = dt[, v1]/dt[, v2]
+    return(
+      dt %>% 
+        arrange(permno, ret_yearm) %>% 
+        group_by(permno) %>%
+        mutate(tmp2 = (tmp - lag(tmp, 12))/lag(tmp, 12)) %>% 
+        ungroup() %>% 
+        pull(100*tmp2)
+    )
+  } else if (form == 'levelChangePct') {
+    
+    dt[,'tmp'] = dt[, v1]
+    return(
+      dt %>% 
+        arrange(permno, ret_yearm) %>% 
+        group_by(permno) %>%
+        mutate(tmp2 = (tmp - lag(tmp, 12))/lag(tmp, 12)) %>% 
+        ungroup() %>% 
+        pull(100*tmp2)
+    )
+  } else if (form == 'levelChangeScaled') {
+    dt[,'tmp'] = dt[, v1]
+    df[,'tmp2'] = df[, v2]
+    return(
+      dt %>% 
+        arrange(permno, ret_yearm) %>% 
+        group_by(permno) %>%
+        mutate(tmp3 = (tmp - lag(tmp, 12))/lag(tmp2, 12)) %>% 
+        ungroup() %>% 
+        pull(tmp3)
+    )
+  } else if (form == 'levelsChangePct_Change') {
+    dt[,'tmp'] = dt[, v1]
+    df[,'tmp2'] = df[, v2]
+    return(
+      dt %>% 
+        arrange(permno, ret_yearm) %>% 
+        group_by(permno) %>%
+        mutate(tmp3 = (tmp - lag(tmp, 12))/lag(tmp, 12),
+               tmp4 = (tmp2 - lag(tmp2, 12))/lag(tmp2, 12)) %>% 
+        ungroup() %>% 
+        mutate(tmp5 = tmp3 - tmp4) %>% 
+      pull(100*tmp4)
+    )
   } else if (form == 'noise'){ 
     # pure noise
     return = runif(dim(xusedcurr)[1])
-    
   } # end if form
   
 } # end dataset_to_signal
@@ -85,7 +133,7 @@ signal_to_longshort = function(dt, form, portnum, sweight, trim = NULL){
       dt = dt %>% 
         filter(signal >= quantile(dt$signal, trim, na.rm = TRUE),
                signal <= quantile(dt$signal, 1-trim, na.rm = TRUE)
-               )
+        )
     }
     
     
@@ -140,7 +188,7 @@ calculate_alpha_shrinkage = function(dt, train_start, train_end, test_start, tes
   sampsum = stratsum %>% 
     group_by(samp) %>% 
     summarize(
-      shrinkage = var(tstat, na.rm = TRUE)^-1
+      shrinkage = min((mean(tstat^2, na.rm = TRUE))^(-1), 1.0) # var(tstat, na.rm = TRUE)^-1
     )
   
   # shrink strat summary
@@ -156,7 +204,7 @@ calculate_alpha_shrinkage = function(dt, train_start, train_end, test_start, tes
   stratSumAll = stratshrink %>% 
     mutate(stattype = 'stein_ez') %>% 
     bind_rows(stratsum %>% 
-                  mutate(stattype = 'classical')
+                mutate(stattype = 'classical')
     )
   
   return(stratSumAll)
