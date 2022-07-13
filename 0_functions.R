@@ -47,8 +47,9 @@ dataset_to_signal = function(form, dt, v1, v2){
   
   if (form == 'ratio'){
     
-    # ratio (for accounting)
-    return = dt[, v1]/dt[, v2] 
+    dt[,'tmp'] = dt[, v1]/dt[, v2]
+    return(dt %>% pull(tmp))
+    
   } else if (form == 'ratioChange') {
     
     dt[,'tmp'] = dt[, v1]/dt[, v2]
@@ -60,6 +61,7 @@ dataset_to_signal = function(form, dt, v1, v2){
         ungroup() %>% 
         pull(tmp2)
     )
+    
   } else if (form == 'ratioChangePct') {
     
     dt[,'tmp'] = dt[, v1]/dt[, v2]
@@ -67,10 +69,11 @@ dataset_to_signal = function(form, dt, v1, v2){
       dt %>% 
         arrange(permno, ret_yearm) %>% 
         group_by(permno) %>%
-        mutate(tmp2 = (tmp - lag(tmp, 12))/lag(tmp, 12)) %>% 
+        mutate(tmp2 = 100*(tmp - lag(tmp, 12))/lag(tmp, 12)) %>% 
         ungroup() %>% 
-        pull(100*tmp2)
+        pull(tmp2)
     )
+    
   } else if (form == 'levelChangePct') {
     
     dt[,'tmp'] = dt[, v1]
@@ -78,10 +81,11 @@ dataset_to_signal = function(form, dt, v1, v2){
       dt %>% 
         arrange(permno, ret_yearm) %>% 
         group_by(permno) %>%
-        mutate(tmp2 = (tmp - lag(tmp, 12))/lag(tmp, 12)) %>% 
+        mutate(tmp2 = 100*(tmp - lag(tmp, 12))/lag(tmp, 12)) %>% 
         ungroup() %>% 
-        pull(100*tmp2)
+        pull(tmp2)
     )
+    
   } else if (form == 'levelChangeScaled') {
     dt[,'tmp'] = dt[, v1]
     df[,'tmp2'] = df[, v2]
@@ -93,6 +97,7 @@ dataset_to_signal = function(form, dt, v1, v2){
         ungroup() %>% 
         pull(tmp3)
     )
+    
   } else if (form == 'levelsChangePct_Change') {
     dt[,'tmp'] = dt[, v1]
     df[,'tmp2'] = df[, v2]
@@ -100,12 +105,13 @@ dataset_to_signal = function(form, dt, v1, v2){
       dt %>% 
         arrange(permno, ret_yearm) %>% 
         group_by(permno) %>%
-        mutate(tmp3 = (tmp - lag(tmp, 12))/lag(tmp, 12),
-               tmp4 = (tmp2 - lag(tmp2, 12))/lag(tmp2, 12)) %>% 
+        mutate(tmp3 = 100*(tmp - lag(tmp, 12))/lag(tmp, 12),
+               tmp4 = 100*(tmp2 - lag(tmp2, 12))/lag(tmp2, 12)) %>% 
         ungroup() %>% 
         mutate(tmp5 = tmp3 - tmp4) %>% 
-      pull(100*tmp4)
+      pull(tmp5)
     )
+    
   } else if (form == 'noise'){ 
     # pure noise
     return = runif(dim(xusedcurr)[1])
