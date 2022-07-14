@@ -1,4 +1,6 @@
 # Takes in a dataset and constructs a sample of long-short strategies
+# Parallelized without much feedback (see 2a_DatasetToLongshort.R for the non-parallelized
+# version with more verbose feedback)
 
 # ASSUMPTIONS ON DATASET MADE FOR SPEED
 #   1) everything except for returns is lagged
@@ -7,7 +9,8 @@
 # ENVIRONMENT ====
 source('0_Environment.R')
 source('0_functions.R')
-
+library(doParallel)
+no_cores <- round(.6*detectCores())  # Adjust number of cores used as you see fit
 
 # Settings ----------------------------------------------------------------
 
@@ -18,14 +21,14 @@ toostale_months = 12
 # signal choices
 signal_form = c('ratio', 'ratioChange', 'ratioChangePct',
                 'levelChangePct', 'levelChangeScaled', 'levelsChangePct_Change') # 'noise'
-signalnum   = 5 # number of signals to sample or TRUE for all (need at least 200, it seems)
+signalnum   = TRUE # number of signals to sample or TRUE for all
 seednumber  = 1235 # seed sampling
 
 # portfolio choices
 reup_months    = c(6) # stocks are traded using new data at end of these months
 longshort_form = 'ls_extremes'
-portnum        = c(5, 10)
-sweight        = c('ew', 'vw') 
+portnum        = c(10) # '5'
+sweight        = c('ew') # 'vw'
 trim           = NULL  # or some quantile e.g. .005
 
 # variable choices
@@ -33,27 +36,6 @@ trim           = NULL  # or some quantile e.g. .005
 #                       "ceq", "seq", "icapt", "sale", "cogs", "xsga", "me", "emp")
 
 scaling_variables = NULL
-
-# accounting_variables <- c("acchg", "aco", "acox", "act", "am", "ao", "aoloch", "aox", "ap", "apalch", 
-#                           "aqc", "aqi", "aqs", "at", "bast", "caps", "capx", "capxv", "ceq", "ceql", "ceqt", "ch", "che", "chech",
-#                           "cld2", "cld3", "cld4", "cld5", "cogs", "cstk", "cstkcv", "cstke", "dc", "dclo", "dcom", "dcpstk", 
-#                           "dcvsr", "dcvsub", "dcvt", "dd", "dd1", "dd2", "dd3", "dd4", "dd5", "dfs", "dfxa", "diladj", "dilavx",
-#                           "dlc", "dlcch", "dltis", "dlto", "dltp", "dltr", "dltt", "dm", "dn", "do", "donr", "dp", "dpact", "dpc",
-#                           "dpvieb", "dpvio", "dpvir", "drc", "ds", "dudd", "dv", "dvc", "dvp", "dvpa", "dvpibb", "dvt", "dxd2", "dxd3",
-#                           "dxd4", "dxd5", "ebit", "ebitda", "esopct", "esopdlt", "esopt", "esub", "esubc", "exre", "fatb", "fatc", "fate",
-#                           "fatl", "fatn", "fato", "fatp", "fiao", "fincf", "fopo", "fopox", "fopt", "fsrco", "fsrct", "fuseo", "fuset", "gdwl",
-#                           "gp", "ib", "ibadj", "ibc", "ibcom", "icapt", "idit", "intan", "intc", "intpn", "invch", "invfg", "invo", "invrm", 
-#                           "invt", "invwip", "itcb", "itci", "ivaco", "ivaeq", "ivao", "ivch", "ivncf", "ivst", "ivstch", "lco", "lcox", 
-#                           "lcoxdr", "lct", "lifr", "lo", "lt", "mib", "mii", "mrc1", "mrc2", "mrc3", "mrc4", "mrc5", "mrct", "msa", "ni",
-#                           "niadj", "nieci", "nopi", "nopio", "np", "oancf", "ob", "oiadp", "pi", "pidom", "pifo", "ppegt", "ppenb",
-#                           "ppenc", "ppenli", "ppenme", "ppennr", "ppeno", "ppent", "ppevbb", "ppeveb", "ppevo", "ppevr", "prstkc",
-#                           "pstk", "pstkc", "pstkl", "pstkn", "pstkr", "pstkrv", "rdip", "re", "rea", "reajo", "recch", "recco", "recd", "rect",
-#                           "recta", "rectr", "reuna", "sale", "seq", "siv", "spi", "sppe", "sppiv", "sstk", "tlcf", "tstk", "tstkc", "tstkp", 
-#                           "txach", "txbco", "txc", "txdb", "txdba", "txdbca", "txdbcl", "txdc", "txdfed", "txdfo", "txdi", "txditc", 
-#                           "txds", "txfed", "txfo", "txndb", "txndba", "txndbl", "txndbr", "txo", "txp", "txpd", "txr", "txs", "txt", "txw",
-#                           "wcap", "wcapc", "wcapch", "xacc", "xad", "xdepl", "xi", "xido", "xidoc", "xint", "xopr", "xpp", "xpr", "xrd", "xrent",
-#                           "xsga")
-
 
 dataCombinations = expand.grid(signal_form = signal_form,
                                longshort_form = longshort_form, 
@@ -118,12 +100,15 @@ alldat[
 # fill NA with most recent x by permno
 #   this takes the most time 
 alldat[ , (xnames) := nafill(.SD, 'locf'), by = .(permno), .SDcols = xnames]
+# Save to fst such that parallelization works without having to load big file onto each worker
+fst::write_fst(alldat, '../Data/tmpAllDat.fst')
 
+ret_dates = alldat %>%  pull(ret_date) %>% unique() %>% sort() # used later
 
 toc = Sys.time()
 toc - tic
 
-rm(comp0,comp1,crsp)
+rm(comp0,comp1,crsp, alldat)
 gc()
 
 # SAMPLE STRATEGIES ====
@@ -147,76 +132,64 @@ for (ii in 1:nrow(dataCombinations)) {
                                rs = seednumber)
   }
   
-  # initialize retmat data
-  ret_dates = alldat %>%  pull(ret_date) %>% unique() %>% sort()
-  retmat = matrix(nrow = length(ret_dates), ncol = nrow(xused_list))
-  
+
   ## loop over signals  ====
+  cl <- makePSOCKcluster(no_cores)
+  registerDoParallel(cl)
   
-  for (signali in 1:nrow(xused_list)){
-    
-    ### make one portdat ====
-    # # select xused for making signal 
-    # xusednamecurr = xused_list[signali, ] %>% as.matrix %>% as.character()
-    
-    # import small dataset with return, me, xusedcurr, and add signal
-    smalldat = alldat %>% select(permno, ret_yearm, ret, me_monthly, 
-                                 xused_list$v1[signali], xused_list$v2[signali]) %>% 
-      as_tibble()
-    
-    smalldat$signal = dataset_to_signal(form = signal_form, 
-                                        dt = smalldat, 
-                                        v1 =  xused_list$v1[signali],
-                                        v2 = xused_list$v2[signali]) # makes a signal
-    
-    # assign to portfolios
-    portdat = signal_to_longshort(dt = smalldat, 
-                                  form = longshort_form, 
-                                  portnum = portnum, 
-                                  sweight = sweight,
-                                  trim = trim)
-    
-    retmat[, signali] = portdat$ret_ls
-    
-    # feedback ===
-    
-    tstat = colMeans(retmat, na.rm=TRUE)/apply(retmat,2,sd,na.rm=T)*sqrt(apply(!is.na(retmat), 2, sum))
-    var_tstat = var(tstat, na.rm =T)
-    
-    print(paste0(
-      'signali = ', signali, ' of ', nrow(xused_list)
-      , ' | signalform = ', signal_form
-      , ' | v1 = ', xused_list$v1[signali]
-      , ' | v2 = ', xused_list$v2[signali]
-      , ' | Var(tstat) = ', round(var_tstat,2)
-    ))
-    
-    # hist(tstat)
-    
-    ## end make one portdat ====
-    
-  } # end for signali
-  
-  
-  # CLEAN UP AND SAVE ====
-  ls_dat = cbind(ret_dates, as.data.frame(retmat)) %>% 
-    rename(date = ret_dates) %>% 
-    pivot_longer(
-      cols = -date, names_to = 'signali', names_prefix = 'V', values_to = 'ret'
-    ) %>% 
-    left_join(
-      xused_list %>% 
-        mutate(signali = row_number() %>% as.character(),
-               signalname = ifelse(is.na(v2),
-                                   paste0(signal_form, '_', longshort_form, '_', v1),
-                                   paste0(signal_form, '_', longshort_form, '_', v1, '_', v2)))
-    ) %>% 
-    select(-signali, -v1, -v2)
-  
+  ls_dat_all = foreach(signali=1:nrow(xused_list), 
+                       .combine = rbind,
+                       .packages = c('tidyverse')) %dopar% {
+
+                         # initialize retmat data
+                         retmat = matrix(nrow = length(ret_dates), ncol = 1)
+                         
+                         ### make one portdat ====
+                         
+                         # import small dataset with return, me, xusedcurr, and add signal
+                         smalldat = fst::read_fst('../Data/tmpAllDat.fst', 
+                                                  columns = c('permno', 'ret_yearm', 'ret', 'me_monthly','ret_date',
+                                                              xused_list$v1[signali], xused_list$v2[signali])) %>%
+                           as_tibble()
+
+                         ret_dates = smalldat %>%  pull(ret_date) %>% unique() %>% sort()
+                         
+                         smalldat$signal = dataset_to_signal(form = signal_form, 
+                                                             dt = smalldat, 
+                                                             v1 =  xused_list$v1[signali],
+                                                             v2 = xused_list$v2[signali]) # makes a signal
+                         
+                         # assign to portfolios
+                         portdat = signal_to_longshort(dt = smalldat, 
+                                                       form = longshort_form, 
+                                                       portnum = portnum, 
+                                                       sweight = sweight,
+                                                       trim = trim)
+                         
+                         retmat[, 1] = portdat$ret_ls
+                         
+                         # CLEAN UP AND SAVE ==== (in signal loop rather than after to accommodate parallelization)
+                         signame = ifelse(is.na(xused_list$v2[signali]),
+                                          paste0(signal_form, '_', longshort_form, '_', xused_list$v1[signali]),
+                                          paste0(signal_form, '_', longshort_form, '_', xused_list$v1[signali], '_', xused_list$v2[signali]))
+                         
+                         
+                         ls_dat = cbind(ret_dates, as.data.frame(retmat)) %>% 
+                           rename(date = ret_dates) %>% 
+                           pivot_longer(
+                             cols = -date, names_to = 'signali', names_prefix = 'V', values_to = 'ret') %>%
+                           mutate(signalname = signame) %>% 
+                           select(-signali)
+                         
+                         ## end make one portdat ====
+                         
+                       } # end for signali
+  stopCluster(cl)
   
   # compile all info into one list
   stratdat = list(
-    ret = ls_dat
+    ret = ls_dat_all %>% 
+      filter(!is.na(ret))  # To save some space
     , signal_form = signal_form
     , longshort_form = longshort_form
     , portnum = portnum
@@ -240,4 +213,7 @@ for (ii in 1:nrow(dataCombinations)) {
                              '_ScaleVars.RData'))
   }
   
+  # Housekeeping for next set of strategies
+  rm(ls_dat_all, stratdat, signal_form, longshort_form,
+     sweight, portnum, xused_list)
 }
