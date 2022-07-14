@@ -109,7 +109,7 @@ dataset_to_signal = function(form, dt, v1, v2){
                tmp4 = 100*(tmp2 - lag(tmp2, 12))/lag(tmp2, 12)) %>% 
         ungroup() %>% 
         mutate(tmp5 = tmp3 - tmp4) %>% 
-      pull(tmp5)
+        pull(tmp5)
     )
     
   } else if (form == 'noise'){ 
@@ -150,13 +150,19 @@ signal_to_longshort = function(dt, form, portnum, sweight, trim = NULL){
       summarize(
         ret = weighted.mean(ret,weight, na.rm=T), .groups = 'drop'
       ) %>%
-      rename(date = ret_yearm) %>%
-      pivot_wider(
-        id_cols = c(port,date), names_from = port, values_from = ret, names_prefix = 'port'
-      ) %>%
-      mutate(
-        ret_ls = (!!as.name(paste0('port', portnum))) - (!!as.name('port1'))
-      )
+      rename(date = ret_yearm)
+    
+    portMax = max(portdat$port, na.rm = TRUE)  # Taking care of case when fewer than portnum portfolios were created
+    
+    return(
+      portdat %>%
+        pivot_wider(
+          id_cols = c(port,date), names_from = port, values_from = ret, names_prefix = 'port'
+        ) %>%
+        mutate(
+          ret_ls = (!!as.name(paste0('port', portMax))) - (!!as.name('port1'))
+        )
+    )
   } # if form
   
 } # end signal_to_longshort
