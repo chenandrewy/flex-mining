@@ -148,11 +148,11 @@ for (ii in 1:nrow(dataCombinations)) {
   }
   
   # initialize retmat data
-  ret_dates = alldat %>%  pull(ret_date) %>% unique() %>% sort()
+  ret_dates = alldat %>% transmute(date = ret_yearm) %>% as_tibble() %>%  distinct() %>% arrange()
   retmat = matrix(nrow = length(ret_dates), ncol = nrow(xused_list))
   
   ## loop over signals  ====
-  
+  ls_dat = tibble()
   for (signali in 1:nrow(xused_list)){
     
     ### make one portdat ====
@@ -176,19 +176,29 @@ for (ii in 1:nrow(dataCombinations)) {
                                   sweight = sweight,
                                   trim = trim)
     
-    retmat[, signali] = portdat$ret_ls
+    signame = ifelse(is.na(xused_list$v2[signali]),
+                     paste0(signal_form, '_', longshort_form, '_', xused_list$v1[signali]),
+                     paste0(signal_form, '_', longshort_form, '_', xused_list$v1[signali], '_', xused_list$v2[signali]))
+  
+    tmp = ret_dates %>% 
+      left_join(portdat) %>% 
+      mutate(signalname = signame)
     
+    
+    ls_dat = bind_rows(ls_dat,
+                       tmp)
+      
     # feedback ===
     
-    tstat = colMeans(retmat, na.rm=TRUE)/apply(retmat,2,sd,na.rm=T)*sqrt(apply(!is.na(retmat), 2, sum))
-    var_tstat = var(tstat, na.rm =T)
+    # tstat = colMeans(retmat, na.rm=TRUE)/apply(retmat,2,sd,na.rm=T)*sqrt(apply(!is.na(retmat), 2, sum))
+    # var_tstat = var(tstat, na.rm =T)
     
     print(paste0(
       'signali = ', signali, ' of ', nrow(xused_list)
       , ' | signalform = ', signal_form
       , ' | v1 = ', xused_list$v1[signali]
       , ' | v2 = ', xused_list$v2[signali]
-      , ' | Var(tstat) = ', round(var_tstat,2)
+#      , ' | Var(tstat) = ', round(var_tstat,2)
     ))
     
     # hist(tstat)
@@ -197,23 +207,7 @@ for (ii in 1:nrow(dataCombinations)) {
     
   } # end for signali
   
-  
-  # CLEAN UP AND SAVE ====
-  ls_dat = cbind(ret_dates, as.data.frame(retmat)) %>% 
-    rename(date = ret_dates) %>% 
-    pivot_longer(
-      cols = -date, names_to = 'signali', names_prefix = 'V', values_to = 'ret'
-    ) %>% 
-    left_join(
-      xused_list %>% 
-        mutate(signali = row_number() %>% as.character(),
-               signalname = ifelse(is.na(v2),
-                                   paste0(signal_form, '_', longshort_form, '_', v1),
-                                   paste0(signal_form, '_', longshort_form, '_', v1, '_', v2)))
-    ) %>% 
-    select(-signali, -v1, -v2)
-  
-  
+
   # compile all info into one list
   stratdat = list(
     ret = ls_dat

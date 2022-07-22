@@ -114,8 +114,9 @@ gc()
 # SAMPLE STRATEGIES ====
 
 # Loop over data configurations
-for (ii in 1:nrow(dataCombinations)) {
-  
+#for (ii in 1:nrow(dataCombinations)) {
+for (ii in 4:4) {
+    
   signal_form = dataCombinations$signal_form[ii]
   longshort_form = dataCombinations$longshort_form[ii]
   sweight = dataCombinations$sweight[ii]
@@ -142,17 +143,24 @@ for (ii in 1:nrow(dataCombinations)) {
                        .packages = c('tidyverse')) %dopar% {
 
                          # initialize retmat data
-                         retmat = matrix(nrow = length(ret_dates), ncol = 1)
+                         #retmat = matrix(nrow = length(ret_dates), ncol = 1)
                          
                          ### make one portdat ====
                          
                          # import small dataset with return, me, xusedcurr, and add signal
-                         smalldat = fst::read_fst('../Data/tmpAllDat.fst', 
-                                                  columns = c('permno', 'ret_yearm', 'ret', 'me_monthly','ret_date',
-                                                              xused_list$v1[signali], xused_list$v2[signali])) %>%
-                           as_tibble()
+                         if (signal_form == 'levelChangePct') { # If only one variable needed to construct signal
+                           smalldat = fst::read_fst('../Data/tmpAllDat.fst', 
+                                                    columns = c('permno', 'ret_yearm', 'ret', 'me_monthly','ret_date',
+                                                                xused_list$v1[signali])) %>%
+                             as_tibble()
+                         } else {
+                           smalldat = fst::read_fst('../Data/tmpAllDat.fst', 
+                                                    columns = c('permno', 'ret_yearm', 'ret', 'me_monthly','ret_date',
+                                                                xused_list$v1[signali], xused_list$v2[signali])) %>%
+                             as_tibble()
+                         }
 
-                         ret_dates = smalldat %>%  pull(ret_date) %>% unique() %>% sort()
+                         #ret_dates = smalldat %>%  pull(ret_date) %>% unique() %>% sort()
                          
                          smalldat$signal = dataset_to_signal(form = signal_form, 
                                                              dt = smalldat, 
@@ -166,7 +174,7 @@ for (ii in 1:nrow(dataCombinations)) {
                                                        sweight = sweight,
                                                        trim = trim)
                          
-                         retmat[, 1] = portdat$ret_ls
+                         #retmat[, 1] = portdat$ret_ls
                          
                          # CLEAN UP AND SAVE ==== (in signal loop rather than after to accommodate parallelization)
                          signame = ifelse(is.na(xused_list$v2[signali]),
@@ -174,12 +182,14 @@ for (ii in 1:nrow(dataCombinations)) {
                                           paste0(signal_form, '_', longshort_form, '_', xused_list$v1[signali], '_', xused_list$v2[signali]))
                          
                          
-                         ls_dat = cbind(ret_dates, as.data.frame(retmat)) %>% 
-                           rename(date = ret_dates) %>% 
-                           pivot_longer(
-                             cols = -date, names_to = 'signali', names_prefix = 'V', values_to = 'ret') %>%
-                           mutate(signalname = signame) %>% 
-                           select(-signali)
+                         ls_dat = portdat %>% 
+                           mutate(signalname = signame) 
+                        # cbind(ret_dates, as.data.frame(retmat)) %>% 
+                         #   rename(date = ret_dates) %>% 
+                         #   pivot_longer(
+                         #     cols = -date, names_to = 'signali', names_prefix = 'V', values_to = 'ret') %>%
+                           # mutate(signalname = signame) %>% 
+                           # select(-signali)
                          
                          ## end make one portdat ====
                          
@@ -188,7 +198,8 @@ for (ii in 1:nrow(dataCombinations)) {
   
   # compile all info into one list
   stratdat = list(
-    ret = ls_dat_all %>% 
+    ret = ls_dat_all %>%
+      rename(ret = ret_ls) %>% 
       filter(!is.na(ret))  # To save some space
     , signal_form = signal_form
     , longshort_form = longshort_form

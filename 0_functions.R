@@ -145,24 +145,30 @@ signal_to_longshort = function(dt, form, portnum, sweight, trim = NULL){
     
     # find portfolio, rename date (only ret is still left)
     portdat = dt %>%
+      filter(!is.na(signal), is.finite(signal)) %>% 
       mutate(port = ntile(signal, portnum)) %>%
       group_by(ret_yearm, port) %>%
       summarize(
         ret = weighted.mean(ret,weight, na.rm=T), .groups = 'drop'
       ) %>%
       rename(date = ret_yearm)
-    
-    portMax = max(portdat$port, na.rm = TRUE)  # Taking care of case when fewer than portnum portfolios were created
-    
-    return(
-      portdat %>%
-        pivot_wider(
-          id_cols = c(port,date), names_from = port, values_from = ret, names_prefix = 'port'
-        ) %>%
-        mutate(
-          ret_ls = (!!as.name(paste0('port', portMax))) - (!!as.name('port1'))
-        )
+
+    # Add long-short return (this works when the number of portfolios created is less than portnum)
+    return(portdat %>% 
+      arrange(date, port) %>% 
+      group_by(date) %>% 
+      slice(1, n()) %>% 
+      transmute(ret_ls = ret[2] - ret[1]) %>% 
+      slice(1) %>% 
+      ungroup()
     )
+
+    # return(
+    #   portdat %>%
+    #     pivot_wider(
+    #       id_cols = c(port,date), names_from = port, values_from = ret, names_prefix = 'port') %>%
+    #     left_join(tmp)
+    # )
   } # if form
   
 } # end signal_to_longshort
