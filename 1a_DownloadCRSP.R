@@ -22,7 +22,7 @@ numRowsToPull <- -1 # Set to -1 for all rows and to some positive value for test
 
 m_crsp <- dbSendQuery(conn = wrds, statement = 
                        "select a.permno, a.permco, a.date, a.ret, a.retx, a.vol, a.shrout, a.prc, a.cfacshr, a.bidlo, a.askhi,
-                     b.shrcd, b.exchcd, b.siccd, b.ticker, b.shrcls,  -- from identifying info table
+                     b.shrcd, b.exchcd, b.siccd, b.ticker, b.shrcls,  b.comnam,  -- from identifying info table
                      c.dlstcd, c.dlret                                -- from delistings table
                      from crsp.msf as a
                      left join crsp.msenames as b
