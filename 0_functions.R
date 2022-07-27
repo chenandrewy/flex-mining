@@ -88,7 +88,7 @@ dataset_to_signal = function(form, dt, v1, v2){
     
   } else if (form == 'levelChangeScaled') {
     dt[,'tmp'] = dt[, v1]
-    df[,'tmp2'] = df[, v2]
+    dt[,'tmp2'] = dt[, v2]
     return(
       dt %>% 
         arrange(permno, ret_yearm) %>% 
@@ -100,7 +100,7 @@ dataset_to_signal = function(form, dt, v1, v2){
     
   } else if (form == 'levelsChangePct_Change') {
     dt[,'tmp'] = dt[, v1]
-    df[,'tmp2'] = df[, v2]
+    dt[,'tmp2'] = dt[, v2]
     return(
       dt %>% 
         arrange(permno, ret_yearm) %>% 
