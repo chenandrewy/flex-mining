@@ -114,9 +114,8 @@ gc()
 # SAMPLE STRATEGIES ====
 
 # Loop over data configurations
-#for (ii in 1:nrow(dataCombinations)) {
-for (ii in 4:4) {
-    
+for (ii in 1:nrow(dataCombinations)) {
+
   signal_form = dataCombinations$signal_form[ii]
   longshort_form = dataCombinations$longshort_form[ii]
   sweight = dataCombinations$sweight[ii]
