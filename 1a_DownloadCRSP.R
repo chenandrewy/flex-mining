@@ -206,8 +206,3 @@ write_fst(
 
 rm(FamaFrenchFactors)
 gc()
-
-
-
-
-

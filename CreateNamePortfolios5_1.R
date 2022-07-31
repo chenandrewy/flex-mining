@@ -1,5 +1,5 @@
 # SETUP ====
-setwd('/home/alex/GitProjects/flex-mining')
+setwd('/home/alex/Github/flex-mining')
 
 source('0_Environment.R')
 # Supress summary message
@@ -59,7 +59,7 @@ create_single_set_returns_placebo <- function(seed, n_tiles = 5 ){
   
   return(dt_portfolio_returns)
 }
-a <- create_single_set_returns_placebo(1)
+# a <- create_single_set_returns_placebo(1)
 create_single_set_returns <- function(word_to_compare, n_tiles = 5 ){
   
   # n_tiles is the number of groups
@@ -136,7 +136,9 @@ a <- create_single_set_returns('contributed')
 
 # Create many ticker portfolios
 
-create_names_portfolios <- function(nports = 600, n_tiles = 5, word_list  = finance_words[, word_lower]){
+create_names_portfolios <- function(nports = 600,
+                                    n_tiles = 5,
+                                    word_list  = finance_words[, word_lower]){
   # nports = Number of portfolios
   # n_tiles = Number of groups per order
   
@@ -151,11 +153,25 @@ create_names_portfolios <- function(nports = 600, n_tiles = 5, word_list  = fina
   
   # Loop in seeds and letter from ticker
   for (i_word in 1:max_n_words) {
+    skip_to_next <- FALSE
     finance_word <- word_list[i_word]
+    print(finance_word)
+    print('N portfolios')
+    print(current_n_portfolios)
     # print(finance_word)
     # Create new portfolio
-    new_port <- create_single_set_returns(word_to_compare = finance_word,
-                                          n_tiles = n_tiles)
+    
+    new_port <- tryCatch(create_single_set_returns(
+                                word_to_compare = finance_word,
+                                  n_tiles = n_tiles),
+                    error = function(e) { skip_to_next <<- TRUE})
+    
+    
+    
+    if(skip_to_next) {
+      print('Skipping')
+      print('new_port')
+      next }   
     # Bind new and old set of portfolios
     ticker_ports_long <- rbind(ticker_ports_long,  new_port)
     # Count new portfolios
@@ -165,6 +181,7 @@ create_names_portfolios <- function(nports = 600, n_tiles = 5, word_list  = fina
     
     # Early stop if current # portfolios > desired
     if(current_n_portfolios > nports){
+      print(done)
       return(ticker_ports_long)
     }
   }
@@ -246,8 +263,11 @@ model <- ft_load('../Data/Intermediate/cc.en.300.bin')
 
 
 unique_names <- crspm_dt_processed[, .(lag_name = unique(lag_name))]
+library(profvis)
+profvis({
 
-ticker_porfolios_dt <- create_names_portfolios(6000, 5)
+ticker_porfolios_dt <- create_names_portfolios(10, 5)
+})
 
 write_fst(ticker_porfolios_dt, '../Data/Intermediate/names_ports_dt_5_1.fst')
 
