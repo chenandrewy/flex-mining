@@ -20,6 +20,46 @@ fntile <- function(x, n) {
 
 # Create portfolios for one word and companies' names
 
+create_single_set_returns_placebo <- function(seed, n_tiles = 5 ){
+  
+  # n_tiles is the number of groups
+  
+  setkey(crspm_dt_processed, permno, yyyymm)
+  
+  crspm_dt_processed[, signal := NULL]
+  
+  crspm_dt_processed[, bin1 := NULL]
+  
+  set.seed(seed)
+  crspm_dt_processed[, signal := sample(1:.N, .N), by = yyyymm]
+  
+  crspm_dt_processed[!is.na(signal), bin1 := fntile(signal, 5), by = yyyymm]
+  
+  returns_dt <- crspm_dt_processed[!is.na(signal), .(ew_mean = mean(ret, na.rm=TRUE),
+                                                     vw_mean = weighted.mean(ret, lag_me,
+                                                                             na.rm=TRUE)),
+                                   by = .(yyyymm, bin1)]
+  
+  dt_ret_melted <- dcast(returns_dt, yyyymm ~ bin1, value.var = c('ew_mean', 'vw_mean'))
+  port_h_ew <- paste0('ew_mean_', n_tiles)
+  port_h_vw <- paste0('vw_mean_', n_tiles)
+  dt_ret_melted[, ls_ew := get(port_h_ew) - ew_mean_1]
+  dt_ret_melted[, ls_vw := get(port_h_vw) - vw_mean_1]
+  dt_portfolio_returns <- melt(dt_ret_melted, id.vars = c('yyyymm'),
+                               measure.vars = c('ls_vw', 'ls_ew'
+                                                # ,port_h_ew, port_h_vw,
+                                                # 'ew_mean_1', 'vw_mean_1'
+                               ),
+                               variable.name = 'type',
+                               value.name = 'ret'
+  )
+  
+  dt_portfolio_returns[, seed := seed]
+  
+  
+  return(dt_portfolio_returns)
+}
+a <- create_single_set_returns_placebo(1)
 create_single_set_returns <- function(word_to_compare, n_tiles = 5 ){
   
   # n_tiles is the number of groups
@@ -28,7 +68,9 @@ create_single_set_returns <- function(word_to_compare, n_tiles = 5 ){
   
   unique_names[, signal := name_sim_vec(lag_name, word_to_compare)]
   
-  unique_names[is.na(signal), signal := 0]
+  # unique_names[, hist(signal)]
+  
+  # unique_names[is.na(signal), signal := 0]
   
   setkey(unique_names, lag_name)
   
@@ -40,9 +82,32 @@ create_single_set_returns <- function(word_to_compare, n_tiles = 5 ){
   
   crspm_dt_processed[unique_names, signal := signal]
   
-  crspm_dt_processed[!is.na(signal), bin1 := fntile(signal, 5), by = date]
+  crspm_dt_processed[!is.na(signal), bin1 := fntile(signal, 5), by = yyyymm]
   
-  returns_dt <- crspm_dt_processed[!is.na(signal), .(ew_mean = mean(ret, na.rm=TRUE),
+  portfolio_returns <- crspm_dt_processed[!is.na(bin1) & !is.na(lag_me)
+                                          & !is.na(ret), ] %>%
+    
+    select(permno,yyyymm,date,ret,lag_me, bin1, signal) %>%
+    
+    group_by(yyyymm, bin1) %>%
+    
+    dplyr::summarize(ew_mean = mean(ret, na.rm=TRUE),
+                     
+                     vw_mean = weighted.mean(ret, lag_me, na.rm=TRUE),
+                     
+                     N = n()) %>%
+    
+    filter(N > 5)  %>%
+    
+    ungroup() %>%
+    
+    as.data.table()  
+    
+   
+  
+  returns_dt <- crspm_dt_processed[!is.na(bin1) & !is.na(lag_me)
+                                   & !is.na(ret),
+                                   .(ew_mean = mean(ret, na.rm=TRUE),
                                             vw_mean = weighted.mean(ret, lag_me,
                                                                     na.rm=TRUE)),
                           by = .(yyyymm, bin1)]
@@ -67,7 +132,7 @@ create_single_set_returns <- function(word_to_compare, n_tiles = 5 ){
   return(dt_portfolio_returns)
 }
 
-# a <- create_single_set_returns('apple')
+a <- create_single_set_returns('contributed')
 
 # Create many ticker portfolios
 
@@ -195,7 +260,7 @@ summary_stats_per_port <- ticker_porfolios_dt[,
                                             ),
                                             by = .(word, type)]
 
-write_fst(summary_stats_per_port, '../Data/Intermediate/summary_stats_per_port_1_5.fst')
+write_fst(summary_stats_per_port, '../Data/Intermediate/summary_stats_per_port_5_1.fst')
 
 summary_stats_per_port[, f.describe_numeric(t_stat), by = type]
 

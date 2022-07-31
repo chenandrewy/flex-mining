@@ -1,3 +1,5 @@
+# remove incorporated consolidated
+
 # SETUP ====
 # setwd('/home/alex/GitProjects/flex-mining')
 source('0_Environment.R')
