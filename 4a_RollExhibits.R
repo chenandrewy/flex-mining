@@ -6,10 +6,7 @@ source('0_functions.R')
 
 
 # User --------------------------------------------------------------------
-
-specname = 'stratdat_ratio_ls_extremes10ew_ScaleVars'
-# specname = 'stratdat_ratio_ls_extremes5ew_ScaleVars'
-# specname = 'yz_ew'
+dataset_list = 'NoScaleVars'
 
 # data avail settings
 set.avail = list(
@@ -21,7 +18,7 @@ set.avail = list(
 )
 
 # direct portfolio settings
-nport = 10
+nport = 20
 use_sign = 1
 
 
@@ -37,7 +34,7 @@ MakeRollPorts = function(rollstatok, rollshrink){
   # reformat dates for clarity
   famdat = famdat[!is.na(ret)
   ][
-    , yearm := as.yearmon(date)
+    , yearm := as.yearmon(as.character(date), '%Y%m')
   ][
     order(signalname, yearm)
   ] %>% 
@@ -141,22 +138,45 @@ MakeRollPorts = function(rollstatok, rollshrink){
 
 # Prep Data -------------------------------------------------------------------------
 
-## read in stuff ----
-# read in data on the strategy "family"
-famdat = readRDS(paste0(
-  '../Data/LongShortPortfolios/', specname, '.RData'
-))$ret
+## read in stuff ---------------------------------------------------
+
+# find list of families
+datanames_full = character()
+for (name_curr in dataset_list){
+  datanames_full = c(
+    datanames_full
+    , dir('../Data/RollingStats/', pattern = name_curr, full.names = F)
+  )
+}
+datanames_full = unique(datanames_full)
+
+
+# read in stuff
+famdat = data.table()
+rollstat = data.table()
+for (name_curr in datanames_full){
+  
+  # read in strat returns (need to rename?)
+  temp = readRDS(paste0('../Data/LongShortPortfolios/',name_curr))$ret
+  famdat = rbind(famdat, temp)
+  
+  # read in data on rolling stats (for the appropriate past time frame)
+  temp = readRDS(paste0('../Data/RollingStats/', name_curr))$past_stat %>% 
+    filter(nmonth_past == set.avail$nmonth_past)
+  rollstat = rbind(rollstat, temp)   
+  
+}
+
 setDT(famdat)
+setDT(rollstat)
 
-
-# read in data on rolling stats and filter
-rollstat = readRDS(paste0(
-  '../Data/RollingStats/', specname, '.RData'
-))$past_stat %>% 
-  filter(nmonth_past == set.avail$nmonth_past)
+# clean and shrink --------------------------------------------------------
 
 # remove signalname-tradedate if not enough months of rets
-rollstatok = rollstat %>% filter(nmonth >= set.avail$nmonth_min) 
+rollstatok = rollstat %>% 
+  filter(nmonth >= set.avail$nmonth_min) %>% 
+  # XXX FIX ME: should not need this filter
+  filter(rbar != 0) 
 
 # then remove tradedates if not enough signalnames
 rollstatok = rollstatok %>% 
@@ -168,7 +188,7 @@ rollstatok = rollstatok %>%
     nsignal >= set.avail$min_nsignal_each_tradedate
   )
 
-## find shrinkage ----
+# find shrinkage 
 rollshrink = rollstatok %>% 
   group_by(tradedate) %>% 
   summarize(
