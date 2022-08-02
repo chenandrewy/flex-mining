@@ -62,3 +62,16 @@ crspm_dt[ ,
 crspm_dt[, lag_me := shift(me), by = permno]
 
 write_fst(crspm_dt[nchar(lag_name) > 2,], '../Data/Intermediate/crsp_with_names.fst')
+
+
+library(fastTextR)
+library(wordspace)
+model <- ft_load('../Data/Intermediate/cc.en.300.bin')
+
+unique_names <- crspm_dt_processed[nchar(lag_name) > 2, .(lag_name = unique(lag_name))]
+
+unique_names[, vector :=   lapply(lag_name, sentence_to_vec)  ]
+
+fwrite(unique_names, '../Data/Intermediate/unique_names.csv')
+
+# test <- fread('../Data/Intermediate/unique_names.csv')
