@@ -13,9 +13,9 @@ source('0_functions.R')
 #   searches for patterns
 #   use * to use everything
 
-dataset_list = '*.RData'
+# dataset_list = '*NoScaleVars.RData'
 # dataset_list = c('ratio_ls')
-# dataset_list = 'stratdat_ratio_ls_extremes10ew_ScaleVars'
+dataset_list = 'stratdat_levelsChangePct_Change_ls_extremes10ew_NoScaleVars'
 
 
 nstrat = 20*1000 # number of strategies to sample if impatient
@@ -45,7 +45,7 @@ RollingStats = function(filename){
   # reformat dates for clarity
   rets = rets[!is.na(ret)
   ][
-    , yearm := as.yearmon(date)
+    , yearm := as.yearmon(as.character(date), '%Y%m')
   ][
     order(signalname, yearm)
   ] %>% 
