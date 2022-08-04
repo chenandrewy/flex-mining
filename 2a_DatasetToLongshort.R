@@ -4,21 +4,32 @@
 #   1) everything except for returns is lagged
 #   2) data is sorted by c(permno, date)
 
-# ENVIRONMENT ====
+# do we want to move to doRNG? https://cran.r-project.org/web/packages/doRNG/vignettes/doRNG.pdf
+
+# Settings ----------------------------------------------------------------
+
+## Environment ----
 source('0_Environment.R')
 source('0_functions.R')
 
+# parallel setup
+library(doParallel)
+env <- foreach:::.foreachGlobals # https://stackoverflow.com/questions/64519640/error-in-summary-connectionconnection-invalid-connection
+rm(list=ls(name=env), pos=env)
 
-# Settings ----------------------------------------------------------------
+## User settings ----
+# no_cores <- round(.6*detectCores())  # Adjust number of cores used as you see fit
+no_cores = 1 # use no_cores = 1 for serial
 
 # data lag choices
 data_avail_lag = 6 # months
 toostale_months = 12 
 
 # signal choices
-signal_form = c('ratio', 'ratioChange', 'ratioChangePct',
-                'levelChangePct', 'levelChangeScaled', 'levelsChangePct_Change') # 'noise'
-signalnum   = 5 # number of signals to sample or TRUE for all (need at least 200, it seems)
+# signal_form = c('ratio', 'ratioChange', 'ratioChangePct',
+#                 'levelChangePct', 'levelChangeScaled', 'levelsChangePct_Change') # 'noise'
+signal_form = c('ratio')
+signalnum   = 100 # number of signals to sample or TRUE for all
 seednumber  = 1235 # seed sampling
 
 # portfolio choices
@@ -60,6 +71,73 @@ dataCombinations = expand.grid(signal_form = signal_form,
                                portnum = portnum, 
                                sweight = sweight,
                                stringsAsFactors = FALSE)
+
+
+# Internal Functions ---------------------------------------------------------------
+
+make_many_ls = function(){
+  # initialize retmat data
+  #retmat = matrix(nrow = length(ret_dates), ncol = 1)
+  
+  ### make one portdat ===
+  
+  # import small dataset with return, me, xusedcurr, and add signal
+  if (signal_form == 'levelChangePct') { # If only one variable needed to construct signal
+    smalldat = fst::read_fst('../Data/tmpAllDat.fst', 
+                             columns = c('permno', 'ret_yearm', 'ret', 'me_monthly','ret_date',
+                                         xused_list$v1[signali])) %>%
+      as_tibble()
+  } else {
+    smalldat = fst::read_fst('../Data/tmpAllDat.fst', 
+                             columns = c('permno', 'ret_yearm', 'ret', 'me_monthly','ret_date',
+                                         xused_list$v1[signali], xused_list$v2[signali])) %>%
+      as_tibble()
+  }
+  
+  #ret_dates = smalldat %>%  pull(ret_date) %>% unique() %>% sort()
+  
+  smalldat$signal = dataset_to_signal(form = signal_form, 
+                                      dt = smalldat, 
+                                      v1 =  xused_list$v1[signali],
+                                      v2 = xused_list$v2[signali]) # makes a signal
+  
+  # assign to portfolios
+  portdat = signal_to_longshort(dt = smalldat, 
+                                form = longshort_form, 
+                                portnum = portnum, 
+                                sweight = sweight,
+                                trim = trim)
+  
+  #retmat[, 1] = portdat$ret_ls
+  
+  # CLEAN UP AND SAVE ==== (in signal loop rather than after to accommodate parallelization)
+  signame = ifelse(is.na(xused_list$v2[signali]),
+                   paste0(signal_form, '_', longshort_form, '_', xused_list$v1[signali]),
+                   paste0(signal_form, '_', longshort_form, '_', xused_list$v1[signali], '_', xused_list$v2[signali]))
+  
+  
+  ls_dat = portdat %>% 
+    mutate(signalname = signame) 
+  # cbind(ret_dates, as.data.frame(retmat)) %>% 
+  #   rename(date = ret_dates) %>% 
+  #   pivot_longer(
+  #     cols = -date, names_to = 'signali', names_prefix = 'V', values_to = 'ret') %>%
+  # mutate(signalname = signame) %>% 
+  # select(-signali)
+  
+  # feedback
+  print(paste0(
+    'signali = ', signali, ' of ', nrow(xused_list)
+    , ' | signalform = ', signal_form
+    , ' | v1 = ', xused_list$v1[signali]
+    , ' | v2 = ', xused_list$v2[signali]
+    #      , ' | Var(tstat) = ', round(var_tstat,2)
+  ))
+  
+  ## end make one portdat ===
+  
+  return = ls_dat
+}
 
 # DATA PREP (about 2 minutes) ====
 
@@ -119,6 +197,13 @@ alldat[
 #   this takes the most time 
 alldat[ , (xnames) := nafill(.SD, 'locf'), by = .(permno), .SDcols = xnames]
 
+if (no_cores > 1){
+  # Save to fst such that parallelization works without having to load big file onto each worker
+  fst::write_fst(alldat, '../Data/tmpAllDat.fst')
+}
+
+# sed later
+ret_dates = alldat %>% transmute(date = ret_yearm) %>% as_tibble() %>%  distinct() %>% arrange()
 
 toc = Sys.time()
 toc - tic
@@ -148,69 +233,38 @@ for (ii in 1:nrow(dataCombinations)) {
   }
   
   # initialize retmat data
-  ret_dates = alldat %>% transmute(date = ret_yearm) %>% as_tibble() %>%  distinct() %>% arrange()
   retmat = matrix(nrow = length(ret_dates), ncol = nrow(xused_list))
   
-  ## loop over signals  ====
-  ls_dat = tibble()
-  for (signali in 1:nrow(xused_list)){
-    
-    ### make one portdat ====
-    # # select xused for making signal 
-    # xusednamecurr = xused_list[signali, ] %>% as.matrix %>% as.character()
-    
-    # import small dataset with return, me, xusedcurr, and add signal
-    smalldat = alldat %>% select(permno, ret_yearm, ret, me_monthly, 
-                                 xused_list$v1[signali], xused_list$v2[signali]) %>% 
-      as_tibble()
-    
-    smalldat$signal = dataset_to_signal(form = signal_form, 
-                                        dt = smalldat, 
-                                        v1 =  xused_list$v1[signali],
-                                        v2 = xused_list$v2[signali]) # makes a signal
-    
-    # assign to portfolios
-    portdat = signal_to_longshort(dt = smalldat, 
-                                  form = longshort_form, 
-                                  portnum = portnum, 
-                                  sweight = sweight,
-                                  trim = trim)
-    
-    signame = ifelse(is.na(xused_list$v2[signali]),
-                     paste0(signal_form, '_', longshort_form, '_', xused_list$v1[signali]),
-                     paste0(signal_form, '_', longshort_form, '_', xused_list$v1[signali], '_', xused_list$v2[signali]))
-  
-    tmp = ret_dates %>% 
-      left_join(portdat) %>% 
-      mutate(signalname = signame)
-    
-    
-    ls_dat = bind_rows(ls_dat,
-                       tmp)
-      
-    # feedback ===
-    
-    # tstat = colMeans(retmat, na.rm=TRUE)/apply(retmat,2,sd,na.rm=T)*sqrt(apply(!is.na(retmat), 2, sum))
-    # var_tstat = var(tstat, na.rm =T)
-    
-    print(paste0(
-      'signali = ', signali, ' of ', nrow(xused_list)
-      , ' | signalform = ', signal_form
-      , ' | v1 = ', xused_list$v1[signali]
-      , ' | v2 = ', xused_list$v2[signali]
-#      , ' | Var(tstat) = ', round(var_tstat,2)
-    ))
-    
-    # hist(tstat)
-    
-    ## end make one portdat ====
-    
-  } # end for signali
+  # call make_many_ls_* ====
+  # ls_dat_all = make_many_ls_serial()
+  # ls_dat_all = make_many_ls_parallel()
   
 
+  if (no_cores > 1){
+    cl <- makePSOCKcluster(no_cores)
+    registerDoParallel(cl)
+    ls_dat_all = foreach(signali=1:nrow(xused_list), 
+                         .combine = rbind,
+                         .packages = c('tidyverse')) %dopar% {
+                           
+                           ls_dat = make_many_ls()
+                           
+                         } # end for signali
+    stopCluster(cl)  
+  } else {
+    ls_dat_all = foreach(signali=1:nrow(xused_list), 
+                         .combine = rbind) %do% {
+                           ls_dat = make_many_ls()
+                         } # end for signali    
+  } # if no_cores
+  
+
+  # finish up ====
+
+  
   # compile all info into one list
   stratdat = list(
-    ret = ls_dat
+    ret = ls_dat_all
     , signal_form = signal_form
     , longshort_form = longshort_form
     , portnum = portnum
@@ -235,3 +289,14 @@ for (ii in 1:nrow(dataCombinations)) {
   }
   
 }
+
+
+
+# debug -------------------------------------------------------------------
+
+stratdat$ret %>% 
+  filter(!is.na(ret_ls)) %>% 
+  group_by(signalname) %>% 
+  summarize(tstat = mean(ret_ls)/sd(ret_ls)*sqrt(n())) %>% 
+  pull(tstat) %>% 
+  hist()
