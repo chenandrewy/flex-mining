@@ -1,4 +1,7 @@
 # SETUP ====
+rm(list=ls())
+gc()
+
 setwd('/home/alex/GitProjects/flex-mining')
 
 source('0_Environment.R')
@@ -69,16 +72,13 @@ create_single_set_returns_placebo <- function(seed = 1, n_tiles = 5 ){
   return(dt_portfolio_returns)
 }
 
-
-create_single_set_returns <- function(word_to_compare, n_tiles = 5 ){
+create_single_set_returns_edit <- function(word_to_compare, n_tiles = 5 ){
   
   # n_tiles is the number of groups
   
-  word_vec <- sentence_to_vec(word_to_compare)
-  
   unique_names[, signal := NULL]
   
-  unique_names[, signal := sim_from_list(vector, word_vec)]
+  unique_names[, signal := adist(lag_name, word_to_compare)]
   
   setkey(unique_names, lag_name)
   
@@ -119,7 +119,6 @@ create_single_set_returns <- function(word_to_compare, n_tiles = 5 ){
   return(dt_portfolio_returns)
 }
 
-c <- create_single_set_returns('apple')
 
 # Create many ticker portfolios
 
@@ -178,6 +177,63 @@ create_names_portfolios <- function(nports = 600,
   }
   return(ticker_ports_long)
 }
+
+create_names_portfolios_edit <- function(nports = 600,
+                                    n_tiles = 5,
+                                    word_list  = finance_words[, word_lower]){
+  print(Sys.time())
+  # nports = Number of portfolios
+  # n_tiles = Number of groups per order
+  
+  # Number of combinations 
+  n_ports_per_order = 2
+  # 3 different letters to choose in the tickers
+  max_n_words = ceiling(nports/( n_ports_per_order)) 
+  # Count Portfolios
+  current_n_portfolios <- 0
+  # Empty dt
+  ticker_ports_long <- data.table()
+  
+  # Loop in seeds and letter from ticker
+  for (i_word in 1:max_n_words) {
+    skip_to_next <- FALSE
+    finance_word <- word_list[i_word]
+    # Create new portfolio
+    
+    new_port <- tryCatch(create_single_set_returns_edit(
+      word_to_compare = finance_word,
+      n_tiles = n_tiles),
+      error = function(e) { skip_to_next <<- TRUE})
+    
+    
+    
+    if(skip_to_next) {
+      print('Skipping')
+      print(finance_word)
+      next }   
+    # Bind new and old set of portfolios
+    ticker_ports_long <- rbind(ticker_ports_long,  new_port)
+    # Count new portfolios
+    current_n_portfolios <- current_n_portfolios + n_ports_per_order
+    
+    if(i_word %% 100 == 0){
+      print(Sys.time())
+      print('N portfolios')
+      print(current_n_portfolios)
+      print(finance_word)
+    }
+    
+    # Early stop if current # portfolios > desired
+    if(current_n_portfolios > nports){
+      print('done')
+      print('N portfolios')
+      print(current_n_portfolios)
+      return(ticker_ports_long)
+    }
+  }
+  return(ticker_ports_long)
+}
+
 
 create_placebo_portfolios <- function(nports = 600,
                                     n_tiles = 5){
@@ -275,63 +331,6 @@ f.describe_numeric <- function(.x) {
                        stringsAsFactors = FALSE))
 }
 
-#####
-name_sim <-function(string, word_to_compare){
-  words <- unlist(strsplit(string, ' ', TRUE))
-  sims <- word_sim(words, word_to_compare)
-  text_sim <- mean( sims, na.rm = TRUE)
-  return(text_sim)
-}
-name_sim_vec <- function(vec_strings, word_to_compare){
-  return(sapply(vec_strings, name_sim, word_to_compare))
-}
-
-word_sim <- function(words_1, word_2){
-  vec_1 <- ft_word_vectors(model, words_1)
-  # print(dim(vec_1))
-  vec_2 <- as.numeric(ft_word_vectors(model, word_2))
-  # print(dim(vec_2))
-  return(cos_sim(vec_1, vec_2))
-}
-
-sentence_to_vec <- function(string){
-  words <- unlist(strsplit(string, ' ', TRUE))
-  vec  <- apply(ft_word_vectors(model, words), 2, mean)
-  nvec <- norm(vec, type="2")
-  if(nvec == 0){
-    # print(string)
-    return(NA)
-  }
-  vec <- vec/nvec
-  return(vec)
-}
-
-
-cos_sim <- function(x, y){
-  sim <- crossprod(t(x), y)/(rowNorms(x)*norm(y, type="2"))
-  print(sim)
-  return(sim)
-  
-  
-}
-
-vec_from_word <- function(x){
-  return(ft_word_vectors(model, x))
-}
-
-sim_from_list <- function(list_of_vecs, word_vec){
-  return(sapply(list_of_vecs, cos_sim_list, word_vec))
-  
-}
-
-cos_sim_list <- function(x, y){
-  x <- unlist(x)
-  sim <- sum(x*y)
-  
-  return(sim)
-}
-
-
 
 ######
 finance_words <- read_fst('../Data/Intermediate/finance_words.fst') %>%
@@ -355,9 +354,58 @@ crspm_dt_processed[, small_firms := ifelse(is.na(small_firms), TRUE, small_firms
 
 crspm_dt_processed <- crspm_dt_processed[small_firms == FALSE, ]
 
-model <- ft_load('../Data/Intermediate/cc.en.300.bin')
 
 unique_names <- crspm_dt_processed[, .(lag_name = unique(lag_name))]
+
+##########################################
+
+ticker_porfolios_dt <- create_names_portfolios_edit(6000, 5)
+
+returns_dt <- crspm_dt_processed[!is.na(lag_me)
+                                 & !is.na(ret),
+                                 .(ew_mean = mean(ret, na.rm=TRUE),
+                                   vw_mean = weighted.mean(ret, lag_me,
+                                                           na.rm=TRUE)),
+                                 by = .(yyyymm)] %>%
+  melt(returns_dt,id.vars = c('yyyymm'),
+       measure.vars =
+         c('ew_mean', 'vw_mean'),
+       variable.name = 'type',
+       value.name = 'ret'
+  ) %>% setkey(yyyymm)
+returns_dt[, word := 'Market']
+
+ticker_porfolios_dt <- rbind(ticker_porfolios_dt, returns_dt)
+
+summary_stats_per_port <- ticker_porfolios_dt[,
+                                              .(t_stat = f.custom.t(ret),
+                                                mean_ret = mean(ret, na.rm = TRUE),
+                                                sharpe = f.sharp(ret)
+                                              ),
+                                              by = .(word, type)]
+
+
+# summary_stats_per_port[, f.describe_numeric(t_stat), by = type]
+# 
+# summary_stats_per_port[, f.describe_numeric(mean_ret), by = type]
+# 
+# summary_stats_per_port[, f.describe_numeric(sharpe), by = type]
+
+ggplot(summary_stats_per_port[type == 'ls_ew' |
+                                type == 'ls_vw',], aes(x = t_stat, fill = type)) +
+  geom_histogram(position = "identity", alpha = 0.4, bins = 50)+ xlim(c(-4,4))
+
+ggplot(summary_stats_per_port[type == 'ls_ew' |
+                                type == 'ls_vw',], aes(x = mean_ret, fill = type)) +
+  geom_histogram(position = "identity", alpha = 0.4, bins = 50)+ xlim(c(-0.5,0.5))
+
+ggplot(summary_stats_per_port[type == 'ls_ew' |
+                                type == 'ls_vw',], aes(x = sharpe, fill = type)) +
+  geom_histogram(position = "identity", alpha = 0.4, bins = 50)+ xlim(c(-0.5,0.5))
+
+##########################################
+model <- ft_load('../Data/Intermediate/cc.en.300.bin')
+
 
 unique_names[, vector :=   lapply(lag_name, sentence_to_vec)  ]
 
@@ -630,7 +678,7 @@ for (word_to_compare in finance_words[1:60, word_lower]) {
   
   unique_names[, signal := NULL]
   
-  unique_names[, signal := sim_from_list(vector, sentence_to_vec(word_to_compare))]
+  unique_names[, signal := adist(lag_name, word_to_compare)]
   
   crspm_dt_processed[unique_names, (word_to_compare) := signal]
   
