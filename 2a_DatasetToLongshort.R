@@ -13,6 +13,8 @@ rm(list = ls())
 ## Environment ----
 source('0_Environment.R')
 
+# safety delete
+file.remove('../Data/tmpAllDat.fst')
 
 # parallel setup
 library(doParallel)
@@ -30,7 +32,7 @@ toostale_months = 12
 # signal choices
 # signal_form = c('ratio', 'ratioChange', 'ratioChangePct',
 #                 'levelChangePct', 'levelChangeScaled', 'levelsChangePct_Change') # 'noise'
-signal_form = c('ratio')
+signal_form = c('levelsChangePct_Change')
 signalnum   = 100 # number of signals to sample or TRUE for all
 seednumber  = 1235 # seed sampling
 
@@ -74,6 +76,7 @@ make_many_ls = function(){
                                          xused_list$v1[signali], xused_list$v2[signali])) %>%
       as_tibble()
   }
+  smalldat = smalldat %>% mutate(ret_yearm = as.yearmon(ret_yearm))
   
   smalldat$signal = dataset_to_signal(form = signal_form, 
                                       dt = smalldat, 
@@ -207,10 +210,7 @@ for (ii in 1:nrow(dataCombinations)) {
                                scale_vars = scaling_variables,
                                rs = seednumber)
   }
-  
-  # initialize retmat data
-  retmat = matrix(nrow = length(ret_dates), ncol = nrow(xused_list))
-  
+
   # call make_many_ls (this is where the action is) ====
   if (no_cores > 1){
     cl <- makePSOCKcluster(no_cores)

@@ -310,6 +310,8 @@ dataset_to_signal = function(form, dt, v1, v2){
 
 signal_to_longshort = function(dt, form, portnum, sweight, trim = NULL){
   
+  dt = dt %>% filter(!is.na(signal), !is.na(ret))
+  
   if (form == 'ls_extremes'){
     
     # sweight is zero if data is missing
@@ -329,33 +331,43 @@ signal_to_longshort = function(dt, form, portnum, sweight, trim = NULL){
         )
     }
     
+    # find breakpoints
+    breakdat = dt %>% 
+      group_by(ret_yearm) %>% 
+      summarize(
+        qlo = quantile(signal, 1/portnum)
+        , qhi = quantile(signal, 1-1/portnum)
+      ) %>% 
+      filter(qlo < qhi) # remove degenerate months
     
-    # find portfolio, rename date (only ret is still left)
-    portdat = dt %>%
-      filter(!is.na(signal), is.finite(signal)) %>% 
-      mutate(port = ntile(signal, portnum)) %>%
+    # find portfolios, rename date (only ret is still left)
+    dt = dt %>% 
+      inner_join(breakdat, by = 'ret_yearm') %>% 
+      mutate(
+        port = if_else(signal <= qlo, 'short', NA_character_)
+        , port = if_else(signal >= qhi, 'long', port)
+      ) %>% 
+      filter(!is.na(port)) %>% 
       group_by(ret_yearm, port) %>%
       summarize(
-        ret = weighted.mean(ret,weight, na.rm=T), .groups = 'drop'
+        ret = weighted.mean(ret,weight, na.rm=T)
+        , nstock = n()
+        , .groups = 'drop'
       ) %>%
+      filter(nstock > 20) %>%  # drop undiversified junk (should make this an option)
       rename(date = ret_yearm)
     
-    # Add long-short return (this works when the number of portfolios created is less than portnum)
-    return(portdat %>% 
-             arrange(date, port) %>% 
-             group_by(date) %>% 
-             slice(1, n()) %>% 
-             transmute(ret_ls = ret[2] - ret[1]) %>% 
-             slice(1) %>% 
-             ungroup()
-    )
     
-    # return(
-    #   portdat %>%
-    #     pivot_wider(
-    #       id_cols = c(port,date), names_from = port, values_from = ret, names_prefix = 'port') %>%
-    #     left_join(tmp)
-    # )
+    # find long-short return
+    return(
+      dt %>% 
+      select(date, port, ret) %>% 
+      pivot_wider(names_from = port, values_from = ret) %>% 
+      mutate(ret_ls = long - short) %>% 
+      filter(!is.na(ret_ls)) %>% 
+      select(date, ret_ls)
+    )
+
   } # if form
   
 } # end signal_to_longshort
