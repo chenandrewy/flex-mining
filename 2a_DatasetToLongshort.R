@@ -8,9 +8,11 @@
 
 # Settings ----------------------------------------------------------------
 
+rm(list = ls())
+
 ## Environment ----
 source('0_Environment.R')
-source('0_functions.R')
+
 
 # parallel setup
 library(doParallel)
@@ -35,35 +37,17 @@ seednumber  = 1235 # seed sampling
 # portfolio choices
 reup_months    = c(6) # stocks are traded using new data at end of these months
 longshort_form = 'ls_extremes'
-portnum        = c(5, 10)
-sweight        = c('ew', 'vw') 
+portnum        = c(5)
+sweight        = c('vw') 
 trim           = NULL  # or some quantile e.g. .005
 
 # variable choices
-# scaling_variables <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
-#                       "ceq", "seq", "icapt", "sale", "cogs", "xsga", "me", "emp")
-
+#   NULL for use any scaling variable
+#   
 scaling_variables = NULL
 
-# accounting_variables <- c("acchg", "aco", "acox", "act", "am", "ao", "aoloch", "aox", "ap", "apalch", 
-#                           "aqc", "aqi", "aqs", "at", "bast", "caps", "capx", "capxv", "ceq", "ceql", "ceqt", "ch", "che", "chech",
-#                           "cld2", "cld3", "cld4", "cld5", "cogs", "cstk", "cstkcv", "cstke", "dc", "dclo", "dcom", "dcpstk", 
-#                           "dcvsr", "dcvsub", "dcvt", "dd", "dd1", "dd2", "dd3", "dd4", "dd5", "dfs", "dfxa", "diladj", "dilavx",
-#                           "dlc", "dlcch", "dltis", "dlto", "dltp", "dltr", "dltt", "dm", "dn", "do", "donr", "dp", "dpact", "dpc",
-#                           "dpvieb", "dpvio", "dpvir", "drc", "ds", "dudd", "dv", "dvc", "dvp", "dvpa", "dvpibb", "dvt", "dxd2", "dxd3",
-#                           "dxd4", "dxd5", "ebit", "ebitda", "esopct", "esopdlt", "esopt", "esub", "esubc", "exre", "fatb", "fatc", "fate",
-#                           "fatl", "fatn", "fato", "fatp", "fiao", "fincf", "fopo", "fopox", "fopt", "fsrco", "fsrct", "fuseo", "fuset", "gdwl",
-#                           "gp", "ib", "ibadj", "ibc", "ibcom", "icapt", "idit", "intan", "intc", "intpn", "invch", "invfg", "invo", "invrm", 
-#                           "invt", "invwip", "itcb", "itci", "ivaco", "ivaeq", "ivao", "ivch", "ivncf", "ivst", "ivstch", "lco", "lcox", 
-#                           "lcoxdr", "lct", "lifr", "lo", "lt", "mib", "mii", "mrc1", "mrc2", "mrc3", "mrc4", "mrc5", "mrct", "msa", "ni",
-#                           "niadj", "nieci", "nopi", "nopio", "np", "oancf", "ob", "oiadp", "pi", "pidom", "pifo", "ppegt", "ppenb",
-#                           "ppenc", "ppenli", "ppenme", "ppennr", "ppeno", "ppent", "ppevbb", "ppeveb", "ppevo", "ppevr", "prstkc",
-#                           "pstk", "pstkc", "pstkl", "pstkn", "pstkr", "pstkrv", "rdip", "re", "rea", "reajo", "recch", "recco", "recd", "rect",
-#                           "recta", "rectr", "reuna", "sale", "seq", "siv", "spi", "sppe", "sppiv", "sstk", "tlcf", "tstk", "tstkc", "tstkp", 
-#                           "txach", "txbco", "txc", "txdb", "txdba", "txdbca", "txdbcl", "txdc", "txdfed", "txdfo", "txdi", "txditc", 
-#                           "txds", "txfed", "txfo", "txndb", "txndba", "txndbl", "txndbr", "txo", "txp", "txpd", "txr", "txs", "txt", "txw",
-#                           "wcap", "wcapc", "wcapch", "xacc", "xad", "xdepl", "xi", "xido", "xidoc", "xint", "xopr", "xpp", "xpr", "xrd", "xrent",
-#                           "xsga")
+# all the variables under consideration
+xnames = unique(c(compnames$yz.numer, compnames$yz.denom))
 
 
 dataCombinations = expand.grid(signal_form = signal_form,
@@ -76,25 +60,20 @@ dataCombinations = expand.grid(signal_form = signal_form,
 # Internal Functions ---------------------------------------------------------------
 
 make_many_ls = function(){
-  # initialize retmat data
-  #retmat = matrix(nrow = length(ret_dates), ncol = 1)
-  
   ### make one portdat ===
   
   # import small dataset with return, me, xusedcurr, and add signal
   if (signal_form == 'levelChangePct') { # If only one variable needed to construct signal
     smalldat = fst::read_fst('../Data/tmpAllDat.fst', 
-                             columns = c('permno', 'ret_yearm', 'ret', 'me_monthly','ret_date',
+                             columns = c('permno', 'ret_yearm', 'ret', 'me_monthly',
                                          xused_list$v1[signali])) %>%
       as_tibble()
   } else {
     smalldat = fst::read_fst('../Data/tmpAllDat.fst', 
-                             columns = c('permno', 'ret_yearm', 'ret', 'me_monthly','ret_date',
+                             columns = c('permno', 'ret_yearm', 'ret', 'me_monthly',
                                          xused_list$v1[signali], xused_list$v2[signali])) %>%
       as_tibble()
   }
-  
-  #ret_dates = smalldat %>%  pull(ret_date) %>% unique() %>% sort()
   
   smalldat$signal = dataset_to_signal(form = signal_form, 
                                       dt = smalldat, 
@@ -108,8 +87,6 @@ make_many_ls = function(){
                                 sweight = sweight,
                                 trim = trim)
   
-  #retmat[, 1] = portdat$ret_ls
-  
   # CLEAN UP AND SAVE ==== (in signal loop rather than after to accommodate parallelization)
   signame = ifelse(is.na(xused_list$v2[signali]),
                    paste0(signal_form, '_', longshort_form, '_', xused_list$v1[signali]),
@@ -118,13 +95,7 @@ make_many_ls = function(){
   
   ls_dat = portdat %>% 
     mutate(signalname = signame) 
-  # cbind(ret_dates, as.data.frame(retmat)) %>% 
-  #   rename(date = ret_dates) %>% 
-  #   pivot_longer(
-  #     cols = -date, names_to = 'signali', names_prefix = 'V', values_to = 'ret') %>%
-  # mutate(signalname = signame) %>% 
-  # select(-signali)
-  
+
   # feedback
   print(paste0(
     'signali = ', signali, ' of ', nrow(xused_list)
@@ -139,56 +110,63 @@ make_many_ls = function(){
   return = ls_dat
 }
 
-# DATA PREP (about 2 minutes) ====
+
+# Data Prep ---------------------------------------------------------------
+# do everything in data.table for efficiency
+
+tic = Sys.time()
+
+
+## import and merge ====
 
 ## import compustat, convert to monthly
-comp0 = read_fst('../Data/Intermediate/a_aCompustat.fst') 
-
-# do everything in data.table for efficiency
-tic = Sys.time()
+comp0 = readRDS('../Data/Intermediate/CompustatAnnual.RData')
+setDT(comp0)
+comp0 = comp0 %>% select(permno, datayearm, all_of(xnames))
 
 # lag signal, then keep around for toostale_months
 #   see here: https://stackoverflow.com/questions/11121385/repeat-rows-of-a-data-frame
-#   signaldate are dates when investor has access to signal & signal is not stale
-comp1 = comp0 %>% slice(rep(1:n(), each = 12)) %>% as.data.table()
+#   signalyearm are yearmons when investor has access to signal & signal is not stale
+comp1 = comp0 %>% slice(rep(1:n(), each = toostale_months)) 
 comp1$temp_lag_months = rep(data_avail_lag + 0:(toostale_months-1), dim(comp0)[1])
 comp1[ 
-  , signaldate := datadate %m+% months(temp_lag_months)
+  , signalyearm := datayearm + temp_lag_months/12
 ]
 
-## merge onto returns data
+# remove duplicates
+comp1 = comp1[
+  order(permno, signalyearm, datayearm)
+  ][
+  , head(.SD, 1), by = .(permno, signalyearm)
+]
+
+
+## import crsp data
 # date refers to ret date, everything else is lagged
-crsp <- read_fst('../Data/Intermediate/crspm.fst', columns = c('permno','date','ret','me')) %>% 
-  as.data.table() 
-setnames(crsp, old = 'date', new = 'ret_date')
-crsp[ , me := c(NA, me[-.N]), by = permno]
+crsp <- readRDS('../Data/Intermediate/crspm.RData') %>% 
+  transmute(
+    permno, ret_yearm = yearm, ret, me
+  )
+setDT(crsp)
 
-# signals are available at signaldate get used for returns in ret_yearm
-comp1[
-  , ret_yearm := signaldate %m+% months(1)
-][ 
-  , ret_yearm := year(ret_yearm)*100 + month(ret_yearm)
-]
-crsp[, ret_yearm := year(ret_date)*100 + month(ret_date)]
+crsp[ , me := c(NA, me[-.N]), by = permno] # lags me by one month
 
-# merge
+# merge, signals available at signalyearm get used for returns in ret_yearm
+comp1[ , ret_yearm := signalyearm + 1/12]
 alldat = merge(crsp, comp1, all.x=TRUE, by = c('permno','ret_yearm'))
 
-## enforce updating frequency (aka rebalancing) 
+# fill NA with most recent x by permno
+#   this takes the most time 
+alldat[ , (xnames) := nafill(.SD, 'locf'), by = .(permno), .SDcols = xnames]
+
+## enforce updating frequency (aka rebalancing) ====
+
 # make separate me that is always updated monthly (me_monthly is not in xnames2)
-alldat[ , me_monthly := me]
-
-# all the x vars under consideration
-xnames = setdiff(names(alldat), c('gvkey', 'datadate', 'conm', 'fyear', 'tic', 'cusip',
-                                  'naicsh', 'sich', "timeLinkStart_d", "timeLinkEnd_d", "time_avail_d", "time_avail_y", 'permno',
-                                  'ret_yearm', 'ret_date', 'ret', 'temp_lag_months', 'signaldate', 'me_monthly'))
-
-
-# force x to NA in non-reup-months
+alldat[ , me_monthly := me ]
 alldat[
-  , reup_id := month(signaldate) %in% reup_months
+  , temp_month := as.numeric(12*(signalyearm %% 1))
 ][
-  , reup_id := if_else(reup_id, 1, NA_real_)
+  , reup_id := if_else(temp_month %in% reup_months, 1, NA_real_)
 ][
   , (xnames) := lapply(.SD, function(x) x*reup_id ), .SDcols = xnames 
 ]
@@ -197,12 +175,10 @@ alldat[
 #   this takes the most time 
 alldat[ , (xnames) := nafill(.SD, 'locf'), by = .(permno), .SDcols = xnames]
 
-if (no_cores > 1){
-  # Save to fst such that parallelization works without having to load big file onto each worker
-  fst::write_fst(alldat, '../Data/tmpAllDat.fst')
-}
+# Save to fst such that parallelization works without having to load big file onto each worker
+fst::write_fst(alldat, '../Data/tmpAllDat.fst')
 
-# sed later
+# used later
 ret_dates = alldat %>% transmute(date = ret_yearm) %>% as_tibble() %>%  distinct() %>% arrange()
 
 toc = Sys.time()
@@ -235,11 +211,7 @@ for (ii in 1:nrow(dataCombinations)) {
   # initialize retmat data
   retmat = matrix(nrow = length(ret_dates), ncol = nrow(xused_list))
   
-  # call make_many_ls_* ====
-  # ls_dat_all = make_many_ls_serial()
-  # ls_dat_all = make_many_ls_parallel()
-  
-
+  # call make_many_ls (this is where the action is) ====
   if (no_cores > 1){
     cl <- makePSOCKcluster(no_cores)
     registerDoParallel(cl)
@@ -300,3 +272,8 @@ stratdat$ret %>%
   summarize(tstat = mean(ret_ls)/sd(ret_ls)*sqrt(n())) %>% 
   pull(tstat) %>% 
   hist()
+
+
+temp = stratdat$ret %>% filter(signalname == 'ratio_ls_extremes_recd_dxd5')
+plot(temp$date, temp$ret_ls)
+
