@@ -32,20 +32,19 @@ toostale_months = 12
 # signal choices
 # signal_form = c('ratio', 'ratioChange', 'ratioChangePct',
 #                 'levelChangePct', 'levelChangeScaled', 'levelsChangePct_Change') # 'noise'
-signal_form = c('levelsChangePct_Change')
+signal_form = c('ratio')
 signalnum   = 100 # number of signals to sample or TRUE for all
 seednumber  = 1235 # seed sampling
 
 # portfolio choices
 reup_months    = c(6) # stocks are traded using new data at end of these months
 longshort_form = 'ls_extremes'
-portnum        = c(5)
-sweight        = c('vw') 
+portnum        = c(10)
+sweight        = c('ew') 
 trim           = NULL  # or some quantile e.g. .005
 
 # variable choices
 #   NULL for use any scaling variable
-#   
 scaling_variables = NULL
 
 # all the variables under consideration

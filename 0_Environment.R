@@ -340,6 +340,11 @@ signal_to_longshort = function(dt, form, portnum, sweight, trim = NULL){
       ) %>% 
       filter(qlo < qhi) # remove degenerate months
     
+    if (dim(breakdat)[1] == 0){
+      print('No valid portfolios, returning empty tibble')
+      return(tibble())
+    }
+    
     # find portfolios, rename date (only ret is still left)
     dt = dt %>% 
       inner_join(breakdat, by = 'ret_yearm') %>% 
