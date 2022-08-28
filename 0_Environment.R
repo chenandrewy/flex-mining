@@ -360,7 +360,7 @@ signal_to_longshort = function(dt, form, portnum, sweight, trim = NULL){
         , .groups = 'drop'
       ) %>%
       filter(nstock > 20) %>%  # drop undiversified junk (should make this an option)
-      rename(date = ret_yearm)
+      rename(yearm = ret_yearm)
     
     # more error checking
     if (dim(dt %>% filter(port == 'short'))[1] == 0){
@@ -375,11 +375,11 @@ signal_to_longshort = function(dt, form, portnum, sweight, trim = NULL){
     # find long-short return
     return(
       dt %>% 
-      select(date, port, ret) %>% 
+      select(yearm, port, ret) %>% 
       pivot_wider(names_from = port, values_from = ret) %>% 
       mutate(ret_ls = long - short) %>% 
       filter(!is.na(ret_ls)) %>% 
-      select(date, ret_ls)
+      transmute(yearm, ret = ret_ls)
     )
 
   } # if form

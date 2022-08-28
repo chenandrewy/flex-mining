@@ -2,11 +2,11 @@
 
 rm(list =ls())
 source('0_Environment.R')
-source('0_functions.R')
+
 
 
 # User --------------------------------------------------------------------
-dataset_list = 'NoScaleVars'
+dataset_list = 'stratdat_ratio_ls_extremes10ew_NoScaleVars'
 
 # data avail settings
 set.avail = list(
@@ -14,7 +14,7 @@ set.avail = list(
   , nmonth_min = 120 # drop signals if nmonths < this
   , fixed_signals = F # T uses only signals in 1980 (this addsa lot of time)
   , past_stat_lag_max = 12 # max number of months to use past stats for 
-  , min_nsignal_each_tradedate = 1000 # drop tradedates if less than these many signals
+  , min_nsignal_each_tradedate = 10 # drop tradedates if less than these many signals
 )
 
 # direct portfolio settings
@@ -32,10 +32,7 @@ MakeRollPorts = function(rollstatok, rollshrink){
   setDT(famdat)
   
   # reformat dates for clarity
-  famdat = famdat[!is.na(ret)
-  ][
-    , yearm := as.yearmon(as.character(date), '%Y%m')
-  ][
+  famdat = famdat[
     order(signalname, yearm)
   ] %>% 
     select(signalname, yearm, ret)
@@ -174,9 +171,7 @@ setDT(rollstat)
 
 # remove signalname-tradedate if not enough months of rets
 rollstatok = rollstat %>% 
-  filter(nmonth >= set.avail$nmonth_min) %>% 
-  # XXX FIX ME: should not need this filter
-  filter(rbar != 0) 
+  filter(nmonth >= set.avail$nmonth_min)
 
 # then remove tradedates if not enough signalnames
 rollstatok = rollstatok %>% 
@@ -238,7 +233,7 @@ ggplot(plotme, aes(x=yearm, group  = port)) +
 
 ## X-sec of ports by subsamp ----
 
-plotfun = function(yearmin, yearmax){
+plotfun = function(rollport, yearmin, yearmax){
   
   yearmin = max(min(rollport$yearm), yearmin)
   yearmax = min(max(rollport$yearm), yearmax)
@@ -292,11 +287,15 @@ plotfun = function(yearmin, yearmax){
   return = p
 } # end plotfun
 
-p1 = plotfun(1900,2030)
-p2 = plotfun(1900,2005)
-p3 = plotfun(2005,2030)
-p4 = plotfun(1990,2000)
+p1 = plotfun(rollport,1900,2030)
+p2 = plotfun(rollport,1900,2005)
+p3 = plotfun(rollport,2005,2030)
+p4 = plotfun(rollport,1990,2000)
 
 
 grid.arrange(p1, p2, p3, p4, nrow = 2)
+
+
+## X-sec by group ----------------------------------------------------------
+
 

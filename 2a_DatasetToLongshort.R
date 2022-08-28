@@ -33,7 +33,7 @@ toostale_months = 12
 # signal_form = c('ratio', 'ratioChange', 'ratioChangePct',
 #                 'levelChangePct', 'levelChangeScaled', 'levelsChangePct_Change') # 'noise'
 signal_form = c('ratio')
-signalnum   = 100 # number of signals to sample or TRUE for all
+signalnum   = TRUE # number of signals to sample or TRUE for all
 seednumber  = 1235 # seed sampling
 
 # portfolio choices
@@ -266,13 +266,15 @@ for (ii in 1:nrow(dataCombinations)) {
 # debug -------------------------------------------------------------------
 
 stratdat$ret %>% 
-  filter(!is.na(ret_ls)) %>% 
+  filter(!is.na(ret)) %>% 
   group_by(signalname) %>% 
-  summarize(tstat = mean(ret_ls)/sd(ret_ls)*sqrt(n())) %>% 
+  summarize(tstat = mean(ret)/sd(ret)*sqrt(n())) %>% 
   pull(tstat) %>% 
   hist()
 
 
-temp = stratdat$ret %>% filter(signalname == 'ratio_ls_extremes_recd_dxd5')
-plot(temp$date, temp$ret_ls)
 
+
+
+signali = 454
+make_many_ls()

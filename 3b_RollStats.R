@@ -6,7 +6,7 @@
 
 rm(list =ls())
 source('0_Environment.R')
-source('0_functions.R')
+
 
 
 # Dataset Selection 
@@ -15,7 +15,7 @@ source('0_functions.R')
 
 # dataset_list = '*NoScaleVars.RData'
 # dataset_list = c('ratio_ls')
-dataset_list = 'stratdat_levelsChangePct_Change_ls_extremes10ew_NoScaleVars'
+dataset_list = 'stratdat_ratio_ls_extremes10ew_NoScaleVars'
 
 
 nstrat = 20*1000 # number of strategies to sample if impatient
@@ -43,10 +43,7 @@ RollingStats = function(filename){
   rets = rets[signalname %in% signalselect]
   
   # reformat dates for clarity
-  rets = rets[!is.na(ret)
-  ][
-    , yearm := as.yearmon(as.character(date), '%Y%m')
-  ][
+  rets = rets[
     order(signalname, yearm)
   ] %>% 
     select(signalname, yearm, ret)
@@ -121,8 +118,6 @@ RollingStats = function(filename){
 
 
 
-
-
 # Loop over Large Samples -------------------------------------------------
 
 
@@ -140,6 +135,7 @@ datanames_full = unique(datanames_full)
 
 print('datanames_full is ')
 print(datanames_full)
+
 
 
 ## actual loop --------------------------------------------------------------------
