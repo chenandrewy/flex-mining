@@ -23,7 +23,7 @@ rm(list=ls(name=env), pos=env)
 
 ## User settings ----
 # no_cores <- round(.6*detectCores())  # Adjust number of cores used as you see fit
-no_cores = 1 # use no_cores = 1 for serial
+no_cores = 3 # use no_cores = 1 for serial
 
 # data lag choices
 data_avail_lag = 6 # months
@@ -32,7 +32,7 @@ toostale_months = 12
 # signal choices
 # signal_form = c('ratio', 'ratioChange', 'ratioChangePct',
 #                 'levelChangePct', 'levelChangeScaled', 'levelsChangePct_Change') # 'noise'
-signal_form = c('ratio')
+signal_form = c('ratioChange')
 signalnum   = TRUE # number of signals to sample or TRUE for all
 seednumber  = 1235 # seed sampling
 
@@ -216,7 +216,7 @@ for (ii in 1:nrow(dataCombinations)) {
     registerDoParallel(cl)
     ls_dat_all = foreach(signali=1:nrow(xused_list), 
                          .combine = rbind,
-                         .packages = c('tidyverse')) %dopar% {
+                         .packages = c('tidyverse','zoo')) %dopar% {
                            
                            ls_dat = make_many_ls()
                            
@@ -273,8 +273,3 @@ stratdat$ret %>%
   hist()
 
 
-
-
-
-signali = 454
-make_many_ls()
