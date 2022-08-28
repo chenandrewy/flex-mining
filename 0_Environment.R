@@ -341,7 +341,7 @@ signal_to_longshort = function(dt, form, portnum, sweight, trim = NULL){
       filter(qlo < qhi) # remove degenerate months
     
     if (dim(breakdat)[1] == 0){
-      print('No valid portfolios, returning empty tibble')
+      print('Breakpoints overlap, returning empty tibble')
       return(tibble())
     }
     
@@ -362,6 +362,15 @@ signal_to_longshort = function(dt, form, portnum, sweight, trim = NULL){
       filter(nstock > 20) %>%  # drop undiversified junk (should make this an option)
       rename(date = ret_yearm)
     
+    # more error checking
+    if (dim(dt %>% filter(port == 'short'))[1] == 0){
+      print('No short portfolios with more than 20 nstocks, returning empty tibble')
+      return(tibble())
+    }    
+    if (dim(dt %>% filter(port == 'long'))[1] == 0){
+      print('No long portfolios with more than 20 nstocks, returning empty tibble')
+      return(tibble())
+    }    
     
     # find long-short return
     return(
