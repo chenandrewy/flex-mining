@@ -241,7 +241,7 @@ crsp_dt <- crspm_dt[!is.na(lag_me) & !is.na(lag_ticker), ]
 # Create Portfolios ====
 
 
-ticker_porfolios_dt <- create_ticker_portfolios(6000, 5)
+ticker_porfolios_dt <- create_ticker_portfolios(6, 5)
 
 write_fst(ticker_porfolios_dt, '../Data/Intermediate/ticker_ports_dt.fst')
 
