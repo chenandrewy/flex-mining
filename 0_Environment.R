@@ -25,8 +25,8 @@ dir.create('../Data/Intermediate/', showWarnings = F)
 dir.create('../Data/LongShortPortfolios/', showWarnings = F)
 dir.create('../Data/RollingStats/', showWarnings = F)
 dir.create('../Results', showWarnings = F)
-
-
+dir.create('../Data/CZ', showWarnings = F)
+dir.create('../Data/Processed', showWarnings = F)
 
 # Globals ====
 options(stringsAsFactors = FALSE)
@@ -452,4 +452,195 @@ read_fst_yearm = function(filename, yearm_names = c('yearm')){
   return(dat)
 }
 
+
+# Create a plot by category without data-mining benchmark
+ReturnPlotsNoDM = function(dt, suffix = '', rollmonths = 60, 
+                           basepath = NA_character_) {
+  
+  #' @param dt Table with four columns (signalname, ret, eventDate, catID)
+  #' @param suffix String to attach to saved pdf figure 
+  #' @param rollmonths Number of months over which moving average is computed
+  
+  # Prep legend
+  prepLegend = dt %>% 
+    group_by(catID) %>% 
+    summarise(nSignals = n_distinct(signalname))
+  
+  # Plot    
+  print(dt %>% 
+          group_by(catID, eventDate) %>% 
+          summarise(rbar = mean(ret)) %>% 
+          arrange(catID, eventDate) %>% 
+          mutate(
+            roll_rbar = zoo::rollmean(rbar, k = rollmonths, fill = NA, align = 'right')
+          ) %>% 
+          mutate(catID = factor(catID, levels = c('risk', 'mispricing', 'agnostic'), 
+                                labels = c(paste0('Risk (', prepLegend$nSignals[prepLegend$catID == 'risk'], ' signals)'),
+                                           paste0('Mispricing (', prepLegend$nSignals[prepLegend$catID == 'mispricing'], ' signals)'), 
+                                           paste0('Agnostic (', prepLegend$nSignals[prepLegend$catID == 'agnostic'], ' signals)')))) %>% 
+          ggplot(aes(x = eventDate, y = roll_rbar, color = catID, linetype = catID)) +
+          geom_line(size = 1.1) +
+          # scale_color_brewer(palette = 'Dark2') + 
+          scale_color_manual(values = colors) + 
+          # scale_linetype(guide = 'none') +
+          geom_vline(xintercept = 0) +
+          coord_cartesian(
+            xlim = c(-360, 240), ylim = c(-60, 170)
+          ) +
+          scale_y_continuous(breaks = seq(-200,180,25)) +
+          scale_x_continuous(breaks = seq(-360,360,60)) +  
+          geom_hline(yintercept = 100, color = 'dimgrey') +
+          # annotate(geom="text",
+          #          label='In-Sample Mean', x=16, y=95, vjust=-1,
+          #          family = "Palatino Linotype", color = 'dimgrey'
+          # )  +
+          geom_hline(yintercept = 0) +
+          ylab('Trailing 5-Year Mean Return (bps p.m.)') +
+          xlab('Months Since Original Sample Ended') +
+          labs(color = '', linetype = '') +
+          theme_light(base_size = 18) +
+          theme(
+            legend.position = c(85,85)/100
+            , legend.spacing.y = unit(0, units = 'cm')
+            #    , legend.box.background = element_rect(fill='transparent')
+            ,legend.background = element_rect(fill='transparent')
+          ) 
+  )
+  
+  ggsave(paste0(basepath, '_', suffix, '.pdf'), width = 10, height = 8)
+  
+}
+
+
+# Create a plot that compares the average predictor return with the average data-mined return
+ReturnPlotsWithDM = function(dt, suffix = '', rollmonths = 60, colors = NA,
+                             xl = -360, xh = 240, yl = -10, yh = 130, fig.width = 10,
+                             fig.height = 8, basepath = NA_character_) {
+  
+  #' @param dt Table with three columns (eventDate, ret, matchRet)
+  #' @param suffix String to attach to saved pdf figure 
+  #' @param rollmonths Number of months over which moving average is computed
+  #' @param xl, xh, yl, yh Upper and lower limits for x and y axes  
+  
+  print(
+    dt %>% 
+      gather(key = 'SignalType', value = 'return', -eventDate) %>% 
+      group_by(SignalType, eventDate) %>% 
+      summarise(rbar = mean(return)) %>% 
+      arrange(SignalType, eventDate) %>% 
+      mutate(
+        roll_rbar = zoo::rollmean(rbar, k = rollmonths, fill = NA, align = 'right')
+      ) %>% 
+      mutate(SignalType = factor(SignalType, levels = c('ret', 'matchRet'), labels = c('Published', 'Matched data-mined'))) %>% 
+      ggplot(aes(x = eventDate, y = roll_rbar, color = SignalType, linetype = SignalType)) +
+      geom_line(size = 1.1) +
+      #  scale_color_grey() + 
+      # scale_color_brewer(palette = 'Dark2') + 
+      scale_color_manual(values = colors) + 
+      scale_linetype_manual(values = c('solid', 'twodash')) +
+      # scale_linetype(guide = 'none') +
+      geom_vline(xintercept = 0) +
+      coord_cartesian(
+        xlim = c(xl, xh), ylim = c(yl, yh)
+      ) +
+      scale_y_continuous(breaks = seq(-200,180,25)) +
+      scale_x_continuous(breaks = seq(-360,360,60)) +  
+      geom_hline(yintercept = 100, color = 'dimgrey') +
+      geom_hline(yintercept = 0) +
+      ylab('Trailing 5-Year Mean Return (bps p.m.)') +
+      xlab('Months Since Original Sample Ended') +
+      labs(color = '', linetype = '') +
+      theme_light(base_size = 18) +
+      theme(
+        legend.position = c(80,85)/100
+        , legend.spacing.y = unit(0, units = 'cm')
+        , legend.background = element_rect(fill='transparent')
+      ) 
+  )
+  
+  ggsave(paste0(basepath, '_', suffix, '.pdf'), width = fig.width, height = fig.height)
+  
+}
+
+
+# Finds matching strategies for a predictor from the universe of strategies
+matchedReturns = function(bm_rets,
+                          actSignalname, 
+                          actSampleStart, # TBD: Unify dates to end of calendar month (current workaround: year(date))
+                          actSampleEnd, 
+                          actTStat,
+                          actRBar,
+                          tol_t = .3,
+                          tol_r = .3) {
+  
+  #' @param bm_rets Table of universe of strategies
+  #' @param actSignalname String of actual predictor name
+  #' @param tol_t Tolerance level for difference in t-stats
+  #' @param tol_r Tolerance level for difference in mean returns
+  
+  # Restrict benchmark sample to in-sample dates and compute summary stats
+  tmpSumStats = bm_rets %>% 
+    filter(
+      year(date) >= year(actSampleStart), year(date) <= year(actSampleEnd)
+    )
+  # Make sure that samples are the spanning the entire length (and not just small subsets)
+  # group_by(signalname) %>% 
+  # mutate(minDate = min(date),
+  #        maxDate = max(date)) %>% 
+  # ungroup() %>% 
+  # filter(year(minDate) == year(actSampleStart),
+  #        year(maxDate) == year(actSampleEnd)) %>% 
+  # Make sure that samples are available for at least 80% of predictor in-sample period
+  # group_by(signalname) %>% 
+  # mutate(tmpN = n()) %>% 
+  # ungroup() %>% 
+  # filter(tmpN > .8*12*(year(actSampleEnd) - year(actSampleStart)))
+  
+  # Make sure predictors fully available in last in-sample year
+  tmpFullyLastYear = tmpSumStats %>% 
+    filter(year(date) == year(actSampleEnd)) %>% 
+    group_by(signalname) %>% 
+    filter(n() == 12) %>% 
+    ungroup() %>% 
+    select(signalname) %>% 
+    distinct()
+  
+  tmpSumStats = tmpSumStats %>% 
+    filter(signalname %in% tmpFullyLastYear$signalname)
+  
+  # Sum stats
+  tmpSumStats = tmpSumStats %>% 
+    group_by(signalname) %>%
+    summarize(
+      rbar = mean(ret)
+      #    , vol = sd(ret)
+      , tstat = mean(ret)/sd(ret)*sqrt(dplyr::n())) %>% 
+    ungroup()
+  
+  # Find matches (can define different metrics here if desired. Currently, all strats with t-stat difference within tol)
+  tmpCandidates = tmpSumStats %>% 
+    mutate(diff_t = abs(tstat) - abs(actTStat),
+           diff_r = abs(rbar)  - abs(actRBar)) %>% 
+    filter(abs(diff_t) < tol_t,
+           abs(diff_r) < tol_r)
+  
+  # Return candidate strategy returns
+  
+  bm_rets %>% 
+    filter(signalname %in% tmpCandidates$signalname) %>% 
+    inner_join(tmpSumStats %>% 
+                 filter(signalname %in% tmpCandidates$signalname)) %>% 
+    transmute(candSignalname = signalname,
+              eventDate = interval(tmpSampleEnd, date) %/% months(1),
+              # Sign returns
+              ret = ifelse(rbar >0, ret, -ret),
+              samptype = case_when(
+                (year(date) >= year(actSampleStart)) & (year(date) <= year(actSampleEnd)) ~ 'insamp'
+                , (year(date) > year(actSampleEnd)) ~ 'oos' 
+                , TRUE ~ NA_character_
+              ),
+              actSignal = actSignalname
+    )
+  
+}
 
