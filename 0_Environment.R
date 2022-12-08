@@ -64,11 +64,11 @@ compnames$yz.numer = c("acchg", "aco", "acox", "act", "am", "ao", "aoloch", "aox
                           "txach", "txbco", "txc", "txdb", "txdba", "txdbca", "txdbcl", "txdc", "txdfed", "txdfo", "txdi", "txditc",
                           "txds", "txfed", "txfo", "txndb", "txndba", "txndbl", "txndbr", "txo", "txp", "txpd", "txr", "txs", "txt", "txw",
                           "wcap", "wcapc", "wcapch", "xacc", "xad", "xdepl", "xi", "xido", "xidoc", "xint", "xopr", "xpp", "xpr", "xrd", "xrent",
-                          "xsga", "mkvalt")
+                          "xsga")
 
 
 compnames$yz.denom <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
-                      "ceq", "seq", "icapt", "sale", "cogs", "xsga", "mkvalt", "emp")
+                      "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp")
 
 
 # Functions ---------------------------------------------------------------
@@ -310,7 +310,7 @@ dataset_to_signal = function(form, dt, v1, v2){
 
 signal_to_longshort = function(dt, form, portnum, sweight, trim = NULL){
   
-  dt = dt %>% filter(!is.na(signal), !is.na(ret))
+  dt = dt %>% filter(!is.na(signal), !is.na(ret), is.finite(signal))
   
   if (form == 'ls_extremes'){
     
@@ -375,11 +375,12 @@ signal_to_longshort = function(dt, form, portnum, sweight, trim = NULL){
     # find long-short return
     return(
       dt %>% 
-      select(yearm, port, ret) %>% 
-      pivot_wider(names_from = port, values_from = ret) %>% 
-      mutate(ret_ls = long - short) %>% 
+      select(yearm, port, ret, nstock) %>% 
+      pivot_wider(names_from = port, values_from = c(ret, nstock)) %>% 
+      mutate(ret_ls = ret_long - ret_short,
+             nstocks_ls = nstock_long + nstock_short) %>% 
       filter(!is.na(ret_ls)) %>% 
-      transmute(yearm, ret = ret_ls)
+      transmute(yearm, ret = ret_ls, nstock = nstocks_ls)
     )
 
   } # if form

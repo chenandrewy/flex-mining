@@ -22,25 +22,26 @@ env <- foreach:::.foreachGlobals # https://stackoverflow.com/questions/64519640/
 rm(list=ls(name=env), pos=env)
 
 ## User settings ----
-# no_cores <- round(.6*detectCores())  # Adjust number of cores used as you see fit
-no_cores = 3 # use no_cores = 1 for serial
+no_cores <- round(.5*detectCores())  # Adjust number of cores used as you see fit
+# no_cores = 3 # use no_cores = 1 for serial
 
 # data lag choices
 data_avail_lag = 6 # months
 toostale_months = 12 
 
 # signal choices
-# signal_form = c('ratio', 'ratioChange', 'ratioChangePct',
-#                 'levelChangePct', 'levelChangeScaled', 'levelsChangePct_Change') # 'noise'
-signal_form = c('ratioChange')
+signal_form = c('ratio', 'ratioChange', 'ratioChangePct',
+                'levelChangePct', 'levelChangeScaled', 'levelsChangePct_Change') # 'noise'
+# signal_form = c('ratioChange')
+
 signalnum   = TRUE # number of signals to sample or TRUE for all
 seednumber  = 1235 # seed sampling
 
 # portfolio choices
 reup_months    = c(6) # stocks are traded using new data at end of these months
 longshort_form = 'ls_extremes'
-portnum        = c(10)
-sweight        = c('ew') 
+portnum        = c(5)
+sweight        = c('ew', 'vw') 
 trim           = NULL  # or some quantile e.g. .005
 
 # variable choices
@@ -109,7 +110,7 @@ make_many_ls = function(){
   
   ## end make one portdat ===
   
-  return = ls_dat
+  return(ls_dat)
 }
 
 

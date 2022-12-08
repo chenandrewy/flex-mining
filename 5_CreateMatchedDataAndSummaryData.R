@@ -4,7 +4,7 @@
 
 source('0_Environment.R')
 
-DMStrategies = 'YZ'  # Or DM for our strategies
+DMStrategies = 'DM'  # Or YZ
 t_tolerance = .3
 r_tolerance = .3
 

@@ -24,7 +24,7 @@ numRowsToPull <- -1 # Set to -1 for all rows and to some positive value for test
 # Download ----------------------------------------------------------------
 
 # Select variable names: use all Yan-Zheng numerators and denominators
-tempnames = c(compnames$yz.denom, compnames$yz.numer) 
+tempnames = union(compnames$yz.numer, compnames$yz.denom) 
 tempnames[tempnames == 'do'] = 'a.do' # fix weird bug where 'do' is not accepted by dbSendQuery
 tempnames = paste(tempnames, collapse = ', ')
 
