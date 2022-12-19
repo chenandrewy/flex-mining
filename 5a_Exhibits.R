@@ -20,7 +20,8 @@ czret = tmp$czret
 rm(tmp)
 
 # Matched returns
-candidateReturns = readRDS('../Data/Processed/MatchedData.RDS')
+#candidateReturns = readRDS('../Data/Processed/MatchedData.RDS')
+candidateReturns = readRDS('../Data/Processed/MatchedData2022-12-08.RDS')
 
 
 # Restrict to predictors in consideration
@@ -105,7 +106,7 @@ ReturnPlotsWithDM(dt = allRets %>%
                     filter(!is.na(matchRet), Keep == 1) %>% # To exclude unmatched signals
                     transmute(eventDate, ret, matchRet),
                   basepath = '../Results/Fig_PublicationsVsDataMining',
-                  suffix = 'All',
+                  suffix = 'All_DM',
                   rollmonths = 60,
                   colors = colors)
 
@@ -117,7 +118,7 @@ for (jj in unique(allRets$theory1)) {
                       filter(!is.na(matchRet), theory1 == jj, Keep == 1) %>% # To exclude unmatched signals
                       select(eventDate, ret, matchRet),
                     basepath = '../Results/Fig_PublicationsVsDataMining',
-                    suffix = jj,
+                    suffix = paste0(jj, '_DM'),
                     colors = colors,
                     yl = -60, yh = 170, fig.width = 18) 
   
@@ -264,6 +265,6 @@ toExcel = list(
   Significance = tableSignificance
 )
 
-writexl::write_xlsx(toExcel, path = '../Results/MatchingSummary.xlsx')
+writexl::write_xlsx(toExcel, path = '../Results/MatchingSummary_DM.xlsx')
 
 

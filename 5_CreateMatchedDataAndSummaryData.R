@@ -7,7 +7,7 @@ source('0_Environment.R')
 DMStrategies = 'DM'  # Or YZ
 t_tolerance = .3
 r_tolerance = .3
-
+minNumStocks = 40  # Minimum number of stocks in any month over the in-sample period to include a strategy
 
 # Load data ---------------------------------------------------------------
 
@@ -89,7 +89,8 @@ if (DMStrategies == 'DM') {
       , date = zoo::as.Date(yearm, frac = 1)
       # , y = year(yearm)
       # , m = month(yearm)
-      , ret)
+      , ret
+      , nstock)
   
   
   bm_retsEW = bm_rets %>% 
@@ -99,7 +100,8 @@ if (DMStrategies == 'DM') {
       , date = zoo::as.Date(yearm, frac = 1)
       # , y = year(yearm)
       # , m = month(yearm)
-      , ret)
+      , ret
+      , nstock)
   
   rm(bm_rets)
   
@@ -203,7 +205,8 @@ for (ii in 1:nrow(czsum)) {
                        actTStat = tmpTStat,
                        actRBar = tmpRbar,
                        tol_t = t_tolerance,
-                       tol_r = r_tolerance) 
+                       tol_r = r_tolerance,
+                       minStocks = minNumStocks) 
   
   # Add to data
   candidateReturns = bind_rows(candidateReturns, tmp)
@@ -212,6 +215,6 @@ for (ii in 1:nrow(czsum)) {
 
 # Save
 saveRDS(candidateReturns,
-  file = '../Data/Processed/MatchedData.RDS'
+  file = paste0('../Data/Processed/MatchedData', today(), '.RDS')
 )
 

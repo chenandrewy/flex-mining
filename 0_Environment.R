@@ -572,7 +572,8 @@ matchedReturns = function(bm_rets,
                           actTStat,
                           actRBar,
                           tol_t = .3,
-                          tol_r = .3) {
+                          tol_r = .3,
+                          minStocks = 50) {
   
   #' @param bm_rets Table of universe of strategies
   #' @param actSignalname String of actual predictor name
@@ -596,6 +597,16 @@ matchedReturns = function(bm_rets,
   # mutate(tmpN = n()) %>% 
   # ungroup() %>% 
   # filter(tmpN > .8*12*(year(actSampleEnd) - year(actSampleStart)))
+  
+  # Make sure at least minStocks stocks in each month of the sample period
+  tmpAtLeastNStocks = tmpSumStats %>% 
+    group_by(signalname) %>% 
+    summarise(minN = min(nstock)) %>% 
+    ungroup() %>% 
+    filter(minN >= minStocks)
+
+  tmpSumStats = tmpSumStats %>% 
+    filter(signalname %in% tmpAtLeastNStocks$signalname)
   
   # Make sure predictors fully available in last in-sample year
   tmpFullyLastYear = tmpSumStats %>% 
