@@ -158,6 +158,8 @@ crsp[ , me := c(NA, me[-.N]), by = permno] # lags me by one month
 comp1[ , ret_yearm := signalyearm + 1/12]
 alldat = merge(crsp, comp1, all.x=TRUE, by = c('permno','ret_yearm'))
 
+# Add me to xnames
+xnames = c(xnames, "me")
 # fill NA with most recent x by permno
 #   this takes the most time 
 alldat[ , (xnames) := nafill(.SD, 'locf'), by = .(permno), .SDcols = xnames]
