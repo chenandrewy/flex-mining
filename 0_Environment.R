@@ -43,7 +43,7 @@ if (!file.exists('0_Environment.R')){
 set.seed(1337)
 
 # Yan-Zheng numerator and denominator names
-# mkvalt is not exactly me, but for our framework it makes more sense
+# YZ list MKTCAP in Table B.1, which we call me_datadate  mkvalt is not available earlier in the data
 
 compnames = list()
 compnames$yz.numer = c("acchg", "aco", "acox", "act", "am", "ao", "aoloch", "aox", "ap", "apalch",
@@ -68,7 +68,7 @@ compnames$yz.numer = c("acchg", "aco", "acox", "act", "am", "ao", "aoloch", "aox
 
 
 compnames$yz.denom <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
-                      "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp")
+                      "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp", 'me_datadate')
 
 
 # Functions ---------------------------------------------------------------
@@ -310,7 +310,7 @@ dataset_to_signal = function(form, dt, v1, v2){
 
 
 
-signal_to_longshort = function(dt, form, portnum, sweight, trim = NULL){
+signal_to_ports = function(dt, form, portnum, sweight, trim = NULL){
   
   dt = dt %>% filter(!is.na(signal), !is.na(ret), is.finite(signal))
   
@@ -325,7 +325,7 @@ signal_to_longshort = function(dt, form, portnum, sweight, trim = NULL){
     }
     
     # Potential preprocessing of signal values
-    if (!is.null(trim)) {
+    if (!is.na(trim)) {
       
       dt = dt %>% 
         filter(signal >= quantile(dt$signal, trim, na.rm = TRUE),
@@ -387,7 +387,7 @@ signal_to_longshort = function(dt, form, portnum, sweight, trim = NULL){
 
   } # if form
   
-} # end signal_to_longshort
+} # end signal_to_ports
 
 
 # Function for calculating alpha and shrinkage

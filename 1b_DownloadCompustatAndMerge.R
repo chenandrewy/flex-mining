@@ -26,6 +26,7 @@ numRowsToPull <- -1 # Set to -1 for all rows and to some positive value for test
 # Select variable names: use all Yan-Zheng numerators and denominators
 tempnames = union(compnames$yz.numer, compnames$yz.denom) 
 tempnames[tempnames == 'do'] = 'a.do' # fix weird bug where 'do' is not accepted by dbSendQuery
+tempnames = tempnames[tempnames != 'me_datadate']  # remove crsp me
 tempnames = paste(tempnames, collapse = ', ')
 
 qstring = paste0(
@@ -93,6 +94,13 @@ CompustatAnnual <- CompustatAnnual %>% group_by(gvkey) %>%
   select(-year, -year_min) %>% 
   ungroup()
 
+
+# Add me_datadate -------------------------------------------------------------
+crspm = readRDS('../Data/Intermediate/crspm.RData') %>% 
+  transmute(permno, datayearm = yearm, me_datadate = me)
+
+CompustatAnnual = CompustatAnnual %>% 
+  left_join(crspm, by = c('permno','datayearm'))
 
 
 # Save to disk ------------------------------------------------------------
