@@ -187,7 +187,7 @@ lsos <- function(..., n=10) {
 
 
 # function for creating a list of possible variable combinations used in strategies
-strategy_list = function(xvars, signalnum, scale_vars = NULL, rs) {
+make_signal_list = function(signal_form, xvars, signalnum, scale_vars = NULL, rs) {
   
   #' @param xvars Unique names of variables used for creating strategies
   #' @param signalnum Number of signals to sample from full list
@@ -197,7 +197,8 @@ strategy_list = function(xvars, signalnum, scale_vars = NULL, rs) {
   set.seed(rs)
   
   # make list of all possible xused combinations
-  tmp = expand.grid(v1 = xnames, v2 = xnames, stringsAsFactors = FALSE) %>% 
+  # (is v1 != v2 what we want here??)
+  tmp = expand.grid(signal_form = signal_form, v1 = xvars, v2 = xvars, stringsAsFactors = FALSE) %>% 
     filter(v1 != v2)
   
   # Deal with scaling variables if provided
@@ -205,21 +206,22 @@ strategy_list = function(xvars, signalnum, scale_vars = NULL, rs) {
     tmp = tmp %>% 
       filter(v2 %in% scale_vars, !(v1 %in% scale_vars))
   }
-  
   # Deal with duplicates (from including all combinations e.g. "ab" and "ba")
   if (is.null(scale_vars)) {
     tmp = tmp %>% 
       filter(v1 >v2)
   }
   
-  # sample from full list
-  if (signalnum == TRUE) {
-    tmp = tmp
-  } else if (nrow(tmp) > signalnum) {
-    tmp = tmp %>% 
-      sample_n(signalnum) 
-  }
+  # remove v2 for signal_forms that use only 1 variable
+  tmp = tmp %>% 
+    mutate(v2 = if_else(signal_form %in% c('levelChangePct'), NA_character_, v2)) %>% 
+    arrange(signal_form, v1, v2) %>% 
+    distinct(signal_form, v1, v2, .keep_all = T)
   
+  # sample from full list
+  signalnum = min(signalnum, nrow(tmp))
+  tmp = tmp %>% sample_n(signalnum)
+
   return(tmp)
 }
 
@@ -330,7 +332,7 @@ signal_to_longshort = function(dt, form, portnum, sweight, trim = NULL){
                signal <= quantile(dt$signal, 1-trim, na.rm = TRUE)
         )
     }
-    
+
     # find breakpoints
     breakdat = dt %>% 
       group_by(ret_yearm) %>% 

@@ -1,10 +1,4 @@
-# Takes in a dataset and constructs a sample of long-short strategies
-
-# ASSUMPTIONS ON DATASET MADE FOR SPEED
-#   1) everything except for returns is lagged
-#   2) data is sorted by c(permno, date)
-
-# do we want to move to doRNG? https://cran.r-project.org/web/packages/doRNG/vignettes/doRNG.pdf
+tic = Sys.time()
 
 # Settings ----------------------------------------------------------------
 
@@ -22,8 +16,14 @@ env <- foreach:::.foreachGlobals # https://stackoverflow.com/questions/64519640/
 rm(list=ls(name=env), pos=env)
 
 ## User settings ----
+stratname = 'yz_rep' # name of output file
+
+
 no_cores <- round(.5*detectCores())  # Adjust number of cores used as you see fit
 # no_cores = 3 # use no_cores = 1 for serial
+no_cores = 10
+threads_fst(1) # since fst is used inside foreach, might want to limit cpus, though this doesn't seem to help
+
 
 # data lag choices
 data_avail_lag = 6 # months
@@ -32,31 +32,33 @@ toostale_months = 12
 # signal choices
 signal_form = c('ratio', 'ratioChange', 'ratioChangePct',
                 'levelChangePct', 'levelChangeScaled', 'levelsChangePct_Change') # 'noise'
-# signal_form = c('ratioChange')
 
-signalnum   = TRUE # number of signals to sample or TRUE for all
+xnames = unique(c(compnames$yz.numer, compnames$yz.denom))
+scaling_variables = compnames$yz.denom
+
+signalnum   = Inf # number of signals to sample or Inf for all
 seednumber  = 1235 # seed sampling
+
+
 
 # portfolio choices
 reup_months    = c(6) # stocks are traded using new data at end of these months
 longshort_form = 'ls_extremes'
-portnum        = c(5)
-sweight        = c('ew', 'vw') 
+portnum        = c(10)
+sweight        = c('ew','vw') 
 trim           = NULL  # or some quantile e.g. .005
 
-# variable choices
-#   NULL for use any scaling variable
-scaling_variables = NULL
+## Draw list of signals ====
+signal_list = make_signal_list(signal_form =  signal_form,
+                               xvars = xnames, 
+                               signalnum = signalnum,
+                               scale_vars = scaling_variables,                         
+                               rs = seednumber)
 
-# all the variables under consideration
-xnames = unique(c(compnames$yz.numer, compnames$yz.denom))
-
-
-dataCombinations = expand.grid(signal_form = signal_form,
-                               longshort_form = longshort_form, 
-                               portnum = portnum, 
-                               sweight = sweight,
-                               stringsAsFactors = FALSE)
+port_list = expand.grid(longshort_form = longshort_form, 
+                        portnum = portnum, 
+                        sweight = sweight,
+                        stringsAsFactors = FALSE)
 
 
 # Internal Functions ---------------------------------------------------------------
@@ -64,54 +66,77 @@ dataCombinations = expand.grid(signal_form = signal_form,
 make_many_ls = function(){
   ### make one portdat ===
   
+  # extract current settings settings
+  signal_cur = signal_list[signali,]
+  
   # import small dataset with return, me, xusedcurr, and add signal
-  if (signal_form == 'levelChangePct') { # If only one variable needed to construct signal
+  if (is.na(signal_cur$v2)) { # If only one variable needed to construct signal
     smalldat = fst::read_fst('../Data/tmpAllDat.fst', 
                              columns = c('permno', 'ret_yearm', 'ret', 'me_monthly',
-                                         xused_list$v1[signali])) %>%
+                                         signal_cur$v1)) %>%
       as_tibble()
   } else {
     smalldat = fst::read_fst('../Data/tmpAllDat.fst', 
                              columns = c('permno', 'ret_yearm', 'ret', 'me_monthly',
-                                         xused_list$v1[signali], xused_list$v2[signali])) %>%
+                                         signal_cur$v1, signal_cur$v2)) %>%
       as_tibble()
   }
   smalldat = smalldat %>% mutate(ret_yearm = as.yearmon(ret_yearm))
   
-  smalldat$signal = dataset_to_signal(form = signal_form, 
+  tic = Sys.time() #
+  smalldat$signal = dataset_to_signal(form = signal_cur$signal_form, 
                                       dt = smalldat, 
-                                      v1 =  xused_list$v1[signali],
-                                      v2 = xused_list$v2[signali]) # makes a signal
+                                      v1 =  signal_cur$v1,
+                                      v2 = signal_cur$v2) # makes a signal
+  toc = Sys.time() #
+  print(toc - tic) #
   
+  
+  tic = Sys.time() #
   # assign to portfolios
-  portdat = signal_to_longshort(dt = smalldat, 
-                                form = longshort_form, 
-                                portnum = portnum, 
-                                sweight = sweight,
-                                trim = trim)
+  portdat = tibble()
+  for (porti in 1:dim(port_list)[1]){
+    tempport = signal_to_longshort(dt = smalldat, 
+                                   form = port_list[porti,]$longshort_form, 
+                                   portnum = port_list[porti,]$portnum, 
+                                   sweight = port_list[porti,]$sweight,
+                                   trim = trim)
+    tempport = tempport %>% mutate(
+      longshort_form = port_list[porti,]$longshort_form, 
+      portnum = port_list[porti,]$portnum, 
+      sweight = port_list[porti,]$sweight,      
+    )
+    portdat = rbind(portdat, tempport)
+  }
+  
+  toc = Sys.time() #
+  print(toc - tic)  #
   
   # CLEAN UP AND SAVE ==== (in signal loop rather than after to accommodate parallelization)
-  signame = ifelse(is.na(xused_list$v2[signali]),
-                   paste0(signal_form, '_', longshort_form, '_', xused_list$v1[signali]),
-                   paste0(signal_form, '_', longshort_form, '_', xused_list$v1[signali], '_', xused_list$v2[signali]))
+  signame = ifelse(is.na(signal_cur$v2),
+                   paste0(signal_cur$signal_form, '_', longshort_form, '_', signal_cur$v1),
+                   paste0(signal_cur$signal_form, '_', longshort_form, '_', signal_cur$v1, '_', signal_cur$v2))
   
   
   ls_dat = portdat %>% 
     mutate(signalname = signame) 
-
+  
   # feedback
   print(paste0(
-    'signali = ', signali, ' of ', nrow(xused_list)
-    , ' | signalform = ', signal_form
-    , ' | v1 = ', xused_list$v1[signali]
-    , ' | v2 = ', xused_list$v2[signali]
+    'signali = ', signali, ' of ', nrow(signal_list)
+    , ' | signalform = ', signal_cur$signal_form
+    , ' | v1 = ', signal_cur$v1
+    , ' | v2 = ', signal_cur$v2
     #      , ' | Var(tstat) = ', round(var_tstat,2)
   ))
   
   ## end make one portdat ===
   
   return(ls_dat)
+  
+  # return(NULL)
 }
+
 
 
 # Data Prep ---------------------------------------------------------------
@@ -139,7 +164,7 @@ comp1[
 # remove duplicates
 comp1 = comp1[
   order(permno, signalyearm, datayearm)
-  ][
+][
   , head(.SD, 1), by = .(permno, signalyearm)
 ]
 
@@ -192,87 +217,77 @@ toc - tic
 rm(comp0,comp1,crsp)
 gc()
 
-# SAMPLE STRATEGIES ====
 
-# Loop over data configurations
-for (ii in 1:nrow(dataCombinations)) {
-  
-  signal_form = dataCombinations$signal_form[ii]
-  longshort_form = dataCombinations$longshort_form[ii]
-  sweight = dataCombinations$sweight[ii]
-  portnum = dataCombinations$portnum[ii]
-  
-  ## draw sample of variable combinations ====
-  
-  if (signal_form == 'levelChangePct') { # If only one variable needed to construct signal
-    xused_list = tibble(v1 = xnames, v2 = NA_real_)
-  } else {
-    xused_list = strategy_list(xvars = xnames, 
-                               signalnum = signalnum,
-                               scale_vars = scaling_variables,
-                               rs = seednumber)
-  }
 
-  # call make_many_ls (this is where the action is) ====
-  if (no_cores > 1){
-    cl <- makePSOCKcluster(no_cores)
-    registerDoParallel(cl)
-    ls_dat_all = foreach(signali=1:nrow(xused_list), 
-                         .combine = rbind,
-                         .packages = c('tidyverse','zoo')) %dopar% {
-                           
-                           ls_dat = make_many_ls()
-                           
-                         } # end for signali
-    stopCluster(cl)  
-  } else {
-    ls_dat_all = foreach(signali=1:nrow(xused_list), 
-                         .combine = rbind) %do% {
-                           ls_dat = make_many_ls()
-                         } # end for signali    
-  } # if no_cores
-  
 
-  # finish up ====
 
-  
-  # compile all info into one list
-  stratdat = list(
-    ret = ls_dat_all
-    , signal_form = signal_form
-    , longshort_form = longshort_form
-    , portnum = portnum
-    , trim = trim
-    , reup_months = reup_months
-    , sweight = sweight
-    , data_avail_lag = data_avail_lag
-    , scaling_variables = scaling_variables
-    , usedData = 'allData'
+
+# Sample Strategies -------------------------------------------------------
+# call make_many_ls (this is where the action is) 
+
+if (no_cores > 1){
+  cl <- makePSOCKcluster(no_cores)
+  registerDoParallel(cl)
+  ls_dat_all = foreach(signali=1:nrow(signal_list), 
+                       .combine = rbind,
+                       .packages = c('tidyverse','zoo')) %dopar% {
+                         ls_dat = make_many_ls()
+                       } # end for signali
+  stopCluster(cl)  
+} else {
+  ls_dat_all = foreach(signali=1:nrow(signal_list), 
+                       .combine = rbind) %do% {
+                         ls_dat = make_many_ls()
+                       } # end for signali    
+} # if no_cores
+
+
+
+
+# Organize and Save -------------------------------------------------------
+
+# compile all info into one list
+stratdat = list(
+  ret = ls_dat_all
+  , signal_form = signal_form
+  , longshort_form = longshort_form
+  , portnum = portnum
+  , trim = trim
+  , reup_months = reup_months
+  , sweight = sweight
+  , data_avail_lag = data_avail_lag
+  , scaling_variables = scaling_variables
+  , usedData = 'allData'
+)
+
+# save
+saveRDS(stratdat, paste0('../Data/LongShortPortfolios/stratdat_',
+                         stratname,
+                         '.RData'))
+
+toc = Sys.time()
+print(toc - tic)
+
+
+# Debug: Compare to YZ -------------------------------------------------------------------------
+
+
+yz = readRDS('../Data/LongShortPortfolios/yz_ew.RData')$ret %>% 
+  mutate(sweight = 'ew') %>% 
+  rbind(
+    readRDS('../Data/LongShortPortfolios/yz_vw.RData')$ret %>% 
+      mutate(sweight = 'vw')
   )
-  
-  # save
-  if (is.null(scaling_variables)) {
-    saveRDS(stratdat, paste0('../Data/LongShortPortfolios/stratdat_',
-                             signal_form, '_', longshort_form, portnum, sweight, 
-                             '_NoScaleVars.RData'))
-    
-  } else {
-    saveRDS(stratdat, paste0('../Data/LongShortPortfolios/stratdat_',
-                             signal_form, '_', longshort_form, portnum, sweight, 
-                             '_ScaleVars.RData'))
-  }
-  
-}
 
 
 
-# debug -------------------------------------------------------------------
-
-stratdat$ret %>% 
-  filter(!is.na(ret)) %>% 
-  group_by(signalname) %>% 
+yz %>% group_by(signalname, sweight) %>% 
   summarize(tstat = mean(ret)/sd(ret)*sqrt(n())) %>% 
-  pull(tstat) %>% 
-  hist()
+  group_by(sweight) %>% 
+  summarize(quantile(tstat), sd(tstat))
 
 
+stratdat$ret %>% filter(yearm >= 1963.6, yearm <= 2014) %>% group_by(signalname, sweight) %>% 
+  summarize(tstat = mean(ret)/sd(ret)*sqrt(n())) %>% 
+  group_by(sweight) %>% 
+  summarize(quantile(tstat), sd(tstat))
