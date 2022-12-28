@@ -1,6 +1,6 @@
 tic = Sys.time()
 
-# rm(list = ls())
+rm(list = ls())
 
 # Setup  ----------------------------------------------------------------
 
@@ -17,7 +17,7 @@ threads_fst(1) # since fst is used inside foreach, might want to limit cpus, tho
 
 ## Output settings ----
 user = list()
-user$name = 'yz_rep' # name of output file
+user$name = Sys.time() %>% substr(1,13) # name of output file (by default use time and date)
 
 # signal choices
 #   really not sure that xnames and scaling_variables should be defined this way
@@ -26,11 +26,11 @@ temp_denom = compnames$yz.denom
 #                "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp", 'me')
 
 user$signal = list(
-  form = c('ratio', 'ratioChange', 'ratioChangePct',
+  signalnum   = 1000 # number of signals to sample or Inf for all
+  , form = c('ratio', 'ratioChange', 'ratioChangePct',
                   'levelChangePct', 'levelChangeScaled', 'levelsChangePct_Change') # 'noise'
   , xnames = unique(c(compnames$yz.numer,temp_denom))  # must include scaling variables
   , scaling_variables = temp_denom
-  , signalnum   = Inf # number of signals to sample or Inf for all
   , seednumber  = 1235 # seed sampling
 )
 
@@ -152,15 +152,14 @@ toc - tic
 
 ## Draw lists of signals and ports ------------------------------------------
 
-signal_list = make_signal_list(signal_form =  user$signal$form,
-                               xvars = user$signal$xnames, 
-                               signalnum = user$signal$signalnum,
-                               scale_vars = user$signal$scaling_variables,                         
-                               rs = user$signal$seednumber)
+# ac: this function doesn't seem to work right
+# signal_list = make_signal_list(signal_form =  user$signal$form,
+#                                xvars = user$signal$xnames, 
+#                                signalnum = user$signal$signalnum,
+#                                scale_vars = user$signal$scaling_variables,                         
+#                                rs = user$signal$seednumber)
 
-# replicate yz strat list
-
-
+# ac: this works to replicate yz strat list
 # first make 240*76 = 18,240 combinations
 signal_list = expand.grid(
   signal_form = user$signal$form
@@ -314,8 +313,8 @@ stratdat = list(
 )
 
 # save
-saveRDS(stratdat, paste0('../Data/LongShortPortfolios/stratdat_',
-                         stratdat$name, '_',
+saveRDS(stratdat, paste0('../Data/LongShortPortfolios/stratdat ',
+                         stratdat$name, 
                          '.RData'))
 
 toc = Sys.time()
@@ -348,7 +347,11 @@ sum1 = rbind(us,yz) %>%
   group_by(source, sweight, signalname) %>% 
   summarize(rbar = mean(ret), nmonth = n(), tstat = mean(ret)/sd(ret)*sqrt(n())) 
 
-q = c(1, 5, 10, 25, 50, 75, 90, 95, 99)/100
+q = c(0.001, 0.1, 1, 5, 10, 25)/100
+
+q = c(1, 5, 10, 25, 50)/100
+q = c(q, 1-q) %>% sort() %>% unique()
+
 sum1 %>%
   filter(nmonth >= 2) %>% 
   filter(sweight == 'ew') %>% 

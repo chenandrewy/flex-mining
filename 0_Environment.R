@@ -23,7 +23,6 @@ library(gridExtra)
 dir.create('../Data/', showWarnings = F)
 dir.create('../Data/Intermediate/', showWarnings = F)
 dir.create('../Data/LongShortPortfolios/', showWarnings = F)
-dir.create('../Data/RollingStats/', showWarnings = F)
 dir.create('../Results', showWarnings = F)
 dir.create('../Data/CZ', showWarnings = F)
 dir.create('../Data/Processed', showWarnings = F)
@@ -591,7 +590,7 @@ matchedReturns = function(bm_rets,
   # Restrict benchmark sample to in-sample dates and compute summary stats
   tmpSumStats = bm_rets %>% 
     filter(
-      year(date) >= year(actSampleStart), year(date) <= year(actSampleEnd)
+      yearm >= actSampleStart, yearm <= actSampleEnd
     )
   # Make sure that samples are the spanning the entire length (and not just small subsets)
   # group_by(signalname) %>% 
@@ -618,7 +617,7 @@ matchedReturns = function(bm_rets,
   
   # Make sure predictors fully available in last in-sample year
   tmpFullyLastYear = tmpSumStats %>% 
-    filter(year(date) == year(actSampleEnd)) %>% 
+    filter(year(yearm) == year(actSampleEnd)) %>% 
     group_by(signalname) %>% 
     filter(n() == 12) %>% 
     ungroup() %>% 
@@ -645,18 +644,18 @@ matchedReturns = function(bm_rets,
            abs(diff_r) < tol_r)
   
   # Return candidate strategy returns
-  
+  #   ac: should be a better way to find eventDate directly from yearm
   bm_rets %>% 
     filter(signalname %in% tmpCandidates$signalname) %>% 
     inner_join(tmpSumStats %>% 
                  filter(signalname %in% tmpCandidates$signalname)) %>% 
     transmute(candSignalname = signalname,
-              eventDate = interval(tmpSampleEnd, date) %/% months(1),
+              eventDate = interval(as.Date(tmpSampleEnd), as.Date(yearm)) %/% months(1),
               # Sign returns
               ret = ifelse(rbar >0, ret, -ret),
               samptype = case_when(
-                (year(date) >= year(actSampleStart)) & (year(date) <= year(actSampleEnd)) ~ 'insamp'
-                , (year(date) > year(actSampleEnd)) ~ 'oos' 
+                (yearm >= actSampleStart) & (yearm <= actSampleEnd) ~ 'insamp'
+                , (yearm > actSampleEnd) ~ 'oos' 
                 , TRUE ~ NA_character_
               ),
               actSignal = actSignalname
