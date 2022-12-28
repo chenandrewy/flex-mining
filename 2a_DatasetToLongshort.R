@@ -1,6 +1,6 @@
 tic = Sys.time()
 
-rm(list = ls())
+# rm(list = ls())
 
 # Setup  ----------------------------------------------------------------
 
@@ -30,7 +30,7 @@ user$signal = list(
                   'levelChangePct', 'levelChangeScaled', 'levelsChangePct_Change') # 'noise'
   , xnames = unique(c(compnames$yz.numer,temp_denom))  # must include scaling variables
   , scaling_variables = temp_denom
-  , signalnum   = Inf # number of signals to sample or Inf for all
+  , signalnum   = 100 # number of signals to sample or Inf for all
   , seednumber  = 1235 # seed sampling
 )
 
@@ -140,7 +140,7 @@ prepare_data = function(){
 } # end prepare_data
 
 # actually run function (comment out for debugging)
-prepare_data()
+# prepare_data()
 
 toc = Sys.time()
 print('done prepping data')
