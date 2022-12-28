@@ -1,8 +1,9 @@
 tic = Sys.time()
 
+rm(list = ls())
+
 # Setup  ----------------------------------------------------------------
 
-# rm(list = ls())
 
 source('0_Environment.R')
 library(doParallel)
@@ -11,7 +12,7 @@ rm(list=ls(name=env), pos=env)
 
 ## Parallel settings ----
 num_cores <- round(.5*detectCores())  # Adjust number of cores used as you see fit
-num_cores = 1 # use num_cores = 1 for serial
+num_cores = 10 # use num_cores = 1 for serial
 threads_fst(1) # since fst is used inside foreach, might want to limit cpus, though this doesn't seem to help
 
 ## Output settings ----
@@ -29,7 +30,7 @@ user$signal = list(
                   'levelChangePct', 'levelChangeScaled', 'levelsChangePct_Change') # 'noise'
   , xnames = unique(c(compnames$yz.numer,temp_denom))  # must include scaling variables
   , scaling_variables = temp_denom
-  , signalnum   = 1000 # number of signals to sample or Inf for all
+  , signalnum   = Inf # number of signals to sample or Inf for all
   , seednumber  = 1235 # seed sampling
 )
 
@@ -138,9 +139,11 @@ prepare_data = function(){
   
 } # end prepare_data
 
-# prepare_data()
+# actually run function (comment out for debugging)
+prepare_data()
 
 toc = Sys.time()
+print('done prepping data')
 toc - tic
 
 
@@ -155,18 +158,44 @@ signal_list = make_signal_list(signal_form =  user$signal$form,
                                scale_vars = user$signal$scaling_variables,                         
                                rs = user$signal$seednumber)
 
-port_list = expand.grid(longshort_form = user$port$longshort_form, 
-                        portnum = user$port$portnum, 
-                        sweight = user$port$sweight,
-                        trim = user$port$trim,
-                        stringsAsFactors = FALSE)
+# replicate yz strat list
+
+
+# first make 240*76 = 18,240 combinations
+signal_list = expand.grid(
+  signal_form = user$signal$form
+  , v1 = compnames$yz.numer
+  , v2 = compnames$yz.denom
+  , stringsAsFactors = F
+) %>% 
+  mutate(
+    v2 = if_else(signal_form == 'levelChangePct', NA_character_, v2)
+  ) %>% 
+  distinct(across(everything()), .keep_all = T) %>% 
+  # remove 13 vboth x 5 two variable fun where v1 == v2 leads to constant signals  
+  mutate(
+    dropme = v1 %in% intersect(compnames$yz.numer, compnames$yz.denom) 
+      & signal_form != 'levelChangePct' 
+      &  v1 == v2 
+  ) %>% 
+  # remove 2 vodd x 31 pd_var funs for some reason (not sure exact functions or why)
+  mutate(
+    dropme2 = v1 %in% c('rdip', 'txndbr')  
+      & signal_form %in% c('ratioChangePct','levelChangePct','levelsChangePct_Change')
+  ) %>%
+  filter(!(dropme | dropme2))
+
+# check at console
+signal_list %>% dim()
+
+
 
 ## Internal Function ---------------------------------------------------------------
-debugSource('0_Environment.R')
+
 make_many_ls = function(){
   ### make one portdat ===
   
-  # extract current settings settings
+  # extract current settings 
   signal_cur = signal_list[signali,]
   
   # import small dataset with return, me, xusedcurr, and add signal
@@ -202,11 +231,7 @@ make_many_ls = function(){
                                portnum = port_list[porti,]$portnum, 
                                sweight = port_list[porti,]$sweight,
                                trim = port_list[porti,]$trim)
-    tempport = tempport %>% mutate(
-      # longshort_form = port_list[porti,]$longshort_form, # not currently used
-      portnum = port_list[porti,]$portnum, 
-      sweight = port_list[porti,]$sweight,      
-    )
+    tempport = tempport %>% mutate(portid = porti)
     portdat = rbind(portdat, tempport)
   }
   
@@ -214,14 +239,8 @@ make_many_ls = function(){
   print('ports done')
   print(toc - tic)  #
   
-  # CLEAN UP AND SAVE ==== (in signal loop rather than after to accommodate parallelization)
-  signame = ifelse(is.na(signal_cur$v2),
-                   paste0(signal_cur$signal_form, '_', signal_cur$v1),
-                   paste0(signal_cur$signal_form, '_', signal_cur$v1, '_', signal_cur$v2))
-  
-  
-  ls_dat = portdat %>% 
-    mutate(signalname = signame) 
+  # Clean up and save
+  ls_dat = portdat %>% mutate(signalid = signali) 
   
   # feedback
   print(paste0(
@@ -236,8 +255,7 @@ make_many_ls = function(){
   
   return(ls_dat)
   
-
-}
+} # make_many_ls
 
 
 ## Loop over signals -------------------------------------------------------
@@ -247,10 +265,10 @@ if (num_cores > 1){
   setDTthreads(1)
   cl <- makePSOCKcluster(num_cores)
   registerDoParallel(cl)
+  file.remove('../Data/loop-log.txt')
   ls_dat_all = foreach(signali=1:nrow(signal_list), 
                        .combine = rbind,
                        .packages = c('tidyverse','zoo')) %dopar% {
-                         
                          log.text <- paste0(Sys.time(), " processing loop run ", signali)
                          write.table(log.text, "../Data/loop-log.txt", append = TRUE, row.names = FALSE, col.names = FALSE)
                          
@@ -274,6 +292,8 @@ if (num_cores > 1){
 # compile all info into one list
 stratdat = list(
   ret = ls_dat_all
+  , signal_list = signal_list
+  , port_list = port_list
   , user = user
   , name = user$name
 )
@@ -301,21 +321,21 @@ yz = readRDS('../Data/LongShortPortfolios/yz_ew.RData')$ret %>%
   ) %>% 
   select(source, sweight, signalname, yearm, ret)
 
-temp = yz %>% 
-  rbind(
-    stratdat$ret %>% transmute(
-      source = 'us', sweight, signalname, yearm, ret
-    )
+
+us = stratdat$ret %>% 
+  left_join(stratdat$port_list %>% select(portid, sweight)) %>% 
+  transmute(
+    source = 'us', sweight, signalname = signalid, yearm, ret
   ) %>% 
   filter(yearm >= 1963.6, yearm <= 2014) 
-
-
-sum1 = temp %>% 
+ 
+sum1 = rbind(us,yz) %>% 
   group_by(source, sweight, signalname) %>% 
   summarize(rbar = mean(ret), nmonth = n(), tstat = mean(ret)/sd(ret)*sqrt(n())) 
 
-q = c(5, 10, 25, 50, 75, 90, 95)/100
+q = c(1, 5, 10, 25, 50, 75, 90, 95, 99)/100
 sum1 %>%
+  filter(nmonth >= 2) %>% 
   filter(sweight == 'ew') %>% 
   group_by(source) %>% 
   summarize(
@@ -327,6 +347,7 @@ sum1 %>%
 
 
 sum1 %>%
+  filter(nmonth >= 2) %>%   
   filter(sweight == 'vw') %>% 
   group_by(source) %>% 
   summarize(
