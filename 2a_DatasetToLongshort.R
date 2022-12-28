@@ -26,7 +26,7 @@ temp_denom = compnames$yz.denom
 #                "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp", 'me')
 
 user$signal = list(
-  signalnum   = 1000 # number of signals to sample or Inf for all
+  signalnum   = Inf # number of signals to sample or Inf for all
   , form = c('ratio', 'ratioChange', 'ratioChangePct',
                   'levelChangePct', 'levelChangeScaled', 'levelsChangePct_Change') # 'noise'
   , xnames = unique(c(compnames$yz.numer,temp_denom))  # must include scaling variables
@@ -324,27 +324,33 @@ print(toc - tic)
 # Debug: Compare to YZ -------------------------------------------------------------------------
 
 
-yz = readRDS('../Data/LongShortPortfolios/yz_ew.RData')$ret %>% 
-  mutate(sweight = 'ew') %>% 
-  rbind(
-    readRDS('../Data/LongShortPortfolios/yz_vw.RData')$ret %>% 
-      mutate(sweight = 'vw') 
-  ) %>% 
-  mutate(
-    yearm = as.yearmon(date), source = 'yz'
-  ) %>% 
-  select(source, sweight, signalname, yearm, ret)
+## overall -----------------------------------------------------------------
 
+yzraw = read_sas('../Data Yan-Zheng/Yan_Zheng_RFS_Data.sas7bdat')
 
+yz_signal_list = yzraw %>% distinct(transformation,fsvariable) %>% 
+  arrange(transformation, fsvariable) %>% 
+  mutate(signalid = row_number()) 
+
+yz = yzraw %>% 
+  left_join(yz_signal_list) %>% 
+  mutate(yearm = as.yearmon(DATE), source = 'yz') %>% 
+  pivot_longer(
+    cols = starts_with('ddiff') ,names_to = 'sweight', names_prefix = 'ddiff_', values_to = 'ret'
+   ) %>% 
+  select(source, sweight, signalid, yearm, ret)
+
+stratdat = readRDS('../Data/LongShortPortfolios/stratdat_yzrep_2022_12_27.RData')
+  
 us = stratdat$ret %>% 
   left_join(stratdat$port_list %>% select(portid, sweight)) %>% 
   transmute(
-    source = 'us', sweight, signalname = signalid, yearm, ret
+    source = 'us', sweight, signalid, yearm, ret
   ) %>% 
   filter(yearm >= 1963.6, yearm <= 2014) 
  
 sum1 = rbind(us,yz) %>% 
-  group_by(source, sweight, signalname) %>% 
+  group_by(source, sweight, signalid) %>% 
   summarize(rbar = mean(ret), nmonth = n(), tstat = mean(ret)/sd(ret)*sqrt(n())) 
 
 q = c(0.001, 0.1, 1, 5, 10, 25)/100
@@ -374,3 +380,69 @@ sum1 %>%
   pivot_wider(
     names_from = 'source', values_from = ends_with('_q')
   )
+
+
+
+## zoom in on tails --------------------------------------------------------
+
+# find our strats with very few months
+#   some bad vars: acchg, cstke
+badlist = sum1 %>% filter(source == 'us') %>% filter(nmonth < 30) %>% 
+  arrange(nmonth) %>% 
+  left_join(
+    stratdat$signal_list %>% transmute(signalid, signal_form, v1, v2)
+  ) 
+badlist %>% arrange(v1, v2) %>% print(n=300)
+
+
+# A closer look at cstke
+#   something is really wrong with ours
+## in our data
+stratdat$signal_list %>% filter(v1 == 'cstke') %>% 
+  left_join(
+    sum1 %>% filter(source == 'us', sweight == 'ew') %>% ungroup() 
+  ) %>% 
+  select(signalid, signal_form, v1, v2, nmonth) %>% 
+  arrange(nmonth) %>% 
+  as_tibble()
+
+## vs yz 
+yz_signal_list %>% filter(fsvariable == 'cstke') %>% 
+  left_join(
+    sum1 %>% filter(source == 'yz', sweight == 'ew') %>% ungroup() 
+  ) %>% 
+  select(signalid, transformation, fsvariable, nmonth) %>% 
+  arrange(nmonth)
+
+# Look into raw computstat annual
+comp0 = readRDS('../Data/Intermediate/CompustatAnnual.RData') %>% 
+  filter(!is.na(at))
+
+comp = comp0 %>% transmute(gvkey, datadate, at, xbad = acchg)
+
+p = seq(0,100,10)
+comp %>% mutate(obs = !is.na(xbad)) %>% summarize(mean(obs))
+comp %>% filter(!is.na(xbad)) %>% 
+  summarize(
+    p, xbad_p = quantile(xbad, p/100)
+  )
+
+
+# a systematic look
+badvar = badlist$v1 %>% unique()
+
+p = c(0.1, 1, 5, 10, 25, 50)
+p = c(p, 100-p) %>% unique() %>% sort()
+  
+comp0 %>% select(gvkey, datadate, all_of(badvar)) %>% 
+  pivot_longer(cols = -c(gvkey,datadate), names_to = 'name', values_to = 'value') %>% 
+  group_by(name) %>% 
+  summarize(
+    p, value_p = quantile(value, p/100, na.rm = T)
+  ) %>% 
+  pivot_wider(names_from = 'p', names_prefix = 'p', values_from = 'value_p')
+
+
+
+
+
