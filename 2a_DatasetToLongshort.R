@@ -190,7 +190,7 @@ signal_list %>% dim()
 
 # sample and add id
 signal_list = signal_list %>% 
-  sample_n(user$signal$signalnum) %>% 
+  sample_n(min(dim(signal_list)[1],user$signal$signalnum)) %>% 
   arrange(across(everything())) %>% 
   mutate(signalid = row_number()) %>% 
   select(signalid, everything())  
