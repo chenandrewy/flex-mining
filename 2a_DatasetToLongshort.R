@@ -30,7 +30,7 @@ user$signal = list(
                   'levelChangePct', 'levelChangeScaled', 'levelsChangePct_Change') # 'noise'
   , xnames = unique(c(compnames$yz.numer,temp_denom))  # must include scaling variables
   , scaling_variables = temp_denom
-  , signalnum   = 100 # number of signals to sample or Inf for all
+  , signalnum   = Inf # number of signals to sample or Inf for all
   , seednumber  = 1235 # seed sampling
 )
 
@@ -140,7 +140,7 @@ prepare_data = function(){
 } # end prepare_data
 
 # actually run function (comment out for debugging)
-# prepare_data()
+prepare_data()
 
 toc = Sys.time()
 print('done prepping data')
@@ -195,7 +195,7 @@ signal_list = signal_list %>%
   mutate(signalid = row_number()) %>% 
   select(signalid, everything())  
 
-
+# port list
 port_list = expand.grid(longshort_form = user$port$longshort_form, 
                         portnum = user$port$portnum, 
                         sweight = user$port$sweight,
