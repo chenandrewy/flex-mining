@@ -221,6 +221,12 @@ make_signal_list = function(signal_form, xvars, signalnum, scale_vars = NULL, rs
   # sample from full list
   signalnum = min(signalnum, nrow(tmp))
   tmp = tmp %>% sample_n(signalnum)
+  
+  # clean up
+  tmp = tmp %>%
+    arrange(across(everything())) %>% 
+    mutate(signalid = row_number()) %>% 
+    select(signalid, everything())
 
   return(tmp)
 }

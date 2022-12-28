@@ -12,7 +12,7 @@ rm(list=ls(name=env), pos=env)
 
 ## Parallel settings ----
 num_cores <- round(.5*detectCores())  # Adjust number of cores used as you see fit
-num_cores = 10 # use num_cores = 1 for serial
+# num_cores = 1 # use num_cores = 1 for serial
 threads_fst(1) # since fst is used inside foreach, might want to limit cpus, though this doesn't seem to help
 
 ## Output settings ----
@@ -188,7 +188,22 @@ signal_list = expand.grid(
 # check at console
 signal_list %>% dim()
 
+# sample and add id
+signal_list = signal_list %>% 
+  sample_n(user$signal$signalnum) %>% 
+  arrange(across(everything())) %>% 
+  mutate(signalid = row_number()) %>% 
+  select(signalid, everything())  
 
+
+port_list = expand.grid(longshort_form = user$port$longshort_form, 
+                        portnum = user$port$portnum, 
+                        sweight = user$port$sweight,
+                        trim = user$port$trim,
+                        stringsAsFactors = FALSE) %>% 
+  arrange(across(everything())) %>% 
+  mutate(portid = row_number()) %>% 
+  select(portid, everything())  
 
 ## Internal Function ---------------------------------------------------------------
 
