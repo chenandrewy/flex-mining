@@ -21,7 +21,10 @@ user$name = Sys.time() %>% substr(1,13) # name of output file (by default use ti
 
 # signal choices
 #   really not sure that xnames and scaling_variables should be defined this way
+#   default is me aligned with datadate, which is 6 months lagged
 temp_denom = compnames$yz.denom
+
+#   use this for more recent me
 # temp_denom = c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
 #                "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp", 'me')
 
@@ -177,14 +180,16 @@ signal_list = expand.grid(
       & signal_form != 'levelChangePct' 
       &  v1 == v2 
   ) %>% 
-  # remove 2 vodd x 31 pd_var funs for some reason (not sure exact functions or why)
+  # remove selected strategies (2 vodd x 31 pd_var funs) based on yz sas data
   mutate(
     dropme2 = v1 %in% c('rdip', 'txndbr')  
       & signal_form %in% c('ratioChangePct','levelChangePct','levelsChangePct_Change')
   ) %>%
-  filter(!(dropme | dropme2))
+  filter(!(dropme | dropme2)) %>% 
+  select(-starts_with('drop')) %>% 
+  as_tibble()
 
-# check at console
+# check dimensions at console
 signal_list %>% dim()
 
 # sample and add id
@@ -275,17 +280,25 @@ make_many_ls = function(){
 ## Loop over signals -------------------------------------------------------
 # call make_many_ls (this is where the action is) 
 
+tic_loop = Sys.time()
+
 if (num_cores > 1){
   setDTthreads(1)
   cl <- makePSOCKcluster(num_cores)
   registerDoParallel(cl)
-  file.remove('../Data/loop-log.txt')
+  file.remove('../Data/make_many_ls.log')
   ls_dat_all = foreach(signali=1:nrow(signal_list), 
                        .combine = rbind,
                        .packages = c('tidyverse','zoo')) %dopar% {
-                         log.text <- paste0(Sys.time(), " processing loop run ", signali)
-                         write.table(log.text, "../Data/loop-log.txt", append = TRUE, row.names = FALSE, col.names = FALSE)
                          
+                         if (signali %% 500 == 0){
+                           log.text <- paste0(
+                             Sys.time()
+                             , " processing loop run ", signali
+                             , " time elapsed = ", Sys.time() - tic_loop
+                           )
+                           write.table(log.text, "../Data/make_many_ls.log", append = TRUE, row.names = FALSE, col.names = FALSE)
+                         }
                          ls_dat = make_many_ls() # make strats
                          
                          
@@ -319,130 +332,5 @@ saveRDS(stratdat, paste0('../Data/LongShortPortfolios/stratdat ',
 
 toc = Sys.time()
 print(toc - tic)
-
-
-# Debug: Compare to YZ -------------------------------------------------------------------------
-
-
-## overall -----------------------------------------------------------------
-
-yzraw = read_sas('../Data Yan-Zheng/Yan_Zheng_RFS_Data.sas7bdat')
-
-yz_signal_list = yzraw %>% distinct(transformation,fsvariable) %>% 
-  arrange(transformation, fsvariable) %>% 
-  mutate(signalid = row_number()) 
-
-yz = yzraw %>% 
-  left_join(yz_signal_list) %>% 
-  mutate(yearm = as.yearmon(DATE), source = 'yz') %>% 
-  pivot_longer(
-    cols = starts_with('ddiff') ,names_to = 'sweight', names_prefix = 'ddiff_', values_to = 'ret'
-   ) %>% 
-  select(source, sweight, signalid, yearm, ret)
-
-stratdat = readRDS('../Data/LongShortPortfolios/stratdat_yzrep_2022_12_27.RData')
-  
-us = stratdat$ret %>% 
-  left_join(stratdat$port_list %>% select(portid, sweight)) %>% 
-  transmute(
-    source = 'us', sweight, signalid, yearm, ret
-  ) %>% 
-  filter(yearm >= 1963.6, yearm <= 2014) 
- 
-sum1 = rbind(us,yz) %>% 
-  group_by(source, sweight, signalid) %>% 
-  summarize(rbar = mean(ret), nmonth = n(), tstat = mean(ret)/sd(ret)*sqrt(n())) 
-
-q = c(0.001, 0.1, 1, 5, 10, 25)/100
-
-q = c(1, 5, 10, 25, 50)/100
-q = c(q, 1-q) %>% sort() %>% unique()
-
-sum1 %>%
-  filter(nmonth >= 2) %>% 
-  filter(sweight == 'ew') %>% 
-  group_by(source) %>% 
-  summarize(
-    q = q, rbar_q = quantile(rbar, q), nmonth_q = quantile(nmonth, q), tstat_q = quantile(tstat, q)
-  ) %>% 
-  pivot_wider(
-    names_from = 'source', values_from = ends_with('_q')
-  )
-
-
-sum1 %>%
-  filter(nmonth >= 2) %>%   
-  filter(sweight == 'vw') %>% 
-  group_by(source) %>% 
-  summarize(
-    q = q, rbar_q = quantile(rbar, q), nmonth_q = quantile(nmonth, q), tstat_q = quantile(tstat, q)
-  ) %>% 
-  pivot_wider(
-    names_from = 'source', values_from = ends_with('_q')
-  )
-
-
-
-## zoom in on tails --------------------------------------------------------
-
-# find our strats with very few months
-#   some bad vars: acchg, cstke
-badlist = sum1 %>% filter(source == 'us') %>% filter(nmonth < 30) %>% 
-  arrange(nmonth) %>% 
-  left_join(
-    stratdat$signal_list %>% transmute(signalid, signal_form, v1, v2)
-  ) 
-badlist %>% arrange(v1, v2) %>% print(n=300)
-
-
-# A closer look at cstke
-#   something is really wrong with ours
-## in our data
-stratdat$signal_list %>% filter(v1 == 'cstke') %>% 
-  left_join(
-    sum1 %>% filter(source == 'us', sweight == 'ew') %>% ungroup() 
-  ) %>% 
-  select(signalid, signal_form, v1, v2, nmonth) %>% 
-  arrange(nmonth) %>% 
-  as_tibble()
-
-## vs yz 
-yz_signal_list %>% filter(fsvariable == 'cstke') %>% 
-  left_join(
-    sum1 %>% filter(source == 'yz', sweight == 'ew') %>% ungroup() 
-  ) %>% 
-  select(signalid, transformation, fsvariable, nmonth) %>% 
-  arrange(nmonth)
-
-# Look into raw computstat annual
-comp0 = readRDS('../Data/Intermediate/CompustatAnnual.RData') %>% 
-  filter(!is.na(at))
-
-comp = comp0 %>% transmute(gvkey, datadate, at, xbad = acchg)
-
-p = seq(0,100,10)
-comp %>% mutate(obs = !is.na(xbad)) %>% summarize(mean(obs))
-comp %>% filter(!is.na(xbad)) %>% 
-  summarize(
-    p, xbad_p = quantile(xbad, p/100)
-  )
-
-
-# a systematic look
-badvar = badlist$v1 %>% unique()
-
-p = c(0.1, 1, 5, 10, 25, 50)
-p = c(p, 100-p) %>% unique() %>% sort()
-  
-comp0 %>% select(gvkey, datadate, all_of(badvar)) %>% 
-  pivot_longer(cols = -c(gvkey,datadate), names_to = 'name', values_to = 'value') %>% 
-  group_by(name) %>% 
-  summarize(
-    p, value_p = quantile(value, p/100, na.rm = T)
-  ) %>% 
-  pivot_wider(names_from = 'p', names_prefix = 'p', values_from = 'value_p')
-
-
-
 
 

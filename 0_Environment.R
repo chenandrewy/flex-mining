@@ -337,28 +337,40 @@ signal_to_ports = function(dt, form, portnum, sweight, trim = NULL){
                signal <= quantile(dt$signal, 1-trim, na.rm = TRUE)
         )
     }
-
+    
     # find breakpoints
     breakdat = dt %>% 
       group_by(ret_yearm) %>% 
       summarize(
         qlo = quantile(signal, 1/portnum)
         , qhi = quantile(signal, 1-1/portnum)
-      ) %>% 
-      filter(qlo < qhi) # remove degenerate months
+      ) 
     
-    if (dim(breakdat)[1] == 0){
-      print('Breakpoints overlap, returning empty tibble')
-      return(tibble())
-    }
-    
-    # find portfolios, rename date (only ret is still left)
+    # assign to legs, pedantically
+    #   tries to keep as many stocks as possible
+    #   uses strict inequality as a last resort
     dt = dt %>% 
       inner_join(breakdat, by = 'ret_yearm') %>% 
       mutate(
-        port = if_else(signal <= qlo, 'short', NA_character_)
-        , port = if_else(signal >= qhi, 'long', port)
+        short = if_else(qlo < qhi, signal <= qlo, signal < qlo)
+        , long = if_else(qlo < qhi, signal >= qhi, signal > qhi)
       ) %>% 
+      mutate(
+        port = case_when(
+          short & !long ~ 'short'
+          , !short & long ~ 'long'
+          , short & long ~ 'error'
+        )
+      )
+    
+    # error checking
+    if (dim(dt %>% filter(port == 'error'))[1] > 0){
+      print('error: a stock is assigned to both long and short legs')
+      stop()
+    }
+    
+    # find long-short return, rename date (only ret is still left)
+    dt = dt %>% 
       filter(!is.na(port)) %>% 
       group_by(ret_yearm, port) %>%
       summarize(
