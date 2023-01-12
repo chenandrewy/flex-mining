@@ -1,6 +1,6 @@
 tic = Sys.time()
 
-rm(list = ls())
+# rm(list = ls())
 
 # Setup  ----------------------------------------------------------------
 
@@ -17,7 +17,12 @@ threads_fst(1) # since fst is used inside foreach, might want to limit cpus, tho
 
 ## Output settings ----
 user = list()
-user$name = Sys.time() %>% substr(1,13) # name of output file (by default use time and date)
+
+# name of output file (by default use time and date)
+user$name = Sys.time() %>% substr(1,17) 
+substr(user$name, 17,17) = 'm'
+substr(user$name, 14,14) = 'h'
+user$name
 
 # signal choices
 #   really not sure that xnames and scaling_variables should be defined this way
@@ -189,6 +194,12 @@ signal_list = expand.grid(
   select(-starts_with('drop')) %>% 
   as_tibble()
 
+# debug
+# badlist = c('tstkp','dfs','dudd','dvpa','esopt','fatn','ppennr','txw','xdepl')
+# badlist = c('dudd','dvpa','ppennr','dfs','acchg')
+# signal_list = signal_list %>% filter(v1 %in% badlist)
+# num_cores = 1
+
 # check dimensions at console
 signal_list %>% dim()
 
@@ -291,11 +302,12 @@ if (num_cores > 1){
                        .combine = rbind,
                        .packages = c('tidyverse','zoo')) %dopar% {
                          
-                         if (signali %% 500 == 0){
+                         if (signali %% 100 == 0){
                            log.text <- paste0(
                              Sys.time()
-                             , " processing loop run ", signali
-                             , " time elapsed = ", Sys.time() - tic_loop
+                             , " signali = ", signali
+                             , " of ", dim(signal_list)[1]
+                             , " minutes elapsed = ", round(as.numeric(Sys.time() - tic_loop, units = 'mins'), 1)
                            )
                            write.table(log.text, "../Data/make_many_ls.log", append = TRUE, row.names = FALSE, col.names = FALSE)
                          }

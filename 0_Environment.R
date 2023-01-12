@@ -338,37 +338,41 @@ signal_to_ports = function(dt, form, portnum, sweight, trim = NULL){
         )
     }
     
-    # find breakpoints
+    # find breakpoints, with backup plan of getting 20 stocks
     breakdat = dt %>% 
       group_by(ret_yearm) %>% 
       summarize(
-        qlo = quantile(signal, 1/portnum)
+        ntot = n()
+        , qlo_alt = quantile(signal, 20/pmax(ntot,20))
+        , qlo = quantile(signal, 1/portnum)
         , qhi = quantile(signal, 1-1/portnum)
-      ) 
+        , qhi_alt = quantile(signal, 1-20/pmax(ntot,20))    
+      ) %>% 
+      # backup: replace simple quantile with the alts if not enough stocks
+      mutate(
+        qlo = pmax(qlo, qlo_alt), qhi = pmin(qhi, qhi_alt)
+      ) %>%
+      # backup 2: if qlo == qhi, adjust
+      mutate(
+        qlo = if_else(qlo == qhi, pmin(qlo, qlo_alt), qlo)
+        , qhi = if_else(qlo == qhi, pmax(qhi, qhi_alt), qhi)
+      )
     
     # assign to legs, pedantically
-    #   tries to keep as many stocks as possible
-    #   uses strict inequality as a last resort
+    #   stocks assigned to both legs get dropped
     dt = dt %>% 
       inner_join(breakdat, by = 'ret_yearm') %>% 
       mutate(
-        short = if_else(qlo < qhi, signal <= qlo, signal < qlo)
-        , long = if_else(qlo < qhi, signal >= qhi, signal > qhi)
+        short = signal <= qlo
+        , long = signal >= qhi
       ) %>% 
       mutate(
         port = case_when(
           short & !long ~ 'short'
           , !short & long ~ 'long'
-          , short & long ~ 'error'
         )
       )
-    
-    # error checking
-    if (dim(dt %>% filter(port == 'error'))[1] > 0){
-      print('error: a stock is assigned to both long and short legs')
-      stop()
-    }
-    
+
     # find long-short return, rename date (only ret is still left)
     dt = dt %>% 
       filter(!is.na(port)) %>% 
@@ -378,16 +382,16 @@ signal_to_ports = function(dt, form, portnum, sweight, trim = NULL){
         , nstock = n()
         , .groups = 'drop'
       ) %>%
-      filter(nstock > 20) %>%  # drop undiversified junk (should make this an option)
+      filter(nstock >= 20) %>%  # drop undiversified junk (should make this an option)
       rename(yearm = ret_yearm)
     
     # more error checking
     if (dim(dt %>% filter(port == 'short'))[1] == 0){
-      print('No short portfolios with more than 20 nstocks, returning empty tibble')
+      print('No short portfolios with at least 20 nstocks, returning empty tibble')
       return(tibble())
     }    
     if (dim(dt %>% filter(port == 'long'))[1] == 0){
-      print('No long portfolios with more than 20 nstocks, returning empty tibble')
+      print('No long portfolios with at least 20 nstocks, returning empty tibble')
       return(tibble())
     }    
     

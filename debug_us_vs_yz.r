@@ -73,7 +73,9 @@ yz = yzraw %>%
   mutate(ret = ret*100)
 
 # a run of mine
-stratdat = readRDS('../Data/LongShortPortfolios/stratdat_yzrep_2022_12_27.RData')
+# stratdat = readRDS('../Data/LongShortPortfolios/stratdat_yzrep_2022_12_27.RData')
+# stratdat = readRDS('../Data/LongShortPortfolios/stratdat 2023-01-11 16.RData')
+stratdat = readRDS('../Data/LongShortPortfolios/stratdat 2023-01-11 21h04m.RData')
 
 us = stratdat$ret %>% 
   left_join(stratdat$port_list %>% select(portid, sweight)) %>% 
@@ -87,19 +89,18 @@ us = stratdat$ret %>%
 comp0 = readRDS('../Data/Intermediate/CompustatAnnual.RData') %>% 
   filter(!is.na(at))
 
-
-
-## compare us and yz -------------------------------------------------------
-
-
 sum1 = rbind(us,yz) %>% 
   group_by(source, sweight, signalid) %>% 
   summarize(rbar = mean(ret), nmonth = n(), tstat = mean(ret)/sd(ret)*sqrt(n())) 
 
 
-# we end up with far fewer signals, even though dim(stratdat$signal_list)[1] == 18,113
+## compare us and yz -------------------------------------------------------
+
+
+# compare number of signals with nmonths >= 2
 sum1 %>% 
   group_by(source,sweight) %>% 
+  filter(nmonth >= 2) %>% 
   summarize(nsignal = n())
 
 # compare order stats: ew
@@ -167,7 +168,7 @@ compare_compvar = sum1 %>%
   ) %>% 
   pivot_wider(names_from = source
               , values_from = c(nstrat,nmonth_min)) %>% 
-  mutate(nmiss = nstrat_yz - nstrat_us) %>% 
+  mutate(nstrat_diff = nstrat_yz - nstrat_us) %>% 
   arrange(-nstrat_diff)
 
 compare_compvar
@@ -209,13 +210,92 @@ comp0 %>%
   mutate(year = year(datadate)) %>% 
   select(gvkey, year, all_of(badvar)) %>% 
   pivot_longer(cols = -c(gvkey,year), names_to = 'name', values_to = 'value') %>% 
-  filter(value != 0)  %>% 
+  filter(!is.na(value)) %>% 
   group_by(name,year) %>% 
-  summarize(n_nonzero = n()) %>% 
+  summarize(n_nonzero = sum(value != 0), n_zero = sum(value == 0)) %>% 
   group_by(name) %>% 
   summarize(
-    mean_n_nonzero = mean(n_nonzero)
-    , med_n_nonzero = median(n_nonzero) 
+    across(starts_with('n_'), list(mean = mean, med = median))
   ) %>% 
   print(n=50)
 
+
+
+## debug one -------------------------------------------------------------------------
+
+
+# select one 
+bad_signals %>% 
+  filter(v1 == 'dudd') %>% 
+  print(n= Inf)
+
+# signal_list0 = signal_list
+
+signal_list = signal_list0 %>% filter(
+  v1 == 'dudd', signal_form == 'ratio', v2 == 'at'
+) 
+
+debugSource('0_Environment.R')
+
+num_cores = 1
+
+signali = 1
+ls_dat = make_many_ls()
+
+ls_dat %>% print(n=200)
+
+# check quantiles
+qlist = c(10, 1, 0.1)
+qlist = c(qlist, 100-qlist)/100 %>% sort()
+
+dt %>% group_by(ret_yearm) %>% 
+  summarize(
+    q = qlist, signal = quantile(signal, qlist)
+  )  %>% 
+  pivot_wider(names_from = q, values_from = signal, names_prefix = 'q') %>% 
+  as.data.table() %>% 
+  print(topn=10) 
+
+
+dt %>% group_by(ret_yearm) %>% 
+  summarize(
+    n_neg = sum(signal < 0), n_zero = sum(signal == 0), n_pos = sum(signal > 0)
+    , n = n()
+  )  %>% 
+  as.data.table() %>% 
+  print(topn = 10)
+
+  
+
+breakdat = dt %>% 
+  group_by(ret_yearm) %>% 
+  summarize(
+    ntot = n()
+    , qlo_alt = quantile(signal, 20/pmax(ntot,20))
+    , qlo = quantile(signal, 1/portnum)
+    , qhi = quantile(signal, 1-1/portnum)
+    , qhi_alt = quantile(signal, 1-20/pmax(ntot,20))    
+  ) %>% 
+  # backup: replace simple quantile with the alts if not enough stocks
+  mutate(
+    qlo = pmax(qlo, qlo_alt), qhi = pmin(qhi, qhi_alt)
+  ) %>%
+  # backup 2: if qlo == qhi, adjust
+  mutate(
+    qlo = if_else(qlo == qhi, pmin(qlo, qlo_alt), qlo)
+    , qhi = if_else(qlo == qhi, pmax(qhi, qhi_alt), qhi)
+  )
+
+
+dt %>% 
+  inner_join(breakdat, by = 'ret_yearm') %>% 
+  mutate(
+    short = signal <= qlo
+    , long = signal >= qhi
+  ) %>% 
+  mutate(
+    port = case_when(
+      short & !long ~ 'short'
+      , !short & long ~ 'long'
+    )
+  )
