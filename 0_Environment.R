@@ -70,6 +70,10 @@ compnames$yz.denom <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
                       "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp", 'me_datadate')
 
 
+compnames$yz.denom_alt <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
+                        "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp", 'me')
+
+
 # Functions ---------------------------------------------------------------
 ### Form nchoose2 long-short strategies by going long-short every ntile combination
 nchoose2ports <- function(n, big_trade_months = 6) { 

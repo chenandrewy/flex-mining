@@ -75,7 +75,7 @@ yz = yzraw %>%
 # a run of mine
 # stratdat = readRDS('../Data/LongShortPortfolios/stratdat_yzrep_2022_12_27.RData')
 # stratdat = readRDS('../Data/LongShortPortfolios/stratdat 2023-01-11 16.RData')
-stratdat = readRDS('../Data/LongShortPortfolios/stratdat 2023-01-11 21h04m.RData')
+stratdat = readRDS('../Data/LongShortPortfolios/stratdat 2023-01-11 23h30m.RData')
 
 us = stratdat$ret %>% 
   left_join(stratdat$port_list %>% select(portid, sweight)) %>% 

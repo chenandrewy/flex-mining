@@ -12,7 +12,7 @@ rm(list=ls(name=env), pos=env)
 
 ## Parallel settings ----
 num_cores <- round(.5*detectCores())  # Adjust number of cores used as you see fit
-# num_cores = 1 # use num_cores = 1 for serial
+num_cores = 1 # use num_cores = 1 for serial
 threads_fst(1) # since fst is used inside foreach, might want to limit cpus, though this doesn't seem to help
 
 ## Output settings ----
@@ -202,6 +202,9 @@ signal_list = signal_list %>%
   mutate(signalid = row_number()) %>% 
   select(signalid, everything())  
 
+
+
+
 # port list
 port_list = expand.grid(longshort_form = user$port$longshort_form, 
                         portnum = user$port$portnum, 
@@ -211,6 +214,11 @@ port_list = expand.grid(longshort_form = user$port$longshort_form,
   arrange(across(everything())) %>% 
   mutate(portid = row_number()) %>% 
   select(portid, everything())  
+
+# debug
+signal_list0 = signal_list
+port_list0 = port_list
+
 
 ## Internal Function ---------------------------------------------------------------
 
@@ -280,61 +288,114 @@ make_many_ls = function(){
 } # make_many_ls
 
 
+
 ## Loop over signals -------------------------------------------------------
-# call make_many_ls (this is where the action is) 
+# # call make_many_ls (this is where the action is) 
+# 
+# tic_loop = Sys.time()
+# 
+# if (num_cores > 1){
+#   setDTthreads(1)
+#   cl <- makePSOCKcluster(num_cores)
+#   registerDoParallel(cl)
+#   file.remove('../Data/make_many_ls.log')
+#   ls_dat_all = foreach(signali=1:nrow(signal_list), 
+#                        .combine = rbind,
+#                        .packages = c('tidyverse','zoo')) %dopar% {
+#                          
+#                          if (signali %% 100 == 0){
+#                            log.text <- paste0(
+#                              Sys.time()
+#                              , " signali = ", signali
+#                              , " of ", dim(signal_list)[1]
+#                              , " minutes elapsed = ", round(as.numeric(Sys.time() - tic_loop, units = 'mins'), 1)
+#                            )
+#                            write.table(log.text, "../Data/make_many_ls.log", append = TRUE, row.names = FALSE, col.names = FALSE)
+#                          }
+#                          ls_dat = make_many_ls() # make strats
+#                          
+#                          
+#                        } # end for signali
+#   stopCluster(cl)
+#   setDTthreads()
+# } else {
+#   ls_dat_all = foreach(signali=1:nrow(signal_list), 
+#                        .combine = rbind) %do% {
+#                          ls_dat = make_many_ls()
+#                        } # end for signali    
+# } # if num_cores
 
-tic_loop = Sys.time()
-
-if (num_cores > 1){
-  setDTthreads(1)
-  cl <- makePSOCKcluster(num_cores)
-  registerDoParallel(cl)
-  file.remove('../Data/make_many_ls.log')
-  ls_dat_all = foreach(signali=1:nrow(signal_list), 
-                       .combine = rbind,
-                       .packages = c('tidyverse','zoo')) %dopar% {
-                         
-                         if (signali %% 100 == 0){
-                           log.text <- paste0(
-                             Sys.time()
-                             , " signali = ", signali
-                             , " of ", dim(signal_list)[1]
-                             , " minutes elapsed = ", round(as.numeric(Sys.time() - tic_loop, units = 'mins'), 1)
-                           )
-                           write.table(log.text, "../Data/make_many_ls.log", append = TRUE, row.names = FALSE, col.names = FALSE)
-                         }
-                         ls_dat = make_many_ls() # make strats
-                         
-                         
-                       } # end for signali
-  stopCluster(cl)
-  setDTthreads()
-} else {
-  ls_dat_all = foreach(signali=1:nrow(signal_list), 
-                       .combine = rbind) %do% {
-                         ls_dat = make_many_ls()
-                       } # end for signali    
-} # if num_cores
 
 
+# Load yz data ------------------------------------------------------------
 
-# Organize and Save -------------------------------------------------------
+# yz
+yzraw = read_sas('../Data Yan-Zheng/Yan_Zheng_RFS_Data.sas7bdat')
 
-# compile all info into one list
-stratdat = list(
-  ret = ls_dat_all
-  , signal_list = signal_list
-  , port_list = port_list
-  , user = user
-  , name = user$name
-)
+yz_signal_list = yzraw %>% distinct(transformation,fsvariable) %>% 
+  arrange(transformation, fsvariable) %>% 
+  mutate(signalid = row_number()) 
 
-# save
-saveRDS(stratdat, paste0('../Data/LongShortPortfolios/stratdat ',
-                         stratdat$name, 
-                         '.RData'))
+yz = yzraw %>% 
+  mutate(yearm = as.yearmon(DATE), ret= ddiff_ew*100) %>% 
+  mutate(
+    v2 = str_remove(transformation, 'pd_var_')
+    , v2 = str_remove(v2, 'd_var_')
+    , v2 = str_remove(v2, 'var_')
+    , form = case_when(
+      grepl('pd_var', transformation) ~ 'pd_var'
+      , grepl('d_var', transformation) ~ 'd_var'
+      , grepl('var', transformation) ~ 'var'
+    )
+  ) %>% 
+  transmute(yearm, v1 = fsvariable, form, v2, ret, transformation)
+  
 
-toc = Sys.time()
-print(toc - tic)
+# Test One signal -------------------------------------------------------------------------
+
+signal_list0$signal_form %>% unique
+
+signal_list = signal_list0 %>% filter(
+  v1 == 'at', signal_form == 'levelChangePct'
+) 
+
+port_list = port_list0 %>% filter(sweight == 'ew')
+
+debugSource('0_Environment.R')
+
+num_cores = 1
+
+signali = 1
+ls_dat = make_many_ls()
+
+ls_dat %>% print(n=200)
+
+## examine result ----
+ls_dat %>% 
+  filter(yearm >= 1965, yearm <= 2014) %>% 
+  summarize(
+    nmonth = n(), rbar = mean(ret), tstat = rbar/sd(ret)*sqrt(nmonth)
+    , mean_nstock = mean(nstock)
+  )
+
+ls_dat %>% 
+  filter(yearm >= 1968, yearm <= 2003) %>% 
+  summarize(
+    nmonth = n(), rbar = mean(ret), tstat = rbar/sd(ret)*sqrt(nmonth)
+    , mean_nstock = mean(nstock)
+  )
+
+
+## compare with yz ----
+
+yz %>% 
+  filter(v1 == 'lt', form == 'd_var', v2 == 'at') %>% 
+  group_by(form) %>% 
+  filter(yearm >= 1965, yearm <= 2014) %>% 
+  summarize(
+    nmonth = n(), rbar = mean(ret), tstat = rbar/sd(ret)*sqrt(nmonth)
+  )  %>% 
+  arrange(tstat) %>% 
+  print(n=20)
 
 
