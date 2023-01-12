@@ -1,78 +1,42 @@
-# reconcile yz signal counts
-
-# Find YZ exceptions -------------------------------------------------------------------------
-
-rm(list = ls())
+# load stuff -----------------------------------------------------------------
 
 source('0_Environment.R')
-
-yzraw = read_sas('../Data Yan-Zheng/Yan_Zheng_RFS_Data.sas7bdat')
-
-
-
-signals = yzraw %>% transmute(fun = transformation, x = fsvariable) %>% distinct(fun, x)
-
-
-xsum = signals  %>% 
-  group_by(x) %>% 
-  summarize(
-    n = n()
-  ) %>% 
-  arrange(n)
-
-# print out altered ones
-#   there are 15 altered ones
-#   2 are strange: rdip and txndbr
-#   13 are from the denominators, but omits emp and mktcap (since they're not in the numerator)
-altered = xsum %>% filter(n < 76)
-altered
-compnames$yz.denom[!compnames$yz.denom %in% altered$x]
-
-
-# compare selected x 
-#   the 13 altered from the denominators seem to drop x == y, leading to a decrease of 13 * 5 = 65 signals
-#   the 2 altered strange ones drop the pd_var_ transformations,
-#     and there are 31 pd_var transformations leading to a decrease of 2 * 31 = 62 signals
-#   this explains the 240*76 = 18,240 - 18,113 = 127
-
-signals %>% filter(x == 'aco') %>% 
-  full_join(
-    signals %>% filter(x == 'act'), by = c('fun')
-  ) %>% 
-  full_join(
-    signals %>% filter(x == 'at'), by = c('fun')
-  ) %>%   
-  full_join(
-    signals %>% filter(x == 'rdip'), by = c('fun')
-  ) %>%     
-  full_join(
-    signals %>% filter(x == 'txndbr'), by = c('fun')
-  ) %>%       
-  print(n=Inf)
-
-
-# Compare US to YZ -------------------------------------------------------------------------
-
-
-## load stuff -----------------------------------------------------------------
 
 # yz
 yzraw = read_sas('../Data Yan-Zheng/Yan_Zheng_RFS_Data.sas7bdat')
 
 yz_signal_list = yzraw %>% distinct(transformation,fsvariable) %>% 
   arrange(transformation, fsvariable) %>% 
-  mutate(signalid = row_number()) 
+  mutate(signalid = row_number()) %>% 
+  mutate(
+    v1 = fsvariable
+    , v2 = str_remove(transformation, 'pd_var_')
+    , v2 = str_remove(v2, 'd_var_')
+    , v2 = str_remove(v2, 'var_')
+    , v2 = if_else(v2 == 'pd_var', NA_character_, v2)
+    , form_yz = case_when(
+      grepl('pd_var', transformation) ~ 'pd_var'
+      , grepl('d_var', transformation) ~ 'd_var'
+      , grepl('var', transformation) ~ 'var'
+    )
+  )  %>% 
+  transmute(
+    signalid, v1, form_yz, v2, fsvariable, transformation
+  )
 
 yz = yzraw %>% 
-  left_join(yz_signal_list) %>% 
-  mutate(yearm = as.yearmon(DATE), source = 'yz') %>% 
-  pivot_longer(
-    cols = starts_with('ddiff') ,names_to = 'sweight', names_prefix = 'ddiff_', values_to = 'ret'
+  left_join(
+    yz_signal_list %>% select(signalid, fsvariable, transformation)
   ) %>% 
-  select(source, sweight, signalid, yearm, ret) %>% 
-  mutate(ret = ret*100)
+  pivot_longer(cols = starts_with('ddiff'), names_to = 'sweight'
+               , names_prefix = 'ddiff_', values_to = 'ret') %>% 
+  mutate(
+    yearm = as.yearmon(DATE), ret= ret*100, source = 'yz'
+  ) %>% 
+  select(source, sweight, signalid, yearm, ret)
 
-# a run of mine
+
+# us
 # stratdat = readRDS('../Data/LongShortPortfolios/stratdat_yzrep_2022_12_27.RData')
 # stratdat = readRDS('../Data/LongShortPortfolios/stratdat 2023-01-11 16.RData')
 stratdat = readRDS('../Data/LongShortPortfolios/stratdat 2023-01-11 23h30m.RData')
@@ -94,7 +58,7 @@ sum1 = rbind(us,yz) %>%
   summarize(rbar = mean(ret), nmonth = n(), tstat = mean(ret)/sd(ret)*sqrt(n())) 
 
 
-## compare us and yz -------------------------------------------------------
+# compare us and yz -------------------------------------------------------
 
 
 # compare number of signals with nmonths >= 2
@@ -135,9 +99,7 @@ sum1 %>%
 
 
 
-## make list of bad signals -----------------------------------------------
-
-
+# make list of bad signals -----------------------------------------------
 bad_signals = stratdat$signal_list %>% 
   select(signalid, signal_form, v1, v2) %>% 
   left_join(
@@ -146,6 +108,8 @@ bad_signals = stratdat$signal_list %>%
   mutate(nmonth = if_else(is.na(nmonth), as.integer(0) , nmonth)) %>% 
   filter( nmonth <= 120) %>% 
   arrange(nmonth, v1, signal_form, v2)
+
+bad_signals
 
 writexl::write_xlsx(bad_signals, '../Data/bad_signals.xlsx')
 
@@ -158,7 +122,6 @@ compare_compvar = sum1 %>%
     sum1 %>% 
       filter(source == 'yz', sweight == 'ew') %>% 
       left_join(yz_signal_list) %>% 
-      rename(v1 = fsvariable) %>% 
       ungroup() %>% 
       select(source, v1, nmonth)    
   ) %>% 
@@ -176,7 +139,7 @@ compare_compvar
 writexl::write_xlsx(compare_compvar, '../Data/compare_compvar.xlsx')
 
 
-## zoom in on tails --------------------------------------------------------
+# zoom in on tails --------------------------------------------------------
 
 badvar = bad_signals$v1 %>% unique()
 
@@ -221,7 +184,7 @@ comp0 %>%
 
 
 
-## debug one -------------------------------------------------------------------------
+# debug one -------------------------------------------------------------------------
 
 
 # select one 
@@ -298,4 +261,93 @@ dt %>%
       short & !long ~ 'short'
       , !short & long ~ 'long'
     )
+  )
+
+
+
+
+
+# Check extreme results -------------------------------------------------------------------------
+
+# based on Table 6 of Yan-Zheng
+
+# for reference
+stratdat$signal_list %>% distinct(signal_form)
+yz_signal_list %>% distinct(form_yz)
+yz_signal_list %>% distinct(v2) %>% print(n=301)
+
+# create short list of signals
+shortlist = tibble(
+  s1 = c('lt','d_var','at', 'levelChangeScaled')
+  , s2 = c('lt', 'd_var','icapt', 'levelChangeScaled')
+  , s3 = c('lct','d_var','at', 'levelChangeScaled')
+  , s4 = c('dlc','var','sale', 'ratio')
+  , s5 = c('ppent','pd_var',NA_character_, 'levelChangePct')
+  , s6 = c('at','pd_var',NA_character_,'levelChangePct')
+  , s7 = c('invt','pd_var',NA_character_,'levelChangePct')
+) %>% 
+  t()
+
+colnames(shortlist) = c('v1','form_yz','v2','signal_form')
+rownames(shortlist) = NULL
+shortlist = as.data.frame(shortlist)  %>% 
+  left_join(
+    yz_signal_list %>% transmute(id_yz = signalid, v1, form_yz, v2)
+  ) %>% 
+  left_join(
+    stratdat$signal_list %>% rename(id_us = signalid)
+  ) %>% 
+  mutate(
+    shortid = row_number()
+  ) 
+
+
+## check yz full sample stats ----
+# our t-stats are too small
+
+# check yz stats
+yz %>% filter(sweight == 'ew') %>% 
+  inner_join(
+    shortlist %>% rename(signalid = id_yz)
+    ) %>% 
+  group_by(shortid, v1, form_yz, v2) %>% 
+  summarize(
+    nmonth = n(), rbar = mean(ret), tstat = rbar/sd(ret)*sqrt(nmonth)
+  )
+
+# check our stats
+us %>% filter(sweight == 'ew') %>% 
+  inner_join(
+    shortlist %>% rename(signalid = id_us)
+  ) %>% 
+  group_by(shortid, v1, signal_form, v2) %>% 
+  summarize(
+    nmonth = n(), rbar = mean(ret), tstat = rbar/sd(ret)*sqrt(nmonth)
+  )
+
+
+## check earlier dates to compare with openap ----
+# our asset growth t-stat and rbar are too small compared to openap
+# same with invt growth
+
+year_end = 2008
+
+# check yz stata
+yz %>% filter(sweight == 'ew', yearm <= year_end) %>% 
+  inner_join(
+    shortlist %>% rename(signalid = id_yz)
+  ) %>% 
+  group_by(shortid, v1, form_yz, v2) %>% 
+  summarize(
+    nmonth = n(), rbar = mean(ret), tstat = rbar/sd(ret)*sqrt(nmonth)
+  )
+
+# check our stats
+us %>% filter(sweight == 'ew', yearm <= year_end) %>% 
+  inner_join(
+    shortlist %>% rename(signalid = id_us)
+  ) %>% 
+  group_by(shortid, v1, signal_form, v2) %>% 
+  summarize(
+    nmonth = n(), rbar = mean(ret), tstat = rbar/sd(ret)*sqrt(nmonth)
   )
