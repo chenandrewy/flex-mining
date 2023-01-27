@@ -26,7 +26,7 @@ user$name
 
 # signal choices
 user$signal = list(
-  signalnum   = 2000 # number of signals to sample or Inf for all
+  signalnum   = Inf # number of signals to sample or Inf for all
   , form = c('ratio', 'ratioChange', 'ratioChangePct',
                   'levelChangePct', 'levelChangeScaled', 'levelsChangePct_Change') # 'noise'
   , x1code = 'yz.numer'
@@ -43,12 +43,13 @@ user$port = list(
   
 )
 
-# data lag choices
+# data basic choices
 user$data = list(
   backfill_dropyears = 0 # number of years to drop for backfill adjustment
   , reup_months    = c(6) # stocks are traded using new data at end of these months
   , toostale_months = 12 
   , data_avail_lag = 6 # months
+  , delist_adj = 'ghz' # 'none' or 'ghz'
 )
 
 
@@ -107,8 +108,49 @@ prepare_data = function(){
   
   
   ## import crsp data
-  # date refers to ret date, everything else is lagged
-  crsp <- readRDS('../Data/Intermediate/crspm.RData') %>% 
+  crsp = readRDS('../Data/Intermediate/crspm.RData')
+  
+  # incorporate delisting return
+  # GHZ cite Johnson and Zhao (2007), Shumway and Warther (1999)
+  # but the way HXZ does this might be a bit better
+  if (user$data$delist_adj == 'ghz') {
+    crsp = crsp %>%
+      mutate(
+        dlret = ifelse(
+          is.na(dlret)
+          & (dlstcd == 500 | (dlstcd >=520 & dlstcd <=584))
+          & (exchcd == 1 | exchcd == 2)
+          , -35
+          , dlret
+        )
+        , dlret = ifelse(
+          is.na(dlret)
+          & (dlstcd == 500 | (dlstcd >=520 & dlstcd <=584))
+          & (exchcd == 3)
+          , -55
+          , dlret
+        )
+        , dlret = ifelse(
+          dlret < -100 & !is.na(dlret)
+          , -100
+          , dlret
+        )
+        , dlret = ifelse(
+          is.na(dlret)
+          , 0
+          , dlret
+        )
+        , ret = (1+ret/100)*(1+dlret/100)-1
+        , ret = ifelse(
+          is.na(ret) & ( dlret != 0)
+          , dlret
+          , ret
+        )
+      )
+  }
+  
+  # convert ret to pct, other formatting
+  crsp = crsp %>%
     transmute(
       permno, ret_yearm = yearm, ret, me
     )

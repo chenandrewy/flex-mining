@@ -239,7 +239,6 @@ make_signal_list = function(signal_form, xvars, signalnum, scale_vars = NULL, rs
 
 # function for creating Yan-Zheng's 18,113 signal list
 make_signal_list_yz = function(signal_form, x1list, x2list, signalnum, seed){
-  set.seed(seed)
   
   # ac: this works to replicate yz strat list
   # first make 240*76 = 18,240 combinations
@@ -271,6 +270,7 @@ make_signal_list_yz = function(signal_form, x1list, x2list, signalnum, seed){
   
   
   # sample and add id
+  set.seed(seed)
   signal_list = signal_list %>% 
     sample_n(min(dim(signal_list)[1],signalnum)) %>% 
     arrange(across(everything())) %>% 

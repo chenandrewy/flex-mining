@@ -1,8 +1,5 @@
-
 # Setup -------------------------------------------------------------------
 
-
-rm(list = ls())
 source('0_Environment.R')
 
 user <- getPass('wrds username: ')
@@ -21,7 +18,68 @@ numRowsToPull <- -1 # Set to -1 for all rows and to some positive value for test
 
 
 
-# Download ----------------------------------------------------------------
+# CRSP -----------------------------------------------------------
+
+# Follows in part: https://wrds-www.wharton.upenn.edu/pages/support/research-wrds/macros/wrds-macro-crspmerge/
+
+crspm_raw <- dbSendQuery(conn = wrds, statement = 
+                       "select a.permno, a.permco, a.date, a.ret, a.retx, a.vol, a.shrout, a.prc, a.cfacshr, a.bidlo, a.askhi,
+                     b.shrcd, b.exchcd, b.siccd, b.ticker, b.shrcls,  -- from identifying info table
+                     c.dlstcd, c.dlret                                -- from delistings table
+                     from crsp.msf as a
+                     left join crsp.msenames as b
+                     on a.permno=b.permno
+                     and b.namedt<=a.date
+                     and a.date<=b.nameendt
+                     left join crsp.msedelist as c
+                     on a.permno=c.permno 
+                     and date_trunc('month', a.date) = date_trunc('month', c.dlstdt)
+                     "
+) %>% 
+  # Pull data
+  dbFetch(n = numRowsToPull) %>%
+  as_tibble()
+
+crspm = crspm_raw %>% mutate(
+  ret = 100*ret
+  , dlret = 100*dlret
+  , yearm = as.yearmon(date)
+  , date = as.Date(date)
+  , me = abs(prc) * shrout
+)
+
+# write to disk
+saveRDS(crspm, '../Data/Intermediate/crspm.RData')
+
+
+# Fama-French Factors ----------------------------------------------------
+
+FamaFrenchFactors <- dbSendQuery(conn = wrds, statement = 
+                                   "SELECT date, mktrf, smb, hml, rf, umd 
+                                 FROM ff.factors_monthly"
+) %>% 
+  # Pull data
+  dbFetch(n = -1) %>%
+  as_tibble()
+
+# Convert returns to percent and format date
+FamaFrenchFactors <- FamaFrenchFactors %>%
+  mutate(mktrf = 100*mktrf,
+         smb = 100*smb,
+         hml = 100*hml,
+         umd = 100*umd,
+         rf = 100*rf,
+         yearm = as.yearmon(date),
+         date = as.Date(date)
+         ) %>% 
+  select(-date)
+
+
+# write to disk 
+saveRDS(FamaFrenchFactors, '../Data/Intermediate/FamaFrenchFactors.RData')
+
+
+# Compustat ----------------------------------------------------------------
 
 # Select variable names: use all Yan-Zheng numerators and denominators
 tempnames = union(compnames$yz.numer, compnames$yz.denom) 
@@ -40,7 +98,7 @@ qstring = paste0(
       AND a.indfmt = 'INDL'"  
 )  
 
-  
+
 CompustatAnnualRaw = dbSendQuery(conn = wrds, statement = qstring) %>% 
   dbFetch(n = numRowsToPull) %>% 
   as.data.table()
@@ -62,7 +120,7 @@ CCM_LinkingTable <- dbSendQuery(conn = wrds, statement =
   as_tibble()
 
 
-# Clean -------------------------------------------------------------------
+## Clean -------------------------------------------------------------------
 
 # Add identifiers for merging
 CompustatAnnual <- left_join(CompustatAnnualRaw, CCM_LinkingTable, by="gvkey")
@@ -84,14 +142,11 @@ CompustatAnnual <- CompustatAnnual %>%
   )
 
 
-
-# Add me_datadate -------------------------------------------------------------
 crspm = readRDS('../Data/Intermediate/crspm.RData') %>% 
   transmute(permno, datayearm = yearm, me_datadate = me)
 
 CompustatAnnual = CompustatAnnual %>% 
   left_join(crspm, by = c('permno','datayearm'))
-
 
 # Save to disk ------------------------------------------------------------
 
