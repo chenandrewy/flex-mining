@@ -49,7 +49,8 @@ user$port = list(
 
 # data lag choices
 user$data = list(
-  reup_months    = c(6) # stocks are traded using new data at end of these months
+  backfill_dropyears = 0 # number of years to drop for backfill adjustment
+  , reup_months    = c(6) # stocks are traded using new data at end of these months
   , toostale_months = 12 
   , data_avail_lag = 6 # months
 )
@@ -71,6 +72,19 @@ prepare_data = function(){
   
   ## import compustat, convert to monthly
   comp0 = readRDS('../Data/Intermediate/CompustatAnnual.RData')
+
+  #Yan and Zheng (2017): To mitigate a backfilling bias, we require that a firm be listed on Compustat for two years
+  #before it is included in our sample (Fama and French 1993)
+  comp0 = comp0 %>% 
+    arrange(gvkey, datadate) %>% 
+    group_by(gvkey) %>% 
+    mutate(
+      years_on_comp = floor(datayearm - min(datayearm))
+    ) %>% 
+    filter(years_on_comp >= user$data$backfill_dropyears) %>% 
+    select(-years_on_comp) %>% 
+    ungroup()
+  
   setDT(comp0)
   comp0[ , c(
     'conm','tic','cusip','cik','sic','naics','linkprim','linktype','liid','lpermco','linkdt','linkenddt'
@@ -294,12 +308,16 @@ if (num_cores > 1){
                        .combine = rbind,
                        .packages = c('tidyverse','zoo')) %dopar% {
                          
-                         if (signali %% 100 == 0){
+                         if (signali %% 500 == 0){
+                           min_elapsed = round(as.numeric(Sys.time() - tic_loop, units = 'mins'), 1)
+                           i_remain = nrow(signal_list) - signali
                            log.text <- paste0(
                              Sys.time()
                              , " signali = ", signali
                              , " of ", dim(signal_list)[1]
-                             , " minutes elapsed = ", round(as.numeric(Sys.time() - tic_loop, units = 'mins'), 1)
+                             , ",  min elapsed = ", round(as.numeric(Sys.time() - tic_loop, units = 'mins'), 1)
+                             , ",  min per 1000 signals = ", round(min_elapsed / signali *1000, 2) 
+                             , ",  min remain = ", round(min_elapsed / signali * i_remain, 1)
                            )
                            write.table(log.text, "../Data/make_many_ls.log", append = TRUE, row.names = FALSE, col.names = FALSE)
                          }

@@ -84,16 +84,6 @@ CompustatAnnual <- CompustatAnnual %>%
   )
 
 
-#Yan and Zheng (2017): To mitigate a backfilling bias, we require that a firm be listed on Compustat for two years
-#before it is included in our sample (Fama and French 1993)
-CompustatAnnual <- CompustatAnnual %>% arrange(gvkey, datadate)
-CompustatAnnual <- CompustatAnnual %>% group_by(gvkey) %>% 
-  mutate(year = year(datadate),
-         year_min = min(year)) %>% 
-  filter(year != year_min & year != year_min + 1) %>% 
-  select(-year, -year_min) %>% 
-  ungroup()
-
 
 # Add me_datadate -------------------------------------------------------------
 crspm = readRDS('../Data/Intermediate/crspm.RData') %>% 
