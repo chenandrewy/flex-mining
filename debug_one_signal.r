@@ -1,6 +1,6 @@
 tic = Sys.time()
 
-rm(list = ls())
+# rm(list = ls())
 
 # Setup  ----------------------------------------------------------------
 
@@ -12,7 +12,7 @@ rm(list=ls(name=env), pos=env)
 
 ## Parallel settings ----
 num_cores <- round(.5*detectCores())  # Adjust number of cores used as you see fit
-# num_cores = 1 # use num_cores = 1 for serial
+num_cores = 1 # use num_cores = 1 for serial
 threads_fst(1) # since fst is used inside foreach, might want to limit cpus, though this doesn't seem to help
 
 ## Output settings ----
@@ -25,12 +25,16 @@ substr(user$name, 14,14) = 'h'
 user$name
 
 # signal choices
+#   really not sure that xnames and scaling_variables should be defined this way
+#   default is me aligned with datadate, which is 6 months lagged
+temp_denom = compnames$yz.denom
+
 user$signal = list(
   signalnum   = Inf # number of signals to sample or Inf for all
   , form = c('ratio', 'ratioChange', 'ratioChangePct',
                   'levelChangePct', 'levelChangeScaled', 'levelsChangePct_Change') # 'noise'
-  , x1code = 'yz.numer'
-  , x2code = 'yz.denom'
+  , xnames = unique(c(compnames$yz.numer,temp_denom))  # must include scaling variables
+  , scaling_variables = temp_denom
   , seednumber  = 1235 # seed sampling
 )
 
@@ -43,13 +47,11 @@ user$port = list(
   
 )
 
-# data basic choices
+# data lag choices
 user$data = list(
-  backfill_dropyears = 0 # number of years to drop for backfill adjustment
-  , reup_months    = c(6) # stocks are traded using new data at end of these months
+  reup_months    = c(6) # stocks are traded using new data at end of these months
   , toostale_months = 12 
   , data_avail_lag = 6 # months
-  , delist_adj = 'ghz' # 'none' or 'ghz'
 )
 
 
@@ -69,19 +71,6 @@ prepare_data = function(){
   
   ## import compustat, convert to monthly
   comp0 = readRDS('../Data/Intermediate/CompustatAnnual.RData')
-
-  #Yan and Zheng (2017): To mitigate a backfilling bias, we require that a firm be listed on Compustat for two years
-  #before it is included in our sample (Fama and French 1993)
-  comp0 = comp0 %>% 
-    arrange(gvkey, datadate) %>% 
-    group_by(gvkey) %>% 
-    mutate(
-      years_on_comp = floor(datayearm - min(datayearm))
-    ) %>% 
-    filter(years_on_comp >= user$data$backfill_dropyears) %>% 
-    select(-years_on_comp) %>% 
-    ungroup()
-  
   setDT(comp0)
   comp0[ , c(
     'conm','tic','cusip','cik','sic','naics','linkprim','linktype','liid','lpermco','linkdt','linkenddt'
@@ -108,49 +97,8 @@ prepare_data = function(){
   
   
   ## import crsp data
-  crsp = readRDS('../Data/Intermediate/crspm.RData')
-  
-  # incorporate delisting return
-  # GHZ cite Johnson and Zhao (2007), Shumway and Warther (1999)
-  # but the way HXZ does this might be a bit better
-  if (user$data$delist_adj == 'ghz') {
-    crsp = crsp %>%
-      mutate(
-        dlret = ifelse(
-          is.na(dlret)
-          & (dlstcd == 500 | (dlstcd >=520 & dlstcd <=584))
-          & (exchcd == 1 | exchcd == 2)
-          , -35
-          , dlret
-        )
-        , dlret = ifelse(
-          is.na(dlret)
-          & (dlstcd == 500 | (dlstcd >=520 & dlstcd <=584))
-          & (exchcd == 3)
-          , -55
-          , dlret
-        )
-        , dlret = ifelse(
-          dlret < -100 & !is.na(dlret)
-          , -100
-          , dlret
-        )
-        , dlret = ifelse(
-          is.na(dlret)
-          , 0
-          , dlret
-        )
-        , ret = (1+ret/100)*(1+dlret/100)-1
-        , ret = ifelse(
-          is.na(ret) & ( dlret != 0)
-          , dlret
-          , ret
-        )
-      )
-  }
-  
-  # convert ret to pct, other formatting
-  crsp = crsp %>%
+  # date refers to ret date, everything else is lagged
+  crsp <- readRDS('../Data/Intermediate/crspm.RData') %>% 
     transmute(
       permno, ret_yearm = yearm, ret, me
     )
@@ -164,23 +112,24 @@ prepare_data = function(){
   
   # fill NA with most recent x by permno
   #   this takes the most time 
-  alldat[ , (compnames$all) := nafill(.SD, 'locf'), by = .(permno), .SDcols = compnames$all]
+  allxnames = unique(c(user$signal$xnames, user$signal$scaling_variables, 'me'))
+  alldat[ , (allxnames) := nafill(.SD, 'locf'), by = .(permno), .SDcols = allxnames]
   
   ## enforce updating frequency (aka rebalancing) ====
   
-  # make separate me that is always updated monthly (me_monthly is not in compnames$all)
+  # make separate me that is always updated monthly (me_monthly is not in allxnames)
   alldat[ , me_monthly := me ]
   alldat[
     , temp_month := as.numeric(12*(signalyearm %% 1))
   ][
     , reup_id := if_else(temp_month %in% user$data$reup_months, 1, NA_real_)
   ][
-    , (compnames$all) := lapply(.SD, function(x) x*reup_id ), .SDcols = compnames$all 
+    , (allxnames) := lapply(.SD, function(x) x*reup_id ), .SDcols = allxnames 
   ]
   
   # fill NA with most recent x by permno
   #   this takes the most time 
-  alldat[ , (compnames$all) := nafill(.SD, 'locf'), by = .(permno), .SDcols = compnames$all]
+  alldat[ , (allxnames) := nafill(.SD, 'locf'), by = .(permno), .SDcols = allxnames]
   
   # Save to fst such that parallelization works without having to load big file onto each worker
   fst::write_fst(alldat, '../Data/tmpAllDat.fst')
@@ -207,25 +156,54 @@ toc - tic
 
 ## Draw lists of signals and ports ------------------------------------------
 
-# ac 2022 12: this function doesn't seem to work right
+# ac: this function doesn't seem to work right
 # signal_list = make_signal_list(signal_form =  user$signal$form,
-#                                xvars = user$signal$x1list,
+#                                xvars = user$signal$xnames, 
 #                                signalnum = user$signal$signalnum,
-#                                scale_vars = user$signal$x2list,
+#                                scale_vars = user$signal$scaling_variables,                         
 #                                rs = user$signal$seednumber)
 
+# ac: this works to replicate yz strat list
+# first make 240*76 = 18,240 combinations
+# use yz.denom for me_datadate, yz.denom_alt for me (most recent)
+signal_list = expand.grid(
+  signal_form = user$signal$form
+  , v1 = compnames$yz.numer
+  , v2 = compnames$yz.denom_alt
+  , stringsAsFactors = F
+) %>% 
+  mutate(
+    v2 = if_else(signal_form == 'levelChangePct', NA_character_, v2)
+  ) %>% 
+  distinct(across(everything()), .keep_all = T) %>% 
+  # remove 13 vboth x 5 two variable fun where v1 == v2 leads to constant signals  
+  mutate(
+    dropme = v1 %in% intersect(compnames$yz.numer, compnames$yz.denom) 
+      & signal_form != 'levelChangePct' 
+      &  v1 == v2 
+  ) %>% 
+  # remove selected strategies (2 vodd x 31 pd_var funs) based on yz sas data
+  mutate(
+    dropme2 = v1 %in% c('rdip', 'txndbr')  
+      & signal_form %in% c('ratioChangePct','levelChangePct','levelsChangePct_Change')
+  ) %>%
+  filter(!(dropme | dropme2)) %>% 
+  select(-starts_with('drop')) %>% 
+  as_tibble()
 
-# turn "codes" into full lists of compustat variables
-varlist = list(
-  x1 = compnames[[user$signal$x1code]]
-  , x2 = compnames[[user$signal$x2code]]
-)
 
-signal_list = make_signal_list_yz(signal_form = user$signal$form
-                               , x1list = varlist$x1
-                               , x2list = varlist$x2
-                               , signalnum = user$signal$signalnum
-                               , seed = user$signal$seednumber)
+# check dimensions at console
+signal_list %>% dim()
+
+# sample and add id
+signal_list = signal_list %>% 
+  sample_n(min(dim(signal_list)[1],user$signal$signalnum)) %>% 
+  arrange(across(everything())) %>% 
+  mutate(signalid = row_number()) %>% 
+  select(signalid, everything())  
+
+
+
 
 # port list
 port_list = expand.grid(longshort_form = user$port$longshort_form, 
@@ -236,6 +214,11 @@ port_list = expand.grid(longshort_form = user$port$longshort_form,
   arrange(across(everything())) %>% 
   mutate(portid = row_number()) %>% 
   select(portid, everything())  
+
+# debug
+signal_list0 = signal_list
+port_list0 = port_list
+
 
 ## Internal Function ---------------------------------------------------------------
 
@@ -305,91 +288,114 @@ make_many_ls = function(){
 } # make_many_ls
 
 
+
 ## Loop over signals -------------------------------------------------------
-# call make_many_ls (this is where the action is) 
-
-tic_loop = Sys.time()
-
-if (num_cores > 1){
-  setDTthreads(1)
-  cl <- makePSOCKcluster(num_cores)
-  registerDoParallel(cl)
-  file.remove('../Data/make_many_ls.log')
-  ls_dat_all = foreach(signali=1:nrow(signal_list), 
-                       .combine = rbind,
-                       .packages = c('tidyverse','zoo')) %dopar% {
-                         
-                         if (signali %% 500 == 0){
-                           min_elapsed = round(as.numeric(Sys.time() - tic_loop, units = 'mins'), 1)
-                           i_remain = nrow(signal_list) - signali
-                           log.text <- paste0(
-                             Sys.time()
-                             , " signali = ", signali
-                             , " of ", dim(signal_list)[1]
-                             , ",  min elapsed = ", round(as.numeric(Sys.time() - tic_loop, units = 'mins'), 1)
-                             , ",  min per 1000 signals = ", round(min_elapsed / signali *1000, 2) 
-                             , ",  min remain = ", round(min_elapsed / signali * i_remain, 1)
-                           )
-                           write.table(log.text, "../Data/make_many_ls.log", append = TRUE, row.names = FALSE, col.names = FALSE)
-                         }
-                         ls_dat = make_many_ls() # make strats
-                         
-                         
-                       } # end for signali
-  stopCluster(cl)
-  setDTthreads()
-} else {
-  ls_dat_all = foreach(signali=1:nrow(signal_list), 
-                       .combine = rbind) %do% {
-                         ls_dat = make_many_ls()
-                       } # end for signali    
-} # if num_cores
+# # call make_many_ls (this is where the action is) 
+# 
+# tic_loop = Sys.time()
+# 
+# if (num_cores > 1){
+#   setDTthreads(1)
+#   cl <- makePSOCKcluster(num_cores)
+#   registerDoParallel(cl)
+#   file.remove('../Data/make_many_ls.log')
+#   ls_dat_all = foreach(signali=1:nrow(signal_list), 
+#                        .combine = rbind,
+#                        .packages = c('tidyverse','zoo')) %dopar% {
+#                          
+#                          if (signali %% 100 == 0){
+#                            log.text <- paste0(
+#                              Sys.time()
+#                              , " signali = ", signali
+#                              , " of ", dim(signal_list)[1]
+#                              , " minutes elapsed = ", round(as.numeric(Sys.time() - tic_loop, units = 'mins'), 1)
+#                            )
+#                            write.table(log.text, "../Data/make_many_ls.log", append = TRUE, row.names = FALSE, col.names = FALSE)
+#                          }
+#                          ls_dat = make_many_ls() # make strats
+#                          
+#                          
+#                        } # end for signali
+#   stopCluster(cl)
+#   setDTthreads()
+# } else {
+#   ls_dat_all = foreach(signali=1:nrow(signal_list), 
+#                        .combine = rbind) %do% {
+#                          ls_dat = make_many_ls()
+#                        } # end for signali    
+# } # if num_cores
 
 
 
-# Organize and Save -------------------------------------------------------
+# Load yz data ------------------------------------------------------------
 
-# compile all info into one list
-stratdat = list(
-  ret = ls_dat_all
-  , signal_list = signal_list
-  , port_list = port_list
-  , user = user
-  , name = user$name
-)
+# yz
+yzraw = read_sas('../Data Yan-Zheng/Yan_Zheng_RFS_Data.sas7bdat')
 
-# save
-saveRDS(stratdat, paste0('../Data/LongShortPortfolios/stratdat ',
-                         stratdat$name, 
-                         '.RData'))
+yz_signal_list = yzraw %>% distinct(transformation,fsvariable) %>% 
+  arrange(transformation, fsvariable) %>% 
+  mutate(signalid = row_number()) 
 
-toc = Sys.time()
-print(toc - tic)
-
-
-
-
-
-
-# Check on Console --------------------------------------------------------
-
-
-q = c(1, 5, 10, 25, 50)/100
-q = c(q, 1-q) %>% sort() %>% unique()
-
-stratdat$ret %>% 
-  left_join(
-    port_list, by = 'portid'
+yz = yzraw %>% 
+  mutate(yearm = as.yearmon(DATE), ret= ddiff_ew*100) %>% 
+  mutate(
+    v2 = str_remove(transformation, 'pd_var_')
+    , v2 = str_remove(v2, 'd_var_')
+    , v2 = str_remove(v2, 'var_')
+    , form = case_when(
+      grepl('pd_var', transformation) ~ 'pd_var'
+      , grepl('d_var', transformation) ~ 'd_var'
+      , grepl('var', transformation) ~ 'var'
+    )
   ) %>% 
-  group_by(signalid, sweight) %>% 
+  transmute(yearm, v1 = fsvariable, form, v2, ret, transformation)
+  
+
+# Test One signal -------------------------------------------------------------------------
+
+signal_list0$signal_form %>% unique
+
+signal_list = signal_list0 %>% filter(
+  v1 == 'at', signal_form == 'levelChangePct'
+) 
+
+port_list = port_list0 %>% filter(sweight == 'ew')
+
+debugSource('0_Environment.R')
+
+num_cores = 1
+
+signali = 1
+ls_dat = make_many_ls()
+
+ls_dat %>% print(n=200)
+
+## examine result ----
+ls_dat %>% 
+  filter(yearm >= 1965, yearm <= 2014) %>% 
   summarize(
-    rbar = mean(ret), nmonth = n(), tstat = rbar/sd(ret)*sqrt(nmonth)
-  ) %>% 
-  filter(nmonth >= 2) %>% 
-  group_by(sweight) %>% 
-  summarize(
-    q = q, rbar_q = quantile(rbar, q), nmonth_q = quantile(nmonth, q), tstat_q = quantile(tstat, q)
-  ) %>% 
-  pivot_wider(
-    names_from = 'sweight', values_from = ends_with('_q')
+    nmonth = n(), rbar = mean(ret), tstat = rbar/sd(ret)*sqrt(nmonth)
+    , mean_nstock = mean(nstock)
   )
+
+ls_dat %>% 
+  filter(yearm >= 1968, yearm <= 2003) %>% 
+  summarize(
+    nmonth = n(), rbar = mean(ret), tstat = rbar/sd(ret)*sqrt(nmonth)
+    , mean_nstock = mean(nstock)
+  )
+
+
+## compare with yz ----
+
+yz %>% 
+  filter(v1 == 'lt', form == 'd_var', v2 == 'at') %>% 
+  group_by(form) %>% 
+  filter(yearm >= 1965, yearm <= 2014) %>% 
+  summarize(
+    nmonth = n(), rbar = mean(ret), tstat = rbar/sd(ret)*sqrt(nmonth)
+  )  %>% 
+  arrange(tstat) %>% 
+  print(n=20)
+
+

@@ -23,7 +23,6 @@ library(gridExtra)
 dir.create('../Data/', showWarnings = F)
 dir.create('../Data/Intermediate/', showWarnings = F)
 dir.create('../Data/LongShortPortfolios/', showWarnings = F)
-dir.create('../Data/RollingStats/', showWarnings = F)
 dir.create('../Results', showWarnings = F)
 dir.create('../Data/CZ', showWarnings = F)
 dir.create('../Data/Processed', showWarnings = F)
@@ -43,7 +42,7 @@ if (!file.exists('0_Environment.R')){
 set.seed(1337)
 
 # Yan-Zheng numerator and denominator names
-# mkvalt is not exactly me, but for our framework it makes more sense
+# YZ list MKTCAP in Table B.1, which we call me_datadate  mkvalt is not available earlier in the data
 
 compnames = list()
 compnames$yz.numer = c("acchg", "aco", "acox", "act", "am", "ao", "aoloch", "aox", "ap", "apalch",
@@ -68,7 +67,13 @@ compnames$yz.numer = c("acchg", "aco", "acox", "act", "am", "ao", "aoloch", "aox
 
 
 compnames$yz.denom <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
-                      "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp")
+                      "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp", 'me_datadate')
+
+
+compnames$yz.denom_alt <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
+                        "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp", 'me')
+
+compnames$all = unique(Reduce(c, compnames))
 
 
 # Functions ---------------------------------------------------------------
@@ -187,7 +192,8 @@ lsos <- function(..., n=10) {
 
 
 # function for creating a list of possible variable combinations used in strategies
-strategy_list = function(xvars, signalnum, scale_vars = NULL, rs) {
+# ac: not sure this works correctly
+make_signal_list = function(signal_form, xvars, signalnum, scale_vars = NULL, rs) {
   
   #' @param xvars Unique names of variables used for creating strategies
   #' @param signalnum Number of signals to sample from full list
@@ -197,7 +203,8 @@ strategy_list = function(xvars, signalnum, scale_vars = NULL, rs) {
   set.seed(rs)
   
   # make list of all possible xused combinations
-  tmp = expand.grid(v1 = xnames, v2 = xnames, stringsAsFactors = FALSE) %>% 
+  # (is v1 != v2 what we want here??)
+  tmp = expand.grid(signal_form = signal_form, v1 = xvars, v2 = xvars, stringsAsFactors = FALSE) %>% 
     filter(v1 != v2)
   
   # Deal with scaling variables if provided
@@ -205,22 +212,70 @@ strategy_list = function(xvars, signalnum, scale_vars = NULL, rs) {
     tmp = tmp %>% 
       filter(v2 %in% scale_vars, !(v1 %in% scale_vars))
   }
-  
   # Deal with duplicates (from including all combinations e.g. "ab" and "ba")
   if (is.null(scale_vars)) {
     tmp = tmp %>% 
       filter(v1 >v2)
   }
   
-  # sample from full list
-  if (signalnum == TRUE) {
-    tmp = tmp
-  } else if (nrow(tmp) > signalnum) {
-    tmp = tmp %>% 
-      sample_n(signalnum) 
-  }
+  # remove v2 for signal_forms that use only 1 variable
+  tmp = tmp %>% 
+    mutate(v2 = if_else(signal_form %in% c('levelChangePct'), NA_character_, v2)) %>% 
+    arrange(signal_form, v1, v2) %>% 
+    distinct(signal_form, v1, v2, .keep_all = T)
   
+  # sample from full list
+  signalnum = min(signalnum, nrow(tmp))
+  tmp = tmp %>% sample_n(signalnum)
+  
+  # clean up
+  tmp = tmp %>%
+    arrange(across(everything())) %>% 
+    mutate(signalid = row_number()) %>% 
+    select(signalid, everything())
+
   return(tmp)
+}
+
+# function for creating Yan-Zheng's 18,113 signal list
+make_signal_list_yz = function(signal_form, x1list, x2list, signalnum, seed){
+  
+  # ac: this works to replicate yz strat list
+  # first make 240*76 = 18,240 combinations
+  # use yz.denom for me_datadate, yz.denom_alt for me (most recent)
+  signal_list = expand.grid(
+    signal_form = signal_form
+    , v1 = x1list
+    , v2 = x2list
+    , stringsAsFactors = F
+  ) %>% 
+    mutate(
+      v2 = if_else(signal_form == 'levelChangePct', NA_character_, v2)
+    ) %>% 
+    distinct(across(everything()), .keep_all = T) %>% 
+    # remove 13 vboth x 5 two variable fun where v1 == v2 leads to constant signals  
+    mutate(
+      dropme = v1 %in% intersect(x1list, x2list) 
+      & signal_form != 'levelChangePct' 
+      &  v1 == v2 
+    ) %>% 
+    # remove selected strategies (2 vodd x 31 pd_var funs) based on yz sas data
+    mutate(
+      dropme2 = v1 %in% c('rdip', 'txndbr')  
+      & signal_form %in% c('ratioChangePct','levelChangePct','levelsChangePct_Change')
+    ) %>%
+    filter(!(dropme | dropme2)) %>% 
+    select(-starts_with('drop')) %>% 
+    as_tibble()
+  
+  
+  # sample and add id
+  set.seed(seed)
+  signal_list = signal_list %>% 
+    sample_n(min(dim(signal_list)[1],signalnum)) %>% 
+    arrange(across(everything())) %>% 
+    mutate(signalid = row_number()) %>% 
+    select(signalid, everything())    
 }
 
 
@@ -308,7 +363,7 @@ dataset_to_signal = function(form, dt, v1, v2){
 
 
 
-signal_to_longshort = function(dt, form, portnum, sweight, trim = NULL){
+signal_to_ports = function(dt, form, portnum, sweight, trim = NULL){
   
   dt = dt %>% filter(!is.na(signal), !is.na(ret), is.finite(signal))
   
@@ -323,7 +378,7 @@ signal_to_longshort = function(dt, form, portnum, sweight, trim = NULL){
     }
     
     # Potential preprocessing of signal values
-    if (!is.null(trim)) {
+    if (!is.na(trim)) {
       
       dt = dt %>% 
         filter(signal >= quantile(dt$signal, trim, na.rm = TRUE),
@@ -331,27 +386,43 @@ signal_to_longshort = function(dt, form, portnum, sweight, trim = NULL){
         )
     }
     
-    # find breakpoints
+    # find breakpoints, with backup plan of getting 20 stocks
     breakdat = dt %>% 
       group_by(ret_yearm) %>% 
       summarize(
-        qlo = quantile(signal, 1/portnum)
+        ntot = n()
+        , qlo_alt = quantile(signal, 20/pmax(ntot,20))
+        , qlo = quantile(signal, 1/portnum)
         , qhi = quantile(signal, 1-1/portnum)
+        , qhi_alt = quantile(signal, 1-20/pmax(ntot,20))    
       ) %>% 
-      filter(qlo < qhi) # remove degenerate months
+      # backup: replace simple quantile with the alts if not enough stocks
+      mutate(
+        qlo = pmax(qlo, qlo_alt), qhi = pmin(qhi, qhi_alt)
+      ) %>%
+      # backup 2: if qlo == qhi, adjust
+      mutate(
+        qlo = if_else(qlo == qhi, pmin(qlo, qlo_alt), qlo)
+        , qhi = if_else(qlo == qhi, pmax(qhi, qhi_alt), qhi)
+      )
     
-    if (dim(breakdat)[1] == 0){
-      print('Breakpoints overlap, returning empty tibble')
-      return(tibble())
-    }
-    
-    # find portfolios, rename date (only ret is still left)
+    # assign to legs, pedantically
+    #   stocks assigned to both legs get dropped
     dt = dt %>% 
       inner_join(breakdat, by = 'ret_yearm') %>% 
       mutate(
-        port = if_else(signal <= qlo, 'short', NA_character_)
-        , port = if_else(signal >= qhi, 'long', port)
+        short = signal <= qlo
+        , long = signal >= qhi
       ) %>% 
+      mutate(
+        port = case_when(
+          short & !long ~ 'short'
+          , !short & long ~ 'long'
+        )
+      )
+
+    # find long-short return, rename date (only ret is still left)
+    dt = dt %>% 
       filter(!is.na(port)) %>% 
       group_by(ret_yearm, port) %>%
       summarize(
@@ -359,16 +430,16 @@ signal_to_longshort = function(dt, form, portnum, sweight, trim = NULL){
         , nstock = n()
         , .groups = 'drop'
       ) %>%
-      filter(nstock > 20) %>%  # drop undiversified junk (should make this an option)
+      filter(nstock >= 20) %>%  # drop undiversified junk (should make this an option)
       rename(yearm = ret_yearm)
     
     # more error checking
     if (dim(dt %>% filter(port == 'short'))[1] == 0){
-      print('No short portfolios with more than 20 nstocks, returning empty tibble')
+      print('No short portfolios with at least 20 nstocks, returning empty tibble')
       return(tibble())
     }    
     if (dim(dt %>% filter(port == 'long'))[1] == 0){
-      print('No long portfolios with more than 20 nstocks, returning empty tibble')
+      print('No long portfolios with at least 20 nstocks, returning empty tibble')
       return(tibble())
     }    
     
@@ -385,7 +456,7 @@ signal_to_longshort = function(dt, form, portnum, sweight, trim = NULL){
 
   } # if form
   
-} # end signal_to_longshort
+} # end signal_to_ports
 
 
 # Function for calculating alpha and shrinkage
@@ -583,7 +654,7 @@ matchedReturns = function(bm_rets,
   # Restrict benchmark sample to in-sample dates and compute summary stats
   tmpSumStats = bm_rets %>% 
     filter(
-      year(date) >= year(actSampleStart), year(date) <= year(actSampleEnd)
+      yearm >= actSampleStart, yearm <= actSampleEnd
     )
   # Make sure that samples are the spanning the entire length (and not just small subsets)
   # group_by(signalname) %>% 
@@ -610,7 +681,7 @@ matchedReturns = function(bm_rets,
   
   # Make sure predictors fully available in last in-sample year
   tmpFullyLastYear = tmpSumStats %>% 
-    filter(year(date) == year(actSampleEnd)) %>% 
+    filter(year(yearm) == year(actSampleEnd)) %>% 
     group_by(signalname) %>% 
     filter(n() == 12) %>% 
     ungroup() %>% 
@@ -637,18 +708,18 @@ matchedReturns = function(bm_rets,
            abs(diff_r) < tol_r)
   
   # Return candidate strategy returns
-  
+  #   ac: should be a better way to find eventDate directly from yearm
   bm_rets %>% 
     filter(signalname %in% tmpCandidates$signalname) %>% 
     inner_join(tmpSumStats %>% 
                  filter(signalname %in% tmpCandidates$signalname)) %>% 
     transmute(candSignalname = signalname,
-              eventDate = interval(tmpSampleEnd, date) %/% months(1),
+              eventDate = interval(as.Date(tmpSampleEnd), as.Date(yearm)) %/% months(1),
               # Sign returns
               ret = ifelse(rbar >0, ret, -ret),
               samptype = case_when(
-                (year(date) >= year(actSampleStart)) & (year(date) <= year(actSampleEnd)) ~ 'insamp'
-                , (year(date) > year(actSampleEnd)) ~ 'oos' 
+                (yearm >= actSampleStart) & (yearm <= actSampleEnd) ~ 'insamp'
+                , (yearm > actSampleEnd) ~ 'oos' 
                 , TRUE ~ NA_character_
               ),
               actSignal = actSignalname

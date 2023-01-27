@@ -21,7 +21,7 @@ rm(tmp)
 
 # Matched returns
 #candidateReturns = readRDS('../Data/Processed/MatchedData.RDS')
-candidateReturns = readRDS('../Data/Processed/MatchedData2022-12-08.RDS')
+candidateReturns = readRDS('../Data/Processed/MatchedData2022-12-28.RDS')
 
 
 # Restrict to predictors in consideration

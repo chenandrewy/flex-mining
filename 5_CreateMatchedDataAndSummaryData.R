@@ -2,9 +2,15 @@
 # library(tidyverse)
 # library(lubridate)
 
+
+# Setup -------------------------------------------------------------------
+
 source('0_Environment.R')
 
 DMStrategies = 'DM'  # Or YZ
+
+DMname = 'stratdat_yzrep_2022_12_27.RData'
+  
 t_tolerance = .3
 r_tolerance = .3
 minNumStocks = 40  # Minimum number of stocks in any month over the in-sample period to include a strategy
@@ -57,51 +63,21 @@ czret = data.table::fread("../Data/CZ/PredictorPortsFull.csv") %>%
 if (DMStrategies == 'DM') {
   
   
-  stratData = c(list.files('../Data/LongShortPortfolios/',
-                           full.names = TRUE,
-                           pattern = c('5ew_')),
-                list.files('../Data/LongShortPortfolios/',
-                           full.names = TRUE,
-                           pattern = c('5vw_'))
-  )
+  bm_rets = readRDS(paste0('../Data/LongShortPortfolios/', DMname))$ret
+  bm_info = readRDS(paste0('../Data/LongShortPortfolios/', DMname))$port_list
   
-  
-  # Load in Loop
-  bm_rets = tibble()
-  
-  for (ff in 1:length(stratData)) {
-    
-    # Load data
-    print(stratData[ff])
-    
-    tmp = readRDS(stratData[ff]) 
-    bm_rets = rbind(bm_rets,
-                    tmp$ret %>% 
-                      filter(complete.cases(.) == TRUE) %>% 
-                      mutate(Weighting = tmp$sweight))
-    rm(tmp)
-  }
-  
-  bm_retsVW = bm_rets %>% 
-    filter(Weighting == 'vw') %>% 
+  bm_rets = bm_rets %>% left_join(
+    bm_info %>% select(portid, sweight), by = c('portid')
+  )  %>%
     transmute(
-      signalname
-      , date = zoo::as.Date(yearm, frac = 1)
-      # , y = year(yearm)
-      # , m = month(yearm)
+      sweight
+      , signalname = signalid
+      , yearm
       , ret
       , nstock)
   
-  
-  bm_retsEW = bm_rets %>% 
-    filter(Weighting == 'ew') %>% 
-    transmute(
-      signalname
-      , date = zoo::as.Date(yearm, frac = 1)
-      # , y = year(yearm)
-      # , m = month(yearm)
-      , ret
-      , nstock)
+  bm_retsEW = bm_rets %>% filter(sweight == 'ew') %>% select(-sweight)
+  bm_retsVW = bm_rets %>% filter(sweight == 'vw') %>% select(-sweight)
   
   rm(bm_rets)
   
@@ -168,6 +144,7 @@ saveRDS(
 
 candidateReturns = tibble()
 for (ii in 1:nrow(czsum)) {
+  print(paste0('Matching published signal ', ii))
   
   risksignal = czsum$signalname[ii]
   print(risksignal)
@@ -175,11 +152,13 @@ for (ii in 1:nrow(czsum)) {
   # Extract some relevant info
   tmpSampleStart = czsum %>% 
     filter(signalname == risksignal) %>% 
-    pull(sampstart)
+    pull(sampstart) %>% 
+    as.yearmon()
   
   tmpSampleEnd = czsum %>% 
     filter(signalname == risksignal) %>% 
-    pull(sampend)
+    pull(sampend) %>% 
+    as.yearmon()
   
   tmpTStat = czsum %>% 
     filter(signalname == risksignal) %>% 
