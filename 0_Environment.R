@@ -73,6 +73,8 @@ compnames$yz.denom <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
 compnames$yz.denom_alt <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
                         "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp", 'me')
 
+compnames$all = unique(Reduce(c, compnames))
+
 
 # Functions ---------------------------------------------------------------
 ### Form nchoose2 long-short strategies by going long-short every ntile combination
@@ -190,6 +192,7 @@ lsos <- function(..., n=10) {
 
 
 # function for creating a list of possible variable combinations used in strategies
+# ac: not sure this works correctly
 make_signal_list = function(signal_form, xvars, signalnum, scale_vars = NULL, rs) {
   
   #' @param xvars Unique names of variables used for creating strategies
@@ -232,6 +235,47 @@ make_signal_list = function(signal_form, xvars, signalnum, scale_vars = NULL, rs
     select(signalid, everything())
 
   return(tmp)
+}
+
+# function for creating Yan-Zheng's 18,113 signal list
+make_signal_list_yz = function(signal_form, x1list, x2list, signalnum, seed){
+  set.seed(seed)
+  
+  # ac: this works to replicate yz strat list
+  # first make 240*76 = 18,240 combinations
+  # use yz.denom for me_datadate, yz.denom_alt for me (most recent)
+  signal_list = expand.grid(
+    signal_form = signal_form
+    , v1 = x1list
+    , v2 = x2list
+    , stringsAsFactors = F
+  ) %>% 
+    mutate(
+      v2 = if_else(signal_form == 'levelChangePct', NA_character_, v2)
+    ) %>% 
+    distinct(across(everything()), .keep_all = T) %>% 
+    # remove 13 vboth x 5 two variable fun where v1 == v2 leads to constant signals  
+    mutate(
+      dropme = v1 %in% intersect(x1list, x2list) 
+      & signal_form != 'levelChangePct' 
+      &  v1 == v2 
+    ) %>% 
+    # remove selected strategies (2 vodd x 31 pd_var funs) based on yz sas data
+    mutate(
+      dropme2 = v1 %in% c('rdip', 'txndbr')  
+      & signal_form %in% c('ratioChangePct','levelChangePct','levelsChangePct_Change')
+    ) %>%
+    filter(!(dropme | dropme2)) %>% 
+    select(-starts_with('drop')) %>% 
+    as_tibble()
+  
+  
+  # sample and add id
+  signal_list = signal_list %>% 
+    sample_n(min(dim(signal_list)[1],signalnum)) %>% 
+    arrange(across(everything())) %>% 
+    mutate(signalid = row_number()) %>% 
+    select(signalid, everything())    
 }
 
 

@@ -1,6 +1,6 @@
 tic = Sys.time()
 
-# rm(list = ls())
+rm(list = ls())
 
 # Setup  ----------------------------------------------------------------
 
@@ -25,16 +25,12 @@ substr(user$name, 14,14) = 'h'
 user$name
 
 # signal choices
-#   really not sure that xnames and scaling_variables should be defined this way
-#   default is me aligned with datadate, which is 6 months lagged
-temp_denom = compnames$yz.denom
-
 user$signal = list(
-  signalnum   = Inf # number of signals to sample or Inf for all
+  signalnum   = 2000 # number of signals to sample or Inf for all
   , form = c('ratio', 'ratioChange', 'ratioChangePct',
                   'levelChangePct', 'levelChangeScaled', 'levelsChangePct_Change') # 'noise'
-  , xnames = unique(c(compnames$yz.numer,temp_denom))  # must include scaling variables
-  , scaling_variables = temp_denom
+  , x1code = 'yz.numer'
+  , x2code = 'yz.denom'
   , seednumber  = 1235 # seed sampling
 )
 
@@ -126,24 +122,23 @@ prepare_data = function(){
   
   # fill NA with most recent x by permno
   #   this takes the most time 
-  allxnames = unique(c(user$signal$xnames, user$signal$scaling_variables, 'me'))
-  alldat[ , (allxnames) := nafill(.SD, 'locf'), by = .(permno), .SDcols = allxnames]
+  alldat[ , (compnames$all) := nafill(.SD, 'locf'), by = .(permno), .SDcols = compnames$all]
   
   ## enforce updating frequency (aka rebalancing) ====
   
-  # make separate me that is always updated monthly (me_monthly is not in allxnames)
+  # make separate me that is always updated monthly (me_monthly is not in compnames$all)
   alldat[ , me_monthly := me ]
   alldat[
     , temp_month := as.numeric(12*(signalyearm %% 1))
   ][
     , reup_id := if_else(temp_month %in% user$data$reup_months, 1, NA_real_)
   ][
-    , (allxnames) := lapply(.SD, function(x) x*reup_id ), .SDcols = allxnames 
+    , (compnames$all) := lapply(.SD, function(x) x*reup_id ), .SDcols = compnames$all 
   ]
   
   # fill NA with most recent x by permno
   #   this takes the most time 
-  alldat[ , (allxnames) := nafill(.SD, 'locf'), by = .(permno), .SDcols = allxnames]
+  alldat[ , (compnames$all) := nafill(.SD, 'locf'), by = .(permno), .SDcols = compnames$all]
   
   # Save to fst such that parallelization works without having to load big file onto each worker
   fst::write_fst(alldat, '../Data/tmpAllDat.fst')
@@ -170,51 +165,25 @@ toc - tic
 
 ## Draw lists of signals and ports ------------------------------------------
 
-# ac: this function doesn't seem to work right
+# ac 2022 12: this function doesn't seem to work right
 # signal_list = make_signal_list(signal_form =  user$signal$form,
-#                                xvars = user$signal$xnames, 
+#                                xvars = user$signal$x1list,
 #                                signalnum = user$signal$signalnum,
-#                                scale_vars = user$signal$scaling_variables,                         
+#                                scale_vars = user$signal$x2list,
 #                                rs = user$signal$seednumber)
 
-# ac: this works to replicate yz strat list
-# first make 240*76 = 18,240 combinations
-# use yz.denom for me_datadate, yz.denom_alt for me (most recent)
-signal_list = expand.grid(
-  signal_form = user$signal$form
-  , v1 = compnames$yz.numer
-  , v2 = compnames$yz.denom_alt
-  , stringsAsFactors = F
-) %>% 
-  mutate(
-    v2 = if_else(signal_form == 'levelChangePct', NA_character_, v2)
-  ) %>% 
-  distinct(across(everything()), .keep_all = T) %>% 
-  # remove 13 vboth x 5 two variable fun where v1 == v2 leads to constant signals  
-  mutate(
-    dropme = v1 %in% intersect(compnames$yz.numer, compnames$yz.denom) 
-      & signal_form != 'levelChangePct' 
-      &  v1 == v2 
-  ) %>% 
-  # remove selected strategies (2 vodd x 31 pd_var funs) based on yz sas data
-  mutate(
-    dropme2 = v1 %in% c('rdip', 'txndbr')  
-      & signal_form %in% c('ratioChangePct','levelChangePct','levelsChangePct_Change')
-  ) %>%
-  filter(!(dropme | dropme2)) %>% 
-  select(-starts_with('drop')) %>% 
-  as_tibble()
 
+# turn "codes" into full lists of compustat variables
+varlist = list(
+  x1 = compnames[[user$signal$x1code]]
+  , x2 = compnames[[user$signal$x2code]]
+)
 
-# check dimensions at console
-signal_list %>% dim()
-
-# sample and add id
-signal_list = signal_list %>% 
-  sample_n(min(dim(signal_list)[1],user$signal$signalnum)) %>% 
-  arrange(across(everything())) %>% 
-  mutate(signalid = row_number()) %>% 
-  select(signalid, everything())  
+signal_list = make_signal_list_yz(signal_form = user$signal$form
+                               , x1list = varlist$x1
+                               , x2list = varlist$x2
+                               , signalnum = user$signal$signalnum
+                               , seed = user$signal$seednumber)
 
 # port list
 port_list = expand.grid(longshort_form = user$port$longshort_form, 
@@ -356,3 +325,29 @@ toc = Sys.time()
 print(toc - tic)
 
 
+
+
+
+
+# Check on Console --------------------------------------------------------
+
+
+q = c(1, 5, 10, 25, 50)/100
+q = c(q, 1-q) %>% sort() %>% unique()
+
+stratdat$ret %>% 
+  left_join(
+    port_list, by = 'portid'
+  ) %>% 
+  group_by(signalid, sweight) %>% 
+  summarize(
+    rbar = mean(ret), nmonth = n(), tstat = rbar/sd(ret)*sqrt(nmonth)
+  ) %>% 
+  filter(nmonth >= 2) %>% 
+  group_by(sweight) %>% 
+  summarize(
+    q = q, rbar_q = quantile(rbar, q), nmonth_q = quantile(nmonth, q), tstat_q = quantile(tstat, q)
+  ) %>% 
+  pivot_wider(
+    names_from = 'sweight', values_from = ends_with('_q')
+  )
