@@ -220,7 +220,7 @@ make_signal_list = function(signal_form, xvars, signalnum, scale_vars = NULL, rs
   
   # remove v2 for signal_forms that use only 1 variable
   tmp = tmp %>% 
-    mutate(v2 = if_else(signal_form %in% c('levelChangePct'), NA_character_, v2)) %>% 
+    mutate(v2 = if_else(signal_form %in% c('pdiff(v1)'), NA_character_, v2)) %>% 
     arrange(signal_form, v1, v2) %>% 
     distinct(signal_form, v1, v2, .keep_all = T)
   
@@ -250,19 +250,19 @@ make_signal_list_yz = function(signal_form, x1list, x2list, signalnum, seed){
     , stringsAsFactors = F
   ) %>% 
     mutate(
-      v2 = if_else(signal_form == 'levelChangePct', NA_character_, v2)
+      v2 = if_else(signal_form == 'pdiff(v1)', NA_character_, v2)
     ) %>% 
     distinct(across(everything()), .keep_all = T) %>% 
     # remove 13 vboth x 5 two variable fun where v1 == v2 leads to constant signals  
     mutate(
       dropme = v1 %in% intersect(x1list, x2list) 
-      & signal_form != 'levelChangePct' 
+      & signal_form != 'pdiff(v1)' 
       &  v1 == v2 
     ) %>% 
     # remove selected strategies (2 vodd x 31 pd_var funs) based on yz sas data
     mutate(
       dropme2 = v1 %in% c('rdip', 'txndbr')  
-      & signal_form %in% c('ratioChangePct','levelChangePct','levelsChangePct_Change')
+      & signal_form %in% c('pdiff(v1/v2)','pdiff(v1)','pdiff(v1)-pdiff(v2)')
     ) %>%
     filter(!(dropme | dropme2)) %>% 
     select(-starts_with('drop')) %>% 
@@ -284,15 +284,15 @@ dataset_to_signal = function(form, dt, v1, v2){
   
   stopifnot("form must be one of ratio, ratioChange, ratioChangePct,
             levelChangePct, levelChangeScaled, levelsChangePct_Change, noise" = 
-              form %in% c('ratio', 'ratioChange', 'ratioChangePct',
-                          'levelChangePct', 'levelChangeScaled', 'levelsChangePct_Change', 'noise'))
+              form %in% c('v1/v2', 'diff(v1/v2)', 'pdiff(v1/v2)',
+                          'pdiff(v1)', 'diff(v1)/lag(v2)', 'pdiff(v1)-pdiff(v2)', 'noise'))
   
-  if (form == 'ratio'){
+  if (form == 'v1/v2'){
     
     dt[,'tmp'] = dt[, v1]/dt[, v2]
     return(dt %>% pull(tmp))
     
-  } else if (form == 'ratioChange') {
+  } else if (form == 'diff(v1/v2)') {
     
     dt[,'tmp'] = dt[, v1]/dt[, v2]
     return(
@@ -304,7 +304,7 @@ dataset_to_signal = function(form, dt, v1, v2){
         pull(tmp2)
     )
     
-  } else if (form == 'ratioChangePct') {
+  } else if (form == 'pdiff(v1/v2)') {
     
     dt[,'tmp'] = dt[, v1]/dt[, v2]
     return(
@@ -316,19 +316,7 @@ dataset_to_signal = function(form, dt, v1, v2){
         pull(tmp2)
     )
     
-  } else if (form == 'levelChangePct') {
-    
-    dt[,'tmp'] = dt[, v1]
-    return(
-      dt %>% 
-        arrange(permno, ret_yearm) %>% 
-        group_by(permno) %>%
-        mutate(tmp2 = 100*(tmp - lag(tmp, 12))/lag(tmp, 12)) %>% 
-        ungroup() %>% 
-        pull(tmp2)
-    )
-    
-  } else if (form == 'levelChangeScaled') {
+  } else if (form == 'diff(v1)/lag(v2)') {
     dt[,'tmp'] = dt[, v1]
     dt[,'tmp2'] = dt[, v2]
     return(
@@ -340,7 +328,7 @@ dataset_to_signal = function(form, dt, v1, v2){
         pull(tmp3)
     )
     
-  } else if (form == 'levelsChangePct_Change') {
+  } else if (form == 'pdiff(v1)-pdiff(v2)') {
     dt[,'tmp'] = dt[, v1]
     dt[,'tmp2'] = dt[, v2]
     return(
@@ -353,6 +341,19 @@ dataset_to_signal = function(form, dt, v1, v2){
         mutate(tmp5 = tmp3 - tmp4) %>% 
         pull(tmp5)
     )
+    
+    
+  } else if (form == 'pdiff(v1)') {
+    
+    dt[,'tmp'] = dt[, v1]
+    return(
+      dt %>% 
+        arrange(permno, ret_yearm) %>% 
+        group_by(permno) %>%
+        mutate(tmp2 = 100*(tmp - lag(tmp, 12))/lag(tmp, 12)) %>% 
+        ungroup() %>% 
+        pull(tmp2)
+    )    
     
   } else if (form == 'noise'){ 
     # pure noise
@@ -385,6 +386,23 @@ signal_to_ports = function(dt, form, portnum, sweight, trim = NULL){
                signal <= quantile(dt$signal, 1-trim, na.rm = TRUE)
         )
     }
+    
+    # xx under construction xx
+    # # find breakpoints
+    # # based on email with LingLing Zheng 2023 01
+    # # she used proc rank with group output and ties = min
+    # # see https://blogs.sas.com/content/sgf/2019/07/19/how-the-rank-procedure-calculates-ranks-with-groups-and-ties/
+    # dt = dt %>% 
+    #   group_by(ret_yearm) %>% 
+    #   mutate(
+    #     rank = rank(signal, ties.method = 'average')
+    #     , group = floor(rank*portnum / (n()+1)) + 1 
+    #     , port = case_when(
+    #       group == 1 ~ 'short'
+    #       , group == 10 ~ 'long'
+    #     )
+    #   ) %>% 
+    #   ungroup()
     
     # find breakpoints, with backup plan of getting 20 stocks
     breakdat = dt %>% 
@@ -420,6 +438,7 @@ signal_to_ports = function(dt, form, portnum, sweight, trim = NULL){
           , !short & long ~ 'long'
         )
       )
+    
 
     # find long-short return, rename date (only ret is still left)
     dt = dt %>% 
