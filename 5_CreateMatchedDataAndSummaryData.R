@@ -7,15 +7,18 @@ rm(list = ls())
 
 source('0_Environment.R')
 
+colors = c(rgb(0,0.4470,0.7410), # MATBLUE
+           rgb(0.8500, 0.3250, 0.0980), # MATRED
+           rgb(0.9290, 0.6940, 0.1250) # MATYELLOW
+)
+
 DMStrategies = 'DM'  # DM Or YZ
 
-DMname = '../Data/LongShortPortfolios/stratdat CZ-style.RData'
+DMname = '../Data/LongShortPortfolios/stratdat CZ-style-v2.RData'
   
 t_tolerance = .3
 r_tolerance = .3
-minNumStocks = 0  # Minimum number of stocks in any month over the in-sample period to include a strategy
-
-DMend = 2012 # for testing
+minNumStocks = 20  # Minimum number of stocks in any month over the in-sample period to include a strategy
 
 # Load data ---------------------------------------------------------------
 
@@ -77,9 +80,6 @@ if (DMStrategies == 'DM') {
       , yearm
       , ret
       , nstock)
-  
-  # testing
-  bm_rets = bm_rets %>% filter(floor(yearm) <= DMend)
   
   bm_retsEW = bm_rets %>% filter(sweight == 'ew') %>% select(-sweight)
   bm_retsVW = bm_rets %>% filter(sweight == 'vw') %>% select(-sweight)

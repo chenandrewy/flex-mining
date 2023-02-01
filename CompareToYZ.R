@@ -5,7 +5,7 @@ library(janitor)
 
 ## US, compustat ----------------------------------------------------------------------
 # stratdat = readRDS('../Data/LongShortPortfolios/stratdat deleteme.RData')
-stratdat = readRDS('../Data/LongShortPortfolios/stratdat CZ-style.RData')
+stratdat = readRDS('../Data/LongShortPortfolios/stratdat CZ-style-v2.RData')
 
 us = stratdat$ret %>% 
   left_join(stratdat$port_list %>% select(portid, sweight)) %>% 
@@ -23,7 +23,7 @@ comp0 = readRDS('../Data/Intermediate/CompustatAnnual.RData') %>%
 # cz 
 czdoc = fread('../Data/CZ/SignalDoc.csv') %>% 
   clean_names() 
-czdoc = czdoc[ , 1:20]
+
 
 ## YZ ----------------------------------------------------------------------
 
@@ -162,49 +162,7 @@ diff_samp %>% filter(dstart <= -1) %>%
   print(n=40)
 
 
-# -------------------------------------------------------------------------
 
-
-%>% 
-  mutate(
-    diff = us - yz
-  ) %>% 
-  arrange(-abs(diff))
-
-temp %>% 
-  print(n=50)
-
-temp2 = temp %>% group_by(signal_form) %>% 
-  summarise(us = mean(us), yz = mean(yz), diff = floor(100*mean(diff))) %>% 
-  arrange(-abs(diff)) 
-  
-head(temp2)  
-tail(temp2)
-
-temp %>% filter(signal_form == 'diff(v1/v2)', is.na(yz)) %>% 
-  inner_join(us, by = c('v1','signal_form','v2')) %>% 
-  select(v1,signal_form,v2, yearm, ret) %>% 
-  filter(yearm >= 1997)
-
-
-
-
-both %>% 
-  filter(sweight == 'ew') %>% 
-  group_by()
-
-
-# -------------------------------------------------------------------------
-
-
-temp %>% 
-  group_by(signal_form) %>% 
-  summarize(mean(abs(diff)), mean(diff), mean(us), mean(yz))
-
-
-
-temp %>% filter(is.na(us) | is.na(yz)) %>% 
-  print(n=Inf)
 
 
 # OOS tests ---------------------------------------------------------------
@@ -272,69 +230,4 @@ temp = both %>%
     year = mean(yearm), rbar = mean(ret)
   )
 
-
-# -------------------------------------------------------------------------
-
-
-
-qlist = c(0.99)
-qlist = c(1-qlist, qlist) %>% sort()
-plotme = temp %>% 
-  group_by(source, group) %>% 
-  summarize(
-    q = as.character(qlist), rbarq = floor(100*quantile(rbar, qlist))
-  ) 
-
-ggplot(plotme, aes(x=group, y=rbarq)) +
-  geom_line(aes(color = q, linetype = source), size = 1.5)
-
-
-
-plotme %>% 
-  pivot_wider(
-    id_cols = c('source','group')
-    ,names_from = 'q', values_from = 'rbarq', names_prefix = 'q'
-  )
-
-plotme %>% 
-  pivot_wider(
-    id_cols = c('group','q')
-    , names_from = 'source', values_from = 'rbarq'
-  ) %>% 
-  mutate(diff = (us - yz)*sign(us)) %>% 
-  print(n=100)
-
-temp %>% 
-  group_by(source,group) %>% 
-  summarize(
-    sd_rbar = sd(rbar)
-  ) %>% 
-  pivot_wider(
-    names_from = 'source', values_from = 'sd_rbar'
-  ) %>% 
-  mutate(diff = us - yz)
-
-
-# nstocks? ----------------------------------------------------------------
-
-
-us = us %>% filter(sweight == 'ew')
-yz = yz %>% filter(sweight == 'ew')
-
-
-badlist = us %>% group_by(v1,signal_form,v2) %>% 
-  summarize(
-    nstock = mean(nstock)
-  ) %>% 
-  arrange(nstock) %>% 
-  head(30) 
-  
-
-both %>% 
-  inner_join(badlist, by = c('v1','signal_form', 'v2')) %>% 
-  group_by(source, v1, signal_form, v2) %>% 
-  summarize(vol = sd(ret)) %>% 
-  pivot_wider(names_from = 'source', values_from = 'vol') %>% 
-  mutate(diff = us - yz) %>% 
-  print(n=40)
 

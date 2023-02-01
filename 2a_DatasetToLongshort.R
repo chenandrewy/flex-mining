@@ -109,9 +109,6 @@ if (debugset$prep_data){
   # keep only if permno is ok (must be done after backfill adjustment)
   comp1 = comp1[!is.na(permno)]
   
-  # # debug 
-  # comp1 = comp1[gvkey %in% c('013007', '012994') & datayearm <= 1990]
-
   # lag signal, then keep around until signalyearm == datadate + toostale_months
   comp1[ , signalyearm := datayearm + user$data$data_avail_lag/12]
   
@@ -136,6 +133,7 @@ if (debugset$prep_data){
   ]
   
   # fill NA with most recent x by permno 
+  #   this takes all the time
   setorder(comp2, permno, signalyearm, -datayearm)
   comp2[ , (varlist$xall) := nafill(.SD, 'locf'), by = .(permno, datayearm), .SDcols = varlist$xall]
   comp2[ , (c('temp_month', 'reup_id')) := NULL]
