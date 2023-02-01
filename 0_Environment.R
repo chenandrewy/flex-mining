@@ -730,7 +730,6 @@ matchedReturns = function(bm_rets,
            abs(diff_r) < tol_r)
   
   # Return candidate strategy returns
-  #   ac: should be a better way to find eventDate directly from yearm
   bm_rets %>% 
     filter(signalname %in% tmpCandidates$signalname) %>% 
     inner_join(tmpSumStats %>% 

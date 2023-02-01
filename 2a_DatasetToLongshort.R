@@ -3,8 +3,6 @@ tic = Sys.time()
 rm(list = ls())
 
 # Setup  ----------------------------------------------------------------
-
-
 debugSource('0_Environment.R')
 library(doParallel)
 env <- foreach:::.foreachGlobals # https://stackoverflow.com/questions/64519640/error-in-summary-connectionconnection-invalid-connection
@@ -19,7 +17,7 @@ user = list()
 user$name = Sys.time() %>% substr(1,17) 
 substr(user$name, 17,17) = 'm'
 substr(user$name, 14,14) = 'h'
-# user$name = 'deleteme2'
+user$name = 'CZ-style'
 
 # signal choices
 user$signal = list(
@@ -42,19 +40,19 @@ user$port = list(
 
 # data basic choices
 user$data = list(
-  backfill_dropyears = 1 # number of years to drop for backfill bias adj
+  backfill_dropyears = 0 # number of years to drop for backfill bias adj
   , reup_months    = 6 # stocks are traded using new data at end of these months
   , data_avail_lag = 6 # months
   , toostale_months = 18 # months after datadate to keep signal for  
   , delist_adj = 'none' # 'none' or 'ghz'
-  , crsp_filter = 'shrcd %in% c(10,11) & abs(prc) >= 1 & floor(siccd/1000) != 6' # use NA_character_ for no filter
+  , crsp_filter = NA_character_ # use NA_character_ for no filter
 )
 
 # debugging
 debugset = list(
   prep_data = T
   , num_cores = round(.5*detectCores())  # Adjust number of cores used as you see fit
-  # , num_cores = 1 # use num_cores = 1 for serial  
+  # , num_cores = 1 # use num_cores = 1 for serial
   , shortlist = F
 )
 
@@ -82,7 +80,7 @@ if (debugset$shortlist == F){
   )
 } else {
   varlist = list(
-    x1 = c('fopt')
+    x1 = c('invt')
     , x2 = c('at')
   )  
 }
@@ -149,7 +147,7 @@ if (debugset$prep_data){
   # timing adjustments
   setorder(crsp, permno, yearm)
   lagme = setdiff(names(crsp), c('permno','yearm','ret','retx','dlret'))
-  crsp[ , (lagme) := shift(.SD, n=1, type = 'lag'), by = permno, .SDcols = lagme]
+  crsp[ , (lagme) := data.table::shift(.SD, n=1, type = 'lag'), by = permno, .SDcols = lagme]
   setnames(crsp, old = 'yearm', new = 'ret_yearm')  
 
   # filters
@@ -329,7 +327,7 @@ tic_loop = Sys.time()
 
 if (debugset$num_cores > 1){
   setDTthreads(1)
-  cl <- makePSOCKcluster(num_cores)
+  cl <- makePSOCKcluster(debugset$num_cores)
   registerDoParallel(cl)
   file.remove('../Data/make_many_ls.log')
   ls_dat_all = foreach(signali=1:nrow(signal_list), 

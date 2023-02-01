@@ -2,18 +2,20 @@
 # library(tidyverse)
 # library(lubridate)
 
-
+rm(list = ls())
 # Setup -------------------------------------------------------------------
 
 source('0_Environment.R')
 
-DMStrategies = 'DM'  # Or YZ
+DMStrategies = 'DM'  # DM Or YZ
 
-DMname = 'stratdat_yzrep_2022_12_27.RData'
+DMname = '../Data/LongShortPortfolios/stratdat CZ-style.RData'
   
 t_tolerance = .3
 r_tolerance = .3
-minNumStocks = 40  # Minimum number of stocks in any month over the in-sample period to include a strategy
+minNumStocks = 0  # Minimum number of stocks in any month over the in-sample period to include a strategy
+
+DMend = 2012 # for testing
 
 # Load data ---------------------------------------------------------------
 
@@ -63,8 +65,8 @@ czret = data.table::fread("../Data/CZ/PredictorPortsFull.csv") %>%
 if (DMStrategies == 'DM') {
   
   
-  bm_rets = readRDS(paste0('../Data/LongShortPortfolios/', DMname))$ret
-  bm_info = readRDS(paste0('../Data/LongShortPortfolios/', DMname))$port_list
+  bm_rets = readRDS(DMname)$ret
+  bm_info = readRDS(DMname)$port_list
   
   bm_rets = bm_rets %>% left_join(
     bm_info %>% select(portid, sweight), by = c('portid')
@@ -75,6 +77,9 @@ if (DMStrategies == 'DM') {
       , yearm
       , ret
       , nstock)
+  
+  # testing
+  bm_rets = bm_rets %>% filter(floor(yearm) <= DMend)
   
   bm_retsEW = bm_rets %>% filter(sweight == 'ew') %>% select(-sweight)
   bm_retsVW = bm_rets %>% filter(sweight == 'vw') %>% select(-sweight)
@@ -194,6 +199,6 @@ for (ii in 1:nrow(czsum)) {
 
 # Save
 saveRDS(candidateReturns,
-  file = paste0('../Data/Processed/MatchedData', today(), '.RDS')
+  file = paste0('../Data/Processed/MatchedData', format(Sys.time(), '%Y-%m-%d %Hh%Mm'), '.RDS')
 )
 
