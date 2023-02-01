@@ -735,7 +735,7 @@ matchedReturns = function(bm_rets,
     inner_join(tmpSumStats %>% 
                  filter(signalname %in% tmpCandidates$signalname)) %>% 
     transmute(candSignalname = signalname,
-              eventDate = as.integer(12*(yearm-tmpSampleEnd)),
+              eventDate = as.integer(round(12*(yearm-tmpSampleEnd))),
               # Sign returns
               ret = ifelse(rbar >0, ret, -ret),
               samptype = case_when(

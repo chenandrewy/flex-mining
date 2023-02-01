@@ -87,7 +87,9 @@ tempsumCand = candidateReturns %>%
 tempCand = candidateReturns %>% 
   left_join(tempsumCand) %>% 
   mutate(retOrig = ret,
-         ret = 100*ret/rbar_insampMatched) %>% 
+         ret = 100*ret/rbar_insampMatched) %>%
+  # mutate(retOrig = ret,
+  #        ret = 100*ret) %>%   
   group_by(actSignal, eventDate) %>% 
   summarise(matchRet = mean(ret, na.rm = TRUE),
             matchRetOrig = mean(retOrig, na.rm = TRUE),
