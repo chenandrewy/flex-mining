@@ -17,7 +17,7 @@ user = list()
 user$name = Sys.time() %>% substr(1,17) 
 substr(user$name, 17,17) = 'm'
 substr(user$name, 14,14) = 'h'
-user$name = 'CZ-style'
+user$name = 'CZ-style-v2'
 
 # signal choices
 user$signal = list(
@@ -44,7 +44,7 @@ user$data = list(
   , reup_months    = 6 # stocks are traded using new data at end of these months
   , data_avail_lag = 6 # months
   , toostale_months = 18 # months after datadate to keep signal for  
-  , delist_adj = 'none' # 'none' or 'ghz'
+  , delist_adj = 'ghz' # 'none' or 'ghz'
   , crsp_filter = NA_character_ # use NA_character_ for no filter
 )
 
@@ -186,7 +186,7 @@ if (debugset$prep_data){
           , 0
           , dlret
         )
-        , ret = (1+ret/100)*(1+dlret/100)-1
+        , ret = 100*((1+ret/100)*(1+dlret/100)-1)
         , ret = ifelse(
           is.na(ret) & ( dlret != 0)
           , dlret
