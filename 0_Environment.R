@@ -364,9 +364,9 @@ dataset_to_signal = function(form, dt, v1, v2){
 
 
 
-signal_to_ports = function(dt, form, portnum, sweight, trim = NULL){
+signal_to_ports = function(dt0, form, portnum, sweight, trim = NULL){
   
-  dt = dt %>% filter(!is.na(signal), !is.na(ret), is.finite(signal))
+  dt = dt0 %>% filter(!is.na(signal), !is.na(ret), is.finite(signal))
   
   if (form == 'ls_extremes'){
     
@@ -392,52 +392,52 @@ signal_to_ports = function(dt, form, portnum, sweight, trim = NULL){
     # # based on email with LingLing Zheng 2023 01
     # # she used proc rank with group output and ties = min
     # # see https://blogs.sas.com/content/sgf/2019/07/19/how-the-rank-procedure-calculates-ranks-with-groups-and-ties/
-    # dt = dt %>% 
-    #   group_by(ret_yearm) %>% 
-    #   mutate(
-    #     rank = rank(signal, ties.method = 'average')
-    #     , group = floor(rank*portnum / (n()+1)) + 1 
-    #     , port = case_when(
-    #       group == 1 ~ 'short'
-    #       , group == 10 ~ 'long'
-    #     )
-    #   ) %>% 
-    #   ungroup()
-    
-    # find breakpoints, with backup plan of getting 20 stocks
-    breakdat = dt %>% 
-      group_by(ret_yearm) %>% 
-      summarize(
-        ntot = n()
-        , qlo_alt = quantile(signal, 20/pmax(ntot,20))
-        , qlo = quantile(signal, 1/portnum)
-        , qhi = quantile(signal, 1-1/portnum)
-        , qhi_alt = quantile(signal, 1-20/pmax(ntot,20))    
-      ) %>% 
-      # backup: replace simple quantile with the alts if not enough stocks
+    dt = dt %>%
+      group_by(ret_yearm) %>%
       mutate(
-        qlo = pmax(qlo, qlo_alt), qhi = pmin(qhi, qhi_alt)
-      ) %>%
-      # backup 2: if qlo == qhi, adjust
-      mutate(
-        qlo = if_else(qlo == qhi, pmin(qlo, qlo_alt), qlo)
-        , qhi = if_else(qlo == qhi, pmax(qhi, qhi_alt), qhi)
-      )
-    
-    # assign to legs, pedantically
-    #   stocks assigned to both legs get dropped
-    dt = dt %>% 
-      inner_join(breakdat, by = 'ret_yearm') %>% 
-      mutate(
-        short = signal <= qlo
-        , long = signal >= qhi
-      ) %>% 
-      mutate(
-        port = case_when(
-          short & !long ~ 'short'
-          , !short & long ~ 'long'
+        rank = rank(signal, ties.method = 'min')
+        , group = floor(rank*portnum / (n()+1)) + 1
+        , port = case_when(
+          group == 1 ~ 'short'
+          , group == 10 ~ 'long'
         )
-      )
+      ) %>%
+      ungroup()
+    
+    # # find breakpoints, with backup plan of getting 20 stocks
+    # breakdat = dt %>% 
+    #   group_by(ret_yearm) %>% 
+    #   summarize(
+    #     ntot = n()
+    #     , qlo_alt = quantile(signal, 20/pmax(ntot,20))
+    #     , qlo = quantile(signal, 1/portnum)
+    #     , qhi = quantile(signal, 1-1/portnum)
+    #     , qhi_alt = quantile(signal, 1-20/pmax(ntot,20))    
+    #   ) %>% 
+    #   # backup: replace simple quantile with the alts if not enough stocks
+    #   mutate(
+    #     qlo = pmax(qlo, qlo_alt), qhi = pmin(qhi, qhi_alt)
+    #   ) %>%
+    #   # backup 2: if qlo == qhi, adjust
+    #   mutate(
+    #     qlo = if_else(qlo == qhi, pmin(qlo, qlo_alt), qlo)
+    #     , qhi = if_else(qlo == qhi, pmax(qhi, qhi_alt), qhi)
+    #   )
+    
+    # # assign to legs, pedantically
+    # #   stocks assigned to both legs get dropped
+    # dt = dt %>% 
+    #   inner_join(breakdat, by = 'ret_yearm') %>% 
+    #   mutate(
+    #     short = signal <= qlo
+    #     , long = signal >= qhi
+    #   ) %>% 
+    #   mutate(
+    #     port = case_when(
+    #       short & !long ~ 'short'
+    #       , !short & long ~ 'long'
+    #     )
+    #   )
     
 
     # find long-short return, rename date (only ret is still left)
@@ -449,16 +449,15 @@ signal_to_ports = function(dt, form, portnum, sweight, trim = NULL){
         , nstock = n()
         , .groups = 'drop'
       ) %>%
-      filter(nstock >= 20) %>%  # drop undiversified junk (should make this an option)
       rename(yearm = ret_yearm)
     
     # more error checking
     if (dim(dt %>% filter(port == 'short'))[1] == 0){
-      print('No short portfolios with at least 20 nstocks, returning empty tibble')
+      print('No short portfolios, returning empty tibble')
       return(tibble())
     }    
     if (dim(dt %>% filter(port == 'long'))[1] == 0){
-      print('No long portfolios with at least 20 nstocks, returning empty tibble')
+      print('No long portfolios, returning empty tibble')
       return(tibble())
     }    
     
@@ -689,18 +688,22 @@ matchedReturns = function(bm_rets,
   # filter(tmpN > .8*12*(year(actSampleEnd) - year(actSampleStart)))
   
   # Make sure at least minStocks stocks in each month of the sample period
+  if (minStocks > 0){
   tmpAtLeastNStocks = tmpSumStats %>% 
     group_by(signalname) %>% 
     summarise(minN = min(nstock)) %>% 
     ungroup() %>% 
     filter(minN >= minStocks)
+  } else {
+    tmpAtLeastNStocks = tmpSumStats
+  }
 
   tmpSumStats = tmpSumStats %>% 
     filter(signalname %in% tmpAtLeastNStocks$signalname)
   
   # Make sure predictors fully available in last in-sample year
   tmpFullyLastYear = tmpSumStats %>% 
-    filter(year(yearm) == year(actSampleEnd)) %>% 
+    filter(floor(yearm) == floor(actSampleEnd)) %>% 
     group_by(signalname) %>% 
     filter(n() == 12) %>% 
     ungroup() %>% 
