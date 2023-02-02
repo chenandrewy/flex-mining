@@ -2,18 +2,23 @@
 # library(tidyverse)
 # library(lubridate)
 
-
+rm(list = ls())
 # Setup -------------------------------------------------------------------
 
 source('0_Environment.R')
 
-DMStrategies = 'DM'  # Or YZ
+colors = c(rgb(0,0.4470,0.7410), # MATBLUE
+           rgb(0.8500, 0.3250, 0.0980), # MATRED
+           rgb(0.9290, 0.6940, 0.1250) # MATYELLOW
+)
 
-DMname = 'stratdat_yzrep_2022_12_27.RData'
+DMStrategies = 'DM'  # DM Or YZ
+
+DMname = '../Data/LongShortPortfolios/stratdat CZ-style-v2.RData'
   
 t_tolerance = .3
 r_tolerance = .3
-minNumStocks = 40  # Minimum number of stocks in any month over the in-sample period to include a strategy
+minNumStocks = 20  # Minimum number of stocks in any month over the in-sample period to include a strategy
 
 # Load data ---------------------------------------------------------------
 
@@ -63,8 +68,8 @@ czret = data.table::fread("../Data/CZ/PredictorPortsFull.csv") %>%
 if (DMStrategies == 'DM') {
   
   
-  bm_rets = readRDS(paste0('../Data/LongShortPortfolios/', DMname))$ret
-  bm_info = readRDS(paste0('../Data/LongShortPortfolios/', DMname))$port_list
+  bm_rets = readRDS(DMname)$ret
+  bm_info = readRDS(DMname)$port_list
   
   bm_rets = bm_rets %>% left_join(
     bm_info %>% select(portid, sweight), by = c('portid')
@@ -194,6 +199,6 @@ for (ii in 1:nrow(czsum)) {
 
 # Save
 saveRDS(candidateReturns,
-  file = paste0('../Data/Processed/MatchedData', today(), '.RDS')
+  file = paste0('../Data/Processed/MatchedData', format(Sys.time(), '%Y-%m-%d %Hh%Mm'), '.RDS')
 )
 

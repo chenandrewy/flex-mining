@@ -21,7 +21,7 @@ rm(tmp)
 
 # Matched returns
 #candidateReturns = readRDS('../Data/Processed/MatchedData.RDS')
-candidateReturns = readRDS('../Data/Processed/MatchedData2022-12-28.RDS')
+candidateReturns = readRDS('../Data/Processed/MatchedData2023-02-01 15h55m.RDS')
 
 
 # Restrict to predictors in consideration
@@ -87,7 +87,9 @@ tempsumCand = candidateReturns %>%
 tempCand = candidateReturns %>% 
   left_join(tempsumCand) %>% 
   mutate(retOrig = ret,
-         ret = 100*ret/rbar_insampMatched) %>% 
+         ret = 100*ret/rbar_insampMatched) %>%
+  # mutate(retOrig = ret,
+  #        ret = 100*ret) %>%   
   group_by(actSignal, eventDate) %>% 
   summarise(matchRet = mean(ret, na.rm = TRUE),
             matchRetOrig = mean(retOrig, na.rm = TRUE),

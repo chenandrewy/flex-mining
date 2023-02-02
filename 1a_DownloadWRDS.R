@@ -125,12 +125,6 @@ CCM_LinkingTable <- dbSendQuery(conn = wrds, statement =
 # Add identifiers for merging
 CompustatAnnual <- left_join(CompustatAnnualRaw, CCM_LinkingTable, by="gvkey")
 
-#Use only if datadate is within the validity period of the link
-CompustatAnnual <- CompustatAnnual %>% 
-  filter(
-    (linkdt <= datadate & (datadate <= linkenddt | is.na(linkenddt) == TRUE)) == TRUE
-  )
-
 # convert dates, rename
 CompustatAnnual <- CompustatAnnual %>% 
   mutate(
@@ -142,6 +136,14 @@ CompustatAnnual <- CompustatAnnual %>%
   )
 
 
+#Use only if datadate is within the validity period of the link
+CompustatAnnual <- CompustatAnnual %>% 
+  mutate(
+    permno = if_else(linkdt <= datadate & (datadate <= linkenddt | is.na(linkenddt) == TRUE), permno, NA_real_)
+  )
+
+
+# merge on me that matches datadate (me_datadate)
 crspm = readRDS('../Data/Intermediate/crspm.RData') %>% 
   transmute(permno, datayearm = yearm, me_datadate = me)
 

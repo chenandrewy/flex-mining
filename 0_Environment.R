@@ -220,7 +220,7 @@ make_signal_list = function(signal_form, xvars, signalnum, scale_vars = NULL, rs
   
   # remove v2 for signal_forms that use only 1 variable
   tmp = tmp %>% 
-    mutate(v2 = if_else(signal_form %in% c('levelChangePct'), NA_character_, v2)) %>% 
+    mutate(v2 = if_else(signal_form %in% c('pdiff(v1)'), NA_character_, v2)) %>% 
     arrange(signal_form, v1, v2) %>% 
     distinct(signal_form, v1, v2, .keep_all = T)
   
@@ -250,19 +250,19 @@ make_signal_list_yz = function(signal_form, x1list, x2list, signalnum, seed){
     , stringsAsFactors = F
   ) %>% 
     mutate(
-      v2 = if_else(signal_form == 'levelChangePct', NA_character_, v2)
+      v2 = if_else(signal_form == 'pdiff(v1)', NA_character_, v2)
     ) %>% 
     distinct(across(everything()), .keep_all = T) %>% 
     # remove 13 vboth x 5 two variable fun where v1 == v2 leads to constant signals  
     mutate(
       dropme = v1 %in% intersect(x1list, x2list) 
-      & signal_form != 'levelChangePct' 
+      & signal_form != 'pdiff(v1)' 
       &  v1 == v2 
     ) %>% 
     # remove selected strategies (2 vodd x 31 pd_var funs) based on yz sas data
     mutate(
       dropme2 = v1 %in% c('rdip', 'txndbr')  
-      & signal_form %in% c('ratioChangePct','levelChangePct','levelsChangePct_Change')
+      & signal_form %in% c('pdiff(v1/v2)','pdiff(v1)','pdiff(v1)-pdiff(v2)')
     ) %>%
     filter(!(dropme | dropme2)) %>% 
     select(-starts_with('drop')) %>% 
@@ -284,15 +284,15 @@ dataset_to_signal = function(form, dt, v1, v2){
   
   stopifnot("form must be one of ratio, ratioChange, ratioChangePct,
             levelChangePct, levelChangeScaled, levelsChangePct_Change, noise" = 
-              form %in% c('ratio', 'ratioChange', 'ratioChangePct',
-                          'levelChangePct', 'levelChangeScaled', 'levelsChangePct_Change', 'noise'))
+              form %in% c('v1/v2', 'diff(v1/v2)', 'pdiff(v1/v2)',
+                          'pdiff(v1)', 'diff(v1)/lag(v2)', 'pdiff(v1)-pdiff(v2)', 'noise'))
   
-  if (form == 'ratio'){
+  if (form == 'v1/v2'){
     
     dt[,'tmp'] = dt[, v1]/dt[, v2]
     return(dt %>% pull(tmp))
     
-  } else if (form == 'ratioChange') {
+  } else if (form == 'diff(v1/v2)') {
     
     dt[,'tmp'] = dt[, v1]/dt[, v2]
     return(
@@ -304,7 +304,7 @@ dataset_to_signal = function(form, dt, v1, v2){
         pull(tmp2)
     )
     
-  } else if (form == 'ratioChangePct') {
+  } else if (form == 'pdiff(v1/v2)') {
     
     dt[,'tmp'] = dt[, v1]/dt[, v2]
     return(
@@ -316,19 +316,7 @@ dataset_to_signal = function(form, dt, v1, v2){
         pull(tmp2)
     )
     
-  } else if (form == 'levelChangePct') {
-    
-    dt[,'tmp'] = dt[, v1]
-    return(
-      dt %>% 
-        arrange(permno, ret_yearm) %>% 
-        group_by(permno) %>%
-        mutate(tmp2 = 100*(tmp - lag(tmp, 12))/lag(tmp, 12)) %>% 
-        ungroup() %>% 
-        pull(tmp2)
-    )
-    
-  } else if (form == 'levelChangeScaled') {
+  } else if (form == 'diff(v1)/lag(v2)') {
     dt[,'tmp'] = dt[, v1]
     dt[,'tmp2'] = dt[, v2]
     return(
@@ -340,7 +328,7 @@ dataset_to_signal = function(form, dt, v1, v2){
         pull(tmp3)
     )
     
-  } else if (form == 'levelsChangePct_Change') {
+  } else if (form == 'pdiff(v1)-pdiff(v2)') {
     dt[,'tmp'] = dt[, v1]
     dt[,'tmp2'] = dt[, v2]
     return(
@@ -354,6 +342,19 @@ dataset_to_signal = function(form, dt, v1, v2){
         pull(tmp5)
     )
     
+    
+  } else if (form == 'pdiff(v1)') {
+    
+    dt[,'tmp'] = dt[, v1]
+    return(
+      dt %>% 
+        arrange(permno, ret_yearm) %>% 
+        group_by(permno) %>%
+        mutate(tmp2 = 100*(tmp - lag(tmp, 12))/lag(tmp, 12)) %>% 
+        ungroup() %>% 
+        pull(tmp2)
+    )    
+    
   } else if (form == 'noise'){ 
     # pure noise
     return = runif(dim(xusedcurr)[1])
@@ -363,9 +364,9 @@ dataset_to_signal = function(form, dt, v1, v2){
 
 
 
-signal_to_ports = function(dt, form, portnum, sweight, trim = NULL){
+signal_to_ports = function(dt0, form, portnum, sweight, trim = NULL){
   
-  dt = dt %>% filter(!is.na(signal), !is.na(ret), is.finite(signal))
+  dt = dt0 %>% filter(!is.na(signal), !is.na(ret), is.finite(signal))
   
   if (form == 'ls_extremes'){
     
@@ -386,40 +387,58 @@ signal_to_ports = function(dt, form, portnum, sweight, trim = NULL){
         )
     }
     
-    # find breakpoints, with backup plan of getting 20 stocks
-    breakdat = dt %>% 
-      group_by(ret_yearm) %>% 
-      summarize(
-        ntot = n()
-        , qlo_alt = quantile(signal, 20/pmax(ntot,20))
-        , qlo = quantile(signal, 1/portnum)
-        , qhi = quantile(signal, 1-1/portnum)
-        , qhi_alt = quantile(signal, 1-20/pmax(ntot,20))    
-      ) %>% 
-      # backup: replace simple quantile with the alts if not enough stocks
+    # xx under construction xx
+    # # find breakpoints
+    # # based on email with LingLing Zheng 2023 01
+    # # she used proc rank with group output and ties = min
+    # # see https://blogs.sas.com/content/sgf/2019/07/19/how-the-rank-procedure-calculates-ranks-with-groups-and-ties/
+    dt = dt %>%
+      group_by(ret_yearm) %>%
       mutate(
-        qlo = pmax(qlo, qlo_alt), qhi = pmin(qhi, qhi_alt)
-      ) %>%
-      # backup 2: if qlo == qhi, adjust
-      mutate(
-        qlo = if_else(qlo == qhi, pmin(qlo, qlo_alt), qlo)
-        , qhi = if_else(qlo == qhi, pmax(qhi, qhi_alt), qhi)
-      )
-    
-    # assign to legs, pedantically
-    #   stocks assigned to both legs get dropped
-    dt = dt %>% 
-      inner_join(breakdat, by = 'ret_yearm') %>% 
-      mutate(
-        short = signal <= qlo
-        , long = signal >= qhi
-      ) %>% 
-      mutate(
-        port = case_when(
-          short & !long ~ 'short'
-          , !short & long ~ 'long'
+        rank = rank(signal, ties.method = 'min')
+        , group = floor(rank*portnum / (n()+1)) + 1
+        , port = case_when(
+          group == 1 ~ 'short'
+          , group == 10 ~ 'long'
         )
-      )
+      ) %>%
+      ungroup()
+    
+    # # find breakpoints, with backup plan of getting 20 stocks
+    # breakdat = dt %>% 
+    #   group_by(ret_yearm) %>% 
+    #   summarize(
+    #     ntot = n()
+    #     , qlo_alt = quantile(signal, 20/pmax(ntot,20))
+    #     , qlo = quantile(signal, 1/portnum)
+    #     , qhi = quantile(signal, 1-1/portnum)
+    #     , qhi_alt = quantile(signal, 1-20/pmax(ntot,20))    
+    #   ) %>% 
+    #   # backup: replace simple quantile with the alts if not enough stocks
+    #   mutate(
+    #     qlo = pmax(qlo, qlo_alt), qhi = pmin(qhi, qhi_alt)
+    #   ) %>%
+    #   # backup 2: if qlo == qhi, adjust
+    #   mutate(
+    #     qlo = if_else(qlo == qhi, pmin(qlo, qlo_alt), qlo)
+    #     , qhi = if_else(qlo == qhi, pmax(qhi, qhi_alt), qhi)
+    #   )
+    
+    # # assign to legs, pedantically
+    # #   stocks assigned to both legs get dropped
+    # dt = dt %>% 
+    #   inner_join(breakdat, by = 'ret_yearm') %>% 
+    #   mutate(
+    #     short = signal <= qlo
+    #     , long = signal >= qhi
+    #   ) %>% 
+    #   mutate(
+    #     port = case_when(
+    #       short & !long ~ 'short'
+    #       , !short & long ~ 'long'
+    #     )
+    #   )
+    
 
     # find long-short return, rename date (only ret is still left)
     dt = dt %>% 
@@ -430,16 +449,15 @@ signal_to_ports = function(dt, form, portnum, sweight, trim = NULL){
         , nstock = n()
         , .groups = 'drop'
       ) %>%
-      filter(nstock >= 20) %>%  # drop undiversified junk (should make this an option)
       rename(yearm = ret_yearm)
     
     # more error checking
     if (dim(dt %>% filter(port == 'short'))[1] == 0){
-      print('No short portfolios with at least 20 nstocks, returning empty tibble')
+      print('No short portfolios, returning empty tibble')
       return(tibble())
     }    
     if (dim(dt %>% filter(port == 'long'))[1] == 0){
-      print('No long portfolios with at least 20 nstocks, returning empty tibble')
+      print('No long portfolios, returning empty tibble')
       return(tibble())
     }    
     
@@ -670,18 +688,22 @@ matchedReturns = function(bm_rets,
   # filter(tmpN > .8*12*(year(actSampleEnd) - year(actSampleStart)))
   
   # Make sure at least minStocks stocks in each month of the sample period
+  if (minStocks > 0){
   tmpAtLeastNStocks = tmpSumStats %>% 
     group_by(signalname) %>% 
     summarise(minN = min(nstock)) %>% 
     ungroup() %>% 
     filter(minN >= minStocks)
+  } else {
+    tmpAtLeastNStocks = tmpSumStats
+  }
 
   tmpSumStats = tmpSumStats %>% 
     filter(signalname %in% tmpAtLeastNStocks$signalname)
   
   # Make sure predictors fully available in last in-sample year
   tmpFullyLastYear = tmpSumStats %>% 
-    filter(year(yearm) == year(actSampleEnd)) %>% 
+    filter(floor(yearm) == floor(actSampleEnd)) %>% 
     group_by(signalname) %>% 
     filter(n() == 12) %>% 
     ungroup() %>% 
@@ -708,13 +730,12 @@ matchedReturns = function(bm_rets,
            abs(diff_r) < tol_r)
   
   # Return candidate strategy returns
-  #   ac: should be a better way to find eventDate directly from yearm
   bm_rets %>% 
     filter(signalname %in% tmpCandidates$signalname) %>% 
     inner_join(tmpSumStats %>% 
                  filter(signalname %in% tmpCandidates$signalname)) %>% 
     transmute(candSignalname = signalname,
-              eventDate = interval(as.Date(tmpSampleEnd), as.Date(yearm)) %/% months(1),
+              eventDate = as.integer(round(12*(yearm-tmpSampleEnd))),
               # Sign returns
               ret = ifelse(rbar >0, ret, -ret),
               samptype = case_when(

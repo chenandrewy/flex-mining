@@ -3,16 +3,11 @@ tic = Sys.time()
 rm(list = ls())
 
 # Setup  ----------------------------------------------------------------
-
-
-source('0_Environment.R')
+debugSource('0_Environment.R')
 library(doParallel)
 env <- foreach:::.foreachGlobals # https://stackoverflow.com/questions/64519640/error-in-summary-connectionconnection-invalid-connection
 rm(list=ls(name=env), pos=env)
 
-## Parallel settings ----
-num_cores <- round(.5*detectCores())  # Adjust number of cores used as you see fit
-# num_cores = 1 # use num_cores = 1 for serial
 threads_fst(1) # since fst is used inside foreach, might want to limit cpus, though this doesn't seem to help
 
 ## Output settings ----
@@ -22,13 +17,13 @@ user = list()
 user$name = Sys.time() %>% substr(1,17) 
 substr(user$name, 17,17) = 'm'
 substr(user$name, 14,14) = 'h'
-user$name
+user$name = 'CZ-style-v2'
 
 # signal choices
 user$signal = list(
   signalnum   = Inf # number of signals to sample or Inf for all
-  , form = c('ratio', 'ratioChange', 'ratioChangePct',
-                  'levelChangePct', 'levelChangeScaled', 'levelsChangePct_Change') # 'noise'
+  , form = c('v1/v2', 'diff(v1/v2)', 'pdiff(v1/v2)',
+                  'pdiff(v1)', 'diff(v1)/lag(v2)', 'pdiff(v1)-pdiff(v2)')
   , x1code = 'yz.numer'
   , x2code = 'yz.denom'
   , seednumber  = 1235 # seed sampling
@@ -45,70 +40,119 @@ user$port = list(
 
 # data basic choices
 user$data = list(
-  backfill_dropyears = 0 # number of years to drop for backfill adjustment
-  , reup_months    = c(6) # stocks are traded using new data at end of these months
-  , toostale_months = 12 
+  backfill_dropyears = 0 # number of years to drop for backfill bias adj
+  , reup_months    = 6 # stocks are traded using new data at end of these months
   , data_avail_lag = 6 # months
+  , toostale_months = 18 # months after datadate to keep signal for  
   , delist_adj = 'ghz' # 'none' or 'ghz'
+  , crsp_filter = NA_character_ # use NA_character_ for no filter
 )
 
+# debugging
+debugset = list(
+  prep_data = T
+  , num_cores = round(.5*detectCores())  # Adjust number of cores used as you see fit
+  # , num_cores = 1 # use num_cores = 1 for serial
+  , shortlist = F
+)
+
+## Check ----
+cat('\n\n\n\n\n\n\n\n\n')
+cat('About to run:')
+print(user$signal %>% t())
+print(user$port %>% t())
+print(user$data %>% t())
+print(user$name) 
+print(debugset %>% t())
+keyin = readline('type q to abort')
+if (keyin == 'q') stop('stopping')
 
 # Data Prep ---------------------------------------------------------------
-# use as function for easy skipping and debugging
-
 tic = Sys.time()
 
-prepare_data = function(){
-  
+
+## prep varlist ------------------------------------------------------------
+
+if (debugset$shortlist == F){
+  varlist = list(
+    x1 = compnames[[user$signal$x1code]]
+    , x2 = compnames[[user$signal$x2code]]
+  )
+} else {
+  varlist = list(
+    x1 = c('invt')
+    , x2 = c('at')
+  )  
+}
+varlist$xall = unique(c(varlist$x1, varlist$x2))
+
+
+## prep crsp-comp ----------------------------------------------------------
+
+if (debugset$prep_data){  
   # do everything in data.table for efficiency  
   
   # safety delete
   file.remove('../Data/tmpAllDat.fst')
   
-  ## import and merge ====
-  
+  # import and merge ===
   ## import compustat, convert to monthly
   comp0 = readRDS('../Data/Intermediate/CompustatAnnual.RData')
-
+  comp1 = copy(comp0 %>% select(all_of(varlist$xall), gvkey, permno, datayearm))
+  
   #Yan and Zheng (2017): To mitigate a backfilling bias, we require that a firm be listed on Compustat for two years
   #before it is included in our sample (Fama and French 1993)
-  comp0 = comp0 %>% 
-    arrange(gvkey, datadate) %>% 
-    group_by(gvkey) %>% 
-    mutate(
-      years_on_comp = floor(datayearm - min(datayearm))
-    ) %>% 
-    filter(years_on_comp >= user$data$backfill_dropyears) %>% 
-    select(-years_on_comp) %>% 
-    ungroup()
+  setorder(comp1, gvkey, permno, datayearm)
+  comp1[, years_on_comp := datayearm - min(datayearm), by = 'gvkey']
+  comp1 = comp1[years_on_comp >= user$data$backfill_dropyears][, !c('years_on_comp')]
   
-  setDT(comp0)
-  comp0[ , c(
-    'conm','tic','cusip','cik','sic','naics','linkprim','linktype','liid','lpermco','linkdt','linkenddt'
-    , 'gvkey','datadate'
-  ) := NULL
-  ]
+  # keep only if permno is ok (must be done after backfill adjustment)
+  comp1 = comp1[!is.na(permno)]
   
+  # lag signal, then keep around until signalyearm == datadate + toostale_months
+  comp1[ , signalyearm := datayearm + user$data$data_avail_lag/12]
   
-  # lag signal, then keep around for toostale_months
-  #   see here: https://stackoverflow.com/questions/11121385/repeat-rows-of-a-data-frame
-  #   signalyearm are yearmons when investor has access to signal & signal is not stale
-  comp1 = comp0 %>% slice(rep(1:n(), each = user$data$toostale_months)) 
-  comp1$temp_lag_months = rep(user$data$data_avail_lag + 0:(user$data$toostale_months-1), dim(comp0)[1])
-  comp1[ 
-    , signalyearm := datayearm + temp_lag_months/12
-  ]
+  comp2 = copy(comp1)
+  for (lagi in (user$data$data_avail_lag+1):user$data$toostale_months){
+    temp = copy(comp1)
+    temp[ , signalyearm := datayearm + lagi/12]
+    comp2 = rbind(comp2, temp)
+  }
   
-  # remove duplicates
-  comp1 = comp1[
-    order(permno, signalyearm, datayearm)
+  # remove duplicate permno-signalyearm, keep most recent datayearm
+  setorder(comp2, permno, signalyearm, -datayearm)
+  comp2 = comp2[, head(.SD, 1), by = .(permno, signalyearm)]
+  
+  # enforce updating frequency (aka rebalancing) 
+  comp2[
+    , temp_month := as.numeric(12*(signalyearm %% 1)+1)
+    ][
+    , reup_id := if_else(temp_month %in% user$data$reup_months, 1, NA_real_)
   ][
-    , head(.SD, 1), by = .(permno, signalyearm)
+    , (varlist$xall) := lapply(.SD, function(x) x*reup_id ), .SDcols = varlist$xall 
   ]
   
+  # fill NA with most recent x by permno 
+  #   this takes all the time
+  setorder(comp2, permno, signalyearm, -datayearm)
+  comp2[ , (varlist$xall) := nafill(.SD, 'locf'), by = .(permno, datayearm), .SDcols = varlist$xall]
+  comp2[ , (c('temp_month', 'reup_id')) := NULL]
   
-  ## import crsp data
+  # import crsp data
   crsp = readRDS('../Data/Intermediate/crspm.RData')
+  setDT(crsp)
+  
+  # timing adjustments
+  setorder(crsp, permno, yearm)
+  lagme = setdiff(names(crsp), c('permno','yearm','ret','retx','dlret'))
+  crsp[ , (lagme) := data.table::shift(.SD, n=1, type = 'lag'), by = permno, .SDcols = lagme]
+  setnames(crsp, old = 'yearm', new = 'ret_yearm')  
+
+  # filters
+  if (!is.na(user$data$crsp_filter)) {
+    crsp = crsp %>%
+      filter(eval(parse(text=user$data$crsp_filter)))
+  }
   
   # incorporate delisting return
   # GHZ cite Johnson and Zhao (2007), Shumway and Warther (1999)
@@ -140,7 +184,7 @@ prepare_data = function(){
           , 0
           , dlret
         )
-        , ret = (1+ret/100)*(1+dlret/100)-1
+        , ret = 100*((1+ret/100)*(1+dlret/100)-1)
         , ret = ifelse(
           is.na(ret) & ( dlret != 0)
           , dlret
@@ -149,39 +193,16 @@ prepare_data = function(){
       )
   }
   
-  # convert ret to pct, other formatting
+  # clean up crsp
   crsp = crsp %>%
     transmute(
-      permno, ret_yearm = yearm, ret, me
+      permno, ret_yearm, ret, me_monthly = me
     )
-  setDT(crsp)
-  
-  crsp[ , me := c(NA, me[-.N]), by = permno] # lags me by one month
   
   # merge, signals available at signalyearm get used for returns in ret_yearm
-  comp1[ , ret_yearm := signalyearm + 1/12]
-  alldat = merge(crsp, comp1, all.x=TRUE, by = c('permno','ret_yearm'))
-  
-  # fill NA with most recent x by permno
-  #   this takes the most time 
-  alldat[ , (compnames$all) := nafill(.SD, 'locf'), by = .(permno), .SDcols = compnames$all]
-  
-  ## enforce updating frequency (aka rebalancing) ====
-  
-  # make separate me that is always updated monthly (me_monthly is not in compnames$all)
-  alldat[ , me_monthly := me ]
-  alldat[
-    , temp_month := as.numeric(12*(signalyearm %% 1))
-  ][
-    , reup_id := if_else(temp_month %in% user$data$reup_months, 1, NA_real_)
-  ][
-    , (compnames$all) := lapply(.SD, function(x) x*reup_id ), .SDcols = compnames$all 
-  ]
-  
-  # fill NA with most recent x by permno
-  #   this takes the most time 
-  alldat[ , (compnames$all) := nafill(.SD, 'locf'), by = .(permno), .SDcols = compnames$all]
-  
+  comp2[ , ret_yearm := signalyearm + 1/12]
+  alldat = merge(crsp, comp2, all.x=TRUE, by = c('permno','ret_yearm'))
+
   # Save to fst such that parallelization works without having to load big file onto each worker
   fst::write_fst(alldat, '../Data/tmpAllDat.fst')
   
@@ -189,13 +210,12 @@ prepare_data = function(){
   ret_dates = alldat %>% transmute(date = ret_yearm) %>% as_tibble() %>%  distinct() %>% arrange()
   
   
-  rm(comp0,comp1,crsp,alldat)
+  rm(comp0,comp1,comp2,crsp,alldat)
   gc()
   
 } # end prepare_data
 
-# actually run function (comment out for debugging)
-prepare_data()
+
 
 toc = Sys.time()
 print('done prepping data')
@@ -213,13 +233,6 @@ toc - tic
 #                                signalnum = user$signal$signalnum,
 #                                scale_vars = user$signal$x2list,
 #                                rs = user$signal$seednumber)
-
-
-# turn "codes" into full lists of compustat variables
-varlist = list(
-  x1 = compnames[[user$signal$x1code]]
-  , x2 = compnames[[user$signal$x2code]]
-)
 
 signal_list = make_signal_list_yz(signal_form = user$signal$form
                                , x1list = varlist$x1
@@ -310,16 +323,16 @@ make_many_ls = function(){
 
 tic_loop = Sys.time()
 
-if (num_cores > 1){
+if (debugset$num_cores > 1){
   setDTthreads(1)
-  cl <- makePSOCKcluster(num_cores)
+  cl <- makePSOCKcluster(debugset$num_cores)
   registerDoParallel(cl)
   file.remove('../Data/make_many_ls.log')
   ls_dat_all = foreach(signali=1:nrow(signal_list), 
                        .combine = rbind,
                        .packages = c('tidyverse','zoo')) %dopar% {
                          
-                         if (signali %% 500 == 0){
+                         if (signali %% 100 == 0){
                            min_elapsed = round(as.numeric(Sys.time() - tic_loop, units = 'mins'), 1)
                            i_remain = nrow(signal_list) - signali
                            log.text <- paste0(
@@ -377,7 +390,10 @@ print(toc - tic)
 q = c(1, 5, 10, 25, 50)/100
 q = c(q, 1-q) %>% sort() %>% unique()
 
+
+
 stratdat$ret %>% 
+  filter(yearm >= 1964, yearm <= 2012) %>% 
   left_join(
     port_list, by = 'portid'
   ) %>% 
@@ -393,3 +409,5 @@ stratdat$ret %>%
   pivot_wider(
     names_from = 'sweight', values_from = ends_with('_q')
   )
+
+user$data %>% t()
