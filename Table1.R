@@ -1,3 +1,5 @@
+# 2022 10 04 testing YZ decay
+
 ################################
 # Setup
 ################################
@@ -65,84 +67,50 @@ fntile <- function(x, n) {
   return(as.integer(n * {frank(x, ties.method = "first") - 1} / x.length + 1))
 }
 
-f.desc.returns <- function(dt_portfolio_returns){
-  sumsignal_isl = dt_portfolio_returns %>% 
-    filter(sample == 'IS') %>% 
-    group_by( bin) %>% 
-    summarize(rbar_is = mean(ret),
-              tstat_is = mean(t_30y_l)
+f.desc.returns <- function(returns_dt){
+  sumsignal_rets = returns_dt %>% 
+    group_by(bin) %>% 
+    summarize(rbar_is = mean(ret_is, na.rm = TRUE),
+              avg_tstat_is = mean(t_is, na.rm = TRUE),
+              rbar_oos = mean(ret_oos) 
+              # ,tstat_oos_portfolio = rbar_oos/sd(ret_oos)*sqrt(n())
     ) %>% 
-    ungroup()  
+    ungroup()
   
-  sumsignal_oos = dt_portfolio_returns %>% 
-    filter(sample == 'OOS') %>% 
-    group_by( bin) %>% 
-    summarize(rbar_oos = mean(ret), 
-              tstat_oos = rbar/sd(ret)*sqrt(n()),
-              
-    ) %>% 
-    ungroup()  %>%
-    left_join(sumsignal_isl) %>% arrange(bin) %>%
-    relocate(rbar_is, .after = bin) %>%
-    # mutate(decay = 1 - rbar/rbar_is) %>%
-    # mutate(decay = ifelse(decay > 1, NA, decay)) %>%
-    relocate(c(rbar_is,tstat,  tstat_is), .after = last_col())
-  
-  return(sumsignal_oos)
+  return(sumsignal_rets)
 }
 
 f.ls.past.returns <- function(n_tiles, name_var){
   
-  yz_dt[!is.na(get(name_var)) & month(date) == 6,
-        var_sort := as.factor(fntile(get(name_var), n_tiles)), by = date]
   
+  yz_dt[, sort_var := get(name_var)]
+  
+  yz_dt[!is.na(sort_var) & month(date) == 6,
+        var_sort := as.factor(fntile(sort_var, n_tiles)), by = date]
   
   yz_dt[ ,
          var_sort :=  zoo::na.locf(var_sort,na.rm =  FALSE),
          by = signalname]
   
+  yz_dt[!is.na(var_sort), bin := var_sort]
   
-  yz_dt[!is.na(var_sort), bin := paste0('bin_', var_sort)]
+  yz_dt[month(date) != 6, sort_var := NA]
   
   returns_dt <- yz_dt[!is.na(bin) & !is.na(ret),
                       .(ret_oos = mean(ret, na.rm=TRUE),
-                        ret_is = mean(get(name_var), na.rm=TRUE),
+                        ret_is = mean(sort_var, na.rm=TRUE),
+                        t_is = mean(t_30y_l, na.rm = TRUE),
                         .N),
                       by = .(date, bin)]
   
-  yz_dt[, bin := NULL]
-  yz_dt[, var_sort := NULL]
-  
-  
-  dt_ret_melted <- dcast(returns_dt, date ~ bin, value.var = c('ret_oos', 'ret_is', 't_30y_l'))
-  
-  port_h_oos <- paste0('ret_oos_bin_', n_tiles)
-  port_h_is <- paste0('ret_is_bin_', n_tiles)
-  dt_ret_melted[, ret_oos_LS := get(port_h_oos) - ret_oos_bin_1]
-  dt_ret_melted[, ret_is_LS := get(port_h_is) - ret_is_bin_1]
-  dt_portfolio_returns <- melt(dt_ret_melted, id.vars = c('date'),
-                               measure.vars = c(paste0('ret_oos_bin_', 1:n_tiles),
-                                                paste0('ret_is_bin_', 1:n_tiles),
-                                                'ret_oos_LS', 'ret_is_LS'
-                               ), 
-                               variable.name = 'type',
-                               value.name = 'ret')
-  
-  dt_portfolio_returns[, sample := ifelse(grepl('oos', type), 'OOS', 'IS') ]
-  dt_portfolio_returns[, bin :=   str_extract(type, '\\d+|LS')]
-  
-  sumsignal_oos <- f.desc.returns(dt_portfolio_returns)
-  sumsignal_oos_pre_2003 <- f.desc.returns(dt_portfolio_returns[date < '2003-06-30'])
-  sumsignal_oos_post_2003 <- f.desc.returns(dt_portfolio_returns[date >= '2003-06-30'])
-  
-  
-  
-  
+  sumsignal_oos <- f.desc.returns(returns_dt)
+  sumsignal_oos_pre_2003 <- f.desc.returns(returns_dt[date < '2003-06-30'])
+  sumsignal_oos_post_2003 <- f.desc.returns(returns_dt[date >= '2003-06-30'])
   
   return(list(sumsignal_oos = sumsignal_oos,
               sumsignal_oos_pre_2003 = sumsignal_oos_pre_2003,
               sumsignal_oos_post_2003 = sumsignal_oos_post_2003,
-              rets = dt_portfolio_returns))
+              rets = returns_dt))
   
 }
 
@@ -161,11 +129,11 @@ signaldoc%>% summarise( mean(sample_size), median(sample_size) ) %>%
 
 temp = read_sas('../Data Yan-Zheng/Yan_Zheng_RFS_Data.sas7bdat')
 
+
+dir.create('../Tables1')
 #####
 # EW
 ####
-
-dir.create('../Tables1')
 
 var_types <- c('ddiff_vw', 'ddiff_ew')
 var_type <- var_types[1]
@@ -225,27 +193,29 @@ for (var_type in var_types) {
   yz_dt <- yz %>% as.data.table() %>% setkey(signalname, date)
   
   yz_dt[, ret_30y_l := shift(frollmean(ret, 12*30, NA)), by = signalname]
+  
   yz_dt[, t_30y_l := shift(frollapply(ret, 12*30, f.custom.t, fill = NA)), by = signalname]
+  
+  yz_dt[month(date) != 6, t_30y_l := NA]
   
   
   ############################
   
   n_tiles <- 5
   
-  
-  
   name_var <- 'ret_30y_l'
+  
   test <- f.ls.past.returns(n_tiles, name_var)
   
-  # print(xtable(test$sumsignal_oos, 
-  #              caption = 'Out-of-Sample Portfolios of Strategies Sorted on Past 30 Years of Returns',
-  #              type = "latex"), include.colnames=FALSE)
+  print(xtable(test$sumsignal_oos, 
+               caption = 'Out-of-Sample Portfolios of Strategies Sorted on Past 30 Years of Returns',
+               type = "latex"), include.colnames=FALSE)
   
-  fwrite(test$sumsignal_oos,  glue('../Tables1/sumsignal_oos_30y{str_to_add}.csv'))
+  fwrite(test$sumsignal_oos,  glue('../Tables1/sumsignal_oos_30y{str_to_add}_unit_level.csv'))
   
-  fwrite(test$sumsignal_oos_pre_2003,  glue('../Tables1/sumsignal_oos_30y_pre_2003_{str_to_add}.csv'))
+  fwrite(test$sumsignal_oos_pre_2003,  glue('../Tables1/sumsignal_oos_30y_pre_2003{str_to_add}_unit_level.csv'))
   
-  fwrite(test$sumsignal_oos_post_2003,  glue('../Tables1/sumsignal_oos_30y_post_2003_{str_to_add}.csv'))
+  fwrite(test$sumsignal_oos_post_2003,  glue('../Tables1/sumsignal_oos_30y_post_2003{str_to_add}_unit_level.csv'))
   
 }
 
