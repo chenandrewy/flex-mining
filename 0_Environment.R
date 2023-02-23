@@ -399,7 +399,7 @@ signal_to_ports = function(dt0, form, portnum, sweight, trim = NULL){
         , group = floor(rank*portnum / (n()+1)) + 1
         , port = case_when(
           group == 1 ~ 'short'
-          , group == 10 ~ 'long'
+          , group == portnum ~ 'long'
         )
       ) %>%
       ungroup()
@@ -737,6 +737,7 @@ matchedReturns = function(bm_rets,
     transmute(candSignalname = signalname,
               eventDate = as.integer(round(12*(yearm-tmpSampleEnd))),
               # Sign returns
+              sign = sign(rbar),
               ret = ifelse(rbar >0, ret, -ret),
               samptype = case_when(
                 (yearm >= actSampleStart) & (yearm <= actSampleEnd) ~ 'insamp'
