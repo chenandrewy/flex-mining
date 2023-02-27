@@ -19,6 +19,12 @@ library(gridExtra)
 
 # Paths -------------------------------------------------------------------
 
+# code assumes that working directory is the directory with the R scripts
+# check that working directory is correct
+if (!file.exists('0_Environment.R')){
+  stop('error: 0_Environment.R not found.  Please set working directory to the folder with the script')
+}
+
 # create data folders (separate to avoid storage problems)
 dir.create('../Data/', showWarnings = F)
 dir.create('../Data/Intermediate/', showWarnings = F)
@@ -29,14 +35,6 @@ dir.create('../Data/Processed', showWarnings = F)
 
 # Globals ====
 options(stringsAsFactors = FALSE)
-
-
-# code assumes that working directory is the directory with the R scripts
-# check that working directory is correct
-if (!file.exists('0_Environment.R')){
-  stop('error: 0_Environment.R not found.  Please set working directory to the folder with the script')
-}
-
 
 # Set seed for random sampling
 set.seed(1337)
@@ -72,6 +70,13 @@ compnames$yz.denom <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
 
 compnames$yz.denom_alt <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
                         "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp", 'me')
+
+# 63 denominators with at least 25% non-missing observations in 1963
+compnames$yz.denom63 <- c("aco", "acox","act","ao","aox","at","caps","capx","capxv","ceq","ceql","ceqt","che","cogs",
+                           "cstk","dlc","dltt","dp","dpact","dvc","dvp","dvt","ebit","ebitda","gp","ib","ibadj","ibcom",
+                           "icapt","intan","invt","itci","ivaeq","ivao","lct","lo","lt","ni","nopi","nopio","np",
+                           "oiadp","pi","ppegt","ppent","pstkl","pstkrv","re","recco","rect","sale","seq","txdb",
+                           "txditc","txt","wcap","xint","xopr","xpr","xrent","xsga","emp", "me_datadate")
 
 compnames$all = unique(Reduce(c, compnames))
 
@@ -690,12 +695,15 @@ matchedReturns = function(bm_rets,
   # Make sure at least minStocks stocks in each month of the sample period
   if (minStocks > 0){
   tmpAtLeastNStocks = tmpSumStats %>% 
+    filter(floor(yearm) !=1963) %>%   #Somewhat quick and dirty way to deal with the fact that in early 1963 we have few obs
     group_by(signalname) %>% 
     summarise(minN = min(nstock)) %>% 
     ungroup() %>% 
     filter(minN >= minStocks)
   } else {
-    tmpAtLeastNStocks = tmpSumStats
+    tmpAtLeastNStocks = tmpSumStats %>% 
+      select(signalname) %>% 
+      distinct()
   }
 
   tmpSumStats = tmpSumStats %>% 

@@ -14,7 +14,7 @@ colors = c(rgb(0,0.4470,0.7410), # MATBLUE
 
 DMStrategies = 'DM'  # DM Or YZ
 
-DMname = '../Data/LongShortPortfolios/stratdat CZ-style-v2.RData'
+DMname = '../Data/LongShortPortfolios/stratdat CZ-style-v3.RData'
   
 t_tolerance = .3
 r_tolerance = .3
