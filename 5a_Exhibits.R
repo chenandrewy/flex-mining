@@ -10,6 +10,7 @@ colors = c(rgb(0,0.4470,0.7410), # MATBLUE
            rgb(0.9290, 0.6940, 0.1250) # MATYELLOW
 )
 
+DMname = '../Data/LongShortPortfolios/stratdat CZ-style-v3.RData'
 
 # Load data ---------------------------------------------------------------
 
@@ -109,19 +110,21 @@ denomVars = fobs_list %>%
 
 denomVars = c(denomVars, "me_datadate")
 
+rm(comp0, fobs_list)
+
 ## 2. Only simple functions 'diff(v1)/lag(v2)' and 'v1/v2'
 
 simpleFunctions = c('diff(v1)/lag(v2)', 'v1/v2')
 
 ## Apply filters
-tmp = signal_list %>% 
+filteredCandidates = signal_list %>% 
   filter(
     v2 %in% denomVars,
     signal_form %in% simpleFunctions
   ) %>% 
   pull(signalid)
 
-candidateReturns = candidateReturns0[.(tmp)]
+candidateReturns = candidateReturns0[.(filteredCandidates)]
 
 
 # Normalize candidate returns
@@ -168,7 +171,7 @@ for (jj in unique(allRets$theory1)) {
   
   ReturnPlotsWithDM(dt = allRets %>% 
                       filter(!is.na(matchRet), theory1 == jj, Keep == 1) %>% # To exclude unmatched signals
-                      select(eventDate, ret, matchRet),
+                      dplyr::select(eventDate, ret, matchRet),
                     basepath = '../Results/Fig_PublicationsVsDataMining',
                     suffix = paste0(jj, '_DM'),
                     colors = colors,
@@ -177,7 +180,7 @@ for (jj in unique(allRets$theory1)) {
 }
 
 
-# Tables
+#### Tables ----------------------------------------------------------------
 
 # Table 1: Unmatched predictors
 tmpUnmatched = allRets %>% 
@@ -309,7 +312,6 @@ tableSignificance = tmpMeans %>%
          starts_with('mispricing'),
          starts_with('agnostic'))
 
-
 # Save
 toExcel = list(
   Unmatched    = tableUnmatched,
@@ -318,5 +320,106 @@ toExcel = list(
 )
 
 writexl::write_xlsx(toExcel, path = '../Results/MatchingSummary_DM.xlsx')
+
+
+#### Table 4: Descriptive stats for DM strategies  ----------------------------
+var_types <- c('vw', 'ew')
+var_type <- var_types[1]
+
+
+bm_rets = readRDS(DMname)$ret
+bm_info = readRDS(DMname)$port_list
+
+bm_rets = bm_rets %>% 
+  left_join(
+    bm_info %>% select(portid, sweight), by = c('portid')
+  )  %>%
+  transmute(
+    sweight
+    , signalname = signalid
+    , yearm
+    , ret
+    , nstock) %>% 
+  filter(signalname %in% filteredCandidates)
+
+
+for (var_type in var_types) {
+  
+  str_to_add  <- str_extract(var_type, '_.*')
+  
+  yz = bm_rets %>%
+    filter(sweight == var_type) %>% 
+    transmute(
+      signalname, date = as.Date(yearm), ret
+    )
+  
+  
+  sumsignal_all = yz %>% 
+    group_by(signalname) %>% 
+    summarize(rbar = mean(ret), nmonth = n(), stdev = sd(ret),
+              sharpe = f.sharp(ret),
+              tstat = rbar/sd(ret)*sqrt(nmonth)) %>% 
+    ungroup() %>% as.data.table()
+  
+  Summary_Statistics <- sumsignal_all %>% 
+    summarise(across(where(is.numeric), .fns = 
+                       list(Count =  ~  n(),
+                            Mean = mean,
+                            SD = sd,
+                            Min = min,
+                            q01 = ~quantile(., 0.01), 
+                            q05 = ~quantile(., 0.01), 
+                            q25 = ~quantile(., 0.25), 
+                            Median = median,
+                            q75 = ~quantile(., 0.75),
+                            q95 = ~quantile(., 0.95),
+                            q99 = ~quantile(., 0.99),
+                            Max = max ))) %>%
+    pivot_longer(everything(), names_sep = "_", names_to = c( "variable", ".value")) 
+  # %>%  mutate_if(is.numeric, round, 2)
+  
+  fwrite(Summary_Statistics, glue('../Results/Summary_StatisticsDM_{str_to_add}.csv'))
+  
+  Summary_Statistics
+  
+  print(xtable(Summary_Statistics, caption = 'Summary Statistics YZ All',
+               type = "latex", include.rownames=FALSE))
+  
+  
+  ################################
+  # Table 1b
+  ################################
+  
+  # Returns based on past returns
+  # Basically creating a portfolio
+  
+  yz_dt <- yz %>% as.data.table() %>% setkey(signalname, date)
+  
+  yz_dt[, ret_30y_l := data.table::shift(frollmean(ret, 12*30, NA)), by = signalname]
+  
+  # yz_dt[, t_30y_l := shift(frollapply(ret, 12*30, f.custom.t, fill = NA)), by = signalname]
+  
+  yz_dt[month(date) != 6, t_30y_l := NA]
+  
+  
+  ############################
+  
+  n_tiles <- 5
+  
+  name_var <- 'ret_30y_l'
+  
+  test <- f.ls.past.returns(n_tiles, name_var)
+  
+  print(xtable(test$sumsignal_oos, 
+               caption = 'Out-of-Sample Portfolios of Strategies Sorted on Past 30 Years of Returns',
+               type = "latex"), include.colnames=FALSE)
+  
+  fwrite(test$sumsignal_oos,  glue('../Tables1/sumsignal_oos_30y{str_to_add}_unit_level.csv'))
+  
+  fwrite(test$sumsignal_oos_pre_2003,  glue('../Tables1/sumsignal_oos_30y_pre_2003{str_to_add}_unit_level.csv'))
+  
+  fwrite(test$sumsignal_oos_post_2003,  glue('../Tables1/sumsignal_oos_30y_post_2003{str_to_add}_unit_level.csv'))
+  
+}
 
 

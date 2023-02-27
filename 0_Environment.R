@@ -756,3 +756,98 @@ matchedReturns = function(bm_rets,
   
 }
 
+
+f.custom.t <- function(x){
+  if(length(x[!is.na(x)]) > 1 & sd(x[!is.na(x)] > 1e-8)){
+    return(t.test(x, na.action = na.omit)$statistic)
+  }else{return(NaN)}
+  
+}
+
+# Annualized Sharpe ratio
+
+f.sharp <- function(x, na.rm = TRUE){
+  return(mean(x, na.rm = na.rm)*sqrt(12)/sd(x, na.rm = na.rm))
+}
+
+# Describe function
+
+f.describe_numeric <- function(.x) {
+  if(!is.numeric(.x)) stop(".x must be a numeric vector!")
+  if(!is.atomic(.x)) stop(".x must be an atomic vector!")
+  describe_functions <- list(
+    N = function(.x, ...) length(.x),
+    mean = function(.x, ...) mean(.x, ...),
+    median = function(.x, ...) median(.x, ...),
+    sd = function(.x, ...) stats::sd(.x, ...),
+    min = function(.x, ...) min(.x, ...),
+    q1 = function(.x, ...) stats::quantile(.x, probs = 0.01, ...),
+    q5 = function(.x, ...) stats::quantile(.x, probs = 0.02, ...),
+    q10 = function(.x, ...) stats::quantile(.x, probs = 0.10, ...),
+    q25 = function(.x, ...) stats::quantile(.x, probs = 0.25, ...),
+    q50 = function(.x, ...) stats::median(.x, ...),
+    q75 = function(.x, ...) stats::quantile(.x, probs = 0.75, ...),
+    q90 = function(.x, ...) stats::quantile(.x, probs = 0.90, ...),
+    q95 = function(.x, ...) stats::quantile(.x, probs = 0.95, ...),
+    q99 = function(.x, ...) stats::quantile(.x, probs = 0.99, ...),
+    max = function(.x, ...) max(.x, ...)
+  )
+  return(as.data.frame(lapply(describe_functions,
+                              function(.f) .f(.x, na.rm = TRUE)),
+                       row.names = "1",
+                       stringsAsFactors = FALSE))
+}
+
+fntile <- function(x, n) {
+  x.length <- length(x)
+  return(as.integer(n * {frank(x, ties.method = "first") - 1} / x.length + 1))
+}
+
+f.desc.returns <- function(returns_dt){
+  sumsignal_rets = returns_dt %>% 
+    group_by(bin) %>% 
+    summarize(rbar_is = mean(ret_is, na.rm = TRUE),
+              avg_tstat_is = mean(t_is, na.rm = TRUE),
+              rbar_oos = mean(ret_oos) 
+              # ,tstat_oos_portfolio = rbar_oos/sd(ret_oos)*sqrt(n())
+    ) %>% 
+    ungroup()
+  
+  return(sumsignal_rets)
+}
+
+f.ls.past.returns <- function(n_tiles, name_var){
+  
+  
+  yz_dt[, sort_var := get(name_var)]
+  
+  yz_dt[!is.na(sort_var) & month(date) == 6,
+        var_sort := as.factor(fntile(sort_var, n_tiles)), by = date]
+  
+  yz_dt[ ,
+         var_sort :=  zoo::na.locf(var_sort,na.rm =  FALSE),
+         by = signalname]
+  
+  yz_dt[!is.na(var_sort), bin := var_sort]
+  
+  yz_dt[month(date) != 6, sort_var := NA]
+  
+  returns_dt <- yz_dt[!is.na(bin) & !is.na(ret),
+                      .(ret_oos = mean(ret, na.rm=TRUE),
+                        ret_is = mean(sort_var, na.rm=TRUE),
+                        t_is = mean(t_30y_l, na.rm = TRUE),
+                        .N),
+                      by = .(date, bin)]
+  
+  sumsignal_oos <- f.desc.returns(returns_dt)
+  sumsignal_oos_pre_2003 <- f.desc.returns(returns_dt[date < '2003-01-30'])
+  sumsignal_oos_post_2003 <- f.desc.returns(returns_dt[date >= '2003-01-30'])
+  
+  return(list(sumsignal_oos = sumsignal_oos,
+              sumsignal_oos_pre_2003 = sumsignal_oos_pre_2003,
+              sumsignal_oos_post_2003 = sumsignal_oos_post_2003,
+              rets = returns_dt))
+  
+}
+
+
