@@ -20,8 +20,7 @@ czret = tmp$czret
 rm(tmp)
 
 # Matched returns
-#candidateReturns = readRDS('../Data/Processed/MatchedData.RDS')
-candidateReturns = readRDS('../Data/Processed/MatchedData2023-02-01 15h55m.RDS')
+candidateReturns = readRDS('../Data/Processed/LastMatchedData.RDS')
 
 
 # Restrict to predictors in consideration
@@ -33,6 +32,7 @@ czret = czret %>%
 
 candidateReturns = candidateReturns %>% 
   filter(actSignal %in% czsum$signalname)
+
 
 # Section 2: Rolling returns by category ----------------------------------
 

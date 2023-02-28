@@ -1,8 +1,11 @@
 # Create matched dataset and predictor summary dataset
-# library(tidyverse)
-# library(lubridate)
+
+# ideally want to use sampstart month that depends on the data category
+# (June for Annual Accounting, Jan for Other)
+
 
 rm(list = ls())
+tic = Sys.time()
 # Setup -------------------------------------------------------------------
 
 source('0_Environment.R')
@@ -18,7 +21,9 @@ DMname = '../Data/LongShortPortfolios/stratdat CZ-style-v2.RData'
   
 t_tolerance = .3
 r_tolerance = .3
+tol_denominator   = 'ratio' # level or ratio
 minNumStocks = 20  # Minimum number of stocks in any month over the in-sample period to include a strategy
+
 
 # Load data ---------------------------------------------------------------
 
@@ -32,8 +37,8 @@ signaldoc = data.table::fread('../Data/CZ/SignalDoc.csv') %>%
   rename(signalname = Acronym) %>% 
   mutate(
     pubdate = as.Date(paste0(Year, '-12-31'))
-    , sampend = as.Date(paste0(SampleEndYear, '-12-31'))
-    , sampstart = as.Date(paste0(SampleStartYear, '-01-31'))  # Was -01-01 but slightly inaccurate
+    , sampend = as.Date(paste0(SampleEndYear, '-12-31')) 
+    , sampstart = as.Date(paste0(SampleStartYear, '-07-31'))  # ensures no weird early 1963 edge effects
   ) %>% 
   transmute(signalname, Authors, Year, pubdate, sampend, sampstart
             , OP_pred = `Predictability in OP`, sweight = `Stock Weight`, Rep_Quality = `Signal Rep Quality`) %>% 
@@ -70,6 +75,7 @@ if (DMStrategies == 'DM') {
   
   bm_rets = readRDS(DMname)$ret
   bm_info = readRDS(DMname)$port_list
+  bm_signal_info = readRDS(DMname)$signal_list
   
   bm_rets = bm_rets %>% left_join(
     bm_info %>% select(portid, sweight), by = c('portid')
@@ -83,8 +89,6 @@ if (DMStrategies == 'DM') {
   
   bm_retsEW = bm_rets %>% filter(sweight == 'ew') %>% select(-sweight)
   bm_retsVW = bm_rets %>% filter(sweight == 'vw') %>% select(-sweight)
-  
-  rm(bm_rets)
   
 } else if (DMStrategies == 'YZ') {
   
@@ -136,69 +140,77 @@ saveRDS(
 )
 
 
+
 # Find matches for risk signals -------------------------------------------
 
 
-# signals = czsum %>% 
+# signals = czsum %>%
 #   filter(rbar > .15, abs(tstat) > 1) # abs(rbar)?
-# 
+#
 # # Excluded ones:
-# czsum %>% 
-#   filter(!(signalname %in% signals$signalname)) %>% 
+# czsum %>%
+#   filter(!(signalname %in% signals$signalname)) %>%
 #   select(signalname)
+
 
 candidateReturns = tibble()
 for (ii in 1:nrow(czsum)) {
   print(paste0('Matching published signal ', ii))
-  
+
   risksignal = czsum$signalname[ii]
   print(risksignal)
-  
+
   # Extract some relevant info
-  tmpSampleStart = czsum %>% 
-    filter(signalname == risksignal) %>% 
-    pull(sampstart) %>% 
+  tmpSampleStart = czsum %>%
+    filter(signalname == risksignal) %>%
+    pull(sampstart) %>%
     as.yearmon()
-  
-  tmpSampleEnd = czsum %>% 
-    filter(signalname == risksignal) %>% 
-    pull(sampend) %>% 
+
+  tmpSampleEnd = czsum %>%
+    filter(signalname == risksignal) %>%
+    pull(sampend) %>%
     as.yearmon()
-  
-  tmpTStat = czsum %>% 
-    filter(signalname == risksignal) %>% 
+
+  tmpTStat = czsum %>%
+    filter(signalname == risksignal) %>%
     pull(tstat)
-  
-  tmpRbar = czsum %>% 
-    filter(signalname == risksignal) %>% 
+
+  tmpRbar = czsum %>%
+    filter(signalname == risksignal) %>%
     pull(rbar)
-  
+
   if (czsum$sweight[ii] == 'EW' | is.na(czsum$sweight[ii])) {  # DivYieldST is NA?
     tmpRets = bm_retsEW
   } else {
     tmpRets = bm_retsVW
   }
-  
-  
+
+
   # Find candidate returns
-  
+
   tmp = matchedReturns(bm_rets = tmpRets,
-                       actSignalname = risksignal, 
-                       actSampleStart = tmpSampleStart, 
-                       actSampleEnd = tmpSampleEnd, 
+                       actSignalname = risksignal,
+                       actSampleStart = tmpSampleStart,
+                       actSampleEnd = tmpSampleEnd,
                        actTStat = tmpTStat,
                        actRBar = tmpRbar,
                        tol_t = t_tolerance,
                        tol_r = r_tolerance,
-                       minStocks = minNumStocks) 
-  
+                       tol_denom = tol_denominator,
+                       minStocks = minNumStocks)
+
   # Add to data
   candidateReturns = bind_rows(candidateReturns, tmp)
-  
+
 }
 
 # Save
 saveRDS(candidateReturns,
-  file = paste0('../Data/Processed/MatchedData', format(Sys.time(), '%Y-%m-%d %Hh%Mm'), '.RDS')
+  # file = paste0('../Data/Processed/MatchedData', format(Sys.time(), '%Y-%m-%d %Hh%Mm'), '.RDS')
+  file = paste0('../Data/Processed/LastMatchedData.RDS')
 )
 
+
+toc = Sys.time()
+
+toc - tic

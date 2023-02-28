@@ -62,41 +62,60 @@ allret = matchdat %>% rbind(
 
 candsum = allret[
   !is.na(samptype) & !is.na(ret)
-  , .(rbar = mean(ret), n = .N, t = mean(ret)/sd(ret)*sqrt(.N))
+  , .(rbar = mean(ret), nmonth = .N, t = mean(ret)/sd(ret)*sqrt(.N))
   , by = c('source','actSignal','candSignalname','samptype')
 ]
 
 
+
 pubsum = candsum[
-  , .(rbar = mean(rbar), n = mean(n), t = mean(t))
-  , by = c('source','actSignal','samptype')
+  , .(rbar = mean(rbar), nmonth = mean(nmonth), t = mean(t), nstrat = .N)
+  , by = c('actSignal','source','samptype')
 ] %>% 
-  select(source,actSignal, samptype, rbar) %>% 
+  arrange(actSignal, source, samptype) %>% 
+  select(source,actSignal, samptype, rbar, t, nstrat) %>% 
   pivot_wider(
-    id_cols = c('source','actSignal'), names_from = samptype, values_from = rbar
+    id_cols = c('actSignal', 'source')
+    , names_from = samptype
+    , values_from = c(rbar, t, nstrat)
   ) %>% 
-  arrange(actSignal,desc(source)) %>%
+  setDT()
+
+pubsum2 = pubsum[ source == '1_pub'] %>% select(actSignal, starts_with('rbar_'), t_insamp) %>% 
   left_join(
-    czdat$czsum %>% transmute(actSignal = signalname, theory1, Authors, Year)
+    pubsum[ source == '2_dm'] %>% transmute(
+      actSignal, rbar_insamp_dm = rbar_insamp, t_insamp_dm = t_insamp, rbar_oos_dm = rbar_oos, nmatch = nstrat_insamp
+    )
   ) %>% 
-  arrange(theory1, actSignal, desc(source)) %>% 
-  mutate(across(where(is.numeric), round, 2))
+  mutate(diff_rbar_oos = rbar_oos - rbar_oos_dm)
 
+# check at console
+#   pub outperforms if t-stat is low
+#   seems like matching is too generous when t-stat is low
+pubsum2
 
-pubsum %>% print(n = 200)
+lm(diff_rbar_oos ~ nmatch, pubsum2) %>% summary()
+lm(diff_rbar_oos ~ t_insamp, pubsum2) %>% summary()
+lm(diff_rbar_oos ~ rbar_insamp, pubsum2) %>% summary()
+lm(t_insamp ~ nmatch, pubsum2) %>% summary()
+lm(diff_rbar_oos ~ nmatch + t_insamp + rbar_insamp, pubsum2) %>% summary()
 
+lm(diff_rbar_oos ~ x
+ , pubsum2 %>% mutate(x = t_insamp - t_insamp_dm)
+ ) %>% 
+  summary()
 
 # Inspect select predictors ------------------------------------------------------------------
 
 
 # read compvars doc
-compdoc = readxl::read_xlsx('compustat-definitions.xlsx') %>% 
-  janitor::clean_names() %>% 
+compdoc = readxl::read_xlsx('Yan-Zheng-Compustat-Vars.xlsx') %>% 
   transmute(
-    shortname = tolower(ccm_item_name)
-    , longname = shorter_description
-  ) %>% 
-  distinct(shortname, .keep_all = T)
+    acronym = tolower(acronym)
+    , longname 
+    , shortername 
+  ) 
+
 
 # create function for outputting tables
 inspect_one_pub = function(name){
@@ -133,14 +152,14 @@ inspect_one_pub = function(name){
       signal_form = if_else(signal_form == 'v1/v2','(v1)/(v2)', signal_form)
       , signal_form = str_replace_all(signal_form, '\\(', '\\[')
       , signal_form = str_replace_all(signal_form, '\\)', '\\]')    
-      , signal_form = str_replace(signal_form, 'pdiff', '%$\\\\Delta$')    
-      , signal_form = str_replace(signal_form, 'diff', '$\\\\Delta$')    
+      , signal_form = str_replace_all(signal_form, 'pdiff', '%$\\\\Delta$')    
+      , signal_form = str_replace_all(signal_form, 'diff', '$\\\\Delta$')    
     ) %>% 
     left_join(
-      compdoc %>% transmute(v1 = shortname, v1long = substr(longname,1,23))
+      compdoc %>% transmute(v1 = acronym, v1long = substr(shortername,1,23))
     ) %>% 
     left_join(
-      compdoc %>% transmute(v2 = shortname, v2long = substr(longname,1,20))
+      compdoc %>% transmute(v2 = acronym, v2long = substr(shortername,1,20))
     ) %>%   
     mutate(
       signal = str_replace(signal_form, 'v1', v1long)
@@ -187,6 +206,8 @@ namelist = c('Size','BMdec','Mom12m')
 
 tabout = lapply(namelist, inspect_one_pub)
 names(tabout) = namelist
+
+tabout$allsignals = pubsum2 
 
 # save to disk
 write_xlsx(tabout, '../Results/InspectMatch.xlsx')
