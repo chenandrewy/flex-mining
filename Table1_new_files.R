@@ -127,11 +127,9 @@ signaldoc%>% summarise( mean(sample_size), median(sample_size) ) %>%
   mutate_if(is.numeric, round)
 
 
-# temp = read_sas('../Data Yan-Zheng/Yan_Zheng_RFS_Data.sas7bdat')
+temp2 <- readRDS('../Data/LongShortPortfolios/stratdat CZ-style-v2.RData')
 
-temp2 <- readRDS('../TestData/stratdat CZ-style-v2.RData')
-
-temp3 <- readRDS('../TestData/yz_reorg_all.RData')
+temp3 <- readRDS('../Data/LongShortPortfolios/yz_reorg_all.RData')
 
 yz_rets <- temp3$ret
 b <- temp3$signal_list
