@@ -17,13 +17,12 @@ user = list()
 user$name = Sys.time() %>% substr(1,17) 
 substr(user$name, 17,17) = 'm'
 substr(user$name, 14,14) = 'h'
-user$name = 'CZ-style-v3'
+user$name = 'CZ-style-v4'
 
 # signal choices
 user$signal = list(
   signalnum   = Inf # number of signals to sample or Inf for all
-  , form = c('v1/v2', 'diff(v1/v2)', 'pdiff(v1/v2)',
-             'pdiff(v1)', 'diff(v1)/lag(v2)', 'pdiff(v1)-pdiff(v2)')
+  , form = c('v1/v2', 'diff(v1)/lag(v2)') # 'pdiff(v1/v2)', 'pdiff(v1)', 'diff(v1/v2)', 'pdiff(v1)-pdiff(v2)')
   , x1code = 'yz.numer'
   , x2code = 'yz.denom63' #  'yz.numer' #'yz.denom'
   , seednumber  = 1235 # seed sampling
@@ -229,9 +228,7 @@ toc - tic
 
 signal_list = make_signal_list(signal_form = user$signal$form,
                                xvars       = varlist$x1,
-                               scale_vars  = varlist$x2,
-                               signalnum   = user$signal$signalnum,
-                               rs          = user$signal$seednumber)
+                               scale_vars  = varlist$x2)
 
 # signal_list = make_signal_list_yz(signal_form = user$signal$form
 #                                   , x1list = varlist$x1

@@ -197,16 +197,11 @@ lsos <- function(..., n=10) {
 
 
 # function for creating a list of possible variable combinations used in strategies
-# ac: not sure this works correctly
-make_signal_list = function(signal_form, xvars, signalnum, scale_vars = NULL, rs) {
+make_signal_list = function(signal_form, xvars, scale_vars) {
   
   #' @param xvars Unique names of variables used for creating strategies
-  #' @param signalnum Number of signals to sample from full list
   #' @param scale_vars Scaling variables used in ratios (or NULL for unrestricted)
-  #' @param rs Random seed
-  
-  set.seed(rs)
-  
+
   # make list of all possible xused combinations
   tmp = expand.grid(signal_form = signal_form, 
                     v1 = xvars, 
@@ -228,9 +223,9 @@ make_signal_list = function(signal_form, xvars, signalnum, scale_vars = NULL, rs
     arrange(signal_form, v1, v2) %>% 
     distinct(signal_form, v1, v2, .keep_all = T)
   
-  # sample from full list
-  signalnum = min(signalnum, nrow(tmp))
-  tmp = tmp %>% sample_n(signalnum)
+  # # sample from full list
+  # signalnum = min(signalnum, nrow(tmp))
+  # tmp = tmp %>% sample_n(signalnum)
   
   # clean up
   tmp = tmp %>%
