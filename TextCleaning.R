@@ -371,6 +371,8 @@ kw_anom <- kwic(texts_lemma, pattern = words_mispricing)
 
 anom_list <-  kw_anom$keyword %>% unique()
 
+anom_list %>% as.data.table() %>% fwrite('anom_words.csv')
+
 words_risks <- c('utility',
                  'maximize',
                  'minimize',
@@ -392,3 +394,5 @@ words_risks <- c('utility',
 kw_r <- kwic(texts_lemma, pattern = words_risks)
 
 risk_list <-  kw_r$keyword %>% unique()
+
+risk_list %>% as.data.table() %>% fwrite('risk_words.csv')

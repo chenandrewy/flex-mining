@@ -16,7 +16,7 @@ toc <- Sys.time()
 print(toc - tic)
 emb   <- as.matrix(model)
 # head(emb)
-predict(model, c("anomaly"), type = "nearest", top_n = 100)
+predict(model, c("risk"), type = "nearest", top_n = 10)
 
 write.word2vec(model, '../IntermediateText/word2vecmodel.bin')
 
@@ -56,12 +56,13 @@ paper_text[,
                 sapply(vecs, word2vec_similarity,
                        embeddings['mispricing', ] + embeddings['liquidity', ]   - 2*embeddings['risk', ],
                        type = 'cosine')]
+
+
 paper_text[,
               risk_sim :=
                 sapply(vecs, word2vec_similarity,
                        embeddings['risk', ] - embeddings['liquidity', ],
                        type = 'cosine')]
-
 
 fwrite(paper_text, '../IntermediateText/Word2VecResults.csv')
 

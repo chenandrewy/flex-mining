@@ -138,7 +138,9 @@ b <- temp3$signal_list
 c <- temp3$name
 
 # Need to make this robust
-cz_rets <- temp2$ret %>% mutate(sweight = ifelse(portid == 1, 'ew', 'wv'))
+cz_rets <- temp2$ret %>% mutate(sweight = case_when(portid == 1 ~  'ew',
+                                                    portid == 2 ~ 'vw')) %>%
+  setDT()
 
 d <- temp2$port_list
 
@@ -148,7 +150,7 @@ dir.create('../Tables1New')
 ####
 
 var_types <- c('vw', 'ew')
-var_type <- var_types[2]
+var_type <- var_types[1]
 dfs <- c('yz_rets', 'cz_rets')
 df <- dfs[2]
 for (df in dfs) {
@@ -212,9 +214,10 @@ for (df in dfs) {
     
     yz_dt[, t_30y_l := shift(frollapply(ret, 12*30, f.custom.t, fill = NA)), by = signalname]
     
+    yz_dt[, head(month(date))]
+    
     yz_dt[month(date) != 6, t_30y_l := NA]
-    
-    
+
     ############################
     
     n_tiles <- 5
@@ -235,5 +238,3 @@ for (df in dfs) {
     
   }
 }
-
-
