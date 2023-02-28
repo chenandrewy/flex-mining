@@ -110,7 +110,8 @@ ReturnPlotsWithDM(dt = allRets %>%
                   basepath = '../Results/Fig_PublicationsVsDataMining',
                   suffix = 'All_DM',
                   rollmonths = 60,
-                  colors = colors)
+                  colors = colors,
+                  label_region = TRUE)
 
 # Plot re-scaled returns over time by category
 for (jj in unique(allRets$theory1)) {

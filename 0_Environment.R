@@ -605,50 +605,64 @@ ReturnPlotsNoDM = function(dt, suffix = '', rollmonths = 60,
 # Create a plot that compares the average predictor return with the average data-mined return
 ReturnPlotsWithDM = function(dt, suffix = '', rollmonths = 60, colors = NA,
                              xl = -360, xh = 240, yl = -10, yh = 130, fig.width = 10,
-                             fig.height = 8, basepath = NA_character_) {
+                             fig.height = 8, basepath = NA_character_,
+                             label_region = FALSE) {
   
   #' @param dt Table with three columns (eventDate, ret, matchRet)
   #' @param suffix String to attach to saved pdf figure 
   #' @param rollmonths Number of months over which moving average is computed
   #' @param xl, xh, yl, yh Upper and lower limits for x and y axes  
   
-  print(
-    dt %>% 
-      gather(key = 'SignalType', value = 'return', -eventDate) %>% 
-      group_by(SignalType, eventDate) %>% 
-      summarise(rbar = mean(return)) %>% 
-      arrange(SignalType, eventDate) %>% 
-      mutate(
-        roll_rbar = zoo::rollmean(rbar, k = rollmonths, fill = NA, align = 'right')
-      ) %>% 
-      mutate(SignalType = factor(SignalType, levels = c('ret', 'matchRet'), labels = c('Published', 'Matched data-mined'))) %>% 
-      ggplot(aes(x = eventDate, y = roll_rbar, color = SignalType, linetype = SignalType)) +
-      geom_line(size = 1.1) +
-      #  scale_color_grey() + 
-      # scale_color_brewer(palette = 'Dark2') + 
-      scale_color_manual(values = colors) + 
-      scale_linetype_manual(values = c('solid', 'twodash')) +
-      # scale_linetype(guide = 'none') +
-      geom_vline(xintercept = 0) +
-      coord_cartesian(
-        xlim = c(xl, xh), ylim = c(yl, yh)
-      ) +
-      scale_y_continuous(breaks = seq(-200,180,25)) +
-      scale_x_continuous(breaks = seq(-360,360,60)) +  
-      geom_hline(yintercept = 100, color = 'dimgrey') +
-      geom_hline(yintercept = 0) +
-      ylab('Trailing 5-Year Mean Return (bps p.m.)') +
-      xlab('Months Since Original Sample Ended') +
-      labs(color = '', linetype = '') +
-      theme_light(base_size = 18) +
-      theme(
-        legend.position = c(80,85)/100
-        , legend.spacing.y = unit(0, units = 'cm')
-        , legend.background = element_rect(fill='transparent')
-      ) 
-  )
+  
+  printme = dt %>% 
+    gather(key = 'SignalType', value = 'return', -eventDate) %>% 
+    group_by(SignalType, eventDate) %>% 
+    summarise(rbar = mean(return)) %>% 
+    arrange(SignalType, eventDate) %>% 
+    mutate(
+      roll_rbar = zoo::rollmean(rbar, k = rollmonths, fill = NA, align = 'right')
+    ) %>% 
+    mutate(SignalType = factor(SignalType, levels = c('ret', 'matchRet')
+                               , labels = c('Published', 'Matched data-mined'))) %>% 
+    ggplot(aes(x = eventDate, y = roll_rbar, color = SignalType, linetype = SignalType)) +
+    geom_line(size = 1.1) +
+    #  scale_color_grey() + 
+    # scale_color_brewer(palette = 'Dark2') + 
+    scale_color_manual(values = colors) + 
+    scale_linetype_manual(values = c('solid', 'twodash')) +
+    # scale_linetype(guide = 'none') +
+    geom_vline(xintercept = 0) +
+    coord_cartesian(
+      xlim = c(xl, xh), ylim = c(yl, yh)
+    ) +
+    scale_y_continuous(breaks = seq(-200,180,25)) +
+    scale_x_continuous(breaks = seq(-360,360,60)) +  
+    geom_hline(yintercept = 100, color = 'dimgrey') +
+    geom_hline(yintercept = 0) +
+    ylab('Trailing 5-Year Mean Return (bps p.m.)') +
+    xlab('Months Since Original Sample Ended') +
+    labs(color = '', linetype = '') +
+    theme_light(base_size = 18) +
+    theme(
+      legend.position = c(80,85)/100
+      , legend.spacing.y = unit(0, units = 'cm')
+      , legend.background = element_rect(fill='transparent')
+      , legend.key.size = unit(0.75, 'cm')
+    ) 
+  
+  if (label_region){
+    anno_color = 'grey29'
+      printme = printme +
+        annotate('text', x=-74, y=6, label = '<- matching region'
+                 , size = 5, color = anno_color, fontface = 'italic') +
+        annotate('text', x=+58, y=6, label = 'not matched ->'
+                 , size = 5, color = anno_color, fontface = 'italic')
+  }
+  
+  print(printme)
   
   ggsave(paste0(basepath, '_', suffix, '.pdf'), width = fig.width, height = fig.height)
+  
   
 }
 
