@@ -44,39 +44,39 @@ set.seed(1337)
 
 compnames = list()
 compnames$yz.numer = c("acchg", "aco", "acox", "act", "am", "ao", "aoloch", "aox", "ap", "apalch",
-                          "aqc", "aqi", "aqs", "at", "bast", "caps", "capx", "capxv", "ceq", "ceql", "ceqt", "ch", "che", "chech",
-                          "cld2", "cld3", "cld4", "cld5", "cogs", "cstk", "cstkcv", "cstke", "dc", "dclo", "dcom", "dcpstk",
-                          "dcvsr", "dcvsub", "dcvt", "dd", "dd1", "dd2", "dd3", "dd4", "dd5", "dfs", "dfxa", "diladj", "dilavx",
-                          "dlc", "dlcch", "dltis", "dlto", "dltp", "dltr", "dltt", "dm", "dn", "do", "donr", "dp", "dpact", "dpc",
-                          "dpvieb", "dpvio", "dpvir", "drc", "ds", "dudd", "dv", "dvc", "dvp", "dvpa", "dvpibb", "dvt", "dxd2", "dxd3",
-                          "dxd4", "dxd5", "ebit", "ebitda", "esopct", "esopdlt", "esopt", "esub", "esubc", "exre", "fatb", "fatc", "fate",
-                          "fatl", "fatn", "fato", "fatp", "fiao", "fincf", "fopo", "fopox", "fopt", "fsrco", "fsrct", "fuseo", "fuset", "gdwl",
-                          "gp", "ib", "ibadj", "ibc", "ibcom", "icapt", "idit", "intan", "intc", "intpn", "invch", "invfg", "invo", "invrm",
-                          "invt", "invwip", "itcb", "itci", "ivaco", "ivaeq", "ivao", "ivch", "ivncf", "ivst", "ivstch", "lco", "lcox",
-                          "lcoxdr", "lct", "lifr", "lo", "lt", "mib", "mii", "mrc1", "mrc2", "mrc3", "mrc4", "mrc5", "mrct", "msa", "ni",
-                          "niadj", "nieci", "nopi", "nopio", "np", "oancf", "ob", "oiadp", "pi", "pidom", "pifo", "ppegt", "ppenb",
-                          "ppenc", "ppenli", "ppenme", "ppennr", "ppeno", "ppent", "ppevbb", "ppeveb", "ppevo", "ppevr", "prstkc",
-                          "pstk", "pstkc", "pstkl", "pstkn", "pstkr", "pstkrv", "rdip", "re", "rea", "reajo", "recch", "recco", "recd", "rect",
-                          "recta", "rectr", "reuna", "sale", "seq", "siv", "spi", "sppe", "sppiv", "sstk", "tlcf", "tstk", "tstkc", "tstkp",
-                          "txach", "txbco", "txc", "txdb", "txdba", "txdbca", "txdbcl", "txdc", "txdfed", "txdfo", "txdi", "txditc",
-                          "txds", "txfed", "txfo", "txndb", "txndba", "txndbl", "txndbr", "txo", "txp", "txpd", "txr", "txs", "txt", "txw",
-                          "wcap", "wcapc", "wcapch", "xacc", "xad", "xdepl", "xi", "xido", "xidoc", "xint", "xopr", "xpp", "xpr", "xrd", "xrent",
-                          "xsga")
+                       "aqc", "aqi", "aqs", "at", "bast", "caps", "capx", "capxv", "ceq", "ceql", "ceqt", "ch", "che", "chech",
+                       "cld2", "cld3", "cld4", "cld5", "cogs", "cstk", "cstkcv", "cstke", "dc", "dclo", "dcom", "dcpstk",
+                       "dcvsr", "dcvsub", "dcvt", "dd", "dd1", "dd2", "dd3", "dd4", "dd5", "dfs", "dfxa", "diladj", "dilavx",
+                       "dlc", "dlcch", "dltis", "dlto", "dltp", "dltr", "dltt", "dm", "dn", "do", "donr", "dp", "dpact", "dpc",
+                       "dpvieb", "dpvio", "dpvir", "drc", "ds", "dudd", "dv", "dvc", "dvp", "dvpa", "dvpibb", "dvt", "dxd2", "dxd3",
+                       "dxd4", "dxd5", "ebit", "ebitda", "esopct", "esopdlt", "esopt", "esub", "esubc", "exre", "fatb", "fatc", "fate",
+                       "fatl", "fatn", "fato", "fatp", "fiao", "fincf", "fopo", "fopox", "fopt", "fsrco", "fsrct", "fuseo", "fuset", "gdwl",
+                       "gp", "ib", "ibadj", "ibc", "ibcom", "icapt", "idit", "intan", "intc", "intpn", "invch", "invfg", "invo", "invrm",
+                       "invt", "invwip", "itcb", "itci", "ivaco", "ivaeq", "ivao", "ivch", "ivncf", "ivst", "ivstch", "lco", "lcox",
+                       "lcoxdr", "lct", "lifr", "lo", "lt", "mib", "mii", "mrc1", "mrc2", "mrc3", "mrc4", "mrc5", "mrct", "msa", "ni",
+                       "niadj", "nieci", "nopi", "nopio", "np", "oancf", "ob", "oiadp", "pi", "pidom", "pifo", "ppegt", "ppenb",
+                       "ppenc", "ppenli", "ppenme", "ppennr", "ppeno", "ppent", "ppevbb", "ppeveb", "ppevo", "ppevr", "prstkc",
+                       "pstk", "pstkc", "pstkl", "pstkn", "pstkr", "pstkrv", "rdip", "re", "rea", "reajo", "recch", "recco", "recd", "rect",
+                       "recta", "rectr", "reuna", "sale", "seq", "siv", "spi", "sppe", "sppiv", "sstk", "tlcf", "tstk", "tstkc", "tstkp",
+                       "txach", "txbco", "txc", "txdb", "txdba", "txdbca", "txdbcl", "txdc", "txdfed", "txdfo", "txdi", "txditc",
+                       "txds", "txfed", "txfo", "txndb", "txndba", "txndbl", "txndbr", "txo", "txp", "txpd", "txr", "txs", "txt", "txw",
+                       "wcap", "wcapc", "wcapch", "xacc", "xad", "xdepl", "xi", "xido", "xidoc", "xint", "xopr", "xpp", "xpr", "xrd", "xrent",
+                       "xsga")
 
 
 compnames$yz.denom <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
-                      "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp", 'me_datadate')
+                        "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp", 'me_datadate')
 
 
 compnames$yz.denom_alt <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
-                        "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp", 'me')
+                            "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp", 'me')
 
 # 63 denominators with at least 25% non-missing observations in 1963
 compnames$yz.denom63 <- c("aco", "acox","act","ao","aox","at","caps","capx","capxv","ceq","ceql","ceqt","che","cogs",
-                           "cstk","dlc","dltt","dp","dpact","dvc","dvp","dvt","ebit","ebitda","gp","ib","ibadj","ibcom",
-                           "icapt","intan","invt","itci","ivaeq","ivao","lct","lo","lt","ni","nopi","nopio","np",
-                           "oiadp","pi","ppegt","ppent","pstkl","pstkrv","re","recco","rect","sale","seq","txdb",
-                           "txditc","txt","wcap","xint","xopr","xpr","xrent","xsga","emp", "me_datadate")
+                          "cstk","dlc","dltt","dp","dpact","dvc","dvp","dvt","ebit","ebitda","gp","ib","ibadj","ibcom",
+                          "icapt","intan","invt","itci","ivaeq","ivao","lct","lo","lt","ni","nopi","nopio","np",
+                          "oiadp","pi","ppegt","ppent","pstkl","pstkrv","re","recco","rect","sale","seq","txdb",
+                          "txditc","txt","wcap","xint","xopr","xpr","xrent","xsga","emp", "me_datadate")
 
 compnames$all = unique(Reduce(c, compnames))
 
@@ -91,7 +91,7 @@ nchoose2ports <- function(n, big_trade_months = 6) {
     mutate(
       date = as.Date(paste0(as.character(yyyymm), '28'), format='%Y%m%d')
     )
-
+  
   # have signals update only on big_trade_months  
   # - note: filling early here helps ensures signal isn't super stale, as long
   #         as the signal data is constructed nicely
@@ -208,20 +208,19 @@ make_signal_list = function(signal_form, xvars, signalnum, scale_vars = NULL, rs
   set.seed(rs)
   
   # make list of all possible xused combinations
-  # (is v1 != v2 what we want here??)
-  tmp = expand.grid(signal_form = signal_form, v1 = xvars, v2 = xvars, stringsAsFactors = FALSE) %>% 
-    filter(v1 != v2)
+  tmp = expand.grid(signal_form = signal_form, 
+                    v1 = xvars, 
+                    v2 = scale_vars, stringsAsFactors = FALSE) 
   
-  # Deal with scaling variables if provided
-  if (!is.null(scale_vars)) {
-    tmp = tmp %>% 
-      filter(v2 %in% scale_vars, !(v1 %in% scale_vars))
-  }
-  # Deal with duplicates (from including all combinations e.g. "ab" and "ba")
-  if (is.null(scale_vars)) {
-    tmp = tmp %>% 
-      filter(v1 >v2)
-  }
+  # Remove v1=v2 for functions where this does not make sense
+  tmp = tmp %>%
+    mutate(keep = case_when(
+      v1 != v2 ~ 1,
+      v1 == v2 & signal_form %in% c('diff(v1)/lag(v2)') ~ 1,
+      TRUE ~ 0)
+    ) %>% 
+    filter(keep == 1) %>% 
+    select(-keep)
   
   # remove v2 for signal_forms that use only 1 variable
   tmp = tmp %>% 
@@ -238,7 +237,7 @@ make_signal_list = function(signal_form, xvars, signalnum, scale_vars = NULL, rs
     arrange(across(everything())) %>% 
     mutate(signalid = row_number()) %>% 
     select(signalid, everything())
-
+  
   return(tmp)
 }
 
@@ -444,7 +443,7 @@ signal_to_ports = function(dt0, form, portnum, sweight, trim = NULL){
     #     )
     #   )
     
-
+    
     # find long-short return, rename date (only ret is still left)
     dt = dt %>% 
       filter(!is.na(port)) %>% 
@@ -469,14 +468,14 @@ signal_to_ports = function(dt0, form, portnum, sweight, trim = NULL){
     # find long-short return
     return(
       dt %>% 
-      select(yearm, port, ret, nstock) %>% 
-      pivot_wider(names_from = port, values_from = c(ret, nstock)) %>% 
-      mutate(ret_ls = ret_long - ret_short,
-             nstocks_ls = nstock_long + nstock_short) %>% 
-      filter(!is.na(ret_ls)) %>% 
-      transmute(yearm, ret = ret_ls, nstock = nstocks_ls)
+        select(yearm, port, ret, nstock) %>% 
+        pivot_wider(names_from = port, values_from = c(ret, nstock)) %>% 
+        mutate(ret_ls = ret_long - ret_short,
+               nstocks_ls = nstock_long + nstock_short) %>% 
+        filter(!is.na(ret_ls)) %>% 
+        transmute(yearm, ret = ret_ls, nstock = nstocks_ls)
     )
-
+    
   } # if form
   
 } # end signal_to_ports
@@ -694,18 +693,18 @@ matchedReturns = function(bm_rets,
   
   # Make sure at least minStocks stocks in each month of the sample period
   if (minStocks > 0){
-  tmpAtLeastNStocks = tmpSumStats %>% 
-    filter(floor(yearm) !=1963) %>%   #Somewhat quick and dirty way to deal with the fact that in early 1963 we have few obs
-    group_by(signalname) %>% 
-    summarise(minN = min(nstock)) %>% 
-    ungroup() %>% 
-    filter(minN >= minStocks)
+    tmpAtLeastNStocks = tmpSumStats %>% 
+      filter(floor(yearm) !=1963) %>%   #Somewhat quick and dirty way to deal with the fact that in early 1963 we have few obs
+      group_by(signalname) %>% 
+      summarise(minN = min(nstock)) %>% 
+      ungroup() %>% 
+      filter(minN >= minStocks)
   } else {
     tmpAtLeastNStocks = tmpSumStats %>% 
       select(signalname) %>% 
       distinct()
   }
-
+  
   tmpSumStats = tmpSumStats %>% 
     filter(signalname %in% tmpAtLeastNStocks$signalname)
   
@@ -840,8 +839,8 @@ f.ls.past.returns <- function(n_tiles, name_var){
                       by = .(date, bin)]
   
   sumsignal_oos <- f.desc.returns(returns_dt)
-  sumsignal_oos_pre_2003 <- f.desc.returns(returns_dt[date < '2003-01-30'])
-  sumsignal_oos_post_2003 <- f.desc.returns(returns_dt[date >= '2003-01-30'])
+  sumsignal_oos_pre_2003 <- f.desc.returns(returns_dt[date < '2003-06-01'])
+  sumsignal_oos_post_2003 <- f.desc.returns(returns_dt[date >= '2003-06-01'])
   
   return(list(sumsignal_oos = sumsignal_oos,
               sumsignal_oos_pre_2003 = sumsignal_oos_pre_2003,
@@ -849,5 +848,3 @@ f.ls.past.returns <- function(n_tiles, name_var){
               rets = returns_dt))
   
 }
-
-

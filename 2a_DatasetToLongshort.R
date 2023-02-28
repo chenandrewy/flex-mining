@@ -227,18 +227,17 @@ toc - tic
 
 ## Draw lists of signals and ports ------------------------------------------
 
-# ac 2022 12: this function doesn't seem to work right
-# signal_list = make_signal_list(signal_form =  user$signal$form,
-#                                xvars = user$signal$x1list,
-#                                signalnum = user$signal$signalnum,
-#                                scale_vars = user$signal$x2list,
-#                                rs = user$signal$seednumber)
+signal_list = make_signal_list(signal_form = user$signal$form,
+                               xvars       = varlist$x1,
+                               scale_vars  = varlist$x2,
+                               signalnum   = user$signal$signalnum,
+                               rs          = user$signal$seednumber)
 
-signal_list = make_signal_list_yz(signal_form = user$signal$form
-                                  , x1list = varlist$x1
-                                  , x2list = varlist$x2
-                                  , signalnum = user$signal$signalnum
-                                  , seed = user$signal$seednumber)
+# signal_list = make_signal_list_yz(signal_form = user$signal$form
+#                                   , x1list = varlist$x1
+#                                   , x2list = varlist$x2
+#                                   , signalnum = user$signal$signalnum
+#                                   , seed = user$signal$seednumber)
 
 # port list
 port_list = expand.grid(longshort_form = user$port$longshort_form, 
