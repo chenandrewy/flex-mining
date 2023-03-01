@@ -10,7 +10,7 @@ colors = c(rgb(0,0.4470,0.7410), # MATBLUE
            rgb(0.9290, 0.6940, 0.1250) # MATYELLOW
 )
 
-DMname = '../Data/LongShortPortfolios/stratdat CZ-style-v3.RData'
+DMname = '../Data/LongShortPortfolios/stratdat CZ-style-v4.RData'
 
 # Load data ---------------------------------------------------------------
 
@@ -23,7 +23,8 @@ rm(tmp)
 # Matched returns
 #candidateReturns = readRDS('../Data/Processed/MatchedData.RDS')
 #candidateReturns = readRDS('../Data/Processed/MatchedData2023-02-01 15h55m.RDS')
-candidateReturns = readRDS('../Data/Processed/MatchedData2023-02-24 22h38m.RDS')
+#candidateReturns = readRDS('../Data/Processed/MatchedData2023-02-24 22h38m.RDS')
+candidateReturns = readRDS('../Data/Processed/LastMatchedData.RDS')
 
 # Restrict to predictors in consideration
 czsum = czsum %>% 
@@ -35,7 +36,7 @@ czret = czret %>%
 candidateReturns = candidateReturns %>% 
   filter(actSignal %in% czsum$signalname)
 
-signal_list = readRDS('../Data/LongShortPortfolios/stratdat CZ-style-v3.RData')$signal_list
+signal_list = readRDS(DMname)$signal_list
 
 
 # Section 2: Rolling returns by category ----------------------------------
@@ -345,7 +346,7 @@ bm_rets = bm_rets %>%
 
 for (var_type in var_types) {
   
-  str_to_add  <- str_extract(var_type, '_.*')
+  str_to_add  <- var_type
   
   yz = bm_rets %>%
     filter(sweight == var_type) %>% 
@@ -378,11 +379,11 @@ for (var_type in var_types) {
     pivot_longer(everything(), names_sep = "_", names_to = c( "variable", ".value")) 
   # %>%  mutate_if(is.numeric, round, 2)
   
-  fwrite(Summary_Statistics, glue('../Results/Summary_StatisticsDM_{str_to_add}.csv'))
+  fwrite(Summary_Statistics, glue::glue('../Results/Summary_StatisticsDM_{str_to_add}.csv'))
   
   Summary_Statistics
   
-  print(xtable(Summary_Statistics, caption = 'Summary Statistics YZ All',
+  print(xtable::xtable(Summary_Statistics, caption = 'Summary Statistics YZ All',
                type = "latex", include.rownames=FALSE))
   
   
@@ -399,8 +400,9 @@ for (var_type in var_types) {
   
   # yz_dt[, t_30y_l := shift(frollapply(ret, 12*30, f.custom.t, fill = NA)), by = signalname]
   
-  yz_dt[month(date) != 6, t_30y_l := NA]
+  #yz_dt[, head(month(date))]
   
+  yz_dt[month(date) != 6, t_30y_l := NA]
   
   ############################
   
@@ -410,15 +412,13 @@ for (var_type in var_types) {
   
   test <- f.ls.past.returns(n_tiles, name_var)
   
-  print(xtable(test$sumsignal_oos, 
+  print(xtable::xtable(test$sumsignal_oos, 
                caption = 'Out-of-Sample Portfolios of Strategies Sorted on Past 30 Years of Returns',
                type = "latex"), include.colnames=FALSE)
   
-  fwrite(test$sumsignal_oos,  glue('../Tables1/sumsignal_oos_30y{str_to_add}_unit_level.csv'))
-  
-  fwrite(test$sumsignal_oos_pre_2003,  glue('../Tables1/sumsignal_oos_30y_pre_2003{str_to_add}_unit_level.csv'))
-  
-  fwrite(test$sumsignal_oos_post_2003,  glue('../Tables1/sumsignal_oos_30y_post_2003{str_to_add}_unit_level.csv'))
+  fwrite(test$sumsignal_oos,  glue::glue('../Results/sumsignal_oos_30y_{str_to_add}_unit_level.csv'))
+  fwrite(test$sumsignal_oos_pre_2003,  glue::glue('../Results/sumsignal_oos_30y_pre_2003_{str_to_add}_unit_level.csv'))
+  fwrite(test$sumsignal_oos_post_2003,  glue::glue('../Results/sumsignal_oos_30y_post_2003_{str_to_add}_unit_level.csv'))
   
 }
 
