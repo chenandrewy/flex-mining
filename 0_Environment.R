@@ -201,18 +201,21 @@ make_signal_list = function(signal_form, xvars, scale_vars) {
   
   #' @param xvars Unique names of variables used for creating strategies
   #' @param scale_vars Scaling variables used in ratios (or NULL for unrestricted)
-
+  
   # make list of all possible xused combinations
   tmp = expand.grid(signal_form = signal_form, 
                     v1 = xvars, 
-                    v2 = scale_vars, stringsAsFactors = FALSE) 
+                    v2 = scale_vars, stringsAsFactors = FALSE) %>% 
+    as_tibble()
   
   # Remove v1=v2 for functions where this does not make sense
+  # and remove inverse  (e.g. keep only v1/v2 not v2/v1)
   tmp = tmp %>%
     mutate(keep = case_when(
-      v1 != v2 ~ 1,
-      v1 == v2 & signal_form %in% c('diff(v1)/lag(v2)') ~ 1,
-      TRUE ~ 0)
+      signal_form  %in% c('diff(v1)/lag(v2)') ~ 1,
+      # For ratio signals
+      v1 %in% scale_vars & v1<= v2 ~ 0,
+      TRUE ~ 1)
     ) %>% 
     filter(keep == 1) %>% 
     select(-keep)
@@ -288,12 +291,12 @@ dataset_to_signal = function(form, dt, v1, v2){
   
   if (form == 'v1/v2'){
     
-    dt[,'tmp'] = dt[, v1]/dt[, v2]
+    dt[,'tmp'] = dt[, 'v1']/dt[, 'v2']
     return(dt %>% pull(tmp))
     
   } else if (form == 'diff(v1/v2)') {
     
-    dt[,'tmp'] = dt[, v1]/dt[, v2]
+    dt[,'tmp'] = dt[, 'v1']/dt[, 'v2']
     return(
       dt %>% 
         arrange(permno, ret_yearm) %>% 
@@ -305,7 +308,7 @@ dataset_to_signal = function(form, dt, v1, v2){
     
   } else if (form == 'pdiff(v1/v2)') {
     
-    dt[,'tmp'] = dt[, v1]/dt[, v2]
+    dt[,'tmp'] = dt[, 'v1']/dt[, 'v2']
     return(
       dt %>% 
         arrange(permno, ret_yearm) %>% 
@@ -316,8 +319,8 @@ dataset_to_signal = function(form, dt, v1, v2){
     )
     
   } else if (form == 'diff(v1)/lag(v2)') {
-    dt[,'tmp'] = dt[, v1]
-    dt[,'tmp2'] = dt[, v2]
+    dt[,'tmp'] = dt[, 'v1']
+    dt[,'tmp2'] = dt[, 'v2']
     return(
       dt %>% 
         arrange(permno, ret_yearm) %>% 
@@ -328,8 +331,8 @@ dataset_to_signal = function(form, dt, v1, v2){
     )
     
   } else if (form == 'pdiff(v1)-pdiff(v2)') {
-    dt[,'tmp'] = dt[, v1]
-    dt[,'tmp2'] = dt[, v2]
+    dt[,'tmp'] = dt[, 'v1']
+    dt[,'tmp2'] = dt[, 'v2']
     return(
       dt %>% 
         arrange(permno, ret_yearm) %>% 
@@ -344,7 +347,7 @@ dataset_to_signal = function(form, dt, v1, v2){
     
   } else if (form == 'pdiff(v1)') {
     
-    dt[,'tmp'] = dt[, v1]
+    dt[,'tmp'] = dt[, 'v1']
     return(
       dt %>% 
         arrange(permno, ret_yearm) %>% 
@@ -834,8 +837,8 @@ f.ls.past.returns <- function(n_tiles, name_var){
                       by = .(date, bin)]
   
   sumsignal_oos <- f.desc.returns(returns_dt)
-  sumsignal_oos_pre_2003 <- f.desc.returns(returns_dt[date < '2003-06-01'])
-  sumsignal_oos_post_2003 <- f.desc.returns(returns_dt[date >= '2003-06-01'])
+  sumsignal_oos_pre_2003 <- f.desc.returns(returns_dt[date < '2003-06-30'])
+  sumsignal_oos_post_2003 <- f.desc.returns(returns_dt[date >= '2003-06-30'])
   
   return(list(sumsignal_oos = sumsignal_oos,
               sumsignal_oos_pre_2003 = sumsignal_oos_pre_2003,
