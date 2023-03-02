@@ -322,6 +322,74 @@ toExcel = list(
 
 writexl::write_xlsx(toExcel, path = '../Results/MatchingSummary_DM.xlsx')
 
+# LaTeX output for overleaf
+
+#dm-sum part 1
+tableSumStats %>% 
+  transmute(Category = str_to_sentence(theory1),
+            empty1 = NA_character_,
+            medianStartYear = as.integer(medianStartYear),
+            medianEndYear   = as.integer(medianEndYear),
+            empty2 = NA_character_,
+            rbar_insampAct  = round(100*rbar_insampAct, 1),
+            rbar_insampMatched = round(100*rbar_insampMatched, 1),
+            empty3 = NA_character_,
+            tstat_insampAct = round(tstat_insampAct, 2),
+            tstat_insampMatched = round(tstat_insampMatched,2)) %>% 
+  xtable() %>% 
+  print(
+    include.rownames = FALSE,
+    include.colnames = FALSE,
+    hline.after = NULL,
+    only.contents = TRUE,
+    file = paste0('../Results/dm-sum1.tex')    
+  )
+
+#dm-sum part 2
+tableSumStats %>% 
+  mutate_at(.vars = vars(min, starts_with('Q'), max, starts_with("Signal")),
+            .funs = list(~as.integer(.))) %>% 
+  transmute(Category = str_to_sentence(theory1),
+            empty1 = NA_character_,
+            min, Q25, Q50, Q75, max,
+            empty2 = NA_character_,
+            SignalsUnmatched,
+            SignalsMatched) %>% 
+  xtable() %>% 
+  print(
+    include.rownames = FALSE,
+    include.colnames = FALSE,
+    hline.after = NULL,
+    only.contents = TRUE,
+    file = paste0('../Results/dm-sum2.tex')    
+  )
+
+
+#Unmatched
+signaldoc = read_csv('../Data/CZ/SignalDoc.csv')
+tableUnmatched = tableUnmatched %>% 
+  left_join(signaldoc %>% select(Acronym, LongDescription),
+            by = c('signalname' = 'Acronym'))
+
+for (rr in c('risk', 'mispricing', 'agnostic')) {
+  
+  tableUnmatched %>% 
+    filter(theory1 == rr) %>% 
+    arrange(Authors) %>% 
+    transmute(Authors = paste0(Authors, ' (', as.character(Year), ')'), LongDescription = str_to_sentence(LongDescription),
+              theory1 = str_to_sentence(theory1), rbar = round(100*rbar), tstat = round(tstat,2)) %>% 
+    xtable() %>% 
+    print(
+      include.rownames = FALSE,
+      include.colnames = FALSE,
+      hline.after = NULL,
+      only.contents = TRUE,
+      file = paste0('../Results/unmatched-', rr, '.tex')    
+    )
+}
+
+
+
 
 #### Table 4: Descriptive stats for DM strategies  ----------------------------
 var_types <- c('vw', 'ew')
@@ -384,7 +452,7 @@ for (var_type in var_types) {
   Summary_Statistics
   
   print(xtable::xtable(Summary_Statistics, caption = 'Summary Statistics YZ All',
-               type = "latex", include.rownames=FALSE))
+                       type = "latex", include.rownames=FALSE))
   
   
   ################################
@@ -398,9 +466,9 @@ for (var_type in var_types) {
   
   yz_dt[, ret_30y_l := data.table::shift(frollmean(ret, 12*30, NA)), by = signalname]
   
-  # yz_dt[, t_30y_l := shift(frollapply(ret, 12*30, f.custom.t, fill = NA)), by = signalname]
+  yz_dt[, t_30y_l   := data.table::shift(frollapply(ret, 12*30, f.custom.t, fill = NA)), by = signalname]
   
-  #yz_dt[, head(month(date))]
+  yz_dt[, head(month(date))]
   
   yz_dt[month(date) != 6, t_30y_l := NA]
   
@@ -413,8 +481,8 @@ for (var_type in var_types) {
   test <- f.ls.past.returns(n_tiles, name_var)
   
   print(xtable::xtable(test$sumsignal_oos, 
-               caption = 'Out-of-Sample Portfolios of Strategies Sorted on Past 30 Years of Returns',
-               type = "latex"), include.colnames=FALSE)
+                       caption = 'Out-of-Sample Portfolios of Strategies Sorted on Past 30 Years of Returns',
+                       type = "latex"), include.colnames=FALSE)
   
   fwrite(test$sumsignal_oos,  glue::glue('../Results/sumsignal_oos_30y_{str_to_add}_unit_level.csv'))
   fwrite(test$sumsignal_oos_pre_2003,  glue::glue('../Results/sumsignal_oos_30y_pre_2003_{str_to_add}_unit_level.csv'))
@@ -422,4 +490,79 @@ for (var_type in var_types) {
   
 }
 
+# to TeX
+fs_ew = read_csv('../Results/sumsignal_oos_30y_ew_unit_level.csv')
+fs_vw = read_csv('../Results/sumsignal_oos_30y_vw_unit_level.csv')
+
+fs_ew = fs_ew %>% 
+  transmute(bin = as.integer(bin),
+            empty1 = NA_character_,
+            rbar_is = round(100*rbar_is, 1),
+            avg_tstat_is = round(avg_tstat_is, 2),
+            empty2 = NA_character_,
+            rbar_oos = round(100*rbar_oos, 1),
+            Decay = ifelse(bin !=4, 
+                           round(100*(1 - rbar_oos/rbar_is), 1),
+                           NA_real_),
+            empty3 = NA_character_
+  )
+
+fs_vw = fs_vw %>% 
+  transmute(rbar_isvw = round(100*rbar_is, 1),
+            avg_tstat_isvw = round(avg_tstat_is, 2),
+            empty1vw = NA_character_,
+            rbar_oosvw = round(100*rbar_oos, 1),
+            Decayvw = ifelse(bin !=4, 
+                             round(100*(1 - rbar_oos/rbar_is), 1),
+                             NA_real_)
+  )
+
+bind_cols(fs_ew, fs_vw) %>% 
+  xtable(digits = c(1)
+  ) %>% 
+  print(
+    include.rownames = FALSE,
+    include.colnames = FALSE,
+    hline.after = NULL,
+    only.contents = TRUE,
+    file = paste0('../Results/dm-sortsFull.tex')
+  )
+
+# post 2003
+fs_ew = read_csv('../Results/sumsignal_oos_30y_post_2003_ew_unit_level.csv')
+fs_vw = read_csv('../Results/sumsignal_oos_30y_post_2003_vw_unit_level.csv')
+
+fs_ew = fs_ew %>% 
+  transmute(bin = as.integer(bin),
+            empty1 = NA_character_,
+            rbar_is = round(100*rbar_is, 1),
+            avg_tstat_is = round(avg_tstat_is, 2),
+            empty2 = NA_character_,
+            rbar_oos = round(100*rbar_oos, 1),
+            Decay = ifelse(bin !=4, 
+                           round(100*(1 - rbar_oos/rbar_is), 1),
+                           NA_real_),
+            empty3 = NA_character_
+  )
+
+fs_vw = fs_vw %>% 
+  transmute(rbar_isvw = round(100*rbar_is, 1),
+            avg_tstat_isvw = round(avg_tstat_is, 2),
+            empty1vw = NA_character_,
+            rbar_oosvw = round(100*rbar_oos, 1),
+            Decayvw = ifelse(bin !=4, 
+                             round(100*(1 - rbar_oos/rbar_is), 1),
+                             NA_real_)
+  )
+
+bind_cols(fs_ew, fs_vw) %>% 
+  xtable(digits = c(1)
+  ) %>% 
+  print(
+    include.rownames = FALSE,
+    include.colnames = FALSE,
+    hline.after = NULL,
+    only.contents = TRUE,
+    file = paste0('../Results/dm-sortsPost2003.tex')
+  )
 
