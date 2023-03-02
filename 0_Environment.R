@@ -544,7 +544,7 @@ read_fst_yearm = function(filename, yearm_names = c('yearm')){
 
 
 # Create a plot by category without data-mining benchmark
-ReturnPlotsNoDM = function(dt, suffix = '', rollmonths = 60, 
+ReturnPlotsNoDM = function(dt, suffix = '', rollmonths = 60, filetype = '.pdf',
                            basepath = NA_character_) {
   
   #' @param dt Table with four columns (signalname, ret, eventDate, catID)
@@ -557,22 +557,26 @@ ReturnPlotsNoDM = function(dt, suffix = '', rollmonths = 60,
     summarise(nSignals = n_distinct(signalname))
   
   # Plot    
-  print(dt %>% 
-          group_by(catID, eventDate) %>% 
-          summarise(rbar = mean(ret)) %>% 
-          arrange(catID, eventDate) %>% 
-          mutate(
-            roll_rbar = zoo::rollmean(rbar, k = rollmonths, fill = NA, align = 'right')
-          ) %>% 
-          mutate(catID = factor(catID, levels = c('risk', 'mispricing', 'agnostic'), 
-                                labels = c(paste0('Risk (', prepLegend$nSignals[prepLegend$catID == 'risk'], ' signals)'),
-                                           paste0('Mispricing (', prepLegend$nSignals[prepLegend$catID == 'mispricing'], ' signals)'), 
-                                           paste0('Agnostic (', prepLegend$nSignals[prepLegend$catID == 'agnostic'], ' signals)')))) %>% 
-          ggplot(aes(x = eventDate, y = roll_rbar, color = catID, linetype = catID)) +
+  plotme = dt %>% 
+    group_by(catID, eventDate) %>% 
+    summarise(rbar = mean(ret)) %>% 
+    arrange(catID, eventDate) %>% 
+    mutate(
+      roll_rbar = zoo::rollmean(rbar, k = rollmonths, fill = NA, align = 'right')
+    ) %>% 
+    mutate(catID = factor(catID, levels = c('risk', 'mispricing', 'agnostic'), 
+                          labels = c(paste0('Risk (', prepLegend$nSignals[prepLegend$catID == 'risk'], ' signals)'),
+                                     paste0('Mispricing (', prepLegend$nSignals[prepLegend$catID == 'mispricing'], ' signals)'), 
+                                     paste0('Agnostic (', prepLegend$nSignals[prepLegend$catID == 'agnostic'], ' signals)')))) 
+  
+  catfac = plotme$catID %>% unique() %>% sort()
+  
+  print( plotme %>% 
+           ggplot(aes(x = eventDate, y = roll_rbar, color = catID, linetype = catID)) +
           geom_line(size = 1.1) +
           # scale_color_brewer(palette = 'Dark2') + 
-          scale_color_manual(values = colors) + 
-          # scale_linetype(guide = 'none') +
+          scale_color_manual(values = colors, breaks = catfac) +
+          scale_linetype_manual(values = c('solid','longdash','dashed'), breaks = catfac) +
           geom_vline(xintercept = 0) +
           coord_cartesian(
             xlim = c(-360, 240), ylim = c(-60, 170)
@@ -597,7 +601,7 @@ ReturnPlotsNoDM = function(dt, suffix = '', rollmonths = 60,
           ) 
   )
   
-  ggsave(paste0(basepath, '_', suffix, '.pdf'), width = 10, height = 8)
+  ggsave(paste0(basepath, '_', suffix, filetype), width = 10, height = 8)
   
 }
 
