@@ -211,3 +211,112 @@ tabout$allsignals = pubsum2
 
 # save to disk
 write_xlsx(tabout, '../Results/InspectMatch.xlsx')
+
+
+# Make latex inputs -------------------------------------------------------
+
+source('0_Environment.R')
+outpath = '../Results/2023 03 01/'
+
+
+write_tex_from_tab = function(
+    tab, id1 = 1:10, id2 = 21:25, 
+    signalnamelong = '12-Month Momentum (JT Style)',
+    filename = 'inspect-Mom12m.tex'
+){
+  
+  # measure and focus
+  nsignal = tab %>% filter(source == '2_dm') %>% pull(id) %>% max
+  id3 = (nsignal-4):nsignal
+  tab2 = tab %>% select(source, id, signal, sign, starts_with('x')) %>% 
+    filter(id %in% c(id1, id2, id3) | source != '2_dm') %>% 
+    print() 
+  ncol = dim(tab2)[2]
+  
+  # insert blanks
+  blank1 = tibble(id = max(id1)+1,signal =  '. . .')
+  blank2 = tibble(id = max(id2)+1,signal =  '. . .') 
+  tab3 = tab2 %>% bind_rows(blank1) %>% bind_rows(blank2) %>%  
+    arrange(id) %>% 
+    mutate(id = if_else(signal == '. . .', NA_real_, id)) %>%     
+    print()
+  
+  # format
+  tab4 = tab3 %>% 
+    mutate(across(starts_with('x'), ~ sprintf('%0.2f', .x) )) %>% 
+    mutate(across(everything(), ~ as.character(.x))) %>% 
+    mutate(across(everything(), ~ replace_na(.x,''))) %>% 
+    mutate(
+      sign = if_else(is.na(sign), '', sign)
+    ) %>% 
+    mutate_all(funs(str_replace(., "NA", ""))) %>%
+    mutate(
+      signal = if_else(source == '1_pub', signalnamelong, signal)
+      , signal = if_else(source == '3_dm_mean', 'Mean Data-Mined', signal)
+      , signal = str_replace_all(signal, '&', '\\\\&')
+    ) %>% 
+    print()
+  
+  # make top
+  top = tab4[1, 2:ncol] %>% 
+    xtable() %>% 
+    print(
+      include.rownames = FALSE, include.colnames = FALSE,
+      hline.after = NULL, only.contents = TRUE, comment = TRUE,
+      sanitize.text.function=function(x){x}
+    ) %>% 
+    paste0(
+      '\\midrule \n'
+      , '\\multicolumn{5}{l}{\\textit{Data-Mined}} \\\\ \n'
+      ,'\\midrule \n' 
+    )
+  
+  # make middle
+  mid =  
+    tab4[2:(nrow(tab4)-1), 2:ncol]  %>% 
+    xtable() %>% 
+    print(
+      include.rownames = FALSE, include.colnames = FALSE,
+      hline.after = NULL, only.contents = TRUE, comment = FALSE,
+      sanitize.text.function=function(x){x}
+    ) %>% 
+    paste0(
+      '\\midrule \n'
+    )
+  
+  # make bottom
+  bottom = tab4[nrow(tab4), 2:ncol]  %>% 
+    xtable() %>% 
+    print(
+      include.rownames = FALSE, include.colnames = FALSE,
+      hline.after = NULL, only.contents = TRUE, comment = FALSE,
+      sanitize.text.function=function(x){x}
+    )
+  
+  
+  # concat and save
+  tex = paste0(top,mid, bottom)
+  cat(tex, file = paste0(outpath, filename))
+  
+}
+
+# momentum
+tab = readxl::read_xlsx(paste0(outpath,'InspectMatch.xlsx'), sheet = 'BMdec') %>% 
+  janitor::clean_names() %>% 
+  as.data.frame()
+write_tex_from_tab(tab, id1 = 1:10, id2 = 101:105, 
+                   signalnamelong = 'Book / Market (Fama-French 1992)',
+                   filename = 'inspect-BMdec.tex')
+
+
+# momentum
+tab = readxl::read_xlsx(paste0(outpath,'InspectMatch.xlsx'), sheet = 'Mom12m') %>% 
+  janitor::clean_names() %>% 
+  as.data.frame()
+write_tex_from_tab(tab, id1 = 1:10, id2 = 21:25, 
+                   signalnamelong = '12-Month Momentum (Jegadeesh-Titman 1993)',
+                   filename = 'inspect-Mom12m.tex')
+
+
+
+
