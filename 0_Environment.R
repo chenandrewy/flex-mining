@@ -19,12 +19,6 @@ library(gridExtra)
 
 # Paths -------------------------------------------------------------------
 
-# code assumes that working directory is the directory with the R scripts
-# check that working directory is correct
-if (!file.exists('0_Environment.R')){
-  stop('error: 0_Environment.R not found.  Please set working directory to the folder with the script')
-}
-
 # create data folders (separate to avoid storage problems)
 dir.create('../Data/', showWarnings = F)
 dir.create('../Data/Intermediate/', showWarnings = F)
@@ -36,6 +30,14 @@ dir.create('../Data/Processed', showWarnings = F)
 # Globals ====
 options(stringsAsFactors = FALSE)
 
+
+# code assumes that working directory is the directory with the R scripts
+# check that working directory is correct
+if (!file.exists('0_Environment.R')){
+  stop('error: 0_Environment.R not found.  Please set working directory to the folder with the script')
+}
+
+
 # Set seed for random sampling
 set.seed(1337)
 
@@ -44,39 +46,32 @@ set.seed(1337)
 
 compnames = list()
 compnames$yz.numer = c("acchg", "aco", "acox", "act", "am", "ao", "aoloch", "aox", "ap", "apalch",
-                       "aqc", "aqi", "aqs", "at", "bast", "caps", "capx", "capxv", "ceq", "ceql", "ceqt", "ch", "che", "chech",
-                       "cld2", "cld3", "cld4", "cld5", "cogs", "cstk", "cstkcv", "cstke", "dc", "dclo", "dcom", "dcpstk",
-                       "dcvsr", "dcvsub", "dcvt", "dd", "dd1", "dd2", "dd3", "dd4", "dd5", "dfs", "dfxa", "diladj", "dilavx",
-                       "dlc", "dlcch", "dltis", "dlto", "dltp", "dltr", "dltt", "dm", "dn", "do", "donr", "dp", "dpact", "dpc",
-                       "dpvieb", "dpvio", "dpvir", "drc", "ds", "dudd", "dv", "dvc", "dvp", "dvpa", "dvpibb", "dvt", "dxd2", "dxd3",
-                       "dxd4", "dxd5", "ebit", "ebitda", "esopct", "esopdlt", "esopt", "esub", "esubc", "exre", "fatb", "fatc", "fate",
-                       "fatl", "fatn", "fato", "fatp", "fiao", "fincf", "fopo", "fopox", "fopt", "fsrco", "fsrct", "fuseo", "fuset", "gdwl",
-                       "gp", "ib", "ibadj", "ibc", "ibcom", "icapt", "idit", "intan", "intc", "intpn", "invch", "invfg", "invo", "invrm",
-                       "invt", "invwip", "itcb", "itci", "ivaco", "ivaeq", "ivao", "ivch", "ivncf", "ivst", "ivstch", "lco", "lcox",
-                       "lcoxdr", "lct", "lifr", "lo", "lt", "mib", "mii", "mrc1", "mrc2", "mrc3", "mrc4", "mrc5", "mrct", "msa", "ni",
-                       "niadj", "nieci", "nopi", "nopio", "np", "oancf", "ob", "oiadp", "pi", "pidom", "pifo", "ppegt", "ppenb",
-                       "ppenc", "ppenli", "ppenme", "ppennr", "ppeno", "ppent", "ppevbb", "ppeveb", "ppevo", "ppevr", "prstkc",
-                       "pstk", "pstkc", "pstkl", "pstkn", "pstkr", "pstkrv", "rdip", "re", "rea", "reajo", "recch", "recco", "recd", "rect",
-                       "recta", "rectr", "reuna", "sale", "seq", "siv", "spi", "sppe", "sppiv", "sstk", "tlcf", "tstk", "tstkc", "tstkp",
-                       "txach", "txbco", "txc", "txdb", "txdba", "txdbca", "txdbcl", "txdc", "txdfed", "txdfo", "txdi", "txditc",
-                       "txds", "txfed", "txfo", "txndb", "txndba", "txndbl", "txndbr", "txo", "txp", "txpd", "txr", "txs", "txt", "txw",
-                       "wcap", "wcapc", "wcapch", "xacc", "xad", "xdepl", "xi", "xido", "xidoc", "xint", "xopr", "xpp", "xpr", "xrd", "xrent",
-                       "xsga")
+                          "aqc", "aqi", "aqs", "at", "bast", "caps", "capx", "capxv", "ceq", "ceql", "ceqt", "ch", "che", "chech",
+                          "cld2", "cld3", "cld4", "cld5", "cogs", "cstk", "cstkcv", "cstke", "dc", "dclo", "dcom", "dcpstk",
+                          "dcvsr", "dcvsub", "dcvt", "dd", "dd1", "dd2", "dd3", "dd4", "dd5", "dfs", "dfxa", "diladj", "dilavx",
+                          "dlc", "dlcch", "dltis", "dlto", "dltp", "dltr", "dltt", "dm", "dn", "do", "donr", "dp", "dpact", "dpc",
+                          "dpvieb", "dpvio", "dpvir", "drc", "ds", "dudd", "dv", "dvc", "dvp", "dvpa", "dvpibb", "dvt", "dxd2", "dxd3",
+                          "dxd4", "dxd5", "ebit", "ebitda", "esopct", "esopdlt", "esopt", "esub", "esubc", "exre", "fatb", "fatc", "fate",
+                          "fatl", "fatn", "fato", "fatp", "fiao", "fincf", "fopo", "fopox", "fopt", "fsrco", "fsrct", "fuseo", "fuset", "gdwl",
+                          "gp", "ib", "ibadj", "ibc", "ibcom", "icapt", "idit", "intan", "intc", "intpn", "invch", "invfg", "invo", "invrm",
+                          "invt", "invwip", "itcb", "itci", "ivaco", "ivaeq", "ivao", "ivch", "ivncf", "ivst", "ivstch", "lco", "lcox",
+                          "lcoxdr", "lct", "lifr", "lo", "lt", "mib", "mii", "mrc1", "mrc2", "mrc3", "mrc4", "mrc5", "mrct", "msa", "ni",
+                          "niadj", "nieci", "nopi", "nopio", "np", "oancf", "ob", "oiadp", "pi", "pidom", "pifo", "ppegt", "ppenb",
+                          "ppenc", "ppenli", "ppenme", "ppennr", "ppeno", "ppent", "ppevbb", "ppeveb", "ppevo", "ppevr", "prstkc",
+                          "pstk", "pstkc", "pstkl", "pstkn", "pstkr", "pstkrv", "rdip", "re", "rea", "reajo", "recch", "recco", "recd", "rect",
+                          "recta", "rectr", "reuna", "sale", "seq", "siv", "spi", "sppe", "sppiv", "sstk", "tlcf", "tstk", "tstkc", "tstkp",
+                          "txach", "txbco", "txc", "txdb", "txdba", "txdbca", "txdbcl", "txdc", "txdfed", "txdfo", "txdi", "txditc",
+                          "txds", "txfed", "txfo", "txndb", "txndba", "txndbl", "txndbr", "txo", "txp", "txpd", "txr", "txs", "txt", "txw",
+                          "wcap", "wcapc", "wcapch", "xacc", "xad", "xdepl", "xi", "xido", "xidoc", "xint", "xopr", "xpp", "xpr", "xrd", "xrent",
+                          "xsga")
 
 
 compnames$yz.denom <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
-                        "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp", 'me_datadate')
+                      "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp", 'me_datadate')
 
 
 compnames$yz.denom_alt <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
-                            "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp", 'me')
-
-# 63 denominators with at least 25% non-missing observations in 1963
-compnames$yz.denom63 <- c("aco", "acox","act","ao","aox","at","caps","capx","capxv","ceq","ceql","ceqt","che","cogs",
-                          "cstk","dlc","dltt","dp","dpact","dvc","dvp","dvt","ebit","ebitda","gp","ib","ibadj","ibcom",
-                          "icapt","intan","invt","itci","ivaeq","ivao","lct","lo","lt","ni","nopi","nopio","np",
-                          "oiadp","pi","ppegt","ppent","pstkl","pstkrv","re","recco","rect","sale","seq","txdb",
-                          "txditc","txt","wcap","xint","xopr","xpr","xrent","xsga","emp", "me_datadate")
+                        "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp", 'me')
 
 compnames$all = unique(Reduce(c, compnames))
 
@@ -91,7 +86,7 @@ nchoose2ports <- function(n, big_trade_months = 6) {
     mutate(
       date = as.Date(paste0(as.character(yyyymm), '28'), format='%Y%m%d')
     )
-  
+
   # have signals update only on big_trade_months  
   # - note: filling early here helps ensures signal isn't super stale, as long
   #         as the signal data is constructed nicely
@@ -197,28 +192,31 @@ lsos <- function(..., n=10) {
 
 
 # function for creating a list of possible variable combinations used in strategies
-make_signal_list = function(signal_form, xvars, scale_vars) {
+# ac: not sure this works correctly
+make_signal_list = function(signal_form, xvars, signalnum, scale_vars = NULL, rs) {
   
   #' @param xvars Unique names of variables used for creating strategies
+  #' @param signalnum Number of signals to sample from full list
   #' @param scale_vars Scaling variables used in ratios (or NULL for unrestricted)
+  #' @param rs Random seed
+  
+  set.seed(rs)
   
   # make list of all possible xused combinations
-  tmp = expand.grid(signal_form = signal_form, 
-                    v1 = xvars, 
-                    v2 = scale_vars, stringsAsFactors = FALSE) %>% 
-    as_tibble()
+  # (is v1 != v2 what we want here??)
+  tmp = expand.grid(signal_form = signal_form, v1 = xvars, v2 = xvars, stringsAsFactors = FALSE) %>% 
+    filter(v1 != v2)
   
-  # Remove v1=v2 for functions where this does not make sense
-  # and remove inverse  (e.g. keep only v1/v2 not v2/v1)
-  tmp = tmp %>%
-    mutate(keep = case_when(
-      signal_form  %in% c('diff(v1)/lag(v2)') ~ 1,
-      # For ratio signals
-      v1 %in% scale_vars & v1<= v2 ~ 0,
-      TRUE ~ 1)
-    ) %>% 
-    filter(keep == 1) %>% 
-    select(-keep)
+  # Deal with scaling variables if provided
+  if (!is.null(scale_vars)) {
+    tmp = tmp %>% 
+      filter(v2 %in% scale_vars, !(v1 %in% scale_vars))
+  }
+  # Deal with duplicates (from including all combinations e.g. "ab" and "ba")
+  if (is.null(scale_vars)) {
+    tmp = tmp %>% 
+      filter(v1 >v2)
+  }
   
   # remove v2 for signal_forms that use only 1 variable
   tmp = tmp %>% 
@@ -226,16 +224,16 @@ make_signal_list = function(signal_form, xvars, scale_vars) {
     arrange(signal_form, v1, v2) %>% 
     distinct(signal_form, v1, v2, .keep_all = T)
   
-  # # sample from full list
-  # signalnum = min(signalnum, nrow(tmp))
-  # tmp = tmp %>% sample_n(signalnum)
+  # sample from full list
+  signalnum = min(signalnum, nrow(tmp))
+  tmp = tmp %>% sample_n(signalnum)
   
   # clean up
   tmp = tmp %>%
     arrange(across(everything())) %>% 
     mutate(signalid = row_number()) %>% 
     select(signalid, everything())
-  
+
   return(tmp)
 }
 
@@ -291,12 +289,12 @@ dataset_to_signal = function(form, dt, v1, v2){
   
   if (form == 'v1/v2'){
     
-    dt[,'tmp'] = dt[, 'v1']/dt[, 'v2']
+    dt[,'tmp'] = dt[, v1]/dt[, v2]
     return(dt %>% pull(tmp))
     
   } else if (form == 'diff(v1/v2)') {
     
-    dt[,'tmp'] = dt[, 'v1']/dt[, 'v2']
+    dt[,'tmp'] = dt[, v1]/dt[, v2]
     return(
       dt %>% 
         arrange(permno, ret_yearm) %>% 
@@ -308,7 +306,7 @@ dataset_to_signal = function(form, dt, v1, v2){
     
   } else if (form == 'pdiff(v1/v2)') {
     
-    dt[,'tmp'] = dt[, 'v1']/dt[, 'v2']
+    dt[,'tmp'] = dt[, v1]/dt[, v2]
     return(
       dt %>% 
         arrange(permno, ret_yearm) %>% 
@@ -319,8 +317,8 @@ dataset_to_signal = function(form, dt, v1, v2){
     )
     
   } else if (form == 'diff(v1)/lag(v2)') {
-    dt[,'tmp'] = dt[, 'v1']
-    dt[,'tmp2'] = dt[, 'v2']
+    dt[,'tmp'] = dt[, v1]
+    dt[,'tmp2'] = dt[, v2]
     return(
       dt %>% 
         arrange(permno, ret_yearm) %>% 
@@ -331,8 +329,8 @@ dataset_to_signal = function(form, dt, v1, v2){
     )
     
   } else if (form == 'pdiff(v1)-pdiff(v2)') {
-    dt[,'tmp'] = dt[, 'v1']
-    dt[,'tmp2'] = dt[, 'v2']
+    dt[,'tmp'] = dt[, v1]
+    dt[,'tmp2'] = dt[, v2]
     return(
       dt %>% 
         arrange(permno, ret_yearm) %>% 
@@ -347,7 +345,7 @@ dataset_to_signal = function(form, dt, v1, v2){
     
   } else if (form == 'pdiff(v1)') {
     
-    dt[,'tmp'] = dt[, 'v1']
+    dt[,'tmp'] = dt[, v1]
     return(
       dt %>% 
         arrange(permno, ret_yearm) %>% 
@@ -441,7 +439,7 @@ signal_to_ports = function(dt0, form, portnum, sweight, trim = NULL){
     #     )
     #   )
     
-    
+
     # find long-short return, rename date (only ret is still left)
     dt = dt %>% 
       filter(!is.na(port)) %>% 
@@ -466,14 +464,14 @@ signal_to_ports = function(dt0, form, portnum, sweight, trim = NULL){
     # find long-short return
     return(
       dt %>% 
-        select(yearm, port, ret, nstock) %>% 
-        pivot_wider(names_from = port, values_from = c(ret, nstock)) %>% 
-        mutate(ret_ls = ret_long - ret_short,
-               nstocks_ls = nstock_long + nstock_short) %>% 
-        filter(!is.na(ret_ls)) %>% 
-        transmute(yearm, ret = ret_ls, nstock = nstocks_ls)
+      select(yearm, port, ret, nstock) %>% 
+      pivot_wider(names_from = port, values_from = c(ret, nstock)) %>% 
+      mutate(ret_ls = ret_long - ret_short,
+             nstocks_ls = nstock_long + nstock_short) %>% 
+      filter(!is.na(ret_ls)) %>% 
+      transmute(yearm, ret = ret_ls, nstock = nstocks_ls)
     )
-    
+
   } # if form
   
 } # end signal_to_ports
@@ -546,7 +544,7 @@ read_fst_yearm = function(filename, yearm_names = c('yearm')){
 
 
 # Create a plot by category without data-mining benchmark
-ReturnPlotsNoDM = function(dt, suffix = '', rollmonths = 60, 
+ReturnPlotsNoDM = function(dt, suffix = '', rollmonths = 60, filetype = '.pdf',
                            basepath = NA_character_) {
   
   #' @param dt Table with four columns (signalname, ret, eventDate, catID)
@@ -559,22 +557,26 @@ ReturnPlotsNoDM = function(dt, suffix = '', rollmonths = 60,
     summarise(nSignals = n_distinct(signalname))
   
   # Plot    
-  print(dt %>% 
-          group_by(catID, eventDate) %>% 
-          summarise(rbar = mean(ret)) %>% 
-          arrange(catID, eventDate) %>% 
-          mutate(
-            roll_rbar = zoo::rollmean(rbar, k = rollmonths, fill = NA, align = 'right')
-          ) %>% 
-          mutate(catID = factor(catID, levels = c('risk', 'mispricing', 'agnostic'), 
-                                labels = c(paste0('Risk (', prepLegend$nSignals[prepLegend$catID == 'risk'], ' signals)'),
-                                           paste0('Mispricing (', prepLegend$nSignals[prepLegend$catID == 'mispricing'], ' signals)'), 
-                                           paste0('Agnostic (', prepLegend$nSignals[prepLegend$catID == 'agnostic'], ' signals)')))) %>% 
-          ggplot(aes(x = eventDate, y = roll_rbar, color = catID, linetype = catID)) +
+  plotme = dt %>% 
+    group_by(catID, eventDate) %>% 
+    summarise(rbar = mean(ret)) %>% 
+    arrange(catID, eventDate) %>% 
+    mutate(
+      roll_rbar = zoo::rollmean(rbar, k = rollmonths, fill = NA, align = 'right')
+    ) %>% 
+    mutate(catID = factor(catID, levels = c('risk', 'mispricing', 'agnostic'), 
+                          labels = c(paste0('Risk (', prepLegend$nSignals[prepLegend$catID == 'risk'], ' signals)'),
+                                     paste0('Mispricing (', prepLegend$nSignals[prepLegend$catID == 'mispricing'], ' signals)'), 
+                                     paste0('Agnostic (', prepLegend$nSignals[prepLegend$catID == 'agnostic'], ' signals)')))) 
+  
+  catfac = plotme$catID %>% unique() %>% sort()
+  
+  print( plotme %>% 
+           ggplot(aes(x = eventDate, y = roll_rbar, color = catID, linetype = catID)) +
           geom_line(size = 1.1) +
           # scale_color_brewer(palette = 'Dark2') + 
-          scale_color_manual(values = colors) + 
-          # scale_linetype(guide = 'none') +
+          scale_color_manual(values = colors, breaks = catfac) +
+          scale_linetype_manual(values = c('solid','longdash','dashed'), breaks = catfac) +
           geom_vline(xintercept = 0) +
           coord_cartesian(
             xlim = c(-360, 240), ylim = c(-60, 170)
@@ -599,7 +601,7 @@ ReturnPlotsNoDM = function(dt, suffix = '', rollmonths = 60,
           ) 
   )
   
-  ggsave(paste0(basepath, '_', suffix, '.pdf'), width = 10, height = 8)
+  ggsave(paste0(basepath, '_', suffix, filetype), width = 10, height = 8)
   
 }
 
@@ -607,50 +609,64 @@ ReturnPlotsNoDM = function(dt, suffix = '', rollmonths = 60,
 # Create a plot that compares the average predictor return with the average data-mined return
 ReturnPlotsWithDM = function(dt, suffix = '', rollmonths = 60, colors = NA,
                              xl = -360, xh = 240, yl = -10, yh = 130, fig.width = 10,
-                             fig.height = 8, basepath = NA_character_) {
+                             fig.height = 8, basepath = NA_character_,
+                             label_region = FALSE) {
   
   #' @param dt Table with three columns (eventDate, ret, matchRet)
   #' @param suffix String to attach to saved pdf figure 
   #' @param rollmonths Number of months over which moving average is computed
   #' @param xl, xh, yl, yh Upper and lower limits for x and y axes  
   
-  print(
-    dt %>% 
-      gather(key = 'SignalType', value = 'return', -eventDate) %>% 
-      group_by(SignalType, eventDate) %>% 
-      summarise(rbar = mean(return)) %>% 
-      arrange(SignalType, eventDate) %>% 
-      mutate(
-        roll_rbar = zoo::rollmean(rbar, k = rollmonths, fill = NA, align = 'right')
-      ) %>% 
-      mutate(SignalType = factor(SignalType, levels = c('ret', 'matchRet'), labels = c('Published', 'Matched data-mined'))) %>% 
-      ggplot(aes(x = eventDate, y = roll_rbar, color = SignalType, linetype = SignalType)) +
-      geom_line(size = 1.1) +
-      #  scale_color_grey() + 
-      # scale_color_brewer(palette = 'Dark2') + 
-      scale_color_manual(values = colors) + 
-      scale_linetype_manual(values = c('solid', 'twodash')) +
-      # scale_linetype(guide = 'none') +
-      geom_vline(xintercept = 0) +
-      coord_cartesian(
-        xlim = c(xl, xh), ylim = c(yl, yh)
-      ) +
-      scale_y_continuous(breaks = seq(-200,180,25)) +
-      scale_x_continuous(breaks = seq(-360,360,60)) +  
-      geom_hline(yintercept = 100, color = 'dimgrey') +
-      geom_hline(yintercept = 0) +
-      ylab('Trailing 5-Year Mean Return (bps p.m.)') +
-      xlab('Months Since Original Sample Ended') +
-      labs(color = '', linetype = '') +
-      theme_light(base_size = 18) +
-      theme(
-        legend.position = c(80,85)/100
-        , legend.spacing.y = unit(0, units = 'cm')
-        , legend.background = element_rect(fill='transparent')
-      ) 
-  )
+  
+  printme = dt %>% 
+    gather(key = 'SignalType', value = 'return', -eventDate) %>% 
+    group_by(SignalType, eventDate) %>% 
+    summarise(rbar = mean(return)) %>% 
+    arrange(SignalType, eventDate) %>% 
+    mutate(
+      roll_rbar = zoo::rollmean(rbar, k = rollmonths, fill = NA, align = 'right')
+    ) %>% 
+    mutate(SignalType = factor(SignalType, levels = c('ret', 'matchRet')
+                               , labels = c('Published', 'Matched data-mined'))) %>% 
+    ggplot(aes(x = eventDate, y = roll_rbar, color = SignalType, linetype = SignalType)) +
+    geom_line(size = 1.1) +
+    #  scale_color_grey() + 
+    # scale_color_brewer(palette = 'Dark2') + 
+    scale_color_manual(values = colors) + 
+    scale_linetype_manual(values = c('solid', 'twodash')) +
+    # scale_linetype(guide = 'none') +
+    geom_vline(xintercept = 0) +
+    coord_cartesian(
+      xlim = c(xl, xh), ylim = c(yl, yh)
+    ) +
+    scale_y_continuous(breaks = seq(-200,180,25)) +
+    scale_x_continuous(breaks = seq(-360,360,60)) +  
+    geom_hline(yintercept = 100, color = 'dimgrey') +
+    geom_hline(yintercept = 0) +
+    ylab('Trailing 5-Year Mean Return (bps p.m.)') +
+    xlab('Months Since Original Sample Ended') +
+    labs(color = '', linetype = '') +
+    theme_light(base_size = 18) +
+    theme(
+      legend.position = c(80,85)/100
+      , legend.spacing.y = unit(0, units = 'cm')
+      , legend.background = element_rect(fill='transparent')
+      , legend.key.size = unit(0.75, 'cm')
+    ) 
+  
+  if (label_region){
+    anno_color = 'grey29'
+      printme = printme +
+        annotate('text', x=-74, y=6, label = '<- matching region'
+                 , size = 5, color = anno_color, fontface = 'italic') +
+        annotate('text', x=+58, y=6, label = 'not matched ->'
+                 , size = 5, color = anno_color, fontface = 'italic')
+  }
+  
+  print(printme)
   
   ggsave(paste0(basepath, '_', suffix, '.pdf'), width = fig.width, height = fig.height)
+  
   
 }
 
@@ -691,18 +707,15 @@ matchedReturns = function(bm_rets,
   
   # Make sure at least minStocks stocks in each month of the sample period
   if (minStocks > 0){
-    tmpAtLeastNStocks = tmpSumStats %>% 
-      filter(floor(yearm) !=1963) %>%   #Somewhat quick and dirty way to deal with the fact that in early 1963 we have few obs
-      group_by(signalname) %>% 
-      summarise(minN = min(nstock)) %>% 
-      ungroup() %>% 
-      filter(minN >= minStocks)
+  tmpAtLeastNStocks = tmpSumStats %>% 
+    group_by(signalname) %>% 
+    summarise(minN = min(nstock)) %>% 
+    ungroup() %>% 
+    filter(minN >= minStocks)
   } else {
-    tmpAtLeastNStocks = tmpSumStats %>% 
-      select(signalname) %>% 
-      distinct()
+    tmpAtLeastNStocks = tmpSumStats
   }
-  
+
   tmpSumStats = tmpSumStats %>% 
     filter(signalname %in% tmpAtLeastNStocks$signalname)
   
@@ -742,6 +755,7 @@ matchedReturns = function(bm_rets,
     transmute(candSignalname = signalname,
               eventDate = as.integer(round(12*(yearm-tmpSampleEnd))),
               # Sign returns
+              sign = sign(rbar),
               ret = ifelse(rbar >0, ret, -ret),
               samptype = case_when(
                 (yearm >= actSampleStart) & (yearm <= actSampleEnd) ~ 'insamp'
@@ -753,96 +767,3 @@ matchedReturns = function(bm_rets,
   
 }
 
-
-f.custom.t <- function(x){
-  if(length(x[!is.na(x)]) > 1 & sd(x[!is.na(x)] > 1e-8)){
-    return(t.test(x, na.action = na.omit)$statistic)
-  }else{return(NaN)}
-  
-}
-
-# Annualized Sharpe ratio
-
-f.sharp <- function(x, na.rm = TRUE){
-  return(mean(x, na.rm = na.rm)*sqrt(12)/sd(x, na.rm = na.rm))
-}
-
-# Describe function
-
-f.describe_numeric <- function(.x) {
-  if(!is.numeric(.x)) stop(".x must be a numeric vector!")
-  if(!is.atomic(.x)) stop(".x must be an atomic vector!")
-  describe_functions <- list(
-    N = function(.x, ...) length(.x),
-    mean = function(.x, ...) mean(.x, ...),
-    median = function(.x, ...) median(.x, ...),
-    sd = function(.x, ...) stats::sd(.x, ...),
-    min = function(.x, ...) min(.x, ...),
-    q1 = function(.x, ...) stats::quantile(.x, probs = 0.01, ...),
-    q5 = function(.x, ...) stats::quantile(.x, probs = 0.02, ...),
-    q10 = function(.x, ...) stats::quantile(.x, probs = 0.10, ...),
-    q25 = function(.x, ...) stats::quantile(.x, probs = 0.25, ...),
-    q50 = function(.x, ...) stats::median(.x, ...),
-    q75 = function(.x, ...) stats::quantile(.x, probs = 0.75, ...),
-    q90 = function(.x, ...) stats::quantile(.x, probs = 0.90, ...),
-    q95 = function(.x, ...) stats::quantile(.x, probs = 0.95, ...),
-    q99 = function(.x, ...) stats::quantile(.x, probs = 0.99, ...),
-    max = function(.x, ...) max(.x, ...)
-  )
-  return(as.data.frame(lapply(describe_functions,
-                              function(.f) .f(.x, na.rm = TRUE)),
-                       row.names = "1",
-                       stringsAsFactors = FALSE))
-}
-
-fntile <- function(x, n) {
-  x.length <- length(x)
-  return(as.integer(n * {frank(x, ties.method = "first") - 1} / x.length + 1))
-}
-
-f.desc.returns <- function(returns_dt){
-  sumsignal_rets = returns_dt %>% 
-    group_by(bin) %>% 
-    summarize(rbar_is = mean(ret_is, na.rm = TRUE),
-              avg_tstat_is = mean(t_is, na.rm = TRUE),
-              rbar_oos = mean(ret_oos) 
-              # ,tstat_oos_portfolio = rbar_oos/sd(ret_oos)*sqrt(n())
-    ) %>% 
-    ungroup()
-  
-  return(sumsignal_rets)
-}
-
-f.ls.past.returns <- function(n_tiles, name_var){
-  
-  
-  yz_dt[, sort_var := get(name_var)]
-  
-  yz_dt[!is.na(sort_var) & month(date) == 6,
-        var_sort := as.factor(fntile(sort_var, n_tiles)), by = date]
-  
-  yz_dt[ ,
-         var_sort :=  zoo::na.locf(var_sort,na.rm =  FALSE),
-         by = signalname]
-  
-  yz_dt[!is.na(var_sort), bin := var_sort]
-  
-  yz_dt[month(date) != 6, sort_var := NA]
-  
-  returns_dt <- yz_dt[!is.na(bin) & !is.na(ret),
-                      .(ret_oos = mean(ret, na.rm=TRUE),
-                        ret_is = mean(sort_var, na.rm=TRUE),
-                        t_is = mean(t_30y_l, na.rm = TRUE),
-                        .N),
-                      by = .(date, bin)]
-  
-  sumsignal_oos <- f.desc.returns(returns_dt)
-  sumsignal_oos_pre_2003 <- f.desc.returns(returns_dt[date < '2003-06-30'])
-  sumsignal_oos_post_2003 <- f.desc.returns(returns_dt[date >= '2003-06-30'])
-  
-  return(list(sumsignal_oos = sumsignal_oos,
-              sumsignal_oos_pre_2003 = sumsignal_oos_pre_2003,
-              sumsignal_oos_post_2003 = sumsignal_oos_post_2003,
-              rets = returns_dt))
-  
-}

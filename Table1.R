@@ -127,112 +127,95 @@ signaldoc%>% summarise( mean(sample_size), median(sample_size) ) %>%
   mutate_if(is.numeric, round)
 
 
-temp2 <- readRDS('../Data/LongShortPortfolios/stratdat CZ-style-v2.RData')
+temp = read_sas('../Data Yan-Zheng/Yan_Zheng_RFS_Data.sas7bdat')
 
-temp3 <- readRDS('../Data/LongShortPortfolios/yz_reorg_all.RData')
 
-yz_rets <- temp3$ret
-b <- temp3$signal_list
-c <- temp3$name
-
-# Need to make this robust
-cz_rets <- temp2$ret %>% mutate(sweight = case_when(portid == 1 ~  'ew',
-                                                    portid == 2 ~ 'vw')) %>%
-  setDT()
-
-d <- temp2$port_list
-
-dir.create('../Tables1New')
+dir.create('../Tables1')
 #####
 # EW
 ####
 
-var_types <- c('vw', 'ew')
+var_types <- c('ddiff_vw', 'ddiff_ew')
 var_type <- var_types[1]
-dfs <- c('yz_rets', 'cz_rets')
-df <- dfs[2]
-for (df in dfs) {
-  for (var_type in var_types) {
-    
-    str_to_add  <- paste0('_', var_type, '_', df)
-    yz <- get(df) %>% filter(sweight == var_type) %>%
-      transmute(signalname = signalid, date = yearm, ret)
-    
-    # yz = temp %>%
-    #   mutate(
-    #     signalname = paste(transformation, fsvariable, sep = '.')
-    #   ) %>%
-    #   transmute(
-    #     signalname, date = DATE, ret = 100*get(var_type)
-    #   )
-    
-    
-    sumsignal_all = yz %>% 
-      group_by(signalname) %>% 
-      summarize(rbar = mean(ret), nmonth = n(), stdev = sd(ret),
-                sharpe = f.sharp(ret),
-                tstat = rbar/sd(ret)*sqrt(nmonth)) %>% 
-      ungroup() %>% as.data.table()
-    
-    Summary_Statistics <- sumsignal_all %>% 
-      summarise(across(where(is.numeric), .fns = 
-                         list(Count =  ~  n(),
-                              Mean = mean,
-                              SD = sd,
-                              Min = min,
-                              q01 = ~quantile(., 0.01), 
-                              q05 = ~quantile(., 0.01), 
-                              q25 = ~quantile(., 0.25), 
-                              Median = median,
-                              q75 = ~quantile(., 0.75),
-                              q95 = ~quantile(., 0.95),
-                              q99 = ~quantile(., 0.99),
-                              Max = max ))) %>%
-      pivot_longer(everything(), names_sep = "_", names_to = c( "variable", ".value")) 
-    # %>%  mutate_if(is.numeric, round, 2)
-    
-    fwrite(Summary_Statistics, glue('../Tables1New/Summary_Statistics{str_to_add}.csv'))
-    
-    Summary_Statistics
-    
-    print(xtable(Summary_Statistics, caption = 'Summary Statistics YZ All',
-                 type = "latex", include.rownames=FALSE))
-    
-    
-    ################################
-    # Table 1b
-    ################################
-    
-    # Returns based on past returns
-    # Basically creating a portfolio
-    
-    yz_dt <- yz %>% as.data.table() %>% setkey(signalname, date)
-    
-    yz_dt[, ret_30y_l := shift(frollmean(ret, 12*30, NA)), by = signalname]
-    
-    yz_dt[, t_30y_l := shift(frollapply(ret, 12*30, f.custom.t, fill = NA)), by = signalname]
-    
-    yz_dt[, head(month(date))]
-    
-    yz_dt[month(date) != 6, t_30y_l := NA]
-
-    ############################
-    
-    n_tiles <- 5
-    
-    name_var <- 'ret_30y_l'
-    
-    test <- f.ls.past.returns(n_tiles, name_var)
-    
-    print(xtable(test$sumsignal_oos, 
-                 caption = 'Out-of-Sample Portfolios of Strategies Sorted on Past 30 Years of Returns',
-                 type = "latex"), include.colnames=FALSE)
-    
-    fwrite(test$sumsignal_oos,  glue('../Tables1New/sumsignal_oos_30y{str_to_add}_unit_level.csv'))
-    
-    fwrite(test$sumsignal_oos_pre_2003,  glue('../Tables1New/sumsignal_oos_30y_pre_2003{str_to_add}_unit_level.csv'))
-    
-    fwrite(test$sumsignal_oos_post_2003,  glue('../Tables1New/sumsignal_oos_30y_post_2003{str_to_add}_unit_level.csv'))
-    
-  }
+for (var_type in var_types) {
+  
+  str_to_add  <- str_extract(var_type, '_.*')
+  
+  
+  yz = temp %>%
+    mutate(
+      signalname = paste(transformation, fsvariable, sep = '.')
+    ) %>%
+    transmute(
+      signalname, date = DATE, ret = 100*get(var_type)
+    )
+  
+  
+  sumsignal_all = yz %>% 
+    group_by(signalname) %>% 
+    summarize(rbar = mean(ret), nmonth = n(), stdev = sd(ret),
+              sharpe = f.sharp(ret),
+              tstat = rbar/sd(ret)*sqrt(nmonth)) %>% 
+    ungroup() %>% as.data.table()
+  
+  Summary_Statistics <- sumsignal_all %>% 
+    summarise(across(where(is.numeric), .fns = 
+                       list(Count =  ~  n(),
+                            Mean = mean,
+                            SD = sd,
+                            Min = min,
+                            q01 = ~quantile(., 0.01), 
+                            q05 = ~quantile(., 0.01), 
+                            q25 = ~quantile(., 0.25), 
+                            Median = median,
+                            q75 = ~quantile(., 0.75),
+                            q95 = ~quantile(., 0.95),
+                            q99 = ~quantile(., 0.99),
+                            Max = max ))) %>%
+    pivot_longer(everything(), names_sep = "_", names_to = c( "variable", ".value")) 
+  # %>%  mutate_if(is.numeric, round, 2)
+  
+  fwrite(Summary_Statistics, glue('../Tables1/Summary_Statistics{str_to_add}.csv'))
+  
+  Summary_Statistics
+  
+  print(xtable(Summary_Statistics, caption = 'Summary Statistics YZ All',
+               type = "latex", include.rownames=FALSE))
+  
+  
+  ################################
+  # Table 1b
+  ################################
+  
+  # Returns based on past returns
+  # Basically creating a portfolio
+  
+  yz_dt <- yz %>% as.data.table() %>% setkey(signalname, date)
+  
+  yz_dt[, ret_30y_l := shift(frollmean(ret, 12*30, NA)), by = signalname]
+  
+  yz_dt[, t_30y_l := shift(frollapply(ret, 12*30, f.custom.t, fill = NA)), by = signalname]
+  
+  yz_dt[month(date) != 6, t_30y_l := NA]
+  
+  
+  ############################
+  
+  n_tiles <- 5
+  
+  name_var <- 'ret_30y_l'
+  
+  test <- f.ls.past.returns(n_tiles, name_var)
+  
+  print(xtable(test$sumsignal_oos, 
+               caption = 'Out-of-Sample Portfolios of Strategies Sorted on Past 30 Years of Returns',
+               type = "latex"), include.colnames=FALSE)
+  
+  fwrite(test$sumsignal_oos,  glue('../Tables1/sumsignal_oos_30y{str_to_add}_unit_level.csv'))
+  
+  fwrite(test$sumsignal_oos_pre_2003,  glue('../Tables1/sumsignal_oos_30y_pre_2003{str_to_add}_unit_level.csv'))
+  
+  fwrite(test$sumsignal_oos_post_2003,  glue('../Tables1/sumsignal_oos_30y_post_2003{str_to_add}_unit_level.csv'))
+  
 }
+

@@ -3,7 +3,7 @@ tic = Sys.time()
 rm(list = ls())
 
 # Setup  ----------------------------------------------------------------
-source('0_Environment.R')
+debugSource('0_Environment.R')
 library(doParallel)
 env <- foreach:::.foreachGlobals # https://stackoverflow.com/questions/64519640/error-in-summary-connectionconnection-invalid-connection
 rm(list=ls(name=env), pos=env)
@@ -17,14 +17,15 @@ user = list()
 user$name = Sys.time() %>% substr(1,17) 
 substr(user$name, 17,17) = 'm'
 substr(user$name, 14,14) = 'h'
-user$name = 'CZ-style-v4'
+user$name = 'CZ-style-v2'
 
 # signal choices
 user$signal = list(
   signalnum   = Inf # number of signals to sample or Inf for all
-  , form = c('v1/v2', 'diff(v1)/lag(v2)') # 'pdiff(v1/v2)', 'pdiff(v1)', 'diff(v1/v2)', 'pdiff(v1)-pdiff(v2)')
+  , form = c('v1/v2', 'diff(v1/v2)', 'pdiff(v1/v2)',
+                  'pdiff(v1)', 'diff(v1)/lag(v2)', 'pdiff(v1)-pdiff(v2)')
   , x1code = 'yz.numer'
-  , x2code = 'yz.denom63' #  'yz.numer' #'yz.denom'
+  , x2code = 'yz.denom'
   , seednumber  = 1235 # seed sampling
 )
 
@@ -50,7 +51,7 @@ user$data = list(
 # debugging
 debugset = list(
   prep_data = T
-  , num_cores = round(.4*detectCores())  # Adjust number of cores used as you see fit
+  , num_cores = round(.5*detectCores())  # Adjust number of cores used as you see fit
   # , num_cores = 1 # use num_cores = 1 for serial
   , shortlist = F
 )
@@ -125,7 +126,7 @@ if (debugset$prep_data){
   # enforce updating frequency (aka rebalancing) 
   comp2[
     , temp_month := as.numeric(12*(signalyearm %% 1)+1)
-  ][
+    ][
     , reup_id := if_else(temp_month %in% user$data$reup_months, 1, NA_real_)
   ][
     , (varlist$xall) := lapply(.SD, function(x) x*reup_id ), .SDcols = varlist$xall 
@@ -146,7 +147,7 @@ if (debugset$prep_data){
   lagme = setdiff(names(crsp), c('permno','yearm','ret','retx','dlret'))
   crsp[ , (lagme) := data.table::shift(.SD, n=1, type = 'lag'), by = permno, .SDcols = lagme]
   setnames(crsp, old = 'yearm', new = 'ret_yearm')  
-  
+
   # filters
   if (!is.na(user$data$crsp_filter)) {
     crsp = crsp %>%
@@ -201,7 +202,7 @@ if (debugset$prep_data){
   # merge, signals available at signalyearm get used for returns in ret_yearm
   comp2[ , ret_yearm := signalyearm + 1/12]
   alldat = merge(crsp, comp2, all.x=TRUE, by = c('permno','ret_yearm'))
-  
+
   # Save to fst such that parallelization works without having to load big file onto each worker
   fst::write_fst(alldat, '../Data/tmpAllDat.fst')
   
@@ -226,15 +227,18 @@ toc - tic
 
 ## Draw lists of signals and ports ------------------------------------------
 
-signal_list = make_signal_list(signal_form = user$signal$form,
-                               xvars       = varlist$x1,
-                               scale_vars  = varlist$x2)
+# ac 2022 12: this function doesn't seem to work right
+# signal_list = make_signal_list(signal_form =  user$signal$form,
+#                                xvars = user$signal$x1list,
+#                                signalnum = user$signal$signalnum,
+#                                scale_vars = user$signal$x2list,
+#                                rs = user$signal$seednumber)
 
-# signal_list = make_signal_list_yz(signal_form = user$signal$form
-#                                   , x1list = varlist$x1
-#                                   , x2list = varlist$x2
-#                                   , signalnum = user$signal$signalnum
-#                                   , seed = user$signal$seednumber)
+signal_list = make_signal_list_yz(signal_form = user$signal$form
+                               , x1list = varlist$x1
+                               , x2list = varlist$x2
+                               , signalnum = user$signal$signalnum
+                               , seed = user$signal$seednumber)
 
 # port list
 port_list = expand.grid(longshort_form = user$port$longshort_form, 
@@ -255,7 +259,7 @@ make_many_ls = function(){
   signal_cur = signal_list[signali,]
   
   # import small dataset with return, me, xusedcurr, and add signal
-  if (is.na(signal_cur$v2) | signal_cur$v1 == signal_cur$v2) { # If only one variable needed to construct signal
+  if (is.na(signal_cur$v2)) { # If only one variable needed to construct signal
     smalldat = fst::read_fst('../Data/tmpAllDat.fst', 
                              columns = c('permno', 'ret_yearm', 'ret', 'me_monthly',
                                          signal_cur$v1)) %>%
@@ -266,22 +270,13 @@ make_many_ls = function(){
                                          signal_cur$v1, signal_cur$v2)) %>%
       as_tibble()
   }
-  
   smalldat = smalldat %>% mutate(ret_yearm = as.yearmon(ret_yearm))
-
-  # Unify column names for processing
-  if (is.na(signal_cur$v2)) {
-    colnames(smalldat) = c('permno', 'ret_yearm', 'ret', 'me_monthly', 'v1')
-  } else if (signal_cur$v1 == signal_cur$v2) {
-    colnames(smalldat) = c('permno', 'ret_yearm', 'ret', 'me_monthly', 'v1')
-    smalldat = smalldat %>% mutate(v2 = v1)
-  } else {
-    colnames(smalldat) = c('permno', 'ret_yearm', 'ret', 'me_monthly', 'v1', 'v2')
-  }
-
+  
   tic = Sys.time() #
   smalldat$signal = dataset_to_signal(form = signal_cur$signal_form, 
-                                      dt = smalldat) # makes a signal
+                                      dt = smalldat, 
+                                      v1 =  signal_cur$v1,
+                                      v2 = signal_cur$v2) # makes a signal
   toc = Sys.time() #
   print('signal done')
   print(toc - tic) #
@@ -291,7 +286,7 @@ make_many_ls = function(){
   # assign to portfolios
   portdat = tibble()
   for (porti in 1:dim(port_list)[1]){
-    tempport = signal_to_ports(dt0 = smalldat, 
+    tempport = signal_to_ports(dt = smalldat, 
                                form = port_list[porti,]$longshort_form, 
                                portnum = port_list[porti,]$portnum, 
                                sweight = port_list[porti,]$sweight,

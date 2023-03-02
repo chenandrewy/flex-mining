@@ -8,11 +8,12 @@ library(quanteda)
 library(lexicon)
 library(stm)  
 library(stopwords)
-
 library("quanteda.textstats")
 library("spacyr")
 
 spacy_initialize(model = "en_core_web_sm")
+
+
 
 texts <- fread('../IntermediateText/text_with_pdf_name.csv', header = TRUE)
 
@@ -90,8 +91,8 @@ texts[, clean_text := str_replace_all(clean_text, pattern, ' ')]
 
 #####################################
 stop_base <-setdiff(stopwords("en", source = "marimo"), c('no', 'not', 'less', 'little', 'nor', 'cannot'))
-
 stopwords_list <- c('also', 'table', 'figure',  as.character(as.roman(1:100)))
+
 
 toks_reg <- tokens(texts[, clean_text], remove_punct = TRUE,
                    remove_symbols = TRUE, remove_numbers = TRUE,
@@ -173,7 +174,7 @@ texts_lemma <- tokens_replace(clean_toks_reg_strip,
                               replacement = lexicon::hash_lemmas$lemma) %>%
   tokens_remove(stopwords_list, padding = FALSE)
 
-kw_comp <- kwic(clean_toks_reg_strip, pattern = "cfoip", window = 5)
+kw_comp <- kwic(clean_toks_reg_strip, pattern = "avers*", window = 5)
 
 head(kw_comp, 10)
 
@@ -193,6 +194,9 @@ toks_comp4 <- clean_toks_reg_strip %>% tokens_compound(pattern = colls4,
                                           case_insensitive = TRUE) %>%
   tokens_select(min_nchar = 3,  padding = FALSE)
 
+
+
+
 colls3 <- toks_comp4  %>% textstat_collocations(min_count = 20, size = 3,
                                                     tolower = FALSE) %>%
   filter(str_detect(.$collocation, '[A-Z][A-z]+ [A-Z][A-z]+ [A-Z][A-z]+'))  %>%
@@ -211,9 +215,13 @@ colls2 <- toks_comp3  %>% textstat_collocations(min_count = 20, size = 2,
   filter(str_detect(.$collocation, '^Journal|Review|Association|^Fama')) %>%
   filter(!str_detect(.$collocation, 'Table| Fama|Returns|_|Source|Authors|Ball|CAPM|Francis'))
 
+
+
 toks_comp2 <- toks_comp3 %>% tokens_compound(pattern = colls2,
                                            case_insensitive = TRUE) %>%
   tokens_select(min_nchar = 3,  padding = FALSE)
+
+
 
 colls2l <- toks_comp2  %>% textstat_collocations(min_count = 100, size = 2,
                                                tolower = FALSE) %>%  
@@ -225,6 +233,7 @@ colls2l <- toks_comp2  %>% textstat_collocations(min_count = 100, size = 2,
 toks_comp2l <- toks_comp2 %>% tokens_compound(pattern = colls2l,
                                              case_insensitive = TRUE) %>%
   tokens_select(min_nchar = 3,  padding = FALSE)
+
 
 colls2lr <- toks_comp2l  %>% textstat_collocations(min_count = 25, size = 2,
                                                    tolower = TRUE) %>%  
@@ -244,13 +253,17 @@ texts_lemma <- tokens_replace(toks_comp2lr,
 
 texts_join_lemma <- lapply(texts_lemma, paste, collapse = ' ')
 
-kw_comp <- kwic(texts_lemma, pattern = "cfoip", window = 2)
+kw_comp <- kwic(texts_join_lemma$text92, pattern = "unrelated", window = 2)
+
 
 head(kw_comp, 20)
 
 texts[, text_lemmatized := texts_join_lemma]
 
 texts[, word_count := str_count(text_lemmatized, "\\w+")]
+
+
+# texts[, model_count := str_count(text_lemmatized, " model")]
 
 words_mispricing <- c('abnormal',
                       'anomal',
@@ -319,80 +332,11 @@ texts[, risk_count := str_count(text_lemmatized, words_risks)]
 
 texts[1, risk_count]
 
-texts[, misprice_risk_ratio := (misp_count + 1)/(risk_count + 1)]
+texts[, misprice_risk_ratio := log((misp_count + 1)/(risk_count + 1))]
+
 
 subset_text <- texts[!is.na(year), .(file_names, new_file_name, Year = year, Authors = author, journal,
                                      signalname, word_count, misp_count, risk_count, misprice_risk_ratio)]
 
+
 fwrite(subset_text, '../IntermediateText/TextAnalysis.csv')
-
-fwrite(texts, '../IntermediateText/FullTextAnalysis.csv')
-
-
-words_mispricing <- c('abnormal*',
-                      'anomal*',
-                      'behav*',
-                      'optimistic',
-                      'pessimistic',
-                      'sentiment',
-                      'underreact*',
-                      'overreact*',
-                      'failure',
-                      "market( |_|-)failure",
-                      'bias',
-                      'overvalu*',
-                      'misvalu*',
-                      'undervalu*',
-                      'attention',
-                      'underperformance',
-                      'extrapolate',
-                      'underestimate',
-                      'misreaction',
-                      'inefficiency',
-                      'delay',
-                      'suboptimal',
-                      'mislead*',
-                      'overoptimism',
-                      "fail( |_|-)reflect",
-                      'arbitrage',
-                      'factor unlikely',
-                      'not? reward',
-                      'little risky?',
-                      'risk cannot',
-                      'low [a-z]+_risk',
-                      'unrelated [a-z]+_risk',
-                      'liquid*',
-                      'slow( |to)react',
-                      'slow( |to)incorporat',
-                      'short(-| )sale cost'
-)
-
-kw_anom <- kwic(texts_lemma, pattern = words_mispricing)
-
-anom_list <-  kw_anom$keyword %>% unique()
-
-anom_list %>% as.data.table() %>% fwrite('anom_words.csv')
-
-words_risks <- c('utility',
-                 'maximize',
-                 'minimize',
-                 'optimize',
-                 'premium',
-                 'premia',
-                 'premiums',
-                 '*risk',
-                 'avers*',
-                 'rational*',
-                 'consum*',
-                 'marginal',
-                 'equilibrium',
-                 'sdf',
-                 'investment-based',
-                 'risky',
-                 'theoretical')
-
-kw_r <- kwic(texts_lemma, pattern = words_risks)
-
-risk_list <-  kw_r$keyword %>% unique()
-
-risk_list %>% as.data.table() %>% fwrite('risk_words.csv')
