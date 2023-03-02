@@ -70,7 +70,63 @@ ReturnPlotsNoDM(dt = czret %>%
 #                 suffix = 'KeepEqual1'
 # )
 
+## Animations ====
 
+
+ReturnPlotsNoDM(dt = czret %>% 
+                  mutate(
+                    ret = NA_real_
+                  ) %>% 
+                  transmute(eventDate,
+                            signalname,
+                            ret,
+                            catID = theory1),
+                basepath = '../Results/Anim-Pub-1',
+                suffix = 'AllSignals',
+                filetype = '.png'
+)
+
+
+ReturnPlotsNoDM(dt = czret %>% 
+                  mutate(
+                    ret = if_else(theory1 == 'risk', NA_real_, ret)
+                  ) %>% 
+                  transmute(eventDate,
+                            signalname,
+                            ret,
+                            catID = theory1),
+                basepath = '../Results/Anim-Pub-2',
+                suffix = 'AllSignals',
+                filetype = '.png'
+)
+
+
+ReturnPlotsNoDM(dt = czret %>% 
+                  transmute(eventDate,
+                            signalname,
+                            ret,
+                            catID = theory1),
+                basepath = '../Results/Anim-Pub-3',
+                suffix = 'AllSignals',
+                filetype = '.png'
+)
+
+## post 2004 pubs only ====
+
+temp = czret %>% 
+  transmute(eventDate,
+            signalname,
+            ret,
+            catID = theory1) %>% 
+  inner_join(
+    czsum %>% filter(sampend > 2000)
+  )
+
+# All Signals
+ReturnPlotsNoDM(dt = temp,
+                basepath = '../Results/Fig_PublicationsOverTime',
+                suffix = 'SameEndAfter2000'
+)
 
 # Section 3: Data-mining comparisons --------------------------------------
 
