@@ -1,8 +1,6 @@
-rm(list = ls())
+# The OOS Sumstats can take several minutes
 
-
-
-#### Tables ----------------------------------------------------------------
+# Matching Summary XLSX ----------------------------------------------------------------
 
 # Table 1: Unmatched predictors
 tmpUnmatched = allRets %>% 
@@ -143,7 +141,9 @@ toExcel = list(
 
 writexl::write_xlsx(toExcel, path = '../Results/MatchingSummary_DM.xlsx')
 
-# LaTeX output for overleaf
+
+# Matching LaTeX output for overleaf -----------------------------------------------
+
 
 #dm-sum part 1
 tableSumStats %>% 
@@ -215,7 +215,7 @@ for (rr in c('risk', 'mispricing', 'agnostic')) {
 
 
 
-#### Table 4: Descriptive stats for DM strategies  ----------------------------
+# DM OOS Sumstats to CSV  ----------------------------
 var_types <- c('vw', 'ew')
 var_type <- var_types[1]
 
@@ -313,6 +313,10 @@ for (var_type in var_types) {
   fwrite(test$sumsignal_oos_post_2003,  glue::glue('../Results/sumsignal_oos_30y_post_2003_{str_to_add}_unit_level.csv'))
   
 }
+
+
+# DM OOS Sumstats to LaTeX ----------------------------------------------------
+
 
 # to TeX
 fs_ew = read_csv('../Results/sumsignal_oos_30y_ew_unit_level.csv')

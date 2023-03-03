@@ -11,10 +11,8 @@ tic0 = Sys.time()
 source('0_Environment.R')
 library(doParallel)
 
+DMname = '../Data/Processed/CZ-style-v4 LongShort.RData'
 
-DMStrategies = 'DM'  # DM Or YZ
-
-DMname = '../Data/Processed/stratdat CZ-style-v4.RData'
 
 # tolerance in levels  
 #   use Inf to turn off
@@ -78,6 +76,7 @@ czret = data.table::fread("../Data/Raw/PredictorPortsFull.csv") %>%
 bm_rets = readRDS(DMname)$ret
 bm_info = readRDS(DMname)$port_list
 bm_signal_info = readRDS(DMname)$signal_list
+bm_user = readRDS(DMname)$user
 
 bm_rets = bm_rets %>% left_join(
   bm_info %>% select(portid, sweight), by = c('portid')
@@ -119,14 +118,6 @@ czret = czret %>%
          ret = 100*(ret/abs(rbar_insampAct)))
 
 rm(tempsumAct)
-
-# Save return summaries and returns dataset
-saveRDS(
-  list(czsum = czsum,
-       czret = czret),
-  file = '../Data/Processed/czdata.RDS'
-)
-
 
 
 # Find sum stats for dm in-sample -------------------------------------------
@@ -252,11 +243,23 @@ toc - tic
 
 # Save --------------------------------------------------------------------
 
-saveRDS(candidateReturns,
-        file = paste0('../Data/Processed/LastMatchedData.RDS')
+DMshortname = DMname %>% 
+  str_remove('../Data/Processed/') %>% 
+  str_remove(' LongShort.RData')
+
+matchdat = list(
+  candidateReturns = candidateReturns
+  , czsum = czsum
+  , czret = czret
+  , user = bm_user
+)
+
+saveRDS(matchdat,
+        file = paste0('../Data/Processed/', DMshortname, ' MatchPub.RData')
 )
 
 
 toc0 = Sys.time()
 
 toc0 - tic0
+
