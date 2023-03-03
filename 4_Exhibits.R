@@ -36,56 +36,6 @@ candidateReturns = candidateReturns %>%
 
 signal_list = readRDS(DMname)$signal_list
 
-
-# Different filters for candidate returns
-candidateReturns0 = candidateReturns
-
-# Speeding up filtering below
-candidateReturns0 = data.table(candidateReturns)
-setkey(candidateReturns0, candSignalname)
-
-
-# Set filters
-
-## 1. At least 25% non-missing in CS in 1963
-comp0 = readRDS('../Data/Raw/CompustatAnnual.RData')
-
-fobs_list = comp0 %>% 
-  filter(year(datadate)==1963) %>%
-  arrange(gvkey, datadate) %>% 
-  group_by(gvkey) %>% 
-  filter(row_number() == 1) %>% 
-  ungroup() %>% 
-  summarise(across(everything(), function(x) sum(!is.na(x) & x>0)/length(x)) ) %>% 
-  pivot_longer(cols = everything())
-
-fobs_list = fobs_list[1:243,]  # Rest is comp info from CCM
-quantile(fobs_list$value, probs = seq(0, 1, .05))
-
-# Keep if at least 25% non-missing
-denomVars = fobs_list %>% 
-  filter(value >=.25, !(name %in% c('gvkey'))) %>% 
-  pull(name)
-
-denomVars = c(denomVars, "me_datadate")
-
-rm(comp0, fobs_list)
-
-## 2. Only simple functions 'diff(v1)/lag(v2)' and 'v1/v2'
-
-simpleFunctions = c('diff(v1)/lag(v2)', 'v1/v2')
-
-## Apply filters
-filteredCandidates = signal_list %>% 
-  filter(
-    v2 %in% denomVars,
-    signal_form %in% simpleFunctions
-  ) %>% 
-  pull(signalid)
-
-candidateReturns = candidateReturns0[.(filteredCandidates)]
-
-
 # Normalize candidate returns
 
 # In-sample means
@@ -114,19 +64,6 @@ allRets = czret %>%
 
 rm(tempsumCand, tempCand)
 
-
-# # load hand classifications
-# signal_text <- fread('DataInput/SignalsTheoryChecked.csv')
-# 
-# # load classifications and text stats
-# subset_text <- fread('DataIntermediate/TextClassification.csv')  %>% 
-#   # dplyr::select(Authors, Year, Journal, file_names)%>%
-#   mutate(Journal = gsub('^RF$', 'ROF', Journal)) %>%
-#   mutate(Journal = gsub('^TAR$', 'AR', Journal)) %>%
-#   mutate(Authors = gsub('et al.?|and |,', '', Authors)) %>%
-#   mutate(FirstAuthor = word(Authors)) %>%
-#   filter(Authors != 'Ang et al') %>%
-#   filter(Authors != 'Chen Jegadeesh Lakonishok')
 
 
 # Risk vs Mispricing Tables -----------------------------------------------

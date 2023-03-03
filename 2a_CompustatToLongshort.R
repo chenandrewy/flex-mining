@@ -24,7 +24,7 @@ user$signal = list(
   signalnum   = Inf # number of signals to sample or Inf for all
   , form = c('v1/v2', 'diff(v1)/lag(v2)') # 'pdiff(v1/v2)', 'pdiff(v1)', 'diff(v1/v2)', 'pdiff(v1)-pdiff(v2)')
   , x1code = 'yz.numer'
-  , x2code = 'yz.denom63' #  'yz.numer' #'yz.denom'
+  , x2code = 'pos_in_1963' #  'yz.numer' #'yz.denom'
   , seednumber  = 1235 # seed sampling
 )
 
