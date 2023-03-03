@@ -65,16 +65,10 @@ allRets = czret %>%
 rm(tempsumCand, tempCand)
 
 
-
-# Risk vs Mispricing Tables -----------------------------------------------
-
-# this does not need the setup
-source('4a_TextTables.R', echo = T)
-source('4b_RegDecayTable.R', echo = T) # do we use signalkeep == 1 here?
-
-# Research vs Data Mining Tables ---------------------------------------------
+# Run Exhibits ---------------------------------------------
 
 
-source('4c_DataMiningSummary.R', echo = T)
-source('4d_DecayPlots.R', echo = T)
-source('4e_InspectTables.R', echo = T)
+source('5a_DataMiningSummary.R', echo = T)  # this can take several minutes
+source('5b_MatchingSummary.R', echo = T)
+source('5c_ResearchVsDMPlots.R', echo = T)
+source('5d_InspectTables.R', echo = T)
