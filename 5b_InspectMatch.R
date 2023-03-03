@@ -15,7 +15,7 @@ library(writexl)
 matchdat = readRDS('../Data/Processed/LastMatchedData.RDS')
 setDT(matchdat)
 
-stratdat = readRDS('../Data/LongShortPortfolios/stratdat CZ-style-v2.RData')
+stratdat = readRDS('../Data/LongShortPortfolios/stratdat CZ-style-v4-check.RData')
 
 
 # load pub stuff
@@ -89,21 +89,7 @@ pubsum2 = pubsum[ source == '1_pub'] %>% select(actSignal, starts_with('rbar_'),
   ) %>% 
   mutate(diff_rbar_oos = rbar_oos - rbar_oos_dm)
 
-# check at console
-#   pub outperforms if t-stat is low
-#   seems like matching is too generous when t-stat is low
-pubsum2
 
-lm(diff_rbar_oos ~ nmatch, pubsum2) %>% summary()
-lm(diff_rbar_oos ~ t_insamp, pubsum2) %>% summary()
-lm(diff_rbar_oos ~ rbar_insamp, pubsum2) %>% summary()
-lm(t_insamp ~ nmatch, pubsum2) %>% summary()
-lm(diff_rbar_oos ~ nmatch + t_insamp + rbar_insamp, pubsum2) %>% summary()
-
-lm(diff_rbar_oos ~ x
- , pubsum2 %>% mutate(x = t_insamp - t_insamp_dm)
- ) %>% 
-  summary()
 
 # Inspect select predictors ------------------------------------------------------------------
 
@@ -156,16 +142,17 @@ inspect_one_pub = function(name){
       , signal_form = str_replace_all(signal_form, 'diff', '$\\\\Delta$')    
     ) %>% 
     left_join(
-      compdoc %>% transmute(v1 = acronym, v1long = substr(shortername,1,23))
+      compdoc %>% transmute(v1 = acronym, v1long = substr(shortername,1,24))
     ) %>% 
     left_join(
-      compdoc %>% transmute(v2 = acronym, v2long = substr(shortername,1,20))
+      compdoc %>% transmute(v2 = acronym, v2long = substr(shortername,1,24))
     ) %>%   
     mutate(
       signal = str_replace(signal_form, 'v1', v1long)
       , signal = str_replace(signal, 'v2', v2long)
     ) %>% 
-    select(-c(actSignal, ends_with('long'))) %>% 
+    # select(-c(actSignal, ends_with('long'))) %>%
+    select(-c(actSignal)) %>%     
     select(source, signal, everything()) 
   
   # clean up for output
@@ -186,23 +173,27 @@ inspect_one_pub = function(name){
   tabout  = smallsum2 %>% 
     as_tibble() %>% 
     mutate(dist = abs(rbar_insamp - smallsum2[source == '1_pub']$rbar_insamp)) %>% 
-    arrange(source, dist)  %>% 
-    mutate(id = row_number() - 1) %>% 
     select(
-      source,id,signal,sign,starts_with('rbar_')
+      source,signal,sign,starts_with('rbar_')
       , dist, v1, v2, signal_form
       , t_insamp
+      , v1long, v2long
     ) %>% 
     mutate(across(where(is.numeric), round, 2)) %>% 
     rename(setNames('rbar_oos', tempoos)) %>% 
-    rename(setNames('rbar_insamp', tempsamp)) 
+    rename(setNames('rbar_insamp', tempsamp)) %>% 
+    arrange(source, dist) %>% 
+    group_by(source) %>% 
+    mutate(id = if_else(source == '2_dm', row_number(), NA_integer_)) %>% 
+    ungroup() %>% 
+    select(source, id, everything())
   
 } # end inspect_one_pub
 
 
 
 # make tables
-namelist = c('Size','BMdec','Mom12m')
+namelist = c('Size','BMdec','Mom12m','realestate','OrgCap','Coskewness')
 
 tabout = lapply(namelist, inspect_one_pub)
 names(tabout) = namelist
@@ -213,10 +204,34 @@ tabout$allsignals = pubsum2
 write_xlsx(tabout, '../Results/InspectMatch.xlsx')
 
 
+# test --------------------------------------------------------------------
+
+tabout$BMdec %>% distinct(v1long, signal_form) %>% print(n=Inf)
+
+tabout$BMdec %>% distinct(v2long) %>% pull(v2long)
+
+tabout$BMdec %>% 
+  filter(!grepl('capx', v2)) %>%
+  filter(!grepl('Market equity FYE', v2long)) %>%  
+  select(signal, sign, signal_form, v1long, v2long, 5:6) %>% 
+  distinct(v1long, signal_form, .keep_all = T) %>% 
+  select(-ends_with('long'),-signal_form) %>% 
+  as.data.frame() %>% 
+  arrange(signal)
+
+tabout$Mom12m %>% 
+  filter(!grepl('capx', v2)) %>%
+  filter(!grepl('Market equity FYE', v2long)) %>%  
+  select(signal, sign, signal_form, v1long, v2long, 5:6) %>% 
+  distinct(v1long, signal_form, .keep_all = T) %>% 
+  select(-ends_with('long'),-signal_form) %>% 
+  as.data.frame() %>% 
+  arrange(signal)
+
 # Make latex inputs -------------------------------------------------------
 
 source('0_Environment.R')
-outpath = '../Results/2023 03 01/'
+outpath = '../Results/'
 
 
 write_tex_from_tab = function(
@@ -230,14 +245,15 @@ write_tex_from_tab = function(
   id3 = (nsignal-4):nsignal
   tab2 = tab %>% select(source, id, signal, sign, starts_with('x')) %>% 
     filter(id %in% c(id1, id2, id3) | source != '2_dm') %>% 
+    mutate(sign = if_else(source == '3_dm_mean', NA_real_, sign)) %>% 
     print() 
   ncol = dim(tab2)[2]
   
   # insert blanks
-  blank1 = tibble(id = max(id1)+1,signal =  '. . .')
-  blank2 = tibble(id = max(id2)+1,signal =  '. . .') 
+  blank1 = tibble(source = '2_dm', id = max(id1)+1,signal =  '. . .')
+  blank2 = tibble(source = '2_dm', id = max(id2)+1,signal =  '. . .') 
   tab3 = tab2 %>% bind_rows(blank1) %>% bind_rows(blank2) %>%  
-    arrange(id) %>% 
+    arrange(source, id) %>% 
     mutate(id = if_else(signal == '. . .', NA_real_, id)) %>%     
     print()
   
@@ -300,7 +316,7 @@ write_tex_from_tab = function(
   
 }
 
-# momentum
+# bm
 tab = readxl::read_xlsx(paste0(outpath,'InspectMatch.xlsx'), sheet = 'BMdec') %>% 
   janitor::clean_names() %>% 
   as.data.frame()
@@ -319,4 +335,49 @@ write_tex_from_tab(tab, id1 = 1:10, id2 = 21:25,
 
 
 
+# size
+tab = readxl::read_xlsx(paste0(outpath,'InspectMatch.xlsx'), sheet = 'Size') %>% 
+  janitor::clean_names() %>% 
+  as.data.frame()
+write_tex_from_tab(tab, id1 = 1:10, id2 = 101:105, 
+                   signalnamelong = 'Size (Banz 1981)',
+                   filename = 'inspect-Size.tex')
 
+
+
+
+# Tuzel
+tab = readxl::read_xlsx(paste0(outpath,'InspectMatch.xlsx'), sheet = 'realestate') %>% 
+  janitor::clean_names() %>% 
+  as.data.frame()
+write_tex_from_tab(tab, id1 = 1:10, id2 = 101:105, 
+                   signalnamelong = 'Real Estate (Tuzel 2010)',
+                   filename = 'inspect-realestate.tex')
+
+
+
+
+
+# test: plot decay vs risk to misprice -----------------------------------------------------------------
+
+wordcount = fread('../Notes/Word2VecResultsMerged.csv') %>% 
+  select(signalname, theory1, misprice_risk_ratio, anomaly_sim)
+
+
+wordcount
+
+pubsum3 = pubsum2 %>% 
+  left_join(wordcount %>% rename(actSignal = signalname))  %>% 
+  mutate(
+    decay_pct = (rbar_insamp-rbar_oos)/rbar_insamp * 100
+    , log_risk_misprice = -log(misprice_risk_ratio)
+  )
+
+
+pubsum3 %>% 
+  ggplot(aes(log_risk_misprice, decay_pct)) +
+  geom_point()
+
+
+lm(decay_pct ~ log_risk_misprice, pubsum3) %>% 
+  summary()
