@@ -23,14 +23,12 @@ library(lmtest)
 library(sandwich)
 library(broom)
 library(huxtable)
+library(multcomp)
+
 ################################
 # Functions
 ################################
 # Setup ------------------------------------------------------------------
-
-
-
-
 
 MATBLUE = rgb(0,0.4470,0.7410)
 MATRED = rgb(0.8500, 0.3250, 0.0980)
@@ -113,17 +111,20 @@ a1 <- tempret %>%
   lm(ret_n ~ post_samp +  I(I(post_samp == TRUE)*I(theory1 == 'risk')) , data = .) %>%
   coeftest(., vcov = vcovCL, cluster = ~ date) %>% round(10)
 
-# rownames(a1) <- gsub('post_samp == TRUE', 'post_samp == TRUE', rownames(a1)) %>%
-#   gsub('theory1 == 'risk'', 'theory1 == "risk"', .)
-
-a1
-
-a2 <- tempret %>%
+a2_model <- tempret %>%
   lm(ret_n ~ post_samp + post_pub + I(I(post_samp == TRUE)*I(theory1 == 'risk')) +
-       I(I(post_pub == TRUE)*I(theory1 == 'risk')), data = .) %>%
+       I(I(post_pub == TRUE)*I(theory1 == 'risk')), data = .)
+a2 <- a2_model %>%
   coeftest(., vcov = vcovCL, cluster = ~ date) %>% round(10)
-a2
-# rownames(a2) <- gsub('theory1 == 'risk'', 'theory1 == "risk"', rownames(a2))
+
+
+coefeq_a2 <- matrix(data=0, nrow=1, ncol=length(a2_model$coefficients))
+colnames(coefeq_a2) <- names(a2_model$coefficients)
+coefeq_a2[1,-1] <- 1
+coefeq_a2
+ametest_2<- glht(model=a2_model, linfct=coefeq_a2, rhs=0, alternative="less")
+sum_a2 <- summary(ametest_2)
+p_val_a2 <- sum_a2$test$pvalues[1]
 
 a3 <- tempret %>%
   lm(ret_n ~ post_samp +  I(I(post_samp == TRUE)*I(theory1 == 'risk'))+
@@ -131,20 +132,38 @@ a3 <- tempret %>%
   coeftest(., vcov = vcovCL, cluster = ~ date) %>% round(10)
 
 a3
-# rownames(a3) <- gsub('post_samp == TRUE', 'post_samp == TRUE', rownames(a3)) %>%
-#   gsub('post_sampTRUE', 'samptypepostsample',.)
 
 
-
-a4 <- tempret %>%
+a4_model <- tempret %>%
   lm(ret_n ~ post_samp + post_pub + I(I(post_samp == TRUE)*I(theory1 == "risk")) +
        I(I(post_pub == TRUE)*I(theory1 == "risk")) +
        I(I(post_samp == TRUE)*I(theory1 == "mispricing")) +
-       I(I(post_pub == TRUE)*I(theory1 == "mispricing")) , data = .) %>%
+       I(I(post_pub == TRUE)*I(theory1 == "mispricing")) , data = .)
+
+a4 <- a4_model %>%
   coeftest(., vcov = vcovCL, cluster = ~ date) %>% round(10)
 
 
-a4
+coefeq_4 <- matrix(data=0, nrow=1, ncol=length(a4_model$coefficients))
+colnames(coefeq_4) <- names(a4_model$coefficients)
+coefeq_4[1,-c(1,6, 7)] <- 1
+coefeq_4
+ametest_4 <- glht(model=a4_model, linfct=coefeq_4, rhs=0, alternative="less")
+sum_a4 <- summary(ametest_4)
+p_val_a4 <- sum_a4$test$pvalues[1]
+# 
+# a5 <- tempret %>% filter(theory1 == 'risk') %>%
+#   lm(ret_n ~ post_samp , data = .) %>%
+#   coeftest(., vcov = vcovCL, cluster = ~ date) %>% round(10)
+# 
+# a5
+# 
+# a6 <- tempret %>% filter(theory1 == 'risk') %>%
+#   lm(ret_n ~ post_samp + post_pub , data = .) %>%
+#   coeftest(., vcov = vcovCL, cluster = ~ date) %>% round(10)
+# 
+# a6_model <- tempret %>% filter(theory1 == 'risk') %>%
+#   lm(ret_n ~ post_samp + post_pub , data = .)
 
 reg_save <- huxreg(a1, a2, a3, a4, coefs = c(
   "Intercept" = "(Intercept)",
@@ -154,7 +173,7 @@ reg_save <- huxreg(a1, a2, a3, a4, coefs = c(
   'Post-Pub x Risk' = 'I(I(post_pub == TRUE) * I(theory1 == "risk"))',
   'Post-Sample x Mispricing' = 'I(I(post_samp == TRUE) * I(theory1 == "mispricing"))',
   'Post-Pub x Mispricing' = 'I(I(post_pub == TRUE) * I(theory1 == "mispricing"))'),
-  statistics = c('nobs'), stars = NULL)
+  statistics = c('nobs'), stars = NULL) %>% insert_row(c('Pval', '', p_val_a2, '', p_val_a4), after = 16)
 reg_save
 
 fwrite(reg_save, '../Results/RegressionMultiColumns.csv', sep = ',')
