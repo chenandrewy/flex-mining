@@ -1,11 +1,11 @@
 # Prepare YZ data
 source('0_Environment.R')
 
-# read in
-yzraw = read_sas('../Data Yan-Zheng/Yan_Zheng_RFS_Data.sas7bdat')
-
 library(readxl)
 library(janitor)
+
+# read in
+yzraw = read_sas('../Data Yan-Zheng/Yan_Zheng_RFS_Data.sas7bdat')
 
 yzcode = list(
   prefix = read_xlsx('../Data Yan-Zheng/yz_codes.xlsx', sheet = 'prefix') %>% clean_names()

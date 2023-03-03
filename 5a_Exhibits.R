@@ -10,6 +10,7 @@ colors = c(rgb(0,0.4470,0.7410), # MATBLUE
            rgb(0.9290, 0.6940, 0.1250) # MATYELLOW
 )
 
+DMname = '../Data/LongShortPortfolios/stratdat CZ-style-v4.RData'
 
 # Load data ---------------------------------------------------------------
 
@@ -21,8 +22,9 @@ rm(tmp)
 
 # Matched returns
 #candidateReturns = readRDS('../Data/Processed/MatchedData.RDS')
-candidateReturns = readRDS('../Data/Processed/MatchedData2023-02-01 15h55m.RDS')
-
+#candidateReturns = readRDS('../Data/Processed/MatchedData2023-02-01 15h55m.RDS')
+#candidateReturns = readRDS('../Data/Processed/MatchedData2023-02-24 22h38m.RDS')
+candidateReturns = readRDS('../Data/Processed/LastMatchedData.RDS')
 
 # Restrict to predictors in consideration
 czsum = czsum %>% 
@@ -33,6 +35,9 @@ czret = czret %>%
 
 candidateReturns = candidateReturns %>% 
   filter(actSignal %in% czsum$signalname)
+
+signal_list = readRDS(DMname)$signal_list
+
 
 # Section 2: Rolling returns by category ----------------------------------
 
@@ -47,32 +52,116 @@ ReturnPlotsNoDM(dt = czret %>%
                 suffix = 'AllSignals'
 )
 
-# Rep Qual at least fair
-# ReturnPlotsNoDM(dt = czret %>% 
-#                   filter(Rep_Quality %in% c('1_good', '2_fair')) %>% 
-#                   transmute(eventDate,
-#                             signalname,
-#                             ret,
-#                             catID = theory1),
-#                 basepath = '../Results/Fig_PublicationsOverTime',
-#                 suffix = 'RepQualGoodFair'
-# )
+
+## Animations ====
 
 
-# Keep equal 1
-# ReturnPlotsNoDM(dt = czret %>% 
-#                   filter(Keep == 1) %>% 
-#                   transmute(eventDate,
-#                             signalname,
-#                             ret,
-#                             catID = theory1),
-#                 basepath = '../Results/Fig_PublicationsOverTime',
-#                 suffix = 'KeepEqual1'
-# )
+ReturnPlotsNoDM(dt = czret %>% 
+                  mutate(
+                    ret = NA_real_
+                  ) %>% 
+                  transmute(eventDate,
+                            signalname,
+                            ret,
+                            catID = theory1),
+                basepath = '../Results/Anim-Pub-1',
+                suffix = 'AllSignals',
+                filetype = '.png'
+)
 
+
+ReturnPlotsNoDM(dt = czret %>% 
+                  mutate(
+                    ret = if_else(theory1 == 'risk', NA_real_, ret)
+                  ) %>% 
+                  transmute(eventDate,
+                            signalname,
+                            ret,
+                            catID = theory1),
+                basepath = '../Results/Anim-Pub-2',
+                suffix = 'AllSignals',
+                filetype = '.png'
+)
+
+
+ReturnPlotsNoDM(dt = czret %>% 
+                  transmute(eventDate,
+                            signalname,
+                            ret,
+                            catID = theory1),
+                basepath = '../Results/Anim-Pub-3',
+                suffix = 'AllSignals',
+                filetype = '.png'
+)
+
+## post 2004 pubs only ====
+
+temp = czret %>% 
+  transmute(eventDate,
+            signalname,
+            ret,
+            catID = theory1) %>% 
+  inner_join(
+    czsum %>% filter(sampend > 2000)
+  )
+
+# All Signals
+ReturnPlotsNoDM(dt = temp,
+                basepath = '../Results/Fig_PublicationsOverTime',
+                suffix = 'SameEndAfter2000'
+)
 
 
 # Section 3: Data-mining comparisons --------------------------------------
+
+# Different filters for candidate returns
+candidateReturns0 = candidateReturns
+
+# Speeding up filtering below
+candidateReturns0 = data.table(candidateReturns)
+setkey(candidateReturns0, candSignalname)
+
+
+# Set filters
+
+## 1. At least 25% non-missing in CS in 1963
+comp0 = readRDS('../Data/Intermediate/CompustatAnnual.RData')
+
+fobs_list = comp0 %>% 
+  filter(year(datadate)==1963) %>%
+  arrange(gvkey, datadate) %>% 
+  group_by(gvkey) %>% 
+  filter(row_number() == 1) %>% 
+  ungroup() %>% 
+  summarise(across(everything(), function(x) sum(!is.na(x) & x>0)/length(x)) ) %>% 
+  pivot_longer(cols = everything())
+
+fobs_list = fobs_list[1:243,]  # Rest is comp info from CCM
+quantile(fobs_list$value, probs = seq(0, 1, .05))
+
+# Keep if at least 25% non-missing
+denomVars = fobs_list %>% 
+  filter(value >=.25, !(name %in% c('gvkey'))) %>% 
+  pull(name)
+
+denomVars = c(denomVars, "me_datadate")
+
+rm(comp0, fobs_list)
+
+## 2. Only simple functions 'diff(v1)/lag(v2)' and 'v1/v2'
+
+simpleFunctions = c('diff(v1)/lag(v2)', 'v1/v2')
+
+## Apply filters
+filteredCandidates = signal_list %>% 
+  filter(
+    v2 %in% denomVars,
+    signal_form %in% simpleFunctions
+  ) %>% 
+  pull(signalid)
+
+candidateReturns = candidateReturns0[.(filteredCandidates)]
+
 
 # Normalize candidate returns
 
@@ -118,7 +207,7 @@ for (jj in unique(allRets$theory1)) {
   
   ReturnPlotsWithDM(dt = allRets %>% 
                       filter(!is.na(matchRet), theory1 == jj, Keep == 1) %>% # To exclude unmatched signals
-                      select(eventDate, ret, matchRet),
+                      dplyr::select(eventDate, ret, matchRet),
                     basepath = '../Results/Fig_PublicationsVsDataMining',
                     suffix = paste0(jj, '_DM'),
                     colors = colors,
@@ -127,7 +216,7 @@ for (jj in unique(allRets$theory1)) {
 }
 
 
-# Tables
+#### Tables ----------------------------------------------------------------
 
 # Table 1: Unmatched predictors
 tmpUnmatched = allRets %>% 
@@ -259,7 +348,6 @@ tableSignificance = tmpMeans %>%
          starts_with('mispricing'),
          starts_with('agnostic'))
 
-
 # Save
 toExcel = list(
   Unmatched    = tableUnmatched,
@@ -269,4 +357,247 @@ toExcel = list(
 
 writexl::write_xlsx(toExcel, path = '../Results/MatchingSummary_DM.xlsx')
 
+# LaTeX output for overleaf
+
+#dm-sum part 1
+tableSumStats %>% 
+  transmute(Category = str_to_sentence(theory1),
+            empty1 = NA_character_,
+            medianStartYear = as.integer(medianStartYear),
+            medianEndYear   = as.integer(medianEndYear),
+            empty2 = NA_character_,
+            rbar_insampAct  = round(100*rbar_insampAct, 1),
+            rbar_insampMatched = round(100*rbar_insampMatched, 1),
+            empty3 = NA_character_,
+            tstat_insampAct = round(tstat_insampAct, 2),
+            tstat_insampMatched = round(tstat_insampMatched,2)) %>% 
+  xtable() %>% 
+  print(
+    include.rownames = FALSE,
+    include.colnames = FALSE,
+    hline.after = NULL,
+    only.contents = TRUE,
+    file = paste0('../Results/dm-sum1.tex')    
+  )
+
+#dm-sum part 2
+tableSumStats %>% 
+  mutate_at(.vars = vars(min, starts_with('Q'), max, starts_with("Signal")),
+            .funs = list(~as.integer(.))) %>% 
+  transmute(Category = str_to_sentence(theory1),
+            empty1 = NA_character_,
+            min, Q25, Q50, Q75, max,
+            empty2 = NA_character_,
+            SignalsUnmatched,
+            SignalsMatched) %>% 
+  xtable() %>% 
+  print(
+    include.rownames = FALSE,
+    include.colnames = FALSE,
+    hline.after = NULL,
+    only.contents = TRUE,
+    file = paste0('../Results/dm-sum2.tex')    
+  )
+
+
+#Unmatched
+signaldoc = read_csv('../Data/CZ/SignalDoc.csv')
+tableUnmatched = tableUnmatched %>% 
+  left_join(signaldoc %>% select(Acronym, LongDescription),
+            by = c('signalname' = 'Acronym'))
+
+for (rr in c('risk', 'mispricing', 'agnostic')) {
+  
+  tableUnmatched %>% 
+    filter(theory1 == rr) %>% 
+    arrange(Authors) %>% 
+    transmute(Authors = paste0(Authors, ' (', as.character(Year), ')'), LongDescription = str_to_sentence(LongDescription),
+              theory1 = str_to_sentence(theory1), rbar = round(100*rbar), tstat = round(tstat,2)) %>% 
+    xtable() %>% 
+    print(
+      include.rownames = FALSE,
+      include.colnames = FALSE,
+      hline.after = NULL,
+      only.contents = TRUE,
+      file = paste0('../Results/unmatched-', rr, '.tex')    
+    )
+}
+
+
+
+
+#### Table 4: Descriptive stats for DM strategies  ----------------------------
+var_types <- c('vw', 'ew')
+var_type <- var_types[1]
+
+
+bm_rets = readRDS(DMname)$ret
+bm_info = readRDS(DMname)$port_list
+
+bm_rets = bm_rets %>% 
+  left_join(
+    bm_info %>% select(portid, sweight), by = c('portid')
+  )  %>%
+  transmute(
+    sweight
+    , signalname = signalid
+    , yearm
+    , ret
+    , nstock) %>% 
+  filter(signalname %in% filteredCandidates)
+
+
+for (var_type in var_types) {
+  
+  str_to_add  <- var_type
+  
+  yz = bm_rets %>%
+    filter(sweight == var_type) %>% 
+    transmute(
+      signalname, date = as.Date(yearm), ret
+    )
+  
+  
+  sumsignal_all = yz %>% 
+    group_by(signalname) %>% 
+    summarize(rbar = mean(ret), nmonth = n(), stdev = sd(ret),
+              sharpe = f.sharp(ret),
+              tstat = rbar/sd(ret)*sqrt(nmonth)) %>% 
+    ungroup() %>% as.data.table()
+  
+  Summary_Statistics <- sumsignal_all %>% 
+    summarise(across(where(is.numeric), .fns = 
+                       list(Count =  ~  n(),
+                            Mean = mean,
+                            SD = sd,
+                            Min = min,
+                            q01 = ~quantile(., 0.01), 
+                            q05 = ~quantile(., 0.01), 
+                            q25 = ~quantile(., 0.25), 
+                            Median = median,
+                            q75 = ~quantile(., 0.75),
+                            q95 = ~quantile(., 0.95),
+                            q99 = ~quantile(., 0.99),
+                            Max = max ))) %>%
+    pivot_longer(everything(), names_sep = "_", names_to = c( "variable", ".value")) 
+  # %>%  mutate_if(is.numeric, round, 2)
+  
+  fwrite(Summary_Statistics, glue::glue('../Results/Summary_StatisticsDM_{str_to_add}.csv'))
+  
+  Summary_Statistics
+  
+  print(xtable::xtable(Summary_Statistics, caption = 'Summary Statistics YZ All',
+                       type = "latex", include.rownames=FALSE))
+  
+  
+  ################################
+  # Table 1b
+  ################################
+  
+  # Returns based on past returns
+  # Basically creating a portfolio
+  
+  yz_dt <- yz %>% as.data.table() %>% setkey(signalname, date)
+  
+  yz_dt[, ret_30y_l := data.table::shift(frollmean(ret, 12*30, NA)), by = signalname]
+  
+  yz_dt[, t_30y_l   := data.table::shift(frollapply(ret, 12*30, f.custom.t, fill = NA)), by = signalname]
+  
+  yz_dt[, head(month(date))]
+  
+  yz_dt[month(date) != 6, t_30y_l := NA]
+  
+  ############################
+  
+  n_tiles <- 5
+  
+  name_var <- 'ret_30y_l'
+  
+  test <- f.ls.past.returns(n_tiles, name_var)
+  
+  print(xtable::xtable(test$sumsignal_oos, 
+                       caption = 'Out-of-Sample Portfolios of Strategies Sorted on Past 30 Years of Returns',
+                       type = "latex"), include.colnames=FALSE)
+  
+  fwrite(test$sumsignal_oos,  glue::glue('../Results/sumsignal_oos_30y_{str_to_add}_unit_level.csv'))
+  fwrite(test$sumsignal_oos_pre_2003,  glue::glue('../Results/sumsignal_oos_30y_pre_2003_{str_to_add}_unit_level.csv'))
+  fwrite(test$sumsignal_oos_post_2003,  glue::glue('../Results/sumsignal_oos_30y_post_2003_{str_to_add}_unit_level.csv'))
+  
+}
+
+# to TeX
+fs_ew = read_csv('../Results/sumsignal_oos_30y_ew_unit_level.csv')
+fs_vw = read_csv('../Results/sumsignal_oos_30y_vw_unit_level.csv')
+
+fs_ew = fs_ew %>% 
+  transmute(bin = as.integer(bin),
+            empty1 = NA_character_,
+            rbar_is = round(100*rbar_is, 1),
+            avg_tstat_is = round(avg_tstat_is, 2),
+            empty2 = NA_character_,
+            rbar_oos = round(100*rbar_oos, 1),
+            Decay = ifelse(bin !=4, 
+                           round(100*(1 - rbar_oos/rbar_is), 1),
+                           NA_real_),
+            empty3 = NA_character_
+  )
+
+fs_vw = fs_vw %>% 
+  transmute(rbar_isvw = round(100*rbar_is, 1),
+            avg_tstat_isvw = round(avg_tstat_is, 2),
+            empty1vw = NA_character_,
+            rbar_oosvw = round(100*rbar_oos, 1),
+            Decayvw = ifelse(bin !=4, 
+                             round(100*(1 - rbar_oos/rbar_is), 1),
+                             NA_real_)
+  )
+
+bind_cols(fs_ew, fs_vw) %>% 
+  xtable(digits = c(1)
+  ) %>% 
+  print(
+    include.rownames = FALSE,
+    include.colnames = FALSE,
+    hline.after = NULL,
+    only.contents = TRUE,
+    file = paste0('../Results/dm-sortsFull.tex')
+  )
+
+# post 2003
+fs_ew = read_csv('../Results/sumsignal_oos_30y_post_2003_ew_unit_level.csv')
+fs_vw = read_csv('../Results/sumsignal_oos_30y_post_2003_vw_unit_level.csv')
+
+fs_ew = fs_ew %>% 
+  transmute(bin = as.integer(bin),
+            empty1 = NA_character_,
+            rbar_is = round(100*rbar_is, 1),
+            avg_tstat_is = round(avg_tstat_is, 2),
+            empty2 = NA_character_,
+            rbar_oos = round(100*rbar_oos, 1),
+            Decay = ifelse(bin !=4, 
+                           round(100*(1 - rbar_oos/rbar_is), 1),
+                           NA_real_),
+            empty3 = NA_character_
+  )
+
+fs_vw = fs_vw %>% 
+  transmute(rbar_isvw = round(100*rbar_is, 1),
+            avg_tstat_isvw = round(avg_tstat_is, 2),
+            empty1vw = NA_character_,
+            rbar_oosvw = round(100*rbar_oos, 1),
+            Decayvw = ifelse(bin !=4, 
+                             round(100*(1 - rbar_oos/rbar_is), 1),
+                             NA_real_)
+  )
+
+bind_cols(fs_ew, fs_vw) %>% 
+  xtable(digits = c(1)
+  ) %>% 
+  print(
+    include.rownames = FALSE,
+    include.colnames = FALSE,
+    hline.after = NULL,
+    only.contents = TRUE,
+    file = paste0('../Results/dm-sortsPost2003.tex')
+  )
 

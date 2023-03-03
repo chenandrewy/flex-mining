@@ -18,7 +18,7 @@ colors = c(rgb(0,0.4470,0.7410), # MATBLUE
 
 DMStrategies = 'DM'  # DM Or YZ
 
-DMname = '../Data/LongShortPortfolios/stratdat CZ-style-v4.RData'
+DMname = '../Data/LongShortPortfolios/stratdat CZ-style-v2.RData'
 
 # tolerance in levels  
 #   use Inf to turn off
@@ -157,41 +157,41 @@ dm_insamp = list()
 cl <- makePSOCKcluster(ncores)
 registerDoParallel(cl)
 dm_insamp = foreach(sampi = 1:dim(samplist)[1], 
-                    .combine = rbind,
-                    .packages = c('data.table','tidyverse','zoo')) %dopar% {
-                      
-                      sampcur = samplist[sampi, ]
-                      
-                      # feedback
-                      print(paste0(sampi , ' of ', dim(samplist)[1]))
-                      
-                      # find sum stats for the current sample
-                      sumcur = bm_rets[
-                        yearm >= sampcur$sampstart
-                        & yearm <= sampcur$sampend
-                        & !is.na(ret)
-                        , .(
-                          rbar = mean(ret), tstat = mean(ret)/sd(ret)*sqrt(.N)
-                          , min_nstock = min(nstock)
-                        )
-                        , by = c('sweight','dmname')
-                      ] 
-                      
-                      # find other stats for filtering
-                      filtcur = bm_rets[
-                        floor(yearm) == year(sampcur$sampend)
-                        & !is.na(ret)
-                        , .(nlastyear = .N)
-                        , by = c('sweight','dmname')
-                      ]
-                      
-                      # combine and save
-                      sumcur %>% 
-                        left_join(filtcur, by = c('sweight','dmname')) %>% 
-                        mutate(
-                          sampstart = sampcur$sampstart, sampend = sampcur$sampend
-                        )
-                    }
+        .combine = rbind,
+        .packages = c('data.table','tidyverse','zoo')) %dopar% {
+
+  sampcur = samplist[sampi, ]
+  
+  # feedback
+  print(paste0(sampi , ' of ', dim(samplist)[1]))
+  
+  # find sum stats for the current sample
+  sumcur = bm_rets[
+    yearm >= sampcur$sampstart
+    & yearm <= sampcur$sampend
+    & !is.na(ret)
+    , .(
+      rbar = mean(ret), tstat = mean(ret)/sd(ret)*sqrt(.N)
+      , min_nstock = min(nstock)
+    )
+    , by = c('sweight','dmname')
+  ] 
+  
+  # find other stats for filtering
+  filtcur = bm_rets[
+    floor(yearm) == year(sampcur$sampend)
+    & !is.na(ret)
+    , .(nlastyear = .N)
+    , by = c('sweight','dmname')
+  ]
+  
+  # combine and save
+  sumcur %>% 
+    left_join(filtcur, by = c('sweight','dmname')) %>% 
+    mutate(
+      sampstart = sampcur$sampstart, sampend = sampcur$sampend
+    )
+}
 stopCluster(cl)
 
 
@@ -204,7 +204,7 @@ toc - tic
 matchsum = czsum %>% transmute(
   pubname = signalname, rbar_op = rbar,tstat_op = tstat, sampstart, sampend
   , sweight = tolower(sweight)
-) %>% 
+  ) %>% 
   left_join(
     dm_insamp, by = c('sampstart','sampend','sweight')) %>% 
   mutate(
@@ -212,7 +212,7 @@ matchsum = czsum %>% transmute(
     , diff_tstat = abs(tstat*sign(rbar) - tstat_op)
   ) %>% 
   setDT()
-
+  
 
 
 # Make matched panel ------------------------------------------------------
@@ -224,42 +224,42 @@ tic = Sys.time()
 cl <- makePSOCKcluster(ncores)
 registerDoParallel(cl)
 candidateReturns =  foreach(pubi = 1:dim(czsum)[1], 
-                            .combine = rbind,
-                            .packages = c('data.table','tidyverse','zoo')) %dopar% {
-                              
-                              # feedback
-                              print(paste0('pubi ', pubi , ' of ', dim(czsum)[1]))
-                              
-                              pubcur = czsum[pubi, ]
-                              
-                              matchcur = matchsum[
-                                pubname == pubcur$signalname
-                                & diff_rbar <= r_tol
-                                & diff_tstat <= t_tol
-                                & diff_rbar / rbar_op <= r_reltol
-                                & diff_tstat / tstat_op <= t_reltol    
-                                & min_nstock >= minNumStocks
-                                & nlastyear == 12
-                              ] %>%
-                                transmute(sweight, dmname, sign = sign(rbar))
-                              
-                              pancur = bm_rets %>% 
-                                inner_join(matchcur, by = c('sweight','dmname')) %>% 
-                                transmute(candSignalname = dmname,
-                                          eventDate = as.integer(round(12*(yearm-pubcur$sampend))),
-                                          sign,
-                                          # Sign returns
-                                          ret = ret*sign,
-                                          samptype = case_when(
-                                            (yearm >= pubcur$sampstart) & (yearm <= pubcur$sampend) ~ 'insamp'
-                                            , (yearm > pubcur$sampend) ~ 'oos'
-                                            , TRUE ~ NA_character_
-                                          )) %>% 
-                                mutate(
-                                  actSignal = pubcur$signalname
-                                )
-                              
-                            }
+          .combine = rbind,
+          .packages = c('data.table','tidyverse','zoo')) %dopar% {
+            
+  # feedback
+  print(paste0('pubi ', pubi , ' of ', dim(czsum)[1]))
+  
+  pubcur = czsum[pubi, ]
+  
+  matchcur = matchsum[
+    pubname == pubcur$signalname
+    & diff_rbar <= r_tol
+    & diff_tstat <= t_tol
+    & diff_rbar / rbar_op <= r_reltol
+    & diff_tstat / tstat_op <= t_reltol    
+    & min_nstock >= minNumStocks
+    & nlastyear == 12
+  ] %>%
+    transmute(sweight, dmname, sign = sign(rbar))
+  
+  pancur = bm_rets %>% 
+    inner_join(matchcur, by = c('sweight','dmname')) %>% 
+    transmute(candSignalname = dmname,
+              eventDate = as.integer(round(12*(yearm-pubcur$sampend))),
+              sign,
+              # Sign returns
+              ret = ret*sign,
+              samptype = case_when(
+                (yearm >= pubcur$sampstart) & (yearm <= pubcur$sampend) ~ 'insamp'
+                , (yearm > pubcur$sampend) ~ 'oos'
+                , TRUE ~ NA_character_
+              )) %>% 
+    mutate(
+      actSignal = pubcur$signalname
+    )
+  
+}
 stopCluster(cl)
 toc = Sys.time()
 toc - tic
@@ -277,3 +277,12 @@ saveRDS(candidateReturns,
 toc0 = Sys.time()
 
 toc0 - tic0
+
+
+
+# Run Exhibits Scripts ---------------------------------------------------------------
+
+# assumes exhibits scripts point to files saved above
+
+source('5a_Exhibits.R')
+source('5b_InspectMatch.R')
