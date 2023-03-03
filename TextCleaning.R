@@ -252,9 +252,10 @@ texts[, text_lemmatized := texts_join_lemma]
 
 texts[, word_count := str_count(text_lemmatized, "\\w+")]
 
-words_mispricing <- c('abnormal',
+words_mispricing <- c(
+  # 'abnormal',
                       'anomal',
-                      'behav',
+                      'behavioral*',
                       'optimistic',
                       'pessimistic',
                       'sentiment',
@@ -285,7 +286,7 @@ words_mispricing <- c('abnormal',
                       'risk cannot',
                       'low [a-z]+_risk',
                       'unrelated [a-z]+_risk',
-                      'liquid',
+                      'liquidit',
                       'slow (to )?react',
                       'slow (to )?incorporat',
                       'short(-| )sale cost'
@@ -326,12 +327,14 @@ subset_text <- texts[!is.na(year), .(file_names, new_file_name, Year = year, Aut
 
 fwrite(subset_text, '../IntermediateText/TextAnalysis.csv')
 
-fwrite(texts, '../IntermediateText/FullTextAnalysis.csv')
+fwrite(texts[!is.na(year), .(file_names, new_file_name, Year = year, Authors = author, journal,
+                             signalname, word_count, misp_count, risk_count, misprice_risk_ratio, text_lemmatized)], '../IntermediateText/FullTextAnalysis.csv')
 
 
-words_mispricing <- c('abnormal*',
+words_mispricing <- c(
+  # 'abnormal*',
                       'anomal*',
-                      'behav*',
+                      'behaviora*',
                       'optimistic',
                       'pessimistic',
                       'sentiment',
@@ -366,6 +369,9 @@ words_mispricing <- c('abnormal*',
                       'slow( |to)incorporat',
                       'short(-| )sale cost'
 )
+
+kw_hl <- kwic(texts_join_lemma$text130, pattern = words_mispricing)
+
 
 kw_anom <- kwic(texts_lemma, pattern = words_mispricing)
 
