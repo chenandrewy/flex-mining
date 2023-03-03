@@ -15,14 +15,14 @@ library(writexl)
 matchdat = readRDS('../Data/Processed/LastMatchedData.RDS')
 setDT(matchdat)
 
-stratdat = readRDS('../Data/LongShortPortfolios/stratdat CZ-style-v4-check.RData')
+stratdat = readRDS('../Data/Processed/stratdat CZ-style-v4-check.RData')
 
 
 # load pub stuff
 czdat = readRDS('../Data/Processed/czdata.RDS') 
 
 czdat$czsum = czdat$czsum %>% left_join(
-  fread('../Data/CZ/SignalDoc.csv') %>% 
+  fread('../Data/Raw/SignalDoc.csv') %>% 
     select(1:20) %>% 
     transmute(signalname = Acronym, Authors, Year, Journal, LongDescription, sign = Sign)  
 ) %>% 

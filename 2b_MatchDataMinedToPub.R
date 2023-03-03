@@ -11,14 +11,10 @@ tic0 = Sys.time()
 source('0_Environment.R')
 library(doParallel)
 
-colors = c(rgb(0,0.4470,0.7410), # MATBLUE
-           rgb(0.8500, 0.3250, 0.0980), # MATRED
-           rgb(0.9290, 0.6940, 0.1250) # MATYELLOW
-)
 
 DMStrategies = 'DM'  # DM Or YZ
 
-DMname = '../Data/LongShortPortfolios/stratdat CZ-style-v4.RData'
+DMname = '../Data/Processed/stratdat CZ-style-v4.RData'
 
 # tolerance in levels  
 #   use Inf to turn off
@@ -40,7 +36,7 @@ signalcat = fread('DataInput/SignalsTheoryChecked.csv') %>%
             theory1 = theory,  
             Keep)
 
-signaldoc =  data.table::fread('../Data/CZ/SignalDoc.csv') %>% 
+signaldoc =  data.table::fread('../Data/Raw/SignalDoc.csv') %>% 
   as_tibble() %>% 
   rename(signalname = Acronym) %>% 
   mutate(
@@ -59,7 +55,7 @@ signaldoc =  data.table::fread('../Data/CZ/SignalDoc.csv') %>%
   ) 
 
 # czret (monthly returns)
-czret = data.table::fread("../Data/CZ/PredictorPortsFull.csv") %>% 
+czret = data.table::fread("../Data/Raw/PredictorPortsFull.csv") %>% 
   as_tibble() %>% 
   filter(!is.na(ret), port == 'LS') %>%                                                           
   left_join(signaldoc) %>% 
@@ -79,35 +75,22 @@ czret = data.table::fread("../Data/CZ/PredictorPortsFull.csv") %>%
 
 
 # Data mining strategies
-if (DMStrategies == 'DM') {
+bm_rets = readRDS(DMname)$ret
+bm_info = readRDS(DMname)$port_list
+bm_signal_info = readRDS(DMname)$signal_list
+
+bm_rets = bm_rets %>% left_join(
+  bm_info %>% select(portid, sweight), by = c('portid')
+)  %>%
+  transmute(
+    sweight
+    , dmname = signalid
+    , yearm
+    , ret
+    , nstock)
+
+setDT(bm_rets)
   
-  bm_rets = readRDS(DMname)$ret
-  bm_info = readRDS(DMname)$port_list
-  bm_signal_info = readRDS(DMname)$signal_list
-  
-  bm_rets = bm_rets %>% left_join(
-    bm_info %>% select(portid, sweight), by = c('portid')
-  )  %>%
-    transmute(
-      sweight
-      , dmname = signalid
-      , yearm
-      , ret
-      , nstock)
-  
-  setDT(bm_rets)
-  
-} else if (DMStrategies == 'YZ') {
-  
-  
-  bm_retsVW = readRDS('../Data/LongShortPortfolios/yz_ew.RData')$ret
-  
-  bm_retsEW = readRDS('../Data/LongShortPortfolios/yz_ew.RData')$ret
-  
-} else {
-  
-  message('DM strategies has to be one of DM or YZ')
-}
 
 
 

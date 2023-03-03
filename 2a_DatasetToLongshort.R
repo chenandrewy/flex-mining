@@ -96,7 +96,7 @@ if (debugset$prep_data){
   
   # import and merge ===
   ## import compustat, convert to monthly
-  comp0 = readRDS('../Data/Intermediate/CompustatAnnual.RData')
+  comp0 = readRDS('../Data/Raw/CompustatAnnual.RData')
   comp1 = copy(comp0 %>% select(all_of(varlist$xall), gvkey, permno, datayearm))
   
   #Yan and Zheng (2017): To mitigate a backfilling bias, we require that a firm be listed on Compustat for two years
@@ -138,7 +138,7 @@ if (debugset$prep_data){
   comp2[ , (c('temp_month', 'reup_id')) := NULL]
   
   # import crsp data
-  crsp = readRDS('../Data/Intermediate/crspm.RData')
+  crsp = readRDS('../Data/Raw/crspm.RData')
   setDT(crsp)
   
   # timing adjustments
@@ -229,12 +229,6 @@ toc - tic
 signal_list = make_signal_list(signal_form = user$signal$form,
                                xvars       = varlist$x1,
                                scale_vars  = varlist$x2)
-
-# signal_list = make_signal_list_yz(signal_form = user$signal$form
-#                                   , x1list = varlist$x1
-#                                   , x2list = varlist$x2
-#                                   , signalnum = user$signal$signalnum
-#                                   , seed = user$signal$seednumber)
 
 # port list
 port_list = expand.grid(longshort_form = user$port$longshort_form, 
@@ -377,7 +371,7 @@ stratdat = list(
 )
 
 # save
-saveRDS(stratdat, paste0('../Data/LongShortPortfolios/stratdat ',
+saveRDS(stratdat, paste0('../Data/Processed/stratdat ',
                          stratdat$name, 
                          '.RData'))
 

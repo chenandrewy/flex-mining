@@ -11,11 +11,18 @@ library(zoo)
 library(tidyr)
 library(tictoc)
 library(readr)
-library(lme4)
 library(stringr)
 library(ggplot2)
 library(gridExtra)
 library(xtable)
+if("lme4" %in% (.packages())){
+  detach("package:lme4", unload=TRUE) 
+}
+if("MASS" %in% (.packages())){
+  detach("package:MASS", unload=TRUE) 
+}
+
+
 
 # Paths -------------------------------------------------------------------
 
@@ -27,11 +34,11 @@ if (!file.exists('0_Environment.R')){
 
 # create data folders (separate to avoid storage problems)
 dir.create('../Data/', showWarnings = F)
-dir.create('../Data/Intermediate/', showWarnings = F)
-dir.create('../Data/LongShortPortfolios/', showWarnings = F)
+dir.create('../Data/Raw/', showWarnings = F)
+dir.create('../Data/Processed/', showWarnings = F)
 dir.create('../Results', showWarnings = F)
-dir.create('../Data/CZ', showWarnings = F)
-dir.create('../Data/Processed', showWarnings = F)
+
+
 
 # Globals ====
 options(stringsAsFactors = FALSE)
@@ -79,6 +86,12 @@ compnames$yz.denom63 <- c("aco", "acox","act","ao","aox","at","caps","capx","cap
                           "txditc","txt","wcap","xint","xopr","xpr","xrent","xsga","emp", "me_datadate")
 
 compnames$all = unique(Reduce(c, compnames))
+
+# nice colors
+colors = c(rgb(0,0.4470,0.7410), # MATBLUE
+           rgb(0.8500, 0.3250, 0.0980), # MATRED
+           rgb(0.9290, 0.6940, 0.1250) # MATYELLOW
+)
 
 
 # Functions ---------------------------------------------------------------

@@ -1,5 +1,5 @@
 # Setup -------------------------------------------------------------------
-
+rm(list = ls())
 source('0_Environment.R')
 
 user <- getPass('wrds username: ')
@@ -15,6 +15,8 @@ wrds <- dbConnect(Postgres(),
 
 numRowsToPull <- -1 # Set to -1 for all rows and to some positive value for testing
 
+# March 2022 cz data
+url <- "https://drive.google.com/drive/folders/1O18scg9iBTiBaDiQFhoGxdn4FdsbMqGo" 
 
 
 
@@ -49,7 +51,7 @@ crspm = crspm_raw %>% mutate(
 )
 
 # write to disk
-saveRDS(crspm, '../Data/Intermediate/crspm.RData')
+saveRDS(crspm, '../Data/Raw/crspm.RData')
 
 
 # Fama-French Factors ----------------------------------------------------
@@ -76,7 +78,7 @@ FamaFrenchFactors <- FamaFrenchFactors %>%
 
 
 # write to disk 
-saveRDS(FamaFrenchFactors, '../Data/Intermediate/FamaFrenchFactors.RData')
+saveRDS(FamaFrenchFactors, '../Data/Raw/FamaFrenchFactors.RData')
 
 
 # Compustat ----------------------------------------------------------------
@@ -144,17 +146,36 @@ CompustatAnnual <- CompustatAnnual %>%
 
 
 # merge on me that matches datadate (me_datadate)
-crspm = readRDS('../Data/Intermediate/crspm.RData') %>% 
+crspm = readRDS('../Data/Raw/crspm.RData') %>% 
   transmute(permno, datayearm = yearm, me_datadate = me)
 
 CompustatAnnual = CompustatAnnual %>% 
   left_join(crspm, by = c('permno','datayearm'))
 
-# Save to disk ------------------------------------------------------------
 
+# Save to disk 
 # fst format doesn't save yearmon format
 saveRDS(
-  CompustatAnnual,'../Data/Intermediate/CompustatAnnual.RData'
+  CompustatAnnual,'../Data/Raw/CompustatAnnual.RData'
 )
+
+
+
+# Download Chen-Zimmermann data -------------------------------------------
+library(googledrive)
+
+SUBDIR = 'Full Sets OP'; 
+FILENAME = 'PredictorPortsFull.csv'
+
+url %>% drive_ls() %>%
+  filter(name == "Portfolios") %>% drive_ls() %>% 
+  filter(name == SUBDIR) %>% drive_ls() %>% 
+  filter(name == FILENAME) %>% 
+  drive_download(path = paste0("../Data/Raw/",FILENAME), overwrite = TRUE)
+
+# signal doc 
+url %>% drive_ls() %>% 
+  filter(name == "SignalDoc.csv") %>% 
+  drive_download(path = "../Data/Raw/SignalDoc.csv", overwrite = TRUE)
 
 
