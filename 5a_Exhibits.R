@@ -493,9 +493,9 @@ for (var_type in var_types) {
                        type = "latex", include.rownames=FALSE))
   
   
-  ################################
+  ############################### # 
   # Table 1b
-  ################################
+  ############################### #
   
   # Returns based on past returns
   # Basically creating a portfolio
@@ -510,7 +510,7 @@ for (var_type in var_types) {
   
   yz_dt[month(date) != 6, t_30y_l := NA]
   
-  ############################
+  ########################### #
   
   n_tiles <- 5
   

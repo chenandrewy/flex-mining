@@ -63,14 +63,14 @@ chen_theme =   theme_minimal() +
 
 
 # signaldoc + cat data
-
-signaldoc = readxl::read_excel('SignalsTheoryChecked.xlsx') %>%
+# should we use theory or theory1?
+signaldoc = fread('DataInput/SignalsTheoryChecked.csv') %>%
   mutate(theory1 = theory) %>%
   filter(Keep == 1)
 
 
 # czreturns
-cz_all = fread("../data-cz/PredictorPortsFull.csv")
+cz_all = fread("../Data/CZ/PredictorPortsFull.csv")
 # czret (monthly returns)
 czret = cz_all %>%                                         
   filter(!is.na(ret), port == 'LS') %>%                                                           
@@ -156,5 +156,5 @@ reg_save <- huxreg(a1, a2, a3, a4, coefs = c(
   'Post-Pub x Mispricing' = 'I(I(post_pub == TRUE) * I(theory1 == "mispricing"))'),
   statistics = c('nobs'), stars = NULL)
 reg_save
-dir.create('../TablesTheory/')
-fwrite(reg_save, '../TablesTheory/RegressionMultiColumns.csv', sep = ',')
+
+fwrite(reg_save, '../Results/RegressionMultiColumns.csv', sep = ',')

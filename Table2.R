@@ -43,7 +43,7 @@ chen_theme =   theme_minimal() +
     , legend.title = element_blank()    
   ) 
 library(stringr)
-subset_text <- fread('../IntermediateText/TextAnalysis.csv')  %>%  rename(Journal = journal) %>%
+subset_text <- fread('DataIntermediate/TextClassification.csv')  %>% 
   # dplyr::select(Authors, Year, Journal, file_names)%>%
   mutate(Journal = gsub('^RF$', 'ROF', Journal)) %>%
   mutate(Journal = gsub('^TAR$', 'AR', Journal)) %>%
@@ -53,7 +53,7 @@ subset_text <- fread('../IntermediateText/TextAnalysis.csv')  %>%  rename(Journa
   filter(Authors != 'Chen Jegadeesh Lakonishok')
 
 
-signal_text <- fread('SignalsTheoryChecked.csv')
+signal_text <- fread('DataInput/SignalsTheoryChecked.csv')
 
 library(fuzzyjoin)
 joined_inner <- signal_text %>% dplyr::select(signalname, Year, Journal, author_merge, Authors) %>%
@@ -184,9 +184,9 @@ text_examples <- signal_text_to_table[signalname == 'ShareRepurchase', ] %>%
     select(Theory, Reference, Predictor, ExampleText, RiskMispricingRatio)
 
 text_examples
-dir.create('../TablesText/')
 
-fwrite(text_examples, '../TablesText/text_examples.csv')
+
+fwrite(text_examples, '../Results/text_examples.csv')
 
 
 library(janitor)
@@ -216,5 +216,5 @@ summary_text <- bind_rows(
 
 summary_text
 
-fwrite(summary_text, '../TablesText/summary_text.csv')
+fwrite(summary_text, '../Results/summary_text.csv')
 

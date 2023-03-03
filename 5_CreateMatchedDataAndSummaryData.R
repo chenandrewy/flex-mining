@@ -35,9 +35,9 @@ ncores = round(0.25*detectCores())
 
 # Load data ---------------------------------------------------------------
 
-signalcat = readxl::read_xlsx('../Data/CZ/SignalsTheoryChecked.xlsx') %>% 
+signalcat = fread('DataInput/SignalsTheoryChecked.csv') %>% 
   transmute(signalname, 
-            theory1 = theory,  # Based on Alejandros updated classification
+            theory1 = theory,  
             Keep)
 
 signaldoc =  data.table::fread('../Data/CZ/SignalDoc.csv') %>% 
