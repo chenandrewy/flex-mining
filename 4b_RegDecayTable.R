@@ -64,8 +64,8 @@ chen_theme =   theme_minimal() +
 
 # signaldoc + cat data
 # should we use theory or theory1?
+# theory1
 signaldoc = fread('DataInput/SignalsTheoryChecked.csv') %>%
-  mutate(theory1 = theory) %>%
   filter(Keep == 1)
 
 
