@@ -211,7 +211,7 @@ for (jj in unique(allRets$theory1)) {
                     basepath = '../Results/Fig_PublicationsVsDataMining',
                     suffix = paste0(jj, '_DM'),
                     colors = colors,
-                    yl = -60, yh = 170, fig.width = 18) 
+                    yl = -60, yh = 170, fig.width = 18, fontsize = 28) 
   
 }
 
@@ -371,7 +371,7 @@ tableSumStats %>%
             empty3 = NA_character_,
             tstat_insampAct = round(tstat_insampAct, 2),
             tstat_insampMatched = round(tstat_insampMatched,2)) %>% 
-  xtable() %>% 
+  xtable(digits = c(0, 0, 0, 0 ,0, 0, 1, 1, 0, 2, 2)) %>% 
   print(
     include.rownames = FALSE,
     include.colnames = FALSE,
@@ -411,9 +411,12 @@ for (rr in c('risk', 'mispricing', 'agnostic')) {
   tableUnmatched %>% 
     filter(theory1 == rr) %>% 
     arrange(Authors) %>% 
-    transmute(Authors = paste0(Authors, ' (', as.character(Year), ')'), LongDescription = str_to_sentence(LongDescription),
-              theory1 = str_to_sentence(theory1), rbar = round(100*rbar), tstat = round(tstat,2)) %>% 
-    xtable() %>% 
+    transmute(Authors = paste0(Authors, ' (', as.character(Year), ')'), 
+              LongDescription = str_to_sentence(LongDescription),
+              theory1 = str_to_sentence(theory1), 
+              rbar = round(100*rbar, 1), 
+              tstat = round(tstat,2)) %>% 
+    xtable(digits = c(0, 0, 0, 0, 1, 2)) %>% 
     print(
       include.rownames = FALSE,
       include.colnames = FALSE,
@@ -553,8 +556,7 @@ fs_vw = fs_vw %>%
   )
 
 bind_cols(fs_ew, fs_vw) %>% 
-  xtable(digits = c(1)
-  ) %>% 
+  xtable(digits = c(0, 0, 0, 1, 2,0, 1, 1, 0, 1, 2, 0, 1, 1)) %>% 
   print(
     include.rownames = FALSE,
     include.colnames = FALSE,
@@ -591,8 +593,7 @@ fs_vw = fs_vw %>%
   )
 
 bind_cols(fs_ew, fs_vw) %>% 
-  xtable(digits = c(1)
-  ) %>% 
+  xtable(digits = c(0, 0, 0, 1, 2,0, 1, 1, 0, 1, 2, 0, 1, 1)) %>% 
   print(
     include.rownames = FALSE,
     include.colnames = FALSE,

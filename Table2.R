@@ -1,5 +1,6 @@
 # Setup ------------------------------------------------------------------
-
+rm(list = ls())
+gc()
 library(tidyverse)
 library(data.table)
 library(lubridate)
@@ -52,31 +53,7 @@ subset_text <- fread('../IntermediateText/TextAnalysis.csv')  %>%  rename(Journa
   filter(Authors != 'Chen Jegadeesh Lakonishok')
 
 
-
-signaldoc_orig = fread('../data-cz/SignalDoc.csv')
-
-# signaldoc <- fread('../../SignalsTheoryChecked.csv') %>%
-#   mutate(theory1 = theory2) %>% merge(signaldoc_orig  %>%
-#                                         transmute(
-#                                           signalname = Acronym,
-#                                           desc = LongDescription,
-#                                           Journal = Journal))
-
-signaldoc = readxl::read_excel('SignalsTheoryChecked.xlsx') %>%
-  mutate(theory1 = theory) %>% merge(signaldoc_orig  %>%
-                                        transmute(
-                                          signalname = Acronym,
-                                          desc = LongDescription,
-                                          Journal = Journal)) %>%
-  filter(Keep == 1)
-
-signalcat = readxl::read_excel('OP-text.xlsx',
-                               sheet = 'Risk or Mispricing') %>% 
-  transmute(signalname = Acronym, quote = Quote)
-
-signal_text <-  signaldoc %>% merge(signalcat) %>% as.data.table() %>%
-  mutate(post_2004 = Year >= 2004) %>%
-  mutate(author_merge = gsub('et al.?|and |,', '', Authors))
+signal_text <- fread('SignalsTheoryChecked.csv')
 
 library(fuzzyjoin)
 joined_inner <- signal_text %>% dplyr::select(signalname, Year, Journal, author_merge, Authors) %>%
@@ -137,6 +114,7 @@ joined_final <- rbind(joined_so_far, to_join) %>%
   dplyr::select(signalname, word_count, misp_count, risk_count, misprice_risk_ratio)
 
 signal_text <- signal_text %>% merge(joined_final)
+
 
 sub_sample_text <- signal_text %>% dplyr::select(signalname, Journal,
                                                  Authors, Year, theory1,
