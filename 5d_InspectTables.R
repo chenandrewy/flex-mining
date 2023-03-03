@@ -1,37 +1,26 @@
 
 # Setup -------------------------------------------------------------------------
-rm(list = ls())
-
-
-source('0_Environment.R')
-
-library(stringr)
 library(writexl)
 
 # read matched strategies and get their documentation from stratdat
+#   clean me up pls
+matchdat = candidateReturns
 
-# I think these files match
-# But we really should make it more clear by saving documentation with MatchedData*.RDS
-matchdat = readRDS('../Data/Processed/LastMatchedData.RDS')
-setDT(matchdat)
-
-stratdat = readRDS('../Data/Processed/stratdat CZ-style-v4-check.RData')
+stratdat = readRDS(DMname) 
 
 
-# load pub stuff
-czdat = readRDS('../Data/Processed/czdata.RDS') 
-
-czdat$czsum = czdat$czsum %>% left_join(
+# load pub stuff, add author info
+czsum2 = czsum %>% left_join(
   fread('../Data/Raw/SignalDoc.csv') %>% 
     select(1:20) %>% 
     transmute(signalname = Acronym, Authors, Year, Journal, LongDescription, sign = Sign)  
 ) %>% 
   setDT()
 
-czdat$czret = czdat$czret %>% 
+czret2 = czret %>% 
   filter(Keep == 1) %>% 
   left_join(
-    czdat$czsum %>% select(signalname,sign) 
+    czsum2 %>% select(signalname,sign) 
   ) %>% 
   setDT()
 
@@ -40,7 +29,7 @@ czdat$czret = czdat$czret %>%
 # Merge dm and pub --------------------------------------------------------
 
 # set up for merge
-czdat$czret[
+czret2[
   , ':=' (
     samptype = if_else(samptype == 'postpub','oos',samptype)
     , source = '1_pub'
@@ -51,7 +40,7 @@ matchdat[ , source := '2_dm']
 
 # merge
 allret = matchdat %>% rbind(
-  czdat$czret %>% transmute(
+  czret2 %>% transmute(
     candSignalname, eventDate, ret = retOrig, samptype, source, actSignal = signalname, sign
   )
 )
@@ -95,7 +84,7 @@ pubsum2 = pubsum[ source == '1_pub'] %>% select(actSignal, starts_with('rbar_'),
 
 
 # read compvars doc
-compdoc = readxl::read_xlsx('Yan-Zheng-Compustat-Vars.xlsx') %>% 
+compdoc = readxl::read_xlsx('DataInput/Yan-Zheng-Compustat-Vars.xlsx') %>% 
   transmute(
     acronym = tolower(acronym)
     , longname 
@@ -158,14 +147,14 @@ inspect_one_pub = function(name){
   # clean up for output
   #   compute sample periods
   tempsamp = paste(
-    year(czdat$czsum[signalname == name, ]$sampstart) 
-    , year(czdat$czsum[signalname == name, ]$sampend)
+    year(czsum2[signalname == name, ]$sampstart) 
+    , year(czsum2[signalname == name, ]$sampend)
     , sep = '-'
   )
   tempoos = paste(
-    year(czdat$czsum[signalname == name, ]$sampend) +1
+    year(czsum2[signalname == name, ]$sampend) +1
     , min(as.numeric(floor(max(stratdat$ret$yearm)))
-          , max(year(czdat$czret[signalname == name]$date)))
+          , max(year(czret2[signalname == name]$date)))
     , sep = '-'
   )  
   
@@ -204,7 +193,8 @@ tabout$allsignals = pubsum2
 write_xlsx(tabout, '../Results/InspectMatch.xlsx')
 
 
-# test --------------------------------------------------------------------
+# Check diversity to console --------------------------------------------------------------------
+# not sure how to put this in the paper =()
 
 tabout$BMdec %>% distinct(v1long, signal_form) %>% print(n=Inf)
 
@@ -230,7 +220,7 @@ tabout$Mom12m %>%
 
 # Make latex inputs -------------------------------------------------------
 
-source('0_Environment.R')
+
 outpath = '../Results/'
 
 
@@ -358,26 +348,3 @@ write_tex_from_tab(tab, id1 = 1:10, id2 = 101:105,
 
 
 
-# test: plot decay vs risk to misprice -----------------------------------------------------------------
-
-wordcount = fread('../Notes/Word2VecResultsMerged.csv') %>% 
-  select(signalname, theory1, misprice_risk_ratio, anomaly_sim)
-
-
-wordcount
-
-pubsum3 = pubsum2 %>% 
-  left_join(wordcount %>% rename(actSignal = signalname))  %>% 
-  mutate(
-    decay_pct = (rbar_insamp-rbar_oos)/rbar_insamp * 100
-    , log_risk_misprice = -log(misprice_risk_ratio)
-  )
-
-
-pubsum3 %>% 
-  ggplot(aes(log_risk_misprice, decay_pct)) +
-  geom_point()
-
-
-lm(decay_pct ~ log_risk_misprice, pubsum3) %>% 
-  summary()

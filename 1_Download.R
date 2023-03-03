@@ -179,3 +179,38 @@ url %>% drive_ls() %>%
   drive_download(path = "../Data/Raw/SignalDoc.csv", overwrite = TRUE)
 
 
+
+# Save data for valid denominators ------------------------------------------------
+
+
+comp0 = readRDS('../Data/Raw/CompustatAnnual.RData')
+
+# count obs
+fobs_list = comp0 %>% 
+  filter(year(datadate)==1963) %>%
+  arrange(gvkey, datadate) %>% 
+  group_by(gvkey) %>% 
+  filter(row_number() == 1) %>% 
+  ungroup() %>% 
+  summarise(across(everything(), function(x) sum(!is.na(x) & x>0)/length(x)) ) %>% 
+  pivot_longer(cols = everything()) %>% 
+  transmute(
+    name, freq_obs_1963 = value
+  )
+
+# keep only accounting vars + crsp me
+tempnames = union(compnames$yz.numer, compnames$yz.denom) 
+fobs_list = fobs_list %>% 
+  filter(name %in% tempnames) %>% 
+  arrange(-freq_obs_1963)
+
+
+fwrite(fobs_list, 'DataIntermediate/freq_obs_1963.csv')
+
+# manual check (make me better pls)
+namecheck = fobs_list %>% filter(freq_obs_1963 > 0.25) %>% pull(name) 
+
+setdiff(namecheck, compnames$pos_in_1963)
+setdiff(compnames$pos_in_1963, namecheck)
+
+
