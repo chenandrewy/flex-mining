@@ -139,9 +139,13 @@ joined_final <- rbind(joined_so_far, to_join) %>%
 
 signal_text2 <- signal_text %>% merge(joined_final)
 
+signal_text2[, risk_mispricing_ratio := 1/misprice_risk_ratio]
+
 signal_text2 <- signal_text2 %>% relocate(signalname, Journal,
                                         Authors, Year, theory1, desc,
                                         misp_count, risk_count,
-                                        misprice_risk_ratio, anomaly_sim, quote)
+                                        misprice_risk_ratio, risk_mispricing_ratio,
+                                        anomaly_sim, quote)
+
 
 fwrite(signal_text2, 'TextClassification.csv')

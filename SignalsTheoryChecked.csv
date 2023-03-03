@@ -25,7 +25,7 @@ AOP,JAE,Frankel and Lee,1998,1998-12-31T00:00:00Z,1993-12-31T00:00:00Z,1975-01-0
 than low V_f /P firms in some other, as yet unidentified, dimension. We leave this
 question to future research.",FALSE,Frankel Lee
 AssetGrowth,JF,"Cooper, Gulen and Schill",2008,2008-12-31T00:00:00Z,2003-12-31T00:00:00Z,1968-01-01T00:00:00Z,1_clear,EW,mispricing,,1,,mispricing,Asset growth,"Overall, our findings are most consistent with the interpretation that investors over extrapolate past gains to growth.",TRUE,Cooper Gulen Schill
-Beta,JPE,Fama and MacBeth,1973,1973-12-31T00:00:00Z,1968-12-31T00:00:00Z,1929-01-01T00:00:00Z,2_likely,EW,risk,,1,,risk,CAPM beta,"Moreover, the observed ""fair game"" properties of the coefficients and residuals of the risk return regressions are consistent with an ""efficient capital market""",FALSE,Fama MacBeth
+Beta,JPE,Fama and MacBeth,1973,1973-12-31T00:00:00Z,1968-12-31T00:00:00Z,1929-01-01T00:00:00Z,2_likely,EW,risk,,1,,risk,CAPM beta,"the pricing of common stocks reflects the attempts of risk-averse investors to hold portfolios that are ""efficient"" in terms of expected value and dispersion of return.",FALSE,Fama MacBeth
 BetaLiquidityPS,JPE,Pastor and Stambaugh,2003,2003-12-31T00:00:00Z,1999-12-31T00:00:00Z,1968-01-01T00:00:00Z,1_clear,VW,risk,,1,,risk,Pastor-Stambaugh liquidity beta,a liquidity risk measure accounts for half of the profits to a momentum strategy over the same 34-year period,FALSE,Pastor Stambaugh
 BetaTailRisk,RFS,Kelly and Jiang,2014,2014-12-31T00:00:00Z,2010-12-31T00:00:00Z,1963-01-01T00:00:00Z,1_clear,EW,risk,,1,,risk,Tail risk beta,"Because investors are tail risk averse, increases in tail risk raise the return
 required by investors to hold the market, thereby inducing a positive predictive relationship
@@ -58,9 +58,7 @@ profitability and expected returns share common economic
 determinants (such as risk) that are relatively stationary
 over time ( Ball, 1978 ).",TRUE,Ball 
 CF,JF,"Lakonishok, Shleifer, Vishny",1994,1994-12-31T00:00:00Z,1990-12-31T00:00:00Z,1968-01-01T00:00:00Z,1_clear,EW,mispricing,,1,,mispricing,Cash flow to market,This article provides evidence that value strategies yield higher returns because these strategies exploit the suboptimal behavior of the typical investor and not because these strategies are fundamentally riskier.,FALSE,Lakonishok Shleifer Vishny
-cfp,AR,"Desai, Rajgopal, Venkatachalam",2004,2004-12-31T00:00:00Z,1997-12-31T00:00:00Z,1973-01-01T00:00:00Z,1_clear,EW,mispricing,,1,,mispricing,Operating Cash flows to price,"Hence, it appears that the mispricing
-attributed to accruals is a manifestation of mispricing related to the cash flow-to-price
-proxy of the value-glamour phenomenon",TRUE,Desai Rajgopal Venkatachalam
+cfp,AR,"Desai, Rajgopal, Venkatachalam",2004,2004-12-31T00:00:00Z,1997-12-31T00:00:00Z,1973-01-01T00:00:00Z,1_clear,EW,mispricing,,1,,mispricing,Operating Cash flows to price,CFO/P is a powerful and comprehensive measure that subsumes the mispricing attributed to all the other value-glamour proxies.,TRUE,Desai Rajgopal Venkatachalam
 ChangeInRecommendation,JF,Jegadeesh et al.,2004,2004-12-31T00:00:00Z,1998-12-31T00:00:00Z,1985-01-01T00:00:00Z,1_clear,EW,mispricing,,1,,mispricing,Change in recommendation,"In contrast, we find that the quarterly change in consensus recommendations is a robust return predictor that appears to contain information orthogonal to a large range of other predictive variables
 
 Naive adherence to these recommendations can be costly, because the level of the consensus recommendation adds value only among stocks with favorable quantitative characteristics",TRUE,Jegadeesh 
@@ -176,7 +174,7 @@ risk, which is more pronounced in competitive industries, is a priced source of
 risk in the context of the multifactor asset pricing models of Merton (1973) and
 Ross (1976).",TRUE,Hou Robinson
 High52,JF,George and Hwang,2004,2004-12-31T00:00:00Z,2001-12-31T00:00:00Z,1963-01-01T00:00:00Z,2_likely,EW,mispricing,,1,,mispricing,52 week high,these findings present a serious challenge to the view that markets are semi strong-form efficient,TRUE,George Hwang
-hire,JPE,"Bazdresch, Belo and Lin",2014,2014-12-31T00:00:00Z,2010-12-31T00:00:00Z,1965-01-01T00:00:00Z,1_clear,EW,risk,,1,,risk,Employment growth,"the average returns of the hiring portfolios, which suggests that the link between hiring and stock returns is, in principle, consistent with a risk-based interpretation.",TRUE,Bazdresch Belo Lin
+hire,JPE,"Bazdresch, Belo and Lin",2014,2014-12-31T00:00:00Z,2010-12-31T00:00:00Z,1965-01-01T00:00:00Z,1_clear,EW,risk,,1,,risk,Employment growth,"we interpret this difference in average returns, which we refer to as the hiring return spread, as reflecting the relatively lower risk of the firms with higher hiring rates",TRUE,Bazdresch Belo Lin
 IdioRisk,JF,Ang et al.,2006,2006-12-31T00:00:00Z,2000-12-31T00:00:00Z,1963-01-01T00:00:00Z,1_clear,VW,agnostic,,1,,agnostic,Idiosyncratic risk,We find that innovations in aggregate volatility carry a statistically significant negative price of risk,TRUE,Ang 
 IdioVol3F,JF,Ang et al.,2006,2006-12-31T00:00:00Z,2000-12-31T00:00:00Z,1963-01-01T00:00:00Z,1_clear,VW,agnostic,,1,,agnostic,Idiosyncratic risk (3 factor),"Hence, our
 results on idiosyncratic volatility represent a substantive puzzle",TRUE,Ang 
@@ -245,7 +243,7 @@ sorted out.",TRUE,Penman Richardson Tuna
 NetEquityFinance,JAE,"Bradshaw, Richardson, Sloan",2006,2006-12-31T00:00:00Z,2000-12-31T00:00:00Z,1971-01-01T00:00:00Z,1_clear,EW,mispricing,,1,,mispricing,Net equity financing,"Consistent with the misvaluation
 explanation, our measure of external financing is positively related to overoptimism in analysts’
 forecasts.",TRUE,Bradshaw Richardson Sloan
-NetPayoutYield,JF,Boudoukh et al.,2007,2007-12-31T00:00:00Z,2003-12-31T00:00:00Z,1984-01-01T00:00:00Z,1_clear,EW,agnostic,The high minus low payout yield portfolio is a priced factor,1,,agnostic,Net Payout Yield,"This shift in payout policy resulted in a magnification of an existing problem in measures of payout yields, namely, the exclusion of share repurchases. We show that once repurchases are taken into account, our measures of the total payout yield show significant predictive ability in both the time series and cross section of equity returns.",TRUE,Boudoukh 
+NetPayoutYield,JF,Boudoukh et al.,2007,2007-12-31T00:00:00Z,2003-12-31T00:00:00Z,1984-01-01T00:00:00Z,1_clear,EW,agnostic,The high minus low payout yield portfolio is a priced factor,1,,agnostic,Net Payout Yield,"We show that the apparent demise of dividend yields as a predictor is due more to mismeasurement than alternative explanations such as spurious correlation, learning, etc.",TRUE,Boudoukh 
 NOA,JAE,Hirshleifer et al.,2004,2004-12-31T00:00:00Z,2002-12-31T00:00:00Z,1964-01-01T00:00:00Z,1_clear,EW,mispricing,,1,,mispricing,Net Operating Assets,"When the balance sheet is 'bloated' in this fashion, we argue that investors with limited attention will overvalue the firm",TRUE,Hirshleifer 
 NumEarnIncrease,MS,Loh and Warachka,2012,2012-12-31T00:00:00Z,2009-12-31T00:00:00Z,1987-01-01T00:00:00Z,2_likely,EW,mispricing,,1,,mispricing,Earnings streak length,"Overall,
 post-earnings-announcement drift has a significant time-series component that is consistent with the gambler’s
@@ -333,7 +331,7 @@ ShortInterest,JFE,Dechow et al.,2001,2001-12-31T00:00:00Z,1993-12-31T00:00:00Z,1
 sinAlgo,JFE,Hong and Kacperczyk,2009,2009-12-31T00:00:00Z,2006-12-31T00:00:00Z,1926-01-01T00:00:00Z,2_likely,EW,risk,"Could be mispricing, since they cite Merton (1987).",1,,risk,Sin Stock (selection criteria),"Sin stocks also have higher expected returns than otherwise comparable stocks, consistent with them being neglected by norm-constrained investors and facing greater litigation risk heightened by social norms
 
 In this paper, we provide evidence of significant effects of social norms on markets by studying the investing environment of ‘‘sin’’ stocks",TRUE,Hong Kacperczyk
-Size,JFE,Banz,1981,1981-12-31T00:00:00Z,1975-12-31T00:00:00Z,1926-01-01T00:00:00Z,1_clear,EW,agnostic,,1,,agnostic,Size,It is not known whether size per se is responsible for the effect or whether size is just a proxy for one or more true unknown factors correlated with size,FALSE,Banz
+Size,JFE,Banz,1981,1981-12-31T00:00:00Z,1975-12-31T00:00:00Z,1926-01-01T00:00:00Z,1_clear,EW,agnostic,,1,,agnostic,Size,"To summarize, the size effect exists but it is not at all clear why it exists.",FALSE,Banz
 skew1,JFQA,"Xing, Zhang and Zhao",2010,2010-12-31T00:00:00Z,2005-12-31T00:00:00Z,1996-01-01T00:00:00Z,2_likely,EW,mispricing,,1,,mispricing,Volatility smirk near the money,"The results are consistent with the notion that informed traders with negative
 news prefer to trade out-of-the-money put options, and that the equity market is slow in
 incorporating the information embedded in volatility smirks.",TRUE,Xing Zhang Zhao
