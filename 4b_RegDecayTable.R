@@ -70,7 +70,7 @@ signaldoc = fread('DataInput/SignalsTheoryChecked.csv') %>%
 
 
 # czreturns
-cz_all = fread("../Data/CZ/PredictorPortsFull.csv")
+cz_all = fread("../Data/Raw/PredictorPortsFull.csv")
 # czret (monthly returns)
 czret = cz_all %>%                                         
   filter(!is.na(ret), port == 'LS') %>%                                                           

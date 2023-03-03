@@ -31,24 +31,24 @@ candidateReturns = candidateReturns %>%
 signal_list = readRDS(DMname)$signal_list
 
 
-# load hand classifications
-signal_text <- fread('DataInput/SignalsTheoryChecked.csv')
-
-# load classifications and text stats
-subset_text <- fread('DataIntermediate/TextClassification.csv')  %>% 
-  # dplyr::select(Authors, Year, Journal, file_names)%>%
-  mutate(Journal = gsub('^RF$', 'ROF', Journal)) %>%
-  mutate(Journal = gsub('^TAR$', 'AR', Journal)) %>%
-  mutate(Authors = gsub('et al.?|and |,', '', Authors)) %>%
-  mutate(FirstAuthor = word(Authors)) %>%
-  filter(Authors != 'Ang et al') %>%
-  filter(Authors != 'Chen Jegadeesh Lakonishok')
+# # load hand classifications
+# signal_text <- fread('DataInput/SignalsTheoryChecked.csv')
+# 
+# # load classifications and text stats
+# subset_text <- fread('DataIntermediate/TextClassification.csv')  %>% 
+#   # dplyr::select(Authors, Year, Journal, file_names)%>%
+#   mutate(Journal = gsub('^RF$', 'ROF', Journal)) %>%
+#   mutate(Journal = gsub('^TAR$', 'AR', Journal)) %>%
+#   mutate(Authors = gsub('et al.?|and |,', '', Authors)) %>%
+#   mutate(FirstAuthor = word(Authors)) %>%
+#   filter(Authors != 'Ang et al') %>%
+#   filter(Authors != 'Chen Jegadeesh Lakonishok')
 
 
 # Risk vs Mispricing Tables -----------------------------------------------
 
 # this does not need the setup
-source('4a_TextTables.R')
-source('4b_RegressionTable.R')
+source('4a_TextTables.R', echo = T)
+source('4b_RegDecayTable.R', echo = T) # do we use signalkeep == 1 here?
 
 
