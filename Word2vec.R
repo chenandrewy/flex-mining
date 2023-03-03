@@ -11,7 +11,7 @@ subset_df <- paper_text[,
                               text_lemmatized]
 gc()
 tic <- Sys.time()
-model <- word2vec(x = subset_df, dim = 300, iter = 30, threads = 16)
+model <- word2vec(x = subset_df, dim = 300, iter = 1, threads = 16)
 toc <- Sys.time()
 print(toc - tic)
 emb   <- as.matrix(model)
@@ -76,7 +76,7 @@ subset_text <- fread('../IntermediateText/Word2VecResults.csv')  %>%  rename(Jou
   filter(Authors != 'Ang et al') %>%
   filter(Authors != 'Chen Jegadeesh Lakonishok')
 
-signal_text <- fread('SignalsTheoryChecked.csv')
+signal_text <- fread('DataInput/SignalsTheoryChecked.csv')
 
 library(fuzzyjoin)
 joined_inner <- signal_text %>% dplyr::select(signalname, Year, Journal, author_merge, Authors) %>%
@@ -148,4 +148,4 @@ signal_text2 <- signal_text2 %>% relocate(signalname, Journal,
                                         anomaly_sim, quote)
 
 
-fwrite(signal_text2, 'TextClassification.csv')
+fwrite(signal_text2, 'DataIntermediate/TextClassification.csv')

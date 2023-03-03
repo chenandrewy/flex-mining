@@ -327,8 +327,12 @@ subset_text <- texts[!is.na(year), .(file_names, new_file_name, Year = year, Aut
 
 fwrite(subset_text, '../IntermediateText/TextAnalysis.csv')
 
-fwrite(texts[!is.na(year), .(file_names, new_file_name, Year = year, Authors = author, journal,
-                             signalname, word_count, misp_count, risk_count, misprice_risk_ratio, text_lemmatized)], '../IntermediateText/FullTextAnalysis.csv')
+fwrite(texts[!is.na(year), .(file_names, new_file_name, Year = year,
+                             Authors = author, journal,
+                             signalname, word_count,
+                             misp_count, risk_count,
+                             misprice_risk_ratio, text_lemmatized)],
+       '../IntermediateText/FullTextAnalysis.csv')
 
 
 words_mispricing <- c(
@@ -402,3 +406,85 @@ kw_r <- kwic(texts_lemma, pattern = words_risks)
 risk_list <-  kw_r$keyword %>% unique()
 
 risk_list %>% as.data.table() %>% fwrite('DataIntermediate/risk_words.csv')
+
+subset_text <- fread('../IntermediateText/TextAnalysis.csv')  %>%  rename(Journal = journal) %>%
+  # dplyr::select(Authors, Year, Journal, file_names)%>%
+  mutate(Journal = gsub('^RF$', 'ROF', Journal)) %>%
+  mutate(Journal = gsub('^TAR$', 'AR', Journal)) %>%
+  mutate(Authors = gsub('et al.?|and |,', '', Authors)) %>%
+  mutate(FirstAuthor = word(Authors)) %>%
+  filter(Authors != 'Ang et al') %>%
+  filter(Authors != 'Chen Jegadeesh Lakonishok')
+
+signal_text <- fread('DataInput/SignalsTheoryChecked.csv')
+
+library(fuzzyjoin)
+joined_inner <- signal_text %>% dplyr::select(signalname, Year, Journal, author_merge, Authors) %>%
+  rename(Authors2 = Authors, Authors = author_merge) %>%
+  stringdist_inner_join(subset_text ,
+                        by = c('Authors', 'Journal'),
+                        max_dist = 1) %>% filter(abs(Year.x - Year.y) < 1)
+
+names_in_inner <- unique(joined_inner$signalname.x)
+
+to_join <- signal_text %>% filter(!signalname %in% names_in_inner )  %>%
+  dplyr::select(signalname, Year, Journal, author_merge, Authors) %>%
+  rename(Authors2 = Authors, Authors = author_merge) %>%
+  stringdist_inner_join(subset_text , by = c('Authors'),
+                        max_dist = 1)  %>%
+  filter(abs(Year.x - Year.y) < 1)
+
+joined_so_far <- rbind(joined_inner, to_join)
+
+names_so_far <- unique(joined_so_far$signalname.x)
+
+to_join <- signal_text %>% filter(!signalname %in% names_so_far )  %>%
+  dplyr::select(signalname, Year, Journal, author_merge, Authors) %>%
+  rename(Authors2 = Authors, Authors = author_merge) %>%
+  stringdist_left_join(subset_text , by = c('Authors'),
+                       max_dist = 2) %>%
+  filter(abs(Year.x - Year.y) < 5)
+
+joined_so_far <- rbind(joined_so_far, to_join)
+
+names_so_far <- unique(joined_so_far$signalname.x)
+
+authors_y <- unique(joined_so_far$Authors.y)
+
+to_join <- signal_text %>% filter(!signalname %in% names_so_far )  %>%
+  dplyr::select(signalname, Year, Journal, author_merge, Authors) %>%
+  rename(Authors2 = Authors, Authors = author_merge) %>%
+  stringdist_left_join(subset_text , by = c('Authors' = 'FirstAuthor'),
+                       max_dist = 1) %>%
+  filter(abs(Year.x - Year.y) < 1) %>% filter(Journal.x == Journal.y)
+
+joined_so_far <- rbind(joined_so_far, to_join)
+
+names_so_far <- unique(joined_so_far$signalname.x)
+
+to_join <- signal_text %>% filter(!signalname %in% names_so_far ) %>%
+  dplyr::select(signalname, Year, Journal, author_merge, Authors) %>%
+  rename(Authors2 = Authors, Authors = author_merge) %>%
+  stringdist_left_join(subset_text , by = c('Authors' = 'FirstAuthor'),
+                       max_dist = 1) %>%
+  filter(abs(Year.x - Year.y) < 2) %>% filter(Journal.x == Journal.y)
+
+
+joined_final <- rbind(joined_so_far, to_join) %>%
+  rename(signalname = signalname.x) %>%
+  arrange(signalname) %>%
+  dplyr::select(signalname, word_count,
+                misp_count, risk_count, misprice_risk_ratio)
+
+signal_text2 <- signal_text %>% merge(joined_final)
+
+signal_text2[, risk_mispricing_ratio := 1/misprice_risk_ratio]
+
+signal_text2 <- signal_text2 %>% relocate(signalname, Journal,
+                                          Authors, Year, theory1, desc,
+                                          misp_count, risk_count,
+                                          misprice_risk_ratio, risk_mispricing_ratio,
+                                          quote)
+
+
+fwrite(signal_text2, 'DataIntermediate/TextClassification.csv')

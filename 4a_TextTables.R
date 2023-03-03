@@ -43,78 +43,8 @@ chen_theme =   theme_minimal() +
     , legend.title = element_blank()    
   ) 
 library(stringr)
-subset_text <- fread('DataIntermediate/TextClassification.csv')  %>% 
-  # dplyr::select(Authors, Year, Journal, file_names)%>%
-  mutate(Journal = gsub('^RF$', 'ROF', Journal)) %>%
-  mutate(Journal = gsub('^TAR$', 'AR', Journal)) %>%
-  mutate(Authors = gsub('et al.?|and |,', '', Authors)) %>%
-  mutate(FirstAuthor = word(Authors)) %>%
-  filter(Authors != 'Ang et al') %>%
-  filter(Authors != 'Chen Jegadeesh Lakonishok')
 
-
-signal_text <- fread('DataInput/SignalsTheoryChecked.csv')
-
-library(fuzzyjoin)
-joined_inner <- signal_text %>% dplyr::select(signalname, Year, Journal, author_merge, Authors) %>%
-  rename(Authors2 = Authors, Authors = author_merge) %>%
-  stringdist_inner_join(subset_text ,
-                        by = c('Authors', 'Journal'),
-                        max_dist = 1) %>% filter(abs(Year.x - Year.y) < 1)
-
-names_in_inner <- unique(joined_inner$signalname.x)
-
-
-to_join <- signal_text %>% filter(!signalname %in% names_in_inner )  %>%
-  dplyr::select(signalname, Year, Journal, author_merge, Authors) %>%
-  rename(Authors2 = Authors, Authors = author_merge) %>%
-  stringdist_inner_join(subset_text , by = c('Authors'),
-                        max_dist = 1)  %>%
-  filter(abs(Year.x - Year.y) < 1)
-
-joined_so_far <- rbind(joined_inner, to_join)
-
-names_so_far <- unique(joined_so_far$signalname.x)
-
-to_join <- signal_text %>% filter(!signalname %in% names_so_far )  %>%
-  dplyr::select(signalname, Year, Journal, author_merge, Authors) %>%
-  rename(Authors2 = Authors, Authors = author_merge) %>%
-  stringdist_left_join(subset_text , by = c('Authors'),
-                        max_dist = 2) %>%
-  filter(abs(Year.x - Year.y) < 5)
-
-joined_so_far <- rbind(joined_so_far, to_join)
-
-names_so_far <- unique(joined_so_far$signalname.x)
-
-authors_y <- unique(joined_so_far$Authors.y)
-
-to_join <- signal_text %>% filter(!signalname %in% names_so_far )  %>%
-  dplyr::select(signalname, Year, Journal, author_merge, Authors) %>%
-  rename(Authors2 = Authors, Authors = author_merge) %>%
-  stringdist_left_join(subset_text , by = c('Authors' = 'FirstAuthor'),
-                       max_dist = 1) %>%
-  filter(abs(Year.x - Year.y) < 1) %>% filter(Journal.x == Journal.y)
-
-joined_so_far <- rbind(joined_so_far, to_join)
-
-names_so_far <- unique(joined_so_far$signalname.x)
-
-to_join <- signal_text %>% filter(!signalname %in% names_so_far ) %>%
-  dplyr::select(signalname, Year, Journal, author_merge, Authors) %>%
-  rename(Authors2 = Authors, Authors = author_merge) %>%
-  stringdist_left_join(subset_text , by = c('Authors' = 'FirstAuthor'),
-                       max_dist = 1) %>%
-  filter(abs(Year.x - Year.y) < 2) %>% filter(Journal.x == Journal.y)
-
-
-joined_final <- rbind(joined_so_far, to_join) %>%
-  rename(signalname = signalname.x) %>%
-  arrange(signalname) %>%
-  dplyr::select(signalname, word_count, misp_count, risk_count, misprice_risk_ratio)
-
-signal_text <- signal_text %>% merge(joined_final)
-
+signal_text <- fread('DataIntermediate/TextClassification.csv')
 
 sub_sample_text <- signal_text %>% dplyr::select(signalname, Journal,
                                                  Authors, Year, theory1,
@@ -174,13 +104,11 @@ text_examples <- signal_text_to_table[signalname == 'ShareRepurchase', ] %>%
   rbind(signal_text_to_table[signalname == 'ChEQ', ])  %>%
   rbind(signal_text_to_table[signalname == 'hire', ])  %>%
   rbind(signal_text_to_table[signalname == 'realestate', ])  %>%
-  mutate(misprice_risk_ratio = round(misprice_risk_ratio, 2)) %>%
   rename(Theory = theory1) %>%
   mutate(Reference = paste(Authors, PubYear))  %>%
   select(!c(signalname, word_count, misp_count, risk_count, Authors, PubYear, Journal)) %>%
-  mutate(not_log_risk_misprice_ratio = exp(-misprice_risk_ratio) %>% round(2)) %>%
-  arrange(-not_log_risk_misprice_ratio)  %>%
-  rename(RiskMispricingRatio = not_log_risk_misprice_ratio)  %>%
+  arrange(misprice_risk_ratio)  %>%
+  mutate(RiskMispricingRatio = round(1/misprice_risk_ratio, 2))  %>%
     select(Theory, Reference, Predictor, ExampleText, RiskMispricingRatio)
 
 text_examples
@@ -195,7 +123,7 @@ summary_text <- bind_rows(
   signal_text,
   signal_text %>% mutate(theory1 = "Total")
 ) %>% group_by(theory1) %>%
-  mutate(RiskMispricingRatio = exp(-misprice_risk_ratio) %>% round(2)) %>%
+  mutate(RiskMispricingRatio = (1/misprice_risk_ratio) %>% round(2)) %>%
   arrange(-RiskMispricingRatio)  %>%
   summarise(Count = n(), CountPre2004 = sum(Year < 2004),
             CountPost2004 = sum(Year >= 2004),
@@ -210,9 +138,6 @@ summary_text <- bind_rows(
             q95RiskMispricingRatio = quantile(RiskMispricingRatio, 0.95) %>% round(2)  %>% as.character(),
             MaxRiskMispricingRatio = max(RiskMispricingRatio) %>% round(2)  %>% as.character())  %>%
   rename(Theory = theory1)
-
-# %>%
-#   adorn_totals("row") 
 
 summary_text
 
