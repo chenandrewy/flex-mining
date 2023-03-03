@@ -612,7 +612,7 @@ ReturnPlotsNoDM = function(dt, suffix = '', rollmonths = 60, filetype = '.pdf',
 # Create a plot that compares the average predictor return with the average data-mined return
 ReturnPlotsWithDM = function(dt, suffix = '', rollmonths = 60, colors = NA,
                              xl = -360, xh = 240, yl = -10, yh = 130, fig.width = 10,
-                             fig.height = 8, basepath = NA_character_) {
+                             fig.height = 8, fontsize = 18, basepath = NA_character_) {
   
   #' @param dt Table with three columns (eventDate, ret, matchRet)
   #' @param suffix String to attach to saved pdf figure 
@@ -647,7 +647,7 @@ ReturnPlotsWithDM = function(dt, suffix = '', rollmonths = 60, colors = NA,
       ylab('Trailing 5-Year Mean Return (bps p.m.)') +
       xlab('Months Since Original Sample Ended') +
       labs(color = '', linetype = '') +
-      theme_light(base_size = 18) +
+      theme_light(base_size = fontsize) +
       theme(
         legend.position = c(80,85)/100
         , legend.spacing.y = unit(0, units = 'cm')
