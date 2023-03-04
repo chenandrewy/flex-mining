@@ -371,9 +371,9 @@ stratdat = list(
 )
 
 # save
-saveRDS(stratdat, paste0('../Data/Processed/stratdat ',
+saveRDS(stratdat, paste0('../Data/Processed/',
                          stratdat$name, 
-                         '.RData'))
+                         ' LongShort.RData'))
 
 toc = Sys.time()
 print(toc - tic)
