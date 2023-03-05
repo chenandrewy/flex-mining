@@ -65,6 +65,27 @@ allRets = czret %>%
 rm(tempsumCand, tempCand)
 
 
+# testing -----------------------------------------------------------------
+
+
+# count observations
+noos = czret %>% 
+  filter(date > sampend) %>% 
+  group_by(signalname, theory1) %>% summarize(nmonth = n()) %>% ungroup %>% 
+  arrange(nmonth) %>% 
+  print
+
+keep_noos = noos %>% filter(nmonth >= 9*12) %>% pull(signalname)
+
+czret = czret %>% filter(signalname %in% keep_noos)
+
+
+czret %>% 
+  filter(date > sampend) %>% 
+  group_by(signalname, theory1) %>% summarize(nmonth = n()) %>% ungroup %>% 
+  arrange(nmonth) %>% 
+  print
+
 # Run Exhibits ---------------------------------------------
 
 

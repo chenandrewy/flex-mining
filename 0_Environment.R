@@ -625,22 +625,30 @@ ReturnPlotsNoDM = function(dt, suffix = '', rollmonths = 60, filetype = '.pdf',
 # Create a plot that compares the average predictor return with the average data-mined return
 ReturnPlotsWithDM = function(dt, suffix = '', rollmonths = 60, colors = NA,
                              xl = -360, xh = 240, yl = -10, yh = 130, fig.width = 10,
-                             fig.height = 8, fontsize = 18, basepath = NA_character_) {
+                             fig.height = 8, fontsize = 18, basepath = NA_character_,
+                             labelmatch = FALSE, hideoos = FALSE,
+                             filetype = '.pdf') {
   
   #' @param dt Table with three columns (eventDate, ret, matchRet)
   #' @param suffix String to attach to saved pdf figure 
   #' @param rollmonths Number of months over which moving average is computed
   #' @param xl, xh, yl, yh Upper and lower limits for x and y axes  
   
-  print(
-    dt %>% 
-      gather(key = 'SignalType', value = 'return', -eventDate) %>% 
-      group_by(SignalType, eventDate) %>% 
-      summarise(rbar = mean(return)) %>% 
-      arrange(SignalType, eventDate) %>% 
-      mutate(
-        roll_rbar = zoo::rollmean(rbar, k = rollmonths, fill = NA, align = 'right')
-      ) %>% 
+  dt = dt %>% 
+    gather(key = 'SignalType', value = 'return', -eventDate) %>% 
+    group_by(SignalType, eventDate) %>% 
+    summarise(rbar = mean(return)) %>% 
+    arrange(SignalType, eventDate) %>% 
+    mutate(
+      roll_rbar = zoo::rollmean(rbar, k = rollmonths, fill = NA, align = 'right')
+    ) 
+  
+  if (hideoos==TRUE){
+    dt = dt %>% 
+      filter(!(SignalType == 'matchRet' & eventDate > 0))
+  }
+  
+  printme = dt %>% 
       mutate(SignalType = factor(SignalType, levels = c('ret', 'matchRet'), labels = c('Published', 'Matched data-mined'))) %>% 
       ggplot(aes(x = eventDate, y = roll_rbar, color = SignalType, linetype = SignalType)) +
       geom_line(size = 1.1) +
@@ -666,9 +674,20 @@ ReturnPlotsWithDM = function(dt, suffix = '', rollmonths = 60, colors = NA,
         , legend.spacing.y = unit(0, units = 'cm')
         , legend.background = element_rect(fill='transparent')
       ) 
-  )
   
-  ggsave(paste0(basepath, '_', suffix, '.pdf'), width = fig.width, height = fig.height)
+  if (labelmatch == TRUE){
+   printme = printme +
+    annotate('text', x = -90, y = 12, fontface = 'italic'
+             , label = '<- matching region'
+             , color = 'grey40' , size = 5) +
+    annotate('text', x =   70, y = 12, fontface = 'italic'
+             , label = 'unmatched ->'
+             , color = 'grey40' , size = 5)
+  }
+  
+  print(printme)
+  
+  ggsave(paste0(basepath, '_', suffix, filetype), width = fig.width, height = fig.height)
   
 }
 
