@@ -280,11 +280,24 @@ saveRDS(
 # Save data for valid denominators ------------------------------------------------
 
 
-comp0 = readRDS('../Data/Raw/CompustatAnnual.RData')
+comp0 = readRDS('../Data/Raw/CompustatAnnual.RData') 
+
+# check some basic stuff to console
+comp0 %>% 
+  transmute(gvkey, year = year(datadate), permno, me_datadate, at) %>% 
+  group_by(year) %>% 
+  summarize(
+    npermno = sum(!is.na(permno))
+    , nme = sum(!is.na(me_datadate))
+    , nat = sum(!is.na(at))
+    , ngvkey = sum(!is.na(gvkey))
+  ) %>% 
+  print(n=30)
+
 
 # count obs
 fobs_list = comp0 %>% 
-  filter(year(datadate)==1963) %>%
+  filter(year(datadate)==1963, !is.na(permno)) %>% 
   arrange(gvkey, datadate) %>% 
   group_by(gvkey) %>% 
   filter(row_number() == 1) %>% 
@@ -295,16 +308,27 @@ fobs_list = comp0 %>%
     name, freq_obs_1963 = value
   )
 
+
 # keep only accounting vars + crsp me
 tempnames = union(compnames$yz.numer, compnames$yz.denom) 
 fobs_list = fobs_list %>% 
   filter(name %in% tempnames) %>% 
   arrange(-freq_obs_1963)
 
-
 fwrite(fobs_list, 'DataIntermediate/freq_obs_1963.csv')
 
-# manual check (make me better pls)
+
+# manual checks -----------------------------------------------------------
+
+
+fobs_list %>% 
+  filter(name == 'me_datadate')
+
+fobs_list %>% 
+  filter(freq_obs_1963 > 0.25)
+
+
+
 namecheck = fobs_list %>% filter(freq_obs_1963 > 0.25) %>% pull(name) 
 
 setdiff(namecheck, compnames$pos_in_1963)

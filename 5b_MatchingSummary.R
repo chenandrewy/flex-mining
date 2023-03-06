@@ -11,7 +11,7 @@ tmpUnmatched = allRets %>%
 tableUnmatched = czsum %>% 
   filter(signalname %in% tmpUnmatched$signalname) %>% 
   left_join(data.table::fread('../Data/Raw/SignalDoc.csv') %>% 
-              as_tibble() %>% select(Acronym, Authors, Year, Journal),
+              as_tibble() %>% select(Acronym, Authors, Journal),
             by = c('signalname' = 'Acronym')
   ) %>% 
   transmute(Authors, Year, Journal, rbar, tstat,

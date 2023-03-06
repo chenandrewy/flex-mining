@@ -20,7 +20,7 @@ user = list()
 user$name = Sys.time() %>% substr(1,17) 
 substr(user$name, 17,17) = 'm'
 substr(user$name, 14,14) = 'h'
-user$name = 'CZ-style-v5'
+user$name = 'CZ-style-v6'
 
 # signal choices
 user$signal = list(
@@ -111,6 +111,8 @@ print(debugset %>% t())
 print('number of signals is ')
 print(nrow(signal_list))
 print(n1 * n2 + (n1-n2)*n2 + choose(n2,2))
+print(n1)
+print(n2)
 print(user$name) 
 keyin = readline('type q to abort')
 if (keyin == 'q') stop('stopping')

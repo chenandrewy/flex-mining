@@ -19,8 +19,7 @@ bm_rets = bm_rets %>%
     , signalname = signalid
     , yearm
     , ret
-    , nstock) %>% 
-  filter(signalname %in% filteredCandidates)
+    , nstock)
 
 
 for (var_type in var_types) {
@@ -29,10 +28,13 @@ for (var_type in var_types) {
   
   yz = bm_rets %>%
     filter(sweight == var_type) %>% 
-    transmute(
-      signalname, date = as.Date(yearm), ret
-    )
-  
+    # ac: do we need as.Date here?
+    # transmute(
+    #   signalname, date = as.Date(yearm), ret
+    # )
+  transmute(
+    signalname, date = yearm, ret
+  )
   
   sumsignal_all = yz %>% 
     group_by(signalname) %>% 

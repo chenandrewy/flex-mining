@@ -17,10 +17,11 @@ matchname = paste0('../Data/Processed/', name, ' MatchPub.RData')
 # Import and Clean Matched Data ------------------------------------------------------
 
 # CZ data
-czsum = readRDS('../Data/Processed/czsum_all207.RDS')
-
 czcat = fread('DataIntermediate/TextClassification.csv') %>% 
   select(signalname, Year, theory1, misprice_risk_ratio)
+
+czsum = readRDS('../Data/Processed/czsum_all207.RDS') %>% 
+  left_join(czcat, by = 'signalname')
 
 czret = readRDS('../Data/Processed/czret.RDS') %>% 
   left_join(czcat, by = 'signalname') %>% 
