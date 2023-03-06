@@ -1,3 +1,4 @@
+cat("\f")  
 rm(list = ls())
 gc()
 

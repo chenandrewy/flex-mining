@@ -120,10 +120,20 @@ tempret = czret %>%
 
 tempret[, mean(ret), by = risk_theory]
 
-
-a1 <- tempret %>%
-  lm(ret_n ~ post_samp +  I(I(post_samp == TRUE)*I(theory1 == 'risk')) , data = .) %>%
+a1_model <- tempret %>%
+  lm(ret_n ~ post_samp +  I(I(post_samp == TRUE)*I(theory1 == 'risk')) , data = .)
+a1 <- a1_model %>%
   coeftest(., vcov = vcovCL, cluster = ~ date) %>% round(10)
+
+coefeq_a1 <- matrix(data=0, nrow=1, ncol=length(a1_model$coefficients))
+colnames(coefeq_a1) <- names(a1_model$coefficients)
+coefeq_a1[1,-1] <- 1
+coefeq_a1
+ametest_1<- glht(model=a1_model, linfct=coefeq_a1, rhs=0, alternative="less",
+                 vcov = vcovCL(a1_model, cluster = ~ date))
+sum_a1 <- summary(ametest_1)
+p_val_a1 <- sum_a1$test$pvalues[1]
+
 
 a2_model <- tempret %>%
   lm(ret_n ~ post_samp + post_pub + I(I(post_samp == TRUE)*I(theory1 == 'risk')) +
@@ -141,12 +151,33 @@ ametest_2<- glht(model=a2_model, linfct=coefeq_a2, rhs=0, alternative="less",
 sum_a2 <- summary(ametest_2)
 p_val_a2 <- sum_a2$test$pvalues[1]
 
-a3 <- tempret %>%
+a3_model <- tempret %>%
   lm(ret_n ~ post_samp +  I(I(post_samp == TRUE)*I(theory1 == 'risk'))+
-       I(I(post_samp == TRUE)*I(theory1 == 'mispricing')), data = .) %>%
+       I(I(post_samp == TRUE)*I(theory1 == 'mispricing')), data = .)
+a3 <- a3_model %>%
   coeftest(., vcov = vcovCL, cluster = ~ date) %>% round(10)
 
-a3
+
+coefeq_a3 <- matrix(data=0, nrow=1, ncol=length(a3_model$coefficients))
+colnames(coefeq_a3) <- names(a3_model$coefficients)
+coefeq_a3[1,-1] <- 1
+coefeq_a3
+ametest_3<- glht(model=a3_model, linfct=coefeq_a3, rhs=0, alternative="less",
+                 vcov = vcovCL(a3_model, cluster = ~ date))
+sum_a3 <- summary(ametest_3)
+p_val_a3 <- sum_a3$test$pvalues[1]
+
+coefeq_3_misp <- matrix(data=0, nrow=1, ncol=length(a3_model$coefficients))
+colnames(coefeq_3_misp) <- names(a3_model$coefficients)
+coefeq_3_misp[1, c(2,4)] <- 1
+coefeq_3_misp
+ametest_3_misp <- glht(model=a3_model,
+                       linfct=coefeq_3_misp, rhs=0,
+                       alternative="greater",
+                       vcov = vcovCL(a3_model,  cluster = ~ date))
+sum_a3_misp <- summary(ametest_3_misp)
+p_val_a3_misp <- sum_a3_misp$test$pvalues[1]
+p_table_3_misp <- ifelse(p_val_a3_misp < 0.01, '< 1%', round(p_val_a3_misp, 2))
 
 
 a4_model <- tempret %>%
@@ -169,8 +200,10 @@ ametest_4_risk <- glht(model=a4_model,
                   vcov = vcovCL(a4_model,  cluster = ~ date))
 sum_a4 <- summary(ametest_4_risk)
 p_val_a4_risk <- sum_a4$test$pvalues[1]
+p_table_1 <- ifelse(p_val_a2 < 0.01, '< 1%', p_val_a1)
 p_table_4 <- ifelse(p_val_a4_risk < 0.01, '< 1%', p_val_a4_risk)
 p_table_2 <- ifelse(p_val_a2 < 0.01, '< 1%', p_val_a2)
+p_table_3 <- ifelse(p_val_a2 < 0.01, '< 1%', p_val_a3)
 
 coefeq_4_misp <- matrix(data=0, nrow=1, ncol=length(a4_model$coefficients))
 colnames(coefeq_4_misp) <- names(a4_model$coefficients)
@@ -192,11 +225,12 @@ reg_save <- huxreg(a1, a2, a3, a4, coefs = c(
   'Post-Pub x Risk' = 'I(I(post_pub == TRUE) * I(theory1 == "risk"))',
   'Post-Sample x Mispricing' = 'I(I(post_samp == TRUE) * I(theory1 == "mispricing"))',
   'Post-Pub x Mispricing' = 'I(I(post_pub == TRUE) * I(theory1 == "mispricing"))'),
-  statistics = c('nobs'), stars = NULL, number_format = 2) %>%
-  insert_row(c('p-val Risk', '', p_table_2, '', p_table_4)
-             , after = 16) %>%
-  insert_row(c('p-val Mispricing', '', '', '', p_table_4_misp)
+  statistics = c('nobs'), stars = NULL, number_format = 2) %>% 
+  insert_row(c('Null: Mispricing Decay', '', '', p_table_3_misp, p_table_4_misp)
+           , after = 16)%>%
+  insert_row(c('Null: Risk No Decay', p_table_1, p_table_2, p_table_3, p_table_4)
              , after = 17)
+
 reg_save
 round_numbers_in_strings <- function(strings_with_numbers) {
   regex_pattern <- "\\d+\\.?\\d*" # matches any number with or without decimal point

@@ -242,6 +242,9 @@ PctAcc,AR,"Hafzalla, Lundholm, Van Winkle",2011,mispricing,Percent Operating Acc
 and are inconsistent with some alternative explanations for the accrual anomaly.",0,"",2011-12-31T00:00:00Z,2008-12-31T00:00:00Z,1989-01-01T00:00:00Z,1_clear,EW,mispricing,"",,TRUE,Hafzalla Lundholm Van Winkle,TRUE,6221
 PctTotAcc,AR,"Hafzalla, Lundholm, Van Winkle",2011,mispricing,Percent Total Accruals,84,26,3.14814814814815,0.317647058823529,"our results are consistent with the earnings fixation hypothesis
 and are inconsistent with some alternative explanations for the accrual anomaly.",0,"",2011-12-31T00:00:00Z,2008-12-31T00:00:00Z,1989-01-01T00:00:00Z,1_clear,EW,mispricing,"",,TRUE,Hafzalla Lundholm Van Winkle,TRUE,6221
+PredictedFE,JAE,Frankel and Lee,1998,agnostic,Analyst Optimism,36,15,2.3125,0.432432432432432,"we acknowledge that high V_f/P firms may still be riskier
+than low V_f /P firms in some other, as yet unidentified, dimension. We leave this
+question to future research.",0,"",1998-12-31T00:00:00Z,1993-12-31T00:00:00Z,1975-01-01T00:00:00Z,2_likely,EW,agnostic,"",,FALSE,Frankel Lee,TRUE,7363
 Price,JF,Blume and Husic,1972,agnostic,Price,24,17,1.38888888888889,0.719999999999999,"the results
 in this paper suggest that the return generating function may be considerably
 more complex than many investigators have previously assumed.",0,"",1972-12-31T00:00:00Z,1971-12-31T00:00:00Z,1932-01-01T00:00:00Z,1_clear,EW,agnostic,"",,FALSE,Blume Husic,TRUE,3716
