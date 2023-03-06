@@ -2,28 +2,18 @@
 rm(list = ls())
 source('0_Environment.R')
 
-# this really only needs PredictorPortsFull.csv and the text TextClassification.csv
-# and not this huge matched data.
-# clean up eventually please
-tmp = readRDS('../Data/Processed/CZ-style-v4 MatchPub.RData')
-czret = tmp$czret
-czsum = tmp$czsum
-rm(tmp)
 
-czdoc = fread('../Data/Raw/SignalDoc.csv') %>% select(1:20) %>% 
-  rename(signalname = Acronym) # just to get pub year
+czsum = readRDS('../Data/Processed/czsum_all207.RDS')
 
-# testing
-# count observations
-noos = czret %>% 
-  filter(date > sampend) %>% 
-  group_by(signalname, theory1) %>% summarize(nmonth = n()) %>% ungroup %>% 
-  arrange(nmonth) %>% 
-  print(n=20)
+czcat = fread('DataIntermediate/TextClassification.csv') %>% 
+  select(signalname, Year, theory1, misprice_risk_ratio)
 
-keep_noos = noos %>% filter(nmonth >= 9*12) %>% pull(signalname)
-
-czret = czret %>% filter(signalname %in% keep_noos)
+czret = readRDS('../Data/Processed/czret.RDS') %>% 
+  left_join(czcat, by = 'signalname') %>% 
+  mutate(
+    retOrig = ret
+    , ret = ret/rbar*100
+  )
 
 
 # Main Figure  ----------------------------------
@@ -44,13 +34,11 @@ ReturnPlotsNoDM(dt = czret %>%
 # Post-2000 samp ends only ------------------------------------------------
 
 temp = czret %>% 
+  filter(Year > 2004) %>% 
   transmute(eventDate,
             signalname,
             ret,
-            catID = theory1) %>% 
-  inner_join(
-    czdoc %>% filter(Year > 2004) %>% select(signalname)
-  )
+            catID = theory1)  
 
 temp %>% distinct(signalname)
 
@@ -76,7 +64,7 @@ ReturnPlotsNoDM(dt = czret %>%
                             signalname,
                             ret,
                             catID = theory1),
-                basepath = '../Results/Anim-Pub-1',
+                basepath = '../Results/Extra/Anim-Pub-1',
                 suffix = 'AllSignals',
                 filetype = '.png'
 )
@@ -90,7 +78,7 @@ ReturnPlotsNoDM(dt = czret %>%
                             signalname,
                             ret,
                             catID = theory1),
-                basepath = '../Results/Anim-Pub-2',
+                basepath = '../Results/Extra/Anim-Pub-2',
                 suffix = 'AllSignals',
                 filetype = '.png'
 )
@@ -101,7 +89,7 @@ ReturnPlotsNoDM(dt = czret %>%
                             signalname,
                             ret,
                             catID = theory1),
-                basepath = '../Results/Anim-Pub-3',
+                basepath = '../Results/Extra/Anim-Pub-3',
                 suffix = 'AllSignals',
                 filetype = '.png'
 )
@@ -263,42 +251,3 @@ ggplot(aes(log_risk_misprice, diff_ret), data = plotme) +
 ggsave('../Results/Fig_DecayVsWords_Names2.pdf', width = 10, height = 8)
 
 
-# Some signaldoc summary stats --------------------------------------------
-
-czsum %>% 
-  group_by(theory1) %>% 
-  summarize(
-    max(sampend)
-  )
-
-
-czsum %>% 
-  arrange(-sampend) 
-
-# count observations
-noos = czret %>% 
-  filter(date > sampend) %>% 
-  group_by(signalname, theory1) %>% summarize(nmonth = n()) %>% ungroup %>% 
-  arrange(nmonth) %>% 
-  print
-
-# order stats
-qlist = c(0.05, 0.25, 0.5, 0.75, 0.95)
-noos %>% 
-  summarize(
-    q = qlist, nmonth = quantile(nmonth, qlist), nyear = nmonth / 12
-  )
-
-# min by theory
-noos %>% 
-  group_by(theory1) %>%
-  summarize(min(nmonth))
-
-# worst by theory
-noos %>% 
-  arrange(theory1, nmonth) %>% 
-  group_by(theory1) %>% mutate(rank = row_number()) %>% 
-  filter(rank <= 5)
-
-noos %>% 
-  filter(nmonth >= 12 * 9)

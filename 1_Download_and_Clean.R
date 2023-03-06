@@ -20,6 +20,117 @@ url <- "https://drive.google.com/drive/folders/1O18scg9iBTiBaDiQFhoGxdn4FdsbMqGo
 
 
 
+# Chen-Zimmermann data -------------------------------------------
+
+## dl from gdrive ====
+
+library(googledrive)
+
+SUBDIR = 'Full Sets OP'; 
+FILENAME = 'PredictorPortsFull.csv'
+
+
+url %>% drive_ls() %>%
+  filter(name == "Portfolios") %>% drive_ls() %>% 
+  filter(name == SUBDIR) %>% drive_ls() %>% 
+  filter(name == FILENAME) %>% 
+  drive_download(path = paste0("../Data/Raw/",FILENAME), overwrite = TRUE)
+
+# signal doc 
+url %>% drive_ls() %>% 
+  filter(name == "SignalDoc.csv") %>% 
+  drive_download(path = "../Data/Raw/SignalDoc.csv", overwrite = TRUE)
+
+
+## Cleaning 1 ====
+
+# keep only clear and likely
+signaldoc =  data.table::fread('../Data/Raw/SignalDoc.csv') %>% 
+  as_tibble() %>% 
+  rename(signalname = Acronym) %>% 
+  mutate(
+    pubdate = as.yearmon(paste0(Year, '-12'))
+    , sampend = as.yearmon(paste0(SampleEndYear, '-12')) 
+    , sampstart = as.yearmon(paste0(SampleStartYear, '-07'))  # ensures no weird early 1963 edge effects
+  ) %>% 
+  transmute(signalname, Authors, Year, pubdate, sampend, sampstart
+            , OP_pred = `Predictability in OP`
+            , sweight = tolower(`Stock Weight`)
+            , Rep_Quality = `Signal Rep Quality`) %>% 
+  filter(
+    OP_pred %in% c('1_clear','2_likely')
+  ) 
+
+
+# make monthly ls returns with sample def
+czret = data.table::fread("../Data/Raw/PredictorPortsFull.csv") %>% 
+  as_tibble() %>% 
+  filter(!is.na(ret), port == 'LS') %>%                                                           
+  left_join(signaldoc) %>% 
+  mutate(date = as.yearmon(date)) %>% 
+  mutate(
+    samptype = case_when(
+      (date >= sampstart) & (date <= sampend) ~ 'insamp'
+      , (date > sampend) & (date <= pubdate) ~ 'oos'  
+      , (date > pubdate) ~ 'postpub'
+      , TRUE ~ NA_character_
+    )
+  ) %>% 
+  select(signalname, date, ret, samptype, sampstart, sampend, pubdate, Rep_Quality) %>% 
+  filter(!is.na(samptype)) %>% 
+  # Add event time
+  mutate(eventDate = interval(sampend, date) %/% months(1))
+
+# summary stats
+czsum = czret %>%
+  filter(samptype == 'insamp') %>% 
+  group_by(signalname) %>%
+  summarize(
+    rbar = mean(ret)
+    , tstat = mean(ret)/sd(ret)*sqrt(dplyr::n())
+  ) %>% 
+  # add post-samp obs
+  left_join(
+    czret %>% filter(date > sampend) %>% 
+      group_by(signalname) %>% summarize(nobs_postsamp = n()) %>% ungroup
+    , by = 'signalname'
+  ) %>% 
+  left_join(signaldoc %>% select(signalname, sampstart, sampend, sweight, Rep_Quality)
+            , by = 'signalname')
+
+
+# add filtering info
+czsum = czsum %>% 
+  mutate(
+    rbar_ok = rbar > 0.15, n_ok = nobs_postsamp >= 9*12
+    , Keep = rbar_ok & n_ok
+  )
+
+## Cleaning 2 ====
+
+# merge on sumstats and Keep
+czret2 = czret %>% 
+  left_join(
+    czsum %>% select(signalname, rbar, tstat, Keep)
+    , by = 'signalname'
+  )
+
+
+#  filter Keep
+czret2 = czret2 %>% 
+  filter(Keep) %>% 
+  setDT()
+
+
+## save to disk ====
+
+# need RDS for yearmon format argh
+# also conceptually, these two are distinct.
+
+saveRDS(czsum, '../Data/Processed/czsum_all207.RDS')
+saveRDS(czret2, '../Data/Processed/czret.RDS')
+
+
 # CRSP -----------------------------------------------------------
 
 # Follows in part: https://wrds-www.wharton.upenn.edu/pages/support/research-wrds/macros/wrds-macro-crspmerge/
@@ -159,24 +270,6 @@ saveRDS(
   CompustatAnnual,'../Data/Raw/CompustatAnnual.RData'
 )
 
-
-
-# Download Chen-Zimmermann data -------------------------------------------
-library(googledrive)
-
-SUBDIR = 'Full Sets OP'; 
-FILENAME = 'PredictorPortsFull.csv'
-
-url %>% drive_ls() %>%
-  filter(name == "Portfolios") %>% drive_ls() %>% 
-  filter(name == SUBDIR) %>% drive_ls() %>% 
-  filter(name == FILENAME) %>% 
-  drive_download(path = paste0("../Data/Raw/",FILENAME), overwrite = TRUE)
-
-# signal doc 
-url %>% drive_ls() %>% 
-  filter(name == "SignalDoc.csv") %>% 
-  drive_download(path = "../Data/Raw/SignalDoc.csv", overwrite = TRUE)
 
 
 

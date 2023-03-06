@@ -1,7 +1,7 @@
-################################
-# Setup
-################################
-# Setup -------------------------------------------------------------------
+############################### #
+# Setup ====
+############################### #
+
 cat("\f")  
 rm(list=ls())
 gc()
@@ -25,10 +25,12 @@ library(broom)
 library(huxtable)
 library(multcomp)
 
-################################
-# Functions
-################################
-# Setup ------------------------------------------------------------------
+
+
+############################### #
+# Functions ====
+############################### #
+
 
 MATBLUE = rgb(0,0.4470,0.7410)
 MATRED = rgb(0.8500, 0.3250, 0.0980)
@@ -61,23 +63,27 @@ chen_theme =   theme_minimal() +
 
 
 
-signaldoc = fread('DataInput/SignalsTheoryChecked.csv') %>%
-  filter(Keep == 1)
+# Do stuff ----------------------------------------------------------------
 
 
-# czreturns
-cz_all = fread("../Data/Raw/PredictorPortsFull.csv")
-# czret (monthly returns)
-czret = cz_all %>%                                         
-  filter(!is.na(ret), port == 'LS') %>%                                                           
-  left_join(signaldoc) %>% 
-  filter(date >= sampstart) %>%
-  dplyr::select(signalname, date, ret,  sampstart, sampend,theory1, pubdate) %>%
-  mutate(in_samp = (date >= sampstart) & (date <= sampend)) %>%
-  mutate(post_samp = (date > sampend)) %>%
-  mutate(post_pub = (date > pubdate)) %>%
-  mutate(risk_theory = theory1 == 'risk')  %>%
-  as.data.table()
+
+signalcat = fread('DataInput/SignalsTheoryChecked.csv') 
+
+
+# # czreturns
+
+# redundant, but fix me carefully later
+czret = readRDS('../Data/Processed/czret.RDS') %>% 
+  filter(!is.na(samptype)) %>% 
+  mutate(in_samp = samptype == 'insamp') %>%
+  mutate(post_samp = samptype %in% c('oos','postpub')) %>% 
+  mutate(post_pub = samptype == 'postpub') %>%  
+  left_join(
+    signalcat %>% dplyr::select(signalname, theory1)
+    , by = 'signalname'
+  ) %>% 
+  mutate(risk_theory = theory1 == 'risk')  %>%  
+  setDT()
 
 czret[in_samp == TRUE, mean(ret)]
 
@@ -85,7 +91,8 @@ czret[in_samp == TRUE, mean(ret)]
 tempsum = czret %>% 
   filter(in_samp == TRUE) %>% 
   group_by(signalname) %>% 
-  summarize(rbar_insamp = mean(ret))
+  summarize(rbar_insamp = mean(ret)) %>% 
+  setDT()
 
 tempret = czret %>% 
   dplyr::select(signalname, date, ret, sampstart, sampend, theory1,
@@ -98,9 +105,10 @@ tempret = czret %>%
   filter(!is.na(theory1)) %>% 
   mutate(
     ret_n = 100*ret/rbar_insamp
-  )%>% as.data.table()
+  )%>% setDT()
 
-tempret[in_samp == TRUE, mean(ret_n), by = risk_theory]
+
+# tempret[in_samp == TRUE, mean(ret_n), by = risk_theory] # triggers bizarre data.table bug
 
 tempret[, mean(ret), by = risk_theory]
 

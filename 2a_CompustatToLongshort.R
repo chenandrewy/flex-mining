@@ -2,6 +2,9 @@ tic = Sys.time()
 
 rm(list = ls())
 
+# takes about 3 hours using 14 cores
+# check Data/make_many_ls.log for progress
+
 # Setup  ----------------------------------------------------------------
 source('0_Environment.R')
 library(doParallel)
@@ -17,14 +20,13 @@ user = list()
 user$name = Sys.time() %>% substr(1,17) 
 substr(user$name, 17,17) = 'm'
 substr(user$name, 14,14) = 'h'
-user$name = 'CZ-style-v4'
+user$name = 'CZ-style-v5'
 
 # signal choices
 user$signal = list(
   signalnum   = Inf # number of signals to sample or Inf for all
   , form = c('v1/v2', 'diff(v1)/lag(v2)') # 'pdiff(v1/v2)', 'pdiff(v1)', 'diff(v1/v2)', 'pdiff(v1)-pdiff(v2)')
-  , x1code = 'yz.numer'
-  , x2code = 'pos_in_1963' #  'yz.numer' #'yz.denom'
+  , denom_min_fobs = 0.25
   , seednumber  = 1235 # seed sampling
 )
 
@@ -55,27 +57,21 @@ debugset = list(
   , shortlist = F
 )
 
-## Check ----
-cat('\n\n\n\n\n\n\n\n\n')
-cat('About to run:')
-print(user$signal %>% t())
-print(user$port %>% t())
-print(user$data %>% t())
-print(user$name) 
-print(debugset %>% t())
-keyin = readline('type q to abort')
-if (keyin == 'q') stop('stopping')
-
-# Data Prep ---------------------------------------------------------------
-tic = Sys.time()
-
 
 ## prep varlist ------------------------------------------------------------
 
+numer_ok = readxl::read_excel('DataInput/Yan-Zheng-Compustat-Vars.xlsx') %>% 
+  janitor::clean_names() %>% 
+  filter(in_yz_table_a_1 == 1 | in_yz_table_a_2 == 1) %>% 
+  mutate(name = tolower(acronym))
+
+denom_ok = fread('DataIntermediate/freq_obs_1963.csv') %>% 
+  filter(freq_obs_1963 > user$signal$denom_min_fobs) 
+
 if (debugset$shortlist == F){
   varlist = list(
-    x1 = compnames[[user$signal$x1code]]
-    , x2 = compnames[[user$signal$x2code]]
+    x1 = numer_ok$name
+    , x2 = denom_ok$name
   )
 } else {
   varlist = list(
@@ -85,8 +81,43 @@ if (debugset$shortlist == F){
 }
 varlist$xall = unique(c(varlist$x1, varlist$x2))
 
+## prep lists of signals and ports ------------------------------------------
 
-## prep crsp-comp ----------------------------------------------------------
+signal_list = make_signal_list(signal_form = user$signal$form,
+                               xvars       = varlist$x1,
+                               scale_vars  = varlist$x2)
+
+# port list
+port_list = expand.grid(longshort_form = user$port$longshort_form, 
+                        portnum = user$port$portnum, 
+                        sweight = user$port$sweight,
+                        trim = user$port$trim,
+                        stringsAsFactors = FALSE) %>% 
+  arrange(across(everything())) %>% 
+  mutate(portid = row_number()) %>% 
+  select(portid, everything())  
+
+# sanity check
+n1 = varlist$x1 %>% length()
+n2 = varlist$x2 %>% length()
+
+## Check user is OK ----
+cat('\n\n\n\n\n\n\n\n\n')
+cat('About to run:')
+print(user$signal %>% t())
+print(user$port %>% t())
+print(user$data %>% t())
+print(debugset %>% t())
+print('number of signals is ')
+print(nrow(signal_list))
+print(n1 * n2 + (n1-n2)*n2 + choose(n2,2))
+print(user$name) 
+keyin = readline('type q to abort')
+if (keyin == 'q') stop('stopping')
+
+
+# Create big temp data ---------------------------------------------------------------
+tic = Sys.time()
 
 if (debugset$prep_data){  
   # do everything in data.table for efficiency  
@@ -224,21 +255,7 @@ toc - tic
 
 # Sample Strategies -------------------------------------------------------
 
-## Draw lists of signals and ports ------------------------------------------
 
-signal_list = make_signal_list(signal_form = user$signal$form,
-                               xvars       = varlist$x1,
-                               scale_vars  = varlist$x2)
-
-# port list
-port_list = expand.grid(longshort_form = user$port$longshort_form, 
-                        portnum = user$port$portnum, 
-                        sweight = user$port$sweight,
-                        trim = user$port$trim,
-                        stringsAsFactors = FALSE) %>% 
-  arrange(across(everything())) %>% 
-  mutate(portid = row_number()) %>% 
-  select(portid, everything())  
 
 ## Internal Function ---------------------------------------------------------------
 

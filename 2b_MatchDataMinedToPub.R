@@ -11,7 +11,7 @@ tic0 = Sys.time()
 source('0_Environment.R')
 library(doParallel)
 
-DMname = '../Data/Processed/CZ-style-v4 LongShort.RData'
+DMname = '../Data/Processed/CZ-style-v5 LongShort.RData'
 
 
 # tolerance in levels  
@@ -29,48 +29,13 @@ ncores = round(0.25*detectCores())
 
 # Load data ---------------------------------------------------------------
 
-signalcat = fread('DataInput/SignalsTheoryChecked.csv') %>% 
-  transmute(signalname, 
-            theory1 = theory,  
-            Keep)
+czsum = readRDS('../Data/Processed/czsum_all207.RDS')
 
-signaldoc =  data.table::fread('../Data/Raw/SignalDoc.csv') %>% 
-  as_tibble() %>% 
-  rename(signalname = Acronym) %>% 
-  mutate(
-    pubdate = as.yearmon(paste0(Year, '-12'))
-    , sampend = as.yearmon(paste0(SampleEndYear, '-12')) 
-    , sampstart = as.yearmon(paste0(SampleStartYear, '-07'))  # ensures no weird early 1963 edge effects
-  ) %>% 
-  transmute(signalname, Authors, Year, pubdate, sampend, sampstart
-            , OP_pred = `Predictability in OP`
-            , sweight = tolower(`Stock Weight`)
-            , Rep_Quality = `Signal Rep Quality`) %>% 
-  left_join(signalcat) %>% 
-  filter(
-    OP_pred %in% c('1_clear','2_likely')
-    , !is.na(theory1)
-  ) 
+czcat = fread('DataIntermediate/TextClassification.csv') %>% 
+  select(signalname, Year, theory1, misprice_risk_ratio)
 
-# czret (monthly returns)
-czret = data.table::fread("../Data/Raw/PredictorPortsFull.csv") %>% 
-  as_tibble() %>% 
-  filter(!is.na(ret), port == 'LS') %>%                                                           
-  left_join(signaldoc) %>% 
-  mutate(date = as.yearmon(date)) %>% 
-  mutate(
-    samptype = case_when(
-      (date >= sampstart) & (date <= sampend) ~ 'insamp'
-      , (date > sampend) & (date <= pubdate) ~ 'oos'  
-      , (date > pubdate) ~ 'postpub'
-      , TRUE ~ NA_character_
-    )
-  ) %>% 
-  select(signalname, date, ret, samptype, sampstart, sampend, theory1, Rep_Quality, Keep) %>% 
-  filter(!is.na(samptype)) %>% 
-  # Add event time
-  mutate(eventDate = interval(sampend, date) %/% months(1))
-
+czret = readRDS('../Data/Processed/czret.RDS') %>% 
+  left_join(czcat, by = 'signalname') 
 
 # Data mining strategies
 bm_rets = readRDS(DMname)$ret
@@ -90,35 +55,6 @@ bm_rets = bm_rets %>% left_join(
 
 setDT(bm_rets)
   
-
-
-
-# Compute summary stats and normalized returns for predictors ------------------
-
-# Summary stats of predictors that we try to match
-czsum = czret %>%
-  filter(samptype == 'insamp') %>% 
-  group_by(signalname) %>%
-  summarize(
-    rbar = mean(ret)
-    , tstat = mean(ret)/sd(ret)*sqrt(dplyr::n())) %>% 
-  left_join(signaldoc %>% select(signalname, sampstart, sampend, theory1, sweight, Rep_Quality, Keep))
-
-
-# Compute in-sample means and rescale
-tempsumAct = czret %>% 
-  filter(samptype == 'insamp') %>%
-  group_by(signalname) %>% 
-  summarize(rbar_insampAct = mean(ret)) %>% 
-  ungroup()
-
-czret = czret %>% 
-  left_join(tempsumAct) %>% 
-  mutate(retOrig = ret,
-         ret = 100*(ret/abs(rbar_insampAct)))
-
-rm(tempsumAct)
-
 
 # Find sum stats for dm in-sample -------------------------------------------
 
@@ -249,8 +185,6 @@ DMshortname = DMname %>%
 
 matchdat = list(
   candidateReturns = candidateReturns
-  , czsum = czsum
-  , czret = czret
   , user = bm_user
 )
 

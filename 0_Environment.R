@@ -18,6 +18,12 @@ library(xtable)
 if("lme4" %in% (.packages())){
   detach("package:lme4", unload=TRUE) 
 }
+if("multcomp" %in% (.packages())){
+  detach("package:multcomp", unload=TRUE) 
+}
+if("TH.data" %in% (.packages())){
+  detach("package:TH.data", unload=TRUE) 
+}
 if("MASS" %in% (.packages())){
   detach("package:MASS", unload=TRUE) 
 }
@@ -37,7 +43,7 @@ dir.create('../Data/', showWarnings = F)
 dir.create('../Data/Raw/', showWarnings = F)
 dir.create('../Data/Processed/', showWarnings = F)
 dir.create('../Results', showWarnings = F)
-
+dir.create('../Results/Extra/', showWarnings = F)
 
 
 # Globals ====

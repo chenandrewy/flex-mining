@@ -5,7 +5,7 @@ rm(list = ls())
 
 source('0_Environment.R')
 
-DMname = '../Data/Processed/CZ-style-v4 LongShort.RData' # for autofill convenience
+DMname = '../Data/Processed/CZ-style-v5 LongShort.RData' # for autofill convenience
 
 name = DMname %>% 
   str_remove('../Data/Processed/') %>% 
@@ -16,25 +16,31 @@ matchname = paste0('../Data/Processed/', name, ' MatchPub.RData')
 
 # Import and Clean Matched Data ------------------------------------------------------
 
-# import
+# CZ data
+czsum = readRDS('../Data/Processed/czsum_all207.RDS')
+
+czcat = fread('DataIntermediate/TextClassification.csv') %>% 
+  select(signalname, Year, theory1, misprice_risk_ratio)
+
+czret = readRDS('../Data/Processed/czret.RDS') %>% 
+  left_join(czcat, by = 'signalname') %>% 
+  mutate(
+    retOrig = ret
+    , ret = ret/rbar*100
+  )
+
+# DM data
 tmp = readRDS(matchname)
-czsum = tmp$czsum
-czret = tmp$czret
 candidateReturns = tmp$candidateReturns
 user = tmp$user
 rm(tmp)
 
-# Restrict to predictors in consideration
-czsum = czsum %>% 
-  filter(Keep == 1)
 
-czret = czret %>% 
-  filter(signalname %in% czsum$signalname)
-
+# filter for Keep only
 candidateReturns = candidateReturns %>% 
-  filter(actSignal %in% czsum$signalname)
+  filter(actSignal %in% (czsum %>% filter(Keep) %>% pull(signalname)))
 
-signal_list = readRDS(DMname)$signal_list
+
 
 # Normalize candidate returns
 
@@ -64,27 +70,6 @@ allRets = czret %>%
 
 rm(tempsumCand, tempCand)
 
-
-# testing -----------------------------------------------------------------
-
-
-# count observations
-noos = czret %>% 
-  filter(date > sampend) %>% 
-  group_by(signalname, theory1) %>% summarize(nmonth = n()) %>% ungroup %>% 
-  arrange(nmonth) %>% 
-  print
-
-keep_noos = noos %>% filter(nmonth >= 9*12) %>% pull(signalname)
-
-czret = czret %>% filter(signalname %in% keep_noos)
-
-
-czret %>% 
-  filter(date > sampend) %>% 
-  group_by(signalname, theory1) %>% summarize(nmonth = n()) %>% ungroup %>% 
-  arrange(nmonth) %>% 
-  print
 
 # Run Exhibits ---------------------------------------------
 

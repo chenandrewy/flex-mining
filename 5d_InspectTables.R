@@ -4,9 +4,9 @@ library(writexl)
 
 # read matched strategies and get their documentation from stratdat
 #   clean me up pls
-matchdat = candidateReturns
+matchdat = candidateReturns # loaded earlier
 
-stratdat = readRDS(DMname) 
+stratdat = readRDS(DMname) # only really need the signal_list from here
 
 
 # load pub stuff, add author info

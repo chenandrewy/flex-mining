@@ -37,7 +37,7 @@ for (jj in unique(allRets$theory1)) {
 ReturnPlotsWithDM(dt = allRets %>% 
                     filter(!is.na(matchRet), Keep == 1) %>% # To exclude unmatched signals
                     transmute(eventDate, ret, matchRet),
-                  basepath = '../Results/Fig_PublicationsVsDataMining',
+                  basepath = '../Results/Extra/Fig_PublicationsVsDataMining',
                   suffix = 'All_DM',
                   rollmonths = 60,
                   colors = colors
@@ -50,7 +50,7 @@ ReturnPlotsWithDM(dt = allRets %>%
 ReturnPlotsWithDM(dt = allRets %>% 
                     filter(!is.na(matchRet), Keep == 1) %>% # To exclude unmatched signals
                     transmute(eventDate, ret, matchRet),
-                  basepath = '../Results/Fig_PublicationsVsDataMining',
+                  basepath = '../Results/Extra/Fig_PublicationsVsDataMining',
                   suffix = 'All_DM_hide',
                   rollmonths = 60,
                   colors = colors
@@ -62,7 +62,7 @@ ReturnPlotsWithDM(dt = allRets %>%
 
 
 
-# -------------------------------------------------------------------------
+# More Animations -------------------------------------------------------------------------
 
 source('0_Environment.R')
 # Plot re-scaled returns over time by category, hide
@@ -72,7 +72,7 @@ for (jj in unique(allRets$theory1)) {
   ReturnPlotsWithDM(dt = allRets %>% 
                       filter(!is.na(matchRet), theory1 == jj, Keep == 1) %>% # To exclude unmatched signals
                       dplyr::select(eventDate, ret, matchRet),
-                    basepath = '../Results/Fig_PublicationsVsDataMining',
+                    basepath = '../Results/Extra/Fig_PublicationsVsDataMining',
                     suffix = paste0(jj, '_DM_hide'),
                     colors = colors,
                     yl = -60, yh = 170, fig.width = 18, fontsize = 28
@@ -88,7 +88,7 @@ for (jj in unique(allRets$theory1)) {
   ReturnPlotsWithDM(dt = allRets %>% 
                       filter(!is.na(matchRet), theory1 == jj, Keep == 1) %>% # To exclude unmatched signals
                       dplyr::select(eventDate, ret, matchRet),
-                    basepath = '../Results/Fig_PublicationsVsDataMining',
+                    basepath = '../Results/Extra/Fig_PublicationsVsDataMining',
                     suffix = paste0(jj, '_DM'),
                     colors = colors,
                     yl = -60, yh = 170, fig.width = 18, fontsize = 28
