@@ -1,3 +1,4 @@
+rm(list = ls())
 gc()
 
 library(haven)
@@ -416,7 +417,18 @@ subset_text <- fread('../IntermediateText/TextAnalysis.csv')  %>%  rename(Journa
   filter(Authors != 'Ang et al') %>%
   filter(Authors != 'Chen Jegadeesh Lakonishok')
 
-signal_text <- fread('DataInput/SignalsTheoryChecked.csv')
+signal_text <- fread('DataInput/SignalsTheoryChecked.csv') 
+
+# signal_text[, Keep := NULL]
+# redundant, but fix me carefully later
+czret = readRDS('../Data/Processed/czsum_all207.RDS') %>% setDT()
+
+setkey(czret, signalname)
+setkey(signal_text, signalname)
+
+signal_text[czret, Keep := Keep]
+
+signal_text <- signal_text[Keep == TRUE,]  
 
 library(fuzzyjoin)
 joined_inner <- signal_text %>% dplyr::select(signalname, Year, Journal, author_merge, Authors) %>%

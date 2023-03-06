@@ -161,8 +161,8 @@ ametest_4_risk <- glht(model=a4_model,
                   vcov = vcovCL(a4_model,  cluster = ~ date))
 sum_a4 <- summary(ametest_4_risk)
 p_val_a4_risk <- sum_a4$test$pvalues[1]
-p_table_4 <- ifelse(p_val_a4_risk < 0.01, '< 1/%', p_val_a4_risk)
-p_table_2 <- ifelse(p_val_a2 < 0.01, '< 1/%', p_val_a2)
+p_table_4 <- ifelse(p_val_a4_risk < 0.01, '< 1%', p_val_a4_risk)
+p_table_2 <- ifelse(p_val_a2 < 0.01, '< 1%', p_val_a2)
 
 coefeq_4_misp <- matrix(data=0, nrow=1, ncol=length(a4_model$coefficients))
 colnames(coefeq_4_misp) <- names(a4_model$coefficients)
@@ -174,7 +174,7 @@ ametest_4_misp <- glht(model=a4_model,
                        vcov = vcovCL(a4_model,  cluster = ~ date))
 sum_a4_misp <- summary(ametest_4_misp)
 p_val_a4_misp <- sum_a4_misp$test$pvalues[1]
-p_table_4_misp <- ifelse(p_val_a4_misp < 0.01, '< 1/%', round(p_val_a4_misp, 2))
+p_table_4_misp <- ifelse(p_val_a4_misp < 0.01, '< 1%', round(p_val_a4_misp, 2))
 
 reg_save <- huxreg(a1, a2, a3, a4, coefs = c(
   "Intercept" = "(Intercept)",
@@ -184,11 +184,39 @@ reg_save <- huxreg(a1, a2, a3, a4, coefs = c(
   'Post-Pub x Risk' = 'I(I(post_pub == TRUE) * I(theory1 == "risk"))',
   'Post-Sample x Mispricing' = 'I(I(post_samp == TRUE) * I(theory1 == "mispricing"))',
   'Post-Pub x Mispricing' = 'I(I(post_pub == TRUE) * I(theory1 == "mispricing"))'),
-  statistics = c('nobs'), stars = NULL) %>%
+  statistics = c('nobs'), stars = NULL, number_format = 2) %>%
   insert_row(c('p-val Risk', '', p_table_2, '', p_table_4)
              , after = 16) %>%
   insert_row(c('p-val Mispricing', '', '', '', p_table_4_misp)
              , after = 17)
 reg_save
+round_numbers_in_strings <- function(strings_with_numbers) {
+  regex_pattern <- "\\d+\\.?\\d*" # matches any number with or without decimal point
+  rounded_strings <- c() # create an empty vector to store the results
+  
+  for (string_with_number in strings_with_numbers) {
+    # Use regular expressions to extract the number from the string
+    number_in_string <- as.numeric(gsub("[^[:digit:].]", "", regmatches(string_with_number, regexpr(regex_pattern, string_with_number))))
+    
+    # Round the number to two decimal places
+    rounded_number <- round(number_in_string, 1)
+    
+    # Replace the original number in the string with the rounded number
+    string_with_rounded_number <- gsub(regex_pattern, toString(rounded_number), string_with_number)
+    
+    # Add the result to the output vector
+    rounded_strings <- c(rounded_strings, string_with_rounded_number)
+  }
+  
+  return(rounded_strings)
+}
 
+
+data_new1 <- reg_save[reg_save$names != 'nobs',] %>% as.data.frame()
+rownames(data_new1) <- NULL
+df_rounded <- data.frame(lapply(data_new1,round_numbers_in_strings))
+df_rounded[1,1] <- 'RHS Variables'
+
+xt <- xtable(df_rounded)
+print.xtable(xt, digits = 2, include.rownames=FALSE, include.colnames = FALSE, hline.after = c(0,1, 15, 17))
 fwrite(reg_save, '../Results/RegressionMultiColumns.csv', sep = ',')
