@@ -170,11 +170,11 @@ coefeq_4_misp[1,-c(1,4, 5)] <- 1
 coefeq_4_misp
 ametest_4_misp <- glht(model=a4_model,
                        linfct=coefeq_4_misp, rhs=0,
-                       alternative="less",
+                       alternative="greater",
                        vcov = vcovCL(a4_model,  cluster = ~ date))
 sum_a4_misp <- summary(ametest_4_misp)
 p_val_a4_misp <- sum_a4_misp$test$pvalues[1]
-p_table_4_misp <- ifelse(p_val_a4_misp < 0.01, '< 1/%', p_val_a4_misp)
+p_table_4_misp <- ifelse(p_val_a4_misp < 0.01, '< 1/%', round(p_val_a4_misp, 2))
 
 reg_save <- huxreg(a1, a2, a3, a4, coefs = c(
   "Intercept" = "(Intercept)",
