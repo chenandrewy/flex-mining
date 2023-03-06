@@ -69,7 +69,14 @@ chen_theme =   theme_minimal() +
 
 signalcat = fread('DataInput/SignalsTheoryChecked.csv') 
 
+czret_1 = readRDS('../Data/Processed/czsum_all207.RDS') %>% setDT()
 
+setkey(czret_1, signalname)
+setkey(signalcat, signalname)
+
+signalcat[czret_1, Keep := Keep]
+
+signalcat <- signalcat[Keep == TRUE,]  
 # # czreturns
 
 # redundant, but fix me carefully later
@@ -83,6 +90,7 @@ czret = readRDS('../Data/Processed/czret.RDS') %>%
     , by = 'signalname'
   ) %>% 
   mutate(risk_theory = theory1 == 'risk')  %>%  
+  filter(Keep == TRUE) %>%
   setDT()
 
 czret[in_samp == TRUE, mean(ret)]
