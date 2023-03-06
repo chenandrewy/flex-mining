@@ -95,6 +95,10 @@ czsum = czret %>%
       group_by(signalname) %>% summarize(nobs_postsamp = n()) %>% ungroup
     , by = 'signalname'
   ) %>% 
+  # deal with zero postsamp obs
+  mutate(
+    nobs_postsamp = if_else(is.na(nobs_postsamp), 0L, nobs_postsamp)
+  ) %>% 
   left_join(signaldoc %>% select(signalname, sampstart, sampend, sweight, Rep_Quality)
             , by = 'signalname')
 
