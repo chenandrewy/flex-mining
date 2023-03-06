@@ -60,9 +60,7 @@ chen_theme =   theme_minimal() +
   ) 
 
 
-# signaldoc + cat data
-# should we use theory or theory1?
-# theory1
+
 signaldoc = fread('DataInput/SignalsTheoryChecked.csv') %>%
   filter(Keep == 1)
 
@@ -122,7 +120,8 @@ coefeq_a2 <- matrix(data=0, nrow=1, ncol=length(a2_model$coefficients))
 colnames(coefeq_a2) <- names(a2_model$coefficients)
 coefeq_a2[1,-1] <- 1
 coefeq_a2
-ametest_2<- glht(model=a2_model, linfct=coefeq_a2, rhs=0, alternative="less")
+ametest_2<- glht(model=a2_model, linfct=coefeq_a2, rhs=0, alternative="less",
+                 vcov = vcovCL(a2_model, cluster = ~ date))
 sum_a2 <- summary(ametest_2)
 p_val_a2 <- sum_a2$test$pvalues[1]
 
@@ -148,22 +147,26 @@ coefeq_4 <- matrix(data=0, nrow=1, ncol=length(a4_model$coefficients))
 colnames(coefeq_4) <- names(a4_model$coefficients)
 coefeq_4[1,-c(1,6, 7)] <- 1
 coefeq_4
-ametest_4 <- glht(model=a4_model, linfct=coefeq_4, rhs=0, alternative="less")
-sum_a4 <- summary(ametest_4)
-p_val_a4 <- sum_a4$test$pvalues[1]
-# 
-# a5 <- tempret %>% filter(theory1 == 'risk') %>%
-#   lm(ret_n ~ post_samp , data = .) %>%
-#   coeftest(., vcov = vcovCL, cluster = ~ date) %>% round(10)
-# 
-# a5
-# 
-# a6 <- tempret %>% filter(theory1 == 'risk') %>%
-#   lm(ret_n ~ post_samp + post_pub , data = .) %>%
-#   coeftest(., vcov = vcovCL, cluster = ~ date) %>% round(10)
-# 
-# a6_model <- tempret %>% filter(theory1 == 'risk') %>%
-#   lm(ret_n ~ post_samp + post_pub , data = .)
+ametest_4_risk <- glht(model=a4_model,
+                  linfct=coefeq_4, rhs=0,
+                  alternative="less",
+                  vcov = vcovCL(a4_model,  cluster = ~ date))
+sum_a4 <- summary(ametest_4_risk)
+p_val_a4_risk <- sum_a4$test$pvalues[1]
+p_table_4 <- ifelse(p_val_a4_risk < 0.01, '< 1/%', p_val_a4_risk)
+p_table_2 <- ifelse(p_val_a2 < 0.01, '< 1/%', p_val_a2)
+
+coefeq_4_misp <- matrix(data=0, nrow=1, ncol=length(a4_model$coefficients))
+colnames(coefeq_4_misp) <- names(a4_model$coefficients)
+coefeq_4_misp[1,-c(1,4, 5)] <- 1
+coefeq_4_misp
+ametest_4_misp <- glht(model=a4_model,
+                       linfct=coefeq_4_misp, rhs=0,
+                       alternative="less",
+                       vcov = vcovCL(a4_model,  cluster = ~ date))
+sum_a4_misp <- summary(ametest_4_misp)
+p_val_a4_misp <- sum_a4_misp$test$pvalues[1]
+p_table_4_misp <- ifelse(p_val_a4_misp < 0.01, '< 1/%', p_val_a4_misp)
 
 reg_save <- huxreg(a1, a2, a3, a4, coefs = c(
   "Intercept" = "(Intercept)",
@@ -173,7 +176,11 @@ reg_save <- huxreg(a1, a2, a3, a4, coefs = c(
   'Post-Pub x Risk' = 'I(I(post_pub == TRUE) * I(theory1 == "risk"))',
   'Post-Sample x Mispricing' = 'I(I(post_samp == TRUE) * I(theory1 == "mispricing"))',
   'Post-Pub x Mispricing' = 'I(I(post_pub == TRUE) * I(theory1 == "mispricing"))'),
-  statistics = c('nobs'), stars = NULL) %>% insert_row(c('Pval', '', p_val_a2, '', p_val_a4), after = 16)
+  statistics = c('nobs'), stars = NULL) %>%
+  insert_row(c('p-val Risk', '', p_table_2, '', p_table_4)
+             , after = 16) %>%
+  insert_row(c('p-val Mispricing', '', '', '', p_table_4_misp)
+             , after = 17)
 reg_save
 
 fwrite(reg_save, '../Results/RegressionMultiColumns.csv', sep = ',')
