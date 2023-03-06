@@ -5,7 +5,7 @@ rm(list = ls())
 
 source('0_Environment.R')
 
-DMname = '../Data/Processed/CZ-style-v5 LongShort.RData' # for autofill convenience
+DMname = '../Data/Processed/CZ-style-v6 LongShort.RData' # for autofill convenience
 
 name = DMname %>% 
   str_remove('../Data/Processed/') %>% 
@@ -21,7 +21,8 @@ czcat = fread('DataIntermediate/TextClassification.csv') %>%
   select(signalname, Year, theory1, misprice_risk_ratio)
 
 czsum = readRDS('../Data/Processed/czsum_all207.RDS') %>% 
-  left_join(czcat, by = 'signalname')
+  filter(Keep) %>% 
+  left_join(czcat, by = 'signalname') 
 
 czret = readRDS('../Data/Processed/czret.RDS') %>% 
   left_join(czcat, by = 'signalname') %>% 
@@ -31,6 +32,9 @@ czret = readRDS('../Data/Processed/czret.RDS') %>%
   )
 
 # DM data
+dmdat = readRDS(DMname)
+
+# matched DM data
 tmp = readRDS(matchname)
 candidateReturns = tmp$candidateReturns
 user = tmp$user

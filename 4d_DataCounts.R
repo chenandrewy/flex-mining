@@ -77,12 +77,27 @@ ggplot(tabjournal, aes(x='',y=pct,fill=jcat)) +
 
 source('0_Environment.R')
 
-dmdat = readRDS('../Data/Processed/CZ-style-v5 LongShort.RData')
+dmdat = readRDS('../Data/Processed/CZ-style-v6 LongShort.RData')
         
 
 dmdat %>% names()
 
-dmdat$signal_list %>% distinct(v1)
-dmdat$signal_list %>% pull(v2) %>% unique()
 
 dmdat$ret %>% distinct(signalid) 
+
+print(nrow(dmdat$signal_list))
+n1 = dmdat$signal_list %>% distinct(v1) %>% nrow()
+n2 = dmdat$signal_list %>% distinct(v2) %>% nrow()
+
+
+print(n1 * n2 + (n1-n2)*n2 + choose(n2,2))
+print(n1)
+print(n2)
+
+
+dmdat$user$signal
+
+n1 * n2 *2
+n1 * n2 *2 - nrow(dmdat$signal_list)
+
+n2*n2

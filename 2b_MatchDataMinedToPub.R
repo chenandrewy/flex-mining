@@ -11,7 +11,7 @@ tic0 = Sys.time()
 source('0_Environment.R')
 library(doParallel)
 
-DMname = '../Data/Processed/CZ-style-v5 LongShort.RData'
+DMname = '../Data/Processed/CZ-style-v6 LongShort.RData'
 
 
 # tolerance in levels  
