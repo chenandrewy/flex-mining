@@ -172,8 +172,8 @@ saveRDS(crspm, '../Data/Raw/crspm.RData')
 # Fama-French Factors ----------------------------------------------------
 
 FamaFrenchFactors <- dbSendQuery(conn = wrds, statement = 
-                                   "SELECT date, mktrf, smb, hml, rf, umd 
-                                 FROM ff.factors_monthly"
+                                   "SELECT date, mktrf, smb, hml, rf, umd, rmw, cma 
+                                 FROM ff.fivefactors_monthly"
 ) %>% 
   # Pull data
   dbFetch(n = -1) %>%
@@ -186,6 +186,8 @@ FamaFrenchFactors <- FamaFrenchFactors %>%
          hml = 100*hml,
          umd = 100*umd,
          rf = 100*rf,
+         rmw = 100*rmw,
+         cma = 100*cma,
          yearm = as.yearmon(date),
          date = as.Date(date)
          ) %>% 

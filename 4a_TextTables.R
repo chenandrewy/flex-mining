@@ -113,6 +113,41 @@ signal_text_to_table <- signal_text[, .(signalname, theory1,
         word_count, misp_count, risk_count,
         misprice_risk_ratio)]
 
+# Use dcast to create the two-way frequency table
+freq_table <- dcast(signal_text_to_table, Journal ~ theory1, fun.aggregate = length)
+
+names_theory <- colnames(freq_table)[-1]
+theory_counts <- freq_table[, colSums(.SD), .SDcols = names_theory]
+freq_table[, Row_Total := rowSums(.SD) %>% round(0), .SDcols = names_theory] # -1 to exclude the first column (Journal)
+print(xtable(freq_table, digits = 0), include.rownames=FALSE, type="html", file="count_journal_type.html")
+prop_table_per_journal <- freq_table[,cbind(Journal, (100*.SD/Row_Total) %>% round(0)), .SDcols = names_theory] 
+prop_table_per_theory <- freq_table[,cbind(Journal, (100*.SD/theory_counts) %>% round(0)), .SDcols = names_theory] 
+
+total_sum <- sum(freq_table[,-1])
+
+prop_table <- freq_table %>%
+  mutate(across(where(is.numeric), ~ . / total_sum * 100))
+
+
+
+
+summary_df <- signal_text_to_table %>% 
+  group_by(theory1, Journal) %>% 
+  summarise(n=n()) %>% 
+  group_by(Journal) %>% 
+  mutate(perc = n / sum(n) * 100)
+
+summary_matrix <- summary_df %>%
+  pivot_wider(names_from = theory1, values_from = perc, values_fill = 0) 
+%>%
+  column_to_rownames(var = "Journal") 
+%>%
+  as.matrix()
+
+journal_type_table <- signal_text_to_table %>% group_by(Journal, theory1) %>% summarise(n=n()) %>% mutate(perc = n / sum(n) * 100)
+
+journal_type_table <- signal_text_to_table[, table(Journal, theory1)] %>% as.data.frame.matrix()
+
 text_examples <- signal_text_to_table[signalname == 'ShareRepurchase', ] %>%
   rbind(signal_text_to_table[signalname == 'SurpriseRD', ]) %>%
   rbind(signal_text_to_table[signalname == 'cfp', ])  %>%
