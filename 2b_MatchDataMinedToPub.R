@@ -111,18 +111,20 @@ toc - tic
 
 # Merge with czsum --------------------------------------------------------
 
+# matchsum key is c(pubname,dmname). Each row is a dm strat that matches a pub
 matchsum = czsum %>% transmute(
   pubname = signalname, rbar_op = rbar,tstat_op = tstat, sampstart, sampend
   , sweight = tolower(sweight)
 ) %>% 
   left_join(
-    dm_insamp, by = c('sampstart','sampend','sweight')) %>% 
+    dm_insamp, by = c('sampstart','sampend','sweight')
+    , relationship = 'many-to-many' # required to suppress warning
+  ) %>% 
   mutate(
     diff_rbar = abs(rbar*sign(rbar) - rbar_op)
     , diff_tstat = abs(tstat*sign(rbar) - tstat_op)
   ) %>% 
   setDT()
-
 
 
 # Make matched panel ------------------------------------------------------
