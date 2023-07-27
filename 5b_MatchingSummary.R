@@ -1,6 +1,6 @@
 # Matching Summary XLSX ----------------------------------------------------------------
 
-# Table 1: Unmatched predictors
+# Table 1: Unmatched predictors ----
 tmpUnmatched = allRets %>% 
   group_by(signalname) %>% 
   filter(sum(is.na(matchRet)) == n()) %>% 
@@ -23,7 +23,7 @@ tableUnmatched = czsum %>%
   arrange(Authors)
 
 
-# Table 2: Matching summary
+# Table 2: Matching summary ----
 tmpUnmatchedByCat = czsum %>% 
   filter(!(signalname %in% unique(candidateReturns$actSignal))) %>% 
   group_by(theory1) %>% 
@@ -87,7 +87,7 @@ tableSumStats = tempsumRets %>%
          tstat_insampAct, tstat_insampMatched, min, Q25, Q50, Q75, max, SignalsUnmatched,
          SignalsMatched)
 
-# Table 3: Significance of differences
+# Table 3: Significance of differences ----
 # Mean comparisons in- and post-sample
 
 tmpPredDecay = allRets %>% 
@@ -138,6 +138,128 @@ toExcel = list(
 )
 
 writexl::write_xlsx(toExcel, path = '../Results/MatchingSummary_DM.xlsx')
+
+
+## Table 4: Pairwise correlations between actual and DM/matched returns
+
+# Compute correlations between each actual signal and each DM strategy (including unmatched)
+# Note: This takes a very long time, I'm commenting this out for now, bc not sure it's worth it
+# allRhos = tibble()
+# num_cores = round(.4*detectCores())
+# for (act in unique(czret$signalname)) {
+#   print(act)
+#   tmp = czret %>% 
+#     filter(samptype == 'insamp') %>% 
+#     filter(signalname == act) %>% 
+#     select(date, retOrig) %>% 
+#     left_join(dmdat$ret %>%   # This gives a very large table (1.3b rows)
+#                 filter(portid == 1) %>% 
+#                 select(yearm, ret, signalid),
+#               by = c('date' = 'yearm'))
+#   
+#   
+#   
+#   tmpDMids = unique(tmp$signalid)
+#   setDTthreads(1)
+#   cl <- makePSOCKcluster(num_cores)
+#   registerDoParallel(cl)
+#   tmpRhos = foreach(signali=1:length(tmpDMids), 
+#                        .combine = rbind,
+#                        .packages = c('tidyverse')) %dopar% {
+#                          
+#                          tibble(actSignal = act,
+#                                 candidateSignal = tmpDMids[signali],
+#                                 rho = cor(tmp$ret[tmp$signalid == tmpDMids[signali]], 
+#                                           tmp$retOrig[tmp$signalid == tmpDMids[signali]], 
+#                                           use = 'complete.obs'))
+# 
+#                        }     
+#   
+#   stopCluster(cl)
+#   setDTthreads()
+#   
+#   
+#   # add to list
+#   allRhos = bind_rows(
+#     allRhos,
+#     tmpRhos
+#   )
+#   
+# }
+
+# Pairwise correlations between actual signals and matched DM signals ----
+tmpCands = candidateReturns %>% 
+  filter(actSignal %in% czsum$signalname) %>% 
+  filter(samptype == 'insamp') %>%  # interested in in-sample correlation with actual signals
+  # Merge actual returns to candidate returns
+  select(candSignalname, eventDate, ret, actSignal) %>% 
+  inner_join(czret %>% 
+               transmute(actSignal = signalname,
+                         eventDate,
+                         retActual = retOrig))
+
+allRhos = tibble()
+
+for (act in unique(tmpCands$actSignal)) {
+  print(act)
+  tmp = tmpCands %>% 
+    filter(actSignal == act)
+  
+  # compute correlations for one actual signal
+  tmpRhos = tibble()
+  for (i in unique(tmp$candSignalname)) {
+    
+    tmpRhos = bind_rows(
+      tmpRhos,
+      tibble(actSignal = act,
+             candidateSignal = i,
+             rho = cor(tmp$ret[tmp$candSignalname == i], tmp$retActual[tmp$candSignalname == i]))
+    )
+    
+  }
+  
+  # add to list
+  allRhos = bind_rows(
+    allRhos,
+    tmpRhos
+  )
+  
+}
+
+
+
+# Plots and numbers
+
+# Overall correlation relatively low on average
+allRhos %>% 
+  ggplot(aes(x = rho)) +
+  geom_histogram() +
+  theme_light(base_size = 18) +
+  geom_vline(xintercept = median(allRhos$rho))
+
+
+#quantile(allRhos$rho, probs = seq(0,1,.1))
+
+saveRDS(allRhos, '../Results/PairwiseCorrelationsActualAndMatches.RDS')
+
+# Create table
+tmpCorrelations = allRhos %>% 
+  left_join(czsum %>% select(signalname, theory1),
+            by = c('actSignal' = 'signalname')) %>% 
+  group_by(theory1) %>% 
+  summarise(
+    Min = min(rho),
+    Q05 = quantile(rho, probs = 0.05, na.rm = TRUE),
+    Q10 = quantile(rho, probs = 0.10, na.rm = TRUE),
+    Q25 = quantile(rho, probs = 0.25, na.rm = TRUE),
+    Q50 = quantile(rho, probs = 0.50, na.rm = TRUE),
+    Q75 = quantile(rho, probs = 0.75, na.rm = TRUE),
+    Q90 = quantile(rho, probs = 0.90, na.rm = TRUE),
+    Q95 = quantile(rho, probs = 0.95, na.rm = TRUE),
+    Max = max(rho)
+  ) %>%
+  arrange(desc(theory1)) %>% 
+  tibble()
 
 
 # Matching LaTeX output for overleaf -----------------------------------------------
@@ -211,3 +333,25 @@ for (rr in c('risk', 'mispricing', 'agnostic')) {
 }
 
 
+# Correlations
+tmpCorrelations %>% 
+  transmute(Category = str_to_sentence(theory1),
+            empty1 = NA_character_,
+            # Min,
+            Q05,
+            Q10, 
+            Q25,
+            Q50,
+            Q75,
+            Q90,
+            Q95,
+            # Max,
+            empty2 = NA_character_) %>% 
+  xtable(digits = c(0, 0, 2, 2, 2, 2, 2, 2, 2, 0, 0)) %>% 
+  print(
+    include.rownames = FALSE,
+    include.colnames = FALSE,
+    hline.after = NULL,
+    only.contents = TRUE,
+    file = "../Results/allRhos-Cor.tex"  
+  )
