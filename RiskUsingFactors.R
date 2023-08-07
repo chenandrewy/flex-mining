@@ -100,6 +100,7 @@ add_catID <- function(df, risk_measure, n_tiles = 3) {
                      probs = -0:3/3,  
                      include.lowest = TRUE, 
                      type = 2)
+  print(breaks)
   breaks[1] <- breaks[1] - .Machine$double.eps^0.5
   # Apply cut to create new column and convert to factor with sequential labels
   df[!is.na(get(risk_measure)), (paste("catID", risk_measure, sep="_")) :=
@@ -127,7 +128,7 @@ add_catID(czret, "risk_via_mkt", 3)
 add_catID(czret, "risk_via_ff3", 3)
 add_catID(czret, "risk_via_ff5", 3)
 
-average_by_ntile <- czret[eventDate >0 & eventDate < 120,
+average_by_ntile <- czret[eventDate >0 ,
                           .(ret = mean(ret),
                             catID_risk_via_mkt = first(catID_risk_via_mkt),
                             catID_risk_via_ff3 = first(catID_risk_via_ff3),
