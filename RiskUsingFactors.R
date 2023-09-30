@@ -100,13 +100,15 @@ add_catID <- function(df, risk_measure, n_tiles = 3) {
                      probs = -0:3/3,  
                      include.lowest = TRUE, 
                      type = 2)
-  print(breaks)
+  breaks <- c(-Inf, -1.5, -1, -.5, 0,  0.5, 1, 1.5, Inf)
   breaks[1] <- breaks[1] - .Machine$double.eps^0.5
+  print(breaks)
   # Apply cut to create new column and convert to factor with sequential labels
   df[!is.na(get(risk_measure)), (paste("catID", risk_measure, sep="_")) :=
        factor(cut(get(risk_measure),
-                  breaks = breaks),
-              labels = c('low', 'medium', 'high'), ordered = TRUE)]
+                  breaks = breaks)
+              # ,labels = c('low or negative', 'good', 'too high')
+              , ordered = TRUE)]
   
 }
 
@@ -115,6 +117,8 @@ czret %>% setDT()
 czret[, risk_via_mkt :=  mkt_implied_category(.SD), by = signalname]
 czret[, risk_via_ff3 :=  ff3_implied_category(.SD), by = signalname]
 czret[, risk_via_ff5 :=  ff5_implied_category(.SD), by = signalname]
+
+
 # risk_measure <- 'risk_via_mkt'
 # breaks <- quantile(czret[!is.na(get(risk_measure)),
 #                          median(get(risk_measure)),
@@ -132,12 +136,36 @@ average_by_ntile <- czret[eventDate >0 ,
                           .(ret = mean(ret),
                             catID_risk_via_mkt = first(catID_risk_via_mkt),
                             catID_risk_via_ff3 = first(catID_risk_via_ff3),
-                            catID_risk_via_ff5 = first(catID_risk_via_ff5)
+                            catID_risk_via_ff5 = first(catID_risk_via_ff5),
+                            risk_via_mkt = first(risk_via_mkt),
+                            risk_via_ff3 = first(risk_via_ff3),
+                            risk_via_ff5 = first(risk_via_ff5)
                             ), by = signalname]
 
-capm_cat <- average_by_ntile[,.(capm = mean(ret)), by = .(catID_risk_via_mkt)] 
-ff3_cat <- average_by_ntile[,.(ff3 = mean(ret)), by = .(catID_risk_via_ff3)]
-ff5_cat <- average_by_ntile[, .(ff5 =mean(ret)), by = .(catID_risk_via_ff5)]
+average_by_ntile[, plot(risk_via_mkt, ret)]
+ggplot(average_by_ntile, aes(x=risk_via_mkt, y=ret)) + 
+  geom_point() +
+  labs(title="Average Return by Risk via Mkt",
+       x="b'r/mu",
+       y="Average Return") + xlim(c(-3, 3)) + ylim(c(-300, 300))
+ggplot(average_by_ntile, aes(x=risk_via_ff3, y=ret)) + 
+  geom_point() +
+  labs(title="Average Return by Risk via FF3",
+       x="b'r/mu",
+       y="Average Return") + xlim(c(-3, 3)) + ylim(c(-300, 300))
+ggplot(average_by_ntile, aes(x=risk_via_ff5, y=ret)) + 
+  geom_point() +
+  labs(title="Average Return by Risk via FF5",
+       x="b'r/mu",
+       y="Average Return") + xlim(c(-3,3)) + ylim(c(-300, 300))
+
+average_by_ntile[, plot(risk_via_ff3, ret)]
+average_by_ntile[, plot(risk_via_ff5, ret)]
+
+
+capm_cat <- average_by_ntile[,.(capm = mean(ret), N_capm = .N), by = .(catID_risk_via_mkt)] 
+ff3_cat <- average_by_ntile[,.(ff3 = mean(ret), N_ff3 = .N), by = .(catID_risk_via_ff3)]
+ff5_cat <- average_by_ntile[, .(ff5 =mean(ret), N_ff5 = .N), by = .(catID_risk_via_ff5)]
 
 # Convert to data.tables for easier merging and set keys for the merge
 setDT(capm_cat, key = "catID_risk_via_mkt")
@@ -146,6 +174,9 @@ setDT(ff5_cat, key = "catID_risk_via_ff5")
 
 # Merge the data.tables
 results <- capm_cat[ff3_cat][ff5_cat]
+
+
+
 # Convert data.table to matrix
 results_mat <- as.matrix(results)
 
@@ -154,4 +185,4 @@ transposed_results <- t(results_mat)
 
 # Convert back to data.frame for pretty printing
 transposed_results <- as.data.frame(transposed_results)[-1,]
-colnames(transposed_results) <- c('low', 'medium', 'high')
+colnames(transposed_results) <- c('negative', 'positive', 'Too high')
