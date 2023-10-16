@@ -1,4 +1,4 @@
- # Setup -------------------------------------------------------------------------
+# Setup -------------------------------------------------------------------------
 
 rm(list = ls())
 
@@ -10,15 +10,18 @@ library("magrittr")
 library(doParallel)
 
 # settings
+ncores <- round(detectCores() / 2)
 
-# technical
-ncores <- 9
-DMname <- "../Data/Processed/CZ-style-v6 LongShort.RData" # autofill
+dmcomp = list()
+dmtic  = list()
+dmcomp$name = "../Data/Processed/CZ-style-v6 LongShort.RData"
+dmtic$name = '../Data/Processed/ticker_Harvey2017JF.RDS'
 
-## Load Data ---------------------------------------------------------------
+## Load Global Data ---------------------------------------------------------------
 
 # these are treated as globals (don't modify pls)
-czsum <- readRDS("../Data/Processed/czsum_all207.RDS")
+czsum <- readRDS("../Data/Processed/czsum_all207.RDS") %>% 
+  filter(Keep)
 
 czcat <- fread("DataIntermediate/TextClassification.csv") %>%
   select(signalname, Year, theory1, misprice_risk_ratio)
@@ -27,128 +30,166 @@ czret <- readRDS("../Data/Processed/czret.RDS") %>%
   left_join(czcat, by = "signalname") %>%
   mutate(ret_scaled = ret / rbar * 100)
 
-# Data mining strategies
-dm_rets <- readRDS(DMname)$ret
-dm_info <- readRDS(DMname)$port_list
-dm_signal_info <- readRDS(DMname)$signal_list
-dm_user <- readRDS(DMname)$user
+# In-samp Sumstats ------------------------------------------------------
+## Declare function --------------------------------------------------------
 
-dm_rets <- dm_rets %>%
-  left_join(
-    dm_info %>% select(portid, sweight),
-    by = c("portid")
-  ) %>%
-  transmute(
-    sweight,
-    dmname = signalid,
-    yearm,
-    ret,
-    nstock
-  )
+# function for computing DM strat sumstats in pub samples
+sumstats_for_DM_Strats = function(
+    DMname = "../Data/Processed/CZ-style-v6 LongShort.RData"
+    , nsampmax = Inf
+    ){
+  
+  # read in DM strats
+  dm_rets <- readRDS(DMname)$ret
+  dm_info <- readRDS(DMname)$port_list
+  
+  dm_rets <- dm_rets %>%
+    left_join(
+      dm_info %>% select(portid, sweight),
+      by = c("portid")
+    ) %>%
+    transmute(
+      sweight,
+      dmname = signalid,
+      yearm,
+      ret,
+      nstock
+    ) %>% 
+    setDT()
+  
+  # Finds sum stats for dm in each pub sample
+  # the output for this can be used for all dm selection methods
+  samplist <- czsum %>%
+    distinct(sampstart, sampend) %>%
+    arrange(sampstart, sampend)
+  
+  # set up for parallel
+  cl <- makePSOCKcluster(ncores)
+  registerDoParallel(cl)
+  
+  # loop setup
+  nsamp <- dim(samplist)[1] 
+  nsamp = min(nsamp,nsampmax)
+  dm_insamp <- list()
+  
+  # dopar in a function needs some special setup 
+  # https://stackoverflow.com/questions/6689937/r-problem-with-foreach-dopar-inside-function-called-by-optim
+  dm_insamp <- foreach(
+    sampi = 1:nsamp,
+    .combine = rbind,
+    .packages = c("data.table", "tidyverse", "zoo"),
+    .export = ls(envir = globalenv())
+  ) %dopar% {
+    
+    # feedback
+    print(paste0("DM sample stats for sample ", sampi, " of ", nsamp))
+    
+    # find sum stats for the current sample
+    sampcur <- samplist[sampi, ]
+    sumcur <- dm_rets[
+      yearm >= sampcur$sampstart &
+        yearm <= sampcur$sampend &
+        !is.na(ret),
+      .(
+        rbar = mean(ret), tstat = mean(ret) / sd(ret) * sqrt(.N),
+        min_nstock = min(nstock)
+      ),
+      by = c("sweight", "dmname")
+    ]
+    
+    # find number of obs in the last year of the sample
+    filtcur <- dm_rets[
+      floor(yearm) == year(sampcur$sampend) &
+        !is.na(ret),
+      .(nlastyear = .N),
+      by = c("sweight", "dmname")
+    ]
+    
+    # combine and save
+    sumcur = sumcur %>%
+      left_join(filtcur, by = c("sweight", "dmname")) %>%
+      mutate(
+        sampstart = sampcur$sampstart, sampend = sampcur$sampend
+      )
+    
+    return(sumcur)
+  } # end dm_insamp loop
+  stopCluster(cl)
+  
+  # Merge with czsum
+  # insampsum key is c(pubname,dmname). Each row is a dm strat that matches a pub
+  insampsum <- czsum %>%
+    transmute(
+      pubname = signalname, rbar_op = rbar, tstat_op = tstat, sampstart, sampend,
+      sweight = tolower(sweight)
+    ) %>%
+    left_join(
+      dm_insamp,
+      by = c("sampstart", "sampend", "sweight"),
+      relationship = "many-to-many" # required to suppress warning
+    ) %>%
+    arrange(pubname, desc(tstat))
+  
+  setDT(insampsum)
+  
+  return(insampsum)
+}  # end Sumstats function
 
-setDT(dm_rets)
-print("finished loading data")
+## Run Function on Compustat DM ----------------------------------------
 
-# Data mining summary stats -------------------------------------------------
+print("creating Compustat mining in-sample sumstats")
+print('Takes about 4 minutes using 4 cores')
+start_time <- Sys.time()
+dmcomp$insampsum = sumstats_for_DM_Strats(
+  DMname = dmcomp$name
+  , nsampmax = Inf
+)
+print("finished")
+stop_time <- Sys.time()
+stop_time - start_time
 
-# Finds sum stats for dm in each pub sample
-# the output for this can be used for all dm selection methods
-samplist <- czsum %>%
-  distinct(sampstart, sampend) %>%
-  arrange(sampstart, sampend)
+## Run Function on Ticker DM ----------------------------------------
 
-print("creating DM summary stats for each pub sample")
-tic <- Sys.time()
-
-cl <- makePSOCKcluster(ncores)
-registerDoParallel(cl)
-
-nsamp <- dim(samplist)[1] # reduce for debugging
-dm_insamp <- list()
-
-# dopar in a function needs some special setup (but not using this in a function any more)
-# https://stackoverflow.com/questions/6689937/r-problem-with-foreach-dopar-inside-function-called-by-optim
-dm_insamp <- foreach(
-  sampi = 1:nsamp,
-  .combine = rbind,
-  .packages = c("data.table", "tidyverse", "zoo")
-  # .export = ls(envir = globalenv())
-) %dopar% {
-  sampcur <- samplist[sampi, ]
-
-  # feedback
-  print(paste0("DM sample stats for sample ", sampi, " of ", nsamp))
-
-  # find sum stats for the current sample
-  sumcur <- dm_rets[
-    yearm >= sampcur$sampstart &
-      yearm <= sampcur$sampend &
-      !is.na(ret),
-    .(
-      rbar = mean(ret), tstat = mean(ret) / sd(ret) * sqrt(.N),
-      min_nstock = min(nstock)
-    ),
-    by = c("sweight", "dmname")
-  ]
-
-  # find other stats for filtering
-  filtcur <- dm_rets[
-    floor(yearm) == year(sampcur$sampend) &
-      !is.na(ret),
-    .(nlastyear = .N),
-    by = c("sweight", "dmname")
-  ]
-
-  # combine and save
-  sumcur %>%
-    left_join(filtcur, by = c("sweight", "dmname")) %>%
-    mutate(
-      sampstart = sampcur$sampstart, sampend = sampcur$sampend
-    )
-}
-stopCluster(cl)
-
-# add ranking statistics
-dm_insamp <- dm_insamp %>%
-  group_by(sweight, sampstart, sampend) %>%
-  arrange(desc(abs(tstat))) %>%
-  mutate(rank_tstat = row_number()) %>%
-  arrange(desc(abs(rbar))) %>%
-  mutate(rank_rbar = row_number(), n_dm_tot = n())
-
-# Merge with czsum
-# matchsum key is c(pubname,dmname). Each row is a dm strat that matches a pub
-matchsum <- czsum %>%
-  transmute(
-    pubname = signalname, rbar_op = rbar, tstat_op = tstat, sampstart, sampend,
-    sweight = tolower(sweight)
-  ) %>%
-  left_join(
-    dm_insamp,
-    by = c("sampstart", "sampend", "sweight"),
-    relationship = "many-to-many" # required to suppress warning
-  ) %>%
-  mutate(
-    diff_rbar = abs(rbar * sign(rbar) - rbar_op),
-    diff_tstat = abs(tstat * sign(rbar) - tstat_op)
-  ) %>%
-  arrange(pubname, desc(tstat))
-
-setDT(matchsum)
-
+print("creating ticker mining in-sample sumstats")
+print('Takes about 20 sec using 9 cores')
+start_time <- Sys.time()
+dmtic$insampsum = sumstats_for_DM_Strats(
+  DMname = dmtic$name
+  , nsampmax = Inf
+)
 print("end DM summary stats")
-toc <- Sys.time()
-toc - tic
+stop_time <- Sys.time()
+stop_time - start_time
 
-# Declare Functions -------------------------------------------------------
+# Convenience Save --------------------------------------------------------
+save.image('../Data/tmpAltDMPlots.RData')
 
-SelectDMStrats <- function(matchsum, settings) {
+# Convenience Load --------------------------------------------------------
+load('../Data/tmpAltDMPlots.RData')
+
+# Functions for making event time returns ---------------------------------
+
+SelectDMStrats <- function(insampsum, settings) {
   # input:
-  #     matchsum = summary stats for each pubname, dmname combination
+  #     insampsum = summary stats for each pubname, dmname combination
   #     dmset = settings for selection
   # output: matchcur = all pubname, dmname that satisfy dmset
-
-  matchcur <- matchsum[
+  
+  # add derivative statistics
+  insampsum <- insampsum %>%
+    group_by(sweight, sampstart, sampend) %>%
+    arrange(desc(abs(tstat))) %>%
+    mutate(rank_tstat = row_number()) %>%
+    arrange(desc(abs(rbar))) %>%
+    mutate(rank_rbar = row_number(), n_dm_tot = n()) %>% 
+    mutate(
+      diff_rbar = abs(rbar * sign(rbar) - rbar_op),
+      diff_tstat = abs(tstat * sign(rbar) - tstat_op)
+    ) %>% 
+    setDT()
+    
+  # filter
+  matchcur <- insampsum[
     diff_rbar <= settings$r_tol &
       diff_tstat <= settings$t_tol &
       diff_rbar / rbar_op <= settings$r_reltol &
@@ -156,7 +197,6 @@ SelectDMStrats <- function(matchsum, settings) {
       min_nstock >= settings$minNumStocks &
       nlastyear == 12 &
       abs(tstat) >= settings$t_min &
-      abs(tstat) <= settings$t_min2 &
       rank_tstat / n_dm_tot <= settings$t_top_pct / 100
   ]
 
@@ -170,28 +210,54 @@ SelectDMStrats <- function(matchsum, settings) {
   print("end selectStrats")
 }
 
-make_DM_event_returns <- function(dmselect) {
-  # input: dmselect = summary stats for each selected pubname, dmname pair
+make_DM_event_returns <- function(
+    match_strats
+    , DMname = "../Data/Processed/CZ-style-v6 LongShort.RData"
+    , npubmax = Inf
+    , czsum
+    ) {
+  # input: match_strats = summary stats for each selected pubname, dmname pair
   #     outname = name of RDS output
+  # you need to pass in czsum (can't use the global) because of
+  # a mysterious dopar error (object 'czum' not found)
   # output: for each pubname-eventDate, average dm returns
   gc()
+  
+  # read in DM strats
+  dm_rets <- readRDS(DMname)$ret
+  dm_info <- readRDS(DMname)$port_list
+  
+  dm_rets <- dm_rets %>%
+    left_join(
+      dm_info %>% select(portid, sweight),
+      by = c("portid")
+    ) %>%
+    transmute(
+      sweight,
+      dmname = signalid,
+      yearm,
+      ret,
+      nstock
+    ) %>% 
+    setDT()  
 
-  tic <- Sys.time()
   cl <- makePSOCKcluster(ncores)
   registerDoParallel(cl)
-  npub <- dim(czsum)[1] # reduce to debug
+  npub <- dim(czsum)[1] 
+  npub = min(npub,npubmax)
   event_dm_scaled <- foreach(
     pubi = 1:npub,
     .combine = rbind,
     .packages = c("data.table", "tidyverse", "zoo")
-  ) %do% {
+  ) %dopar% {
+    
     # feedback
     print(paste0("pubi ", pubi, " of ", npub))
 
     pubcur <- czsum[pubi, ]
 
     # select matching dm strats for the current pubname
-    matchcur <- dmselect[pubname == pubcur$signalname]
+    matchcur <- match_strats[pubname == pubcur$signalname]
 
     matchcur <- matchcur %>%
       transmute(sweight, dmname, sign = sign(rbar), rbar)
@@ -224,44 +290,156 @@ make_DM_event_returns <- function(dmselect) {
   } # end do pubi = 1:npub
 
   stopCluster(cl)
-  toc <- Sys.time()
-  toc - tic
 
   return(event_dm_scaled)
 } # end MakeMatchedPanel
 
-add_pub_and_graph <- function(event_dm_scaled, plotname) {
-  # merge and rename to match ReturnPlotsWithDM
-  allRets <- czret %>%
-    transmute(pubname = signalname, eventDate, ret = ret_scaled, samptype) %>%
-    left_join(
-      event_dm_scaled %>% transmute(pubname, eventDate, matchRet = dm_mean),
-      by = c("pubname", "eventDate")
-    ) %>%
-    left_join(
-      czsum %>% transmute(pubname = signalname, Keep),
-      by = "pubname"
-    ) %>%
-    filter(!is.na(matchRet), Keep == 1) %>% # To exclude unmatched signals
-    select(eventDate, ret, matchRet) # strictly needs these three columns
-
-  # Graph
-  ReturnPlotsWithDM(
-    dt = allRets,
-    basepath = "../Results/Fig_PublicationsVsDataMining",
-    suffix = plotname,
-    rollmonths = 60,
-    colors = colors,
-    labelmatch = TRUE
+# wrapper function for selection and event returns
+select_and_make_panel = function(matchset, dmname, insampsum){
+  output = list()
+  
+  output$matched <- SelectDMStrats(insampsum, matchset)
+  
+  print("Making event time returns")
+  print('Takes up to 1 minute on 4 cores')
+  start_time = Sys.time()
+  output$event_time <- make_DM_event_returns(
+    output$matched, dmname, npubmax = Inf, czsum = czsum
   )
-} # end add_pub_and_graph
+  stop_time <- Sys.time()
+  stop_time - start_time  
+  
+  return(output)
+}
 
+# t_min plots ---------------------------------------------------------------
 
-# 1st graph -------------------------------------------------------------------
+## Plot abs(t) > 2 ----------------------------------------------------------
+plotdat = list()
 
-# choose all settings at once
-name1 <- "0.03"
-dmset1 <- list(
+plotdat$name = 't_min_2'
+
+plotdat$matchset <- list(
+  # tolerance in levels
+  t_tol = .1 * Inf,
+  r_tol = .3 * Inf, 
+  # tolerance relative to op stat
+  t_reltol = 0.1 * Inf,
+  r_reltol = 0.3 * Inf,
+  # alternative filtering
+  t_min = 2.0, # Default = 0, minimum data mined t-stat
+  t_top_pct = 100, # top x% of data mined t-stats (set to 10 or less)
+  minNumStocks = 10 # Minimum number of stocks in any month over the in-sample period to include a strategy
+)
+
+# make event time returns for Compustat DM
+temp = select_and_make_panel(plotdat$matchset, dmcomp$name, dmcomp$insampsum)
+plotdat$comp_matched = temp$matched
+plotdat$comp_event_time = temp$event_time
+
+# make event time returns for ticker DM
+temp = select_and_make_panel(plotdat$matchset, dmtic$name, dmtic$insampsum)
+plotdat$tic_matched = temp$matched
+plotdat$tic_event_time = temp$event_time
+
+# join and reformat for plotting function
+# it wants columns:  (eventDate, ret, matchRet, matchRetAlt)
+# dm_mean returns are already scaled (see above)
+ret_for_plotting = czret %>% 
+  transmute(pubname = signalname, eventDate, ret = ret_scaled) %>% 
+  left_join(
+    plotdat$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
+  ) %>% 
+  left_join(
+    plotdat$tic_event_time %>% transmute(pubname, eventDate, matchRetAlt = dm_mean)
+  )  %>% 
+  select(eventDate, ret, matchRet, matchRetAlt, pubname)  %>% 
+  # keep only rows where both matchrets are observed
+  filter(!is.na(matchRet) & !is.na(matchRetAlt))
+
+# plot
+legprefix = paste0('|t|>', plotdat$matchset$t_min)
+ReturnPlotsWithDM(
+  dt = ret_for_plotting,
+  basepath = "../Results/Fig_AltDM",
+  suffix = plotdat$name,
+  rollmonths = 60,
+  colors = colors,
+  labelmatch = FALSE,
+  yl = -30,
+  legendlabels = 
+  c(paste0('Pub w/ Mining Match (', length(unique(ret_for_plotting$pubname)), ')'),
+   paste0(legprefix, ' Mining Compustat'), paste0(legprefix, ' Mining Tickers')),
+   legendpos = c(82,90)/100
+)
+
+## Plot abs(t) > 3 ----------------------------------------------------------
+plotdat = list()
+
+plotdat$name = 't_min_3'
+
+plotdat$matchset <- list(
+  # tolerance in levels
+  t_tol = .1 * Inf,
+  r_tol = .3 * Inf, 
+  # tolerance relative to op stat
+  t_reltol = 0.1 * Inf,
+  r_reltol = 0.3 * Inf,
+  # alternative filtering
+  t_min = 3.0, # Default = 0, minimum data mined t-stat
+  t_top_pct = 100, # top x% of data mined t-stats (set to 10 or less)
+  minNumStocks = 10 # Minimum number of stocks in any month over the in-sample period to include a strategy
+)
+
+# make event time returns for Compustat DM
+temp = select_and_make_panel(plotdat$matchset, dmcomp$name, dmcomp$insampsum)
+plotdat$comp_matched = temp$matched
+plotdat$comp_event_time = temp$event_time
+
+# make event time returns for ticker DM
+temp = select_and_make_panel(plotdat$matchset, dmtic$name, dmtic$insampsum)
+plotdat$tic_matched = temp$matched
+plotdat$tic_event_time = temp$event_time
+
+# join and reformat for plotting function
+# it wants columns:  (eventDate, ret, matchRet, matchRetAlt)
+# dm_mean returns are already scaled (see above)
+ret_for_plotting = czret %>% 
+  transmute(pubname = signalname, eventDate, ret = ret_scaled) %>% 
+  left_join(
+    plotdat$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
+  ) %>% 
+  left_join(
+    plotdat$tic_event_time %>% transmute(pubname, eventDate, matchRetAlt = dm_mean)
+  )  %>% 
+  select(eventDate, ret, matchRet, matchRetAlt, pubname)  %>% 
+  # keep only rows where both matchrets are observed
+  filter(!is.na(matchRet) & !is.na(matchRetAlt))
+
+# plot
+legprefix = paste0('|t|>', plotdat$matchset$t_min)
+ReturnPlotsWithDM(
+  dt = ret_for_plotting,
+  basepath = "../Results/Fig_AltDM",
+  suffix = plotdat$name,
+  rollmonths = 60,
+  colors = colors,
+  labelmatch = FALSE,
+  yl = -30,
+  legendlabels = 
+  c(paste0('Pub w/ Mining Match (', length(unique(ret_for_plotting$pubname)), ')'),
+   paste0(legprefix, ' Mining Compustat'), paste0(legprefix, ' Mining Tickers')),
+   legendpos = c(82,90)/100
+)
+
+# t_top_pct plots ---------------------------------------------------------------
+
+## Plot top 1% of abs(t) ----------------------------------------------------------
+plotdat = list()
+
+plotdat$name = 't_top_pct_1'
+
+plotdat$matchset <- list(
   # tolerance in levels
   t_tol = .1 * Inf,
   r_tol = .3 * Inf, 
@@ -270,36 +448,57 @@ dmset1 <- list(
   r_reltol = 0.3 * Inf,
   # alternative filtering
   t_min = 0, # Default = 0, minimum data mined t-stat
-  t_min2 = 25,
-  t_top_pct = 0.03, # top x% of data mined t-stats (set to 10 or less)
-  minNumStocks = 20 # Minimum number of stocks in any month over the in-sample period to include a strategy
+  t_top_pct = 1, # top x% of data mined t-stats (set to 10 or less)
+  minNumStocks = 10 # Minimum number of stocks in any month over the in-sample period to include a strategy
 )
 
-print(paste0('making first graph, name = ', name1, ' ======================'))
+# make event time returns for Compustat DM
+temp = select_and_make_panel(plotdat$matchset, dmcomp$name, dmcomp$insampsum)
+plotdat$comp_matched = temp$matched
+plotdat$comp_event_time = temp$event_time
 
-core <- ls()
-core <- append(core, c("SelectDMStrats", "MakeMatchedPanel", "create_allRets_and_graph")) # functions
+# make event time returns for ticker DM
+temp = select_and_make_panel(plotdat$matchset, dmtic$name, dmtic$insampsum)
+plotdat$tic_matched = temp$matched
+plotdat$tic_event_time = temp$event_time
 
-dm_strats <- SelectDMStrats(matchsum, dmset1)
-print("func1.2")
+# join and reformat for plotting function
+# it wants columns:  (eventDate, ret, matchRet, matchRetAlt)
+# dm_mean returns are already scaled (see above)
+ret_for_plotting = czret %>% 
+  transmute(pubname = signalname, eventDate, ret = ret_scaled) %>% 
+  left_join(
+    plotdat$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
+  ) %>% 
+  left_join(
+    plotdat$tic_event_time %>% transmute(pubname, eventDate, matchRetAlt = dm_mean)
+  )  %>% 
+  select(eventDate, ret, matchRet, matchRetAlt, pubname)  %>% 
+  # keep only rows where both matchrets are observed
+  filter(!is.na(matchRet) & !is.na(matchRetAlt))
 
-event_dm_scaled <- make_DM_event_returns(dm_strats)
-print("func1.3")
+# plot
+legprefix = paste0('top ', plotdat$matchset$t_top_pct, '% |t|')
+ReturnPlotsWithDM(
+  dt = ret_for_plotting,
+  basepath = "../Results/Fig_AltDM",
+  suffix = plotdat$name,
+  rollmonths = 60,
+  colors = colors,
+  labelmatch = FALSE,
+  yl = -30,
+  legendlabels = 
+  c(paste0('Pub w/ Mining Match (', length(unique(ret_for_plotting$pubname)), ')'),
+   paste0(legprefix, ' Mining Compustat'), paste0(legprefix, ' Mining Tickers')),
+   legendpos = c(82,90)/100
+)
 
-add_pub_and_graph(event_dm_scaled, name1)
-print("func1.4")
+## Plot top 0.1% of abs(t) ----------------------------------------------------------
+plotdat = list()
 
-rm(list = setdiff(ls(), core))
-gc()
+plotdat$name = 't_top_pct_0.1'
 
-
-# 2nd graph -------------------------------------------------------------------
-
-
-
-# choose all settings at once
-name2 <- "0.02"
-dmset2 <- list(
+plotdat$matchset <- list(
   # tolerance in levels
   t_tol = .1 * Inf,
   r_tol = .3 * Inf, 
@@ -307,33 +506,109 @@ dmset2 <- list(
   t_reltol = 0.1 * Inf,
   r_reltol = 0.3 * Inf,
   # alternative filtering
-  t_min = 0, #  minimum data mined t-stat, 0 to ignore
-  t_min2 = 25,
-  t_top_pct = 0.02, # top x% of data mined t-stats, 100 to ignore
-  minNumStocks = 20 # Minimum number of stocks in  any month over the in-sample period to include a strategy
+  t_min = 0, # Default = 0, minimum data mined t-stat
+  t_top_pct = 0.1, # top x% of data mined t-stats (set to 10 or less)
+  minNumStocks = 10 # Minimum number of stocks in any month over the in-sample period to include a strategy
 )
-print(paste0('making first graph, name = ', name2, ' ======================'))
 
-core <- ls()
-core <- append(core, c("SelectDMStrats", "MakeMatchedPanel", "create_allRets_and_graph")) # functions
+# make event time returns for Compustat DM
+temp = select_and_make_panel(plotdat$matchset, dmcomp$name, dmcomp$insampsum)
+plotdat$comp_matched = temp$matched
+plotdat$comp_event_time = temp$event_time
 
-dm_strats <- SelectDMStrats(matchsum, dmset2)
-print("func2.2")
+# make event time returns for ticker DM
+temp = select_and_make_panel(plotdat$matchset, dmtic$name, dmtic$insampsum)
+plotdat$tic_matched = temp$matched
+plotdat$tic_event_time = temp$event_time
 
-event_dm_scaled <- make_DM_event_returns(dm_strats)
-print("func2.3")
+# join and reformat for plotting function
+# it wants columns:  (eventDate, ret, matchRet, matchRetAlt)
+# dm_mean returns are already scaled (see above)
+ret_for_plotting = czret %>% 
+  transmute(pubname = signalname, eventDate, ret = ret_scaled) %>% 
+  left_join(
+    plotdat$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
+  ) %>% 
+  left_join(
+    plotdat$tic_event_time %>% transmute(pubname, eventDate, matchRetAlt = dm_mean)
+  )  %>% 
+  select(eventDate, ret, matchRet, matchRetAlt, pubname)  %>% 
+  # keep only rows where both matchrets are observed
+  filter(!is.na(matchRet) & !is.na(matchRetAlt))
 
-add_pub_and_graph(event_dm_scaled, name2)
-print("func2.4")
+# plot
+legprefix = paste0('top ', plotdat$matchset$t_top_pct, '% |t|')
+ReturnPlotsWithDM(
+  dt = ret_for_plotting,
+  basepath = "../Results/Fig_AltDM",
+  suffix = plotdat$name,
+  rollmonths = 60,
+  colors = colors,
+  labelmatch = FALSE,
+  yl = -30,
+  legendlabels = 
+  c(paste0('Pub w/ Mining Match (', length(unique(ret_for_plotting$pubname)), ')'),
+   paste0(legprefix, ' Mining Compustat'), paste0(legprefix, ' Mining Tickers')),
+   legendpos = c(82,90)/100
+)
 
-rm(list = setdiff(ls(), core))
-gc()
 
+## Plot top 10% of abs(t) ----------------------------------------------------------
+plotdat = list()
 
-# debug -----------------------------------------------------------------------
+plotdat$name = 't_top_pct_10'
 
-event_dm_scaled  %>% 
-  group_by(pubname)  %>% summarize(dm_n = mean(dm_n))  %>% 
-  arrange(dm_n)  %>% print(n=Inf)
+plotdat$matchset <- list(
+  # tolerance in levels
+  t_tol = .1 * Inf,
+  r_tol = .3 * Inf, 
+  # tolerance relative to op stat
+  t_reltol = 0.1 * Inf,
+  r_reltol = 0.3 * Inf,
+  # alternative filtering
+  t_min = 0, # Default = 0, minimum data mined t-stat
+  t_top_pct = 10, # top x% of data mined t-stats (set to 10 or less)
+  minNumStocks = 10 # Minimum number of stocks in any month over the in-sample period to include a strategy
+)
 
-matchsum  %>% group_by(pubname,sweight)  %>% summarize(n = n())  %>% print(n=Inf)
+# make event time returns for Compustat DM
+temp = select_and_make_panel(plotdat$matchset, dmcomp$name, dmcomp$insampsum)
+plotdat$comp_matched = temp$matched
+plotdat$comp_event_time = temp$event_time
+
+# make event time returns for ticker DM
+temp = select_and_make_panel(plotdat$matchset, dmtic$name, dmtic$insampsum)
+plotdat$tic_matched = temp$matched
+plotdat$tic_event_time = temp$event_time
+
+# join and reformat for plotting function
+# it wants columns:  (eventDate, ret, matchRet, matchRetAlt)
+# dm_mean returns are already scaled (see above)
+ret_for_plotting = czret %>% 
+  transmute(pubname = signalname, eventDate, ret = ret_scaled) %>% 
+  left_join(
+    plotdat$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
+  ) %>% 
+  left_join(
+    plotdat$tic_event_time %>% transmute(pubname, eventDate, matchRetAlt = dm_mean)
+  )  %>% 
+  select(eventDate, ret, matchRet, matchRetAlt, pubname)  %>% 
+  # keep only rows where both matchrets are observed
+  filter(!is.na(matchRet) & !is.na(matchRetAlt))
+
+# plot
+legprefix = paste0('top ', plotdat$matchset$t_top_pct, '% |t|')
+ReturnPlotsWithDM(
+  dt = ret_for_plotting,
+  basepath = "../Results/Fig_AltDM",
+  suffix = plotdat$name,
+  rollmonths = 60,
+  colors = colors,
+  labelmatch = FALSE,
+  yl = -30,
+  legendlabels = 
+  c(paste0('Pub w/ Mining Match (', length(unique(ret_for_plotting$pubname)), ')'),
+   paste0(legprefix, ' Mining Compustat'), paste0(legprefix, ' Mining Tickers')),
+   legendpos = c(82,90)/100
+)
+

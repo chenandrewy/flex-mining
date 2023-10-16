@@ -408,7 +408,6 @@ signal_to_ports = function(dt0, form, portnum, sweight, trim = NULL){
         )
     }
     
-    # xx under construction xx
     # # find breakpoints
     # # based on email with LingLing Zheng 2023 01
     # # she used proc rank with group output and ties = min
@@ -424,42 +423,6 @@ signal_to_ports = function(dt0, form, portnum, sweight, trim = NULL){
         )
       ) %>%
       ungroup()
-    
-    # # find breakpoints, with backup plan of getting 20 stocks
-    # breakdat = dt %>% 
-    #   group_by(ret_yearm) %>% 
-    #   summarize(
-    #     ntot = n()
-    #     , qlo_alt = quantile(signal, 20/pmax(ntot,20))
-    #     , qlo = quantile(signal, 1/portnum)
-    #     , qhi = quantile(signal, 1-1/portnum)
-    #     , qhi_alt = quantile(signal, 1-20/pmax(ntot,20))    
-    #   ) %>% 
-    #   # backup: replace simple quantile with the alts if not enough stocks
-    #   mutate(
-    #     qlo = pmax(qlo, qlo_alt), qhi = pmin(qhi, qhi_alt)
-    #   ) %>%
-    #   # backup 2: if qlo == qhi, adjust
-    #   mutate(
-    #     qlo = if_else(qlo == qhi, pmin(qlo, qlo_alt), qlo)
-    #     , qhi = if_else(qlo == qhi, pmax(qhi, qhi_alt), qhi)
-    #   )
-    
-    # # assign to legs, pedantically
-    # #   stocks assigned to both legs get dropped
-    # dt = dt %>% 
-    #   inner_join(breakdat, by = 'ret_yearm') %>% 
-    #   mutate(
-    #     short = signal <= qlo
-    #     , long = signal >= qhi
-    #   ) %>% 
-    #   mutate(
-    #     port = case_when(
-    #       short & !long ~ 'short'
-    #       , !short & long ~ 'long'
-    #     )
-    #   )
-    
     
     # find long-short return, rename date (only ret is still left)
     dt = dt %>% 
@@ -633,17 +596,20 @@ ReturnPlotsWithDM = function(dt, suffix = '', rollmonths = 60, colors = NA,
                              xl = -360, xh = 240, yl = -10, yh = 130, fig.width = 10,
                              fig.height = 8, fontsize = 18, basepath = NA_character_,
                              labelmatch = FALSE, hideoos = FALSE,
+                             legendlabels = c('Published','Data-mined','Data-mined Low Cor'),
+                             legendpos = c(80,85)/100,
                              filetype = '.pdf') {
   
-  #' @param dt Table with three columns (eventDate, ret, matchRet)
+  #' @param dt Table with columns (eventDate, ret, matchRet, matchRetAlt)
   #' @param suffix String to attach to saved pdf figure 
   #' @param rollmonths Number of months over which moving average is computed
   #' @param xl, xh, yl, yh Upper and lower limits for x and y axes  
   
   dt = dt %>% 
+    select(eventDate, ret, matchRet, matchRetAlt)  %>% 
     gather(key = 'SignalType', value = 'return', -eventDate) %>% 
     group_by(SignalType, eventDate) %>% 
-    summarise(rbar = mean(return)) %>% 
+    summarise(rbar = mean(return), na.rm=TRUE) %>% 
     arrange(SignalType, eventDate) %>% 
     mutate(
       roll_rbar = zoo::rollmean(rbar, k = rollmonths, fill = NA, align = 'right')
@@ -655,13 +621,15 @@ ReturnPlotsWithDM = function(dt, suffix = '', rollmonths = 60, colors = NA,
   }
   
   printme = dt %>% 
-      mutate(SignalType = factor(SignalType, levels = c('ret', 'matchRet'), labels = c('Published', 'Matched data-mined'))) %>% 
+      mutate(SignalType 
+             = factor(SignalType, levels = c('ret', 'matchRet','matchRetAlt')
+               , labels = legendlabels)) %>% 
       ggplot(aes(x = eventDate, y = roll_rbar, color = SignalType, linetype = SignalType)) +
       geom_line(size = 1.1) +
       #  scale_color_grey() + 
       # scale_color_brewer(palette = 'Dark2') + 
       scale_color_manual(values = colors) + 
-      scale_linetype_manual(values = c('solid', 'twodash')) +
+      scale_linetype_manual(values = c('solid', 'twodash','dotted')) +
       # scale_linetype(guide = 'none') +
       geom_vline(xintercept = 0) +
       coord_cartesian(
@@ -676,7 +644,7 @@ ReturnPlotsWithDM = function(dt, suffix = '', rollmonths = 60, colors = NA,
       labs(color = '', linetype = '') +
       theme_light(base_size = fontsize) +
       theme(
-        legend.position = c(80,85)/100
+        legend.position = legendpos
         , legend.spacing.y = unit(0, units = 'cm')
         , legend.background = element_rect(fill='transparent')
       ) 
@@ -691,7 +659,7 @@ ReturnPlotsWithDM = function(dt, suffix = '', rollmonths = 60, colors = NA,
              , color = 'grey40' , size = 5)
   }
   
-  print(printme)
+  # print(printme)
   
   ggsave(paste0(basepath, '_', suffix, filetype), width = fig.width, height = fig.height)
   

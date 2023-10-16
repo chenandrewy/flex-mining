@@ -2,64 +2,74 @@
 
 # Setup -------------------------------------------------------------------
 
-
 rm(list = ls())
-
 source('0_Environment.R')
-
-dmdat = readRDS('../Data/Processed/CZ-style-v6 LongShort.RData')
-
-
 dir.create('../Data/Export/', showWarnings = F)
 
-
-# Reformat  -------------------------------------------------------------
-
-# sanity check
-# temp2 = dmdat$ret  %>% filter(signalid <= 100)
-# 
-# checkdat = temp2 %>% 
-#   mutate(
-#     year = as.integer(floor(yearm))
-#     , month = round(12*(as.numeric(yearm) - year) +  1)
-#   ) %>% 
-#   mutate(
-#     yearcheck = year(yearm), monthcheck = month(yearm)
-#     , zero = abs(year*100 + month - yearcheck*100-monthcheck)
-#   ) %>% 
-#   print()
-# 
-# checkdat$zero %>% max
-
-# yearmon is awful slow so we do this workaround
-temp = dmdat$ret %>% 
+# function for writing to disk
+rdata_to_csv = function(rdataname, csvname){
+  
+  # read rdata / rds
+  dmdat = readRDS(rdataname)
+  
+  # Reformat  
+  # yearmon is awful slow so we do this workaround
+  temp = dmdat$ret %>% 
     mutate(
       year = as.integer(floor(yearm))
       , month = round(12*(as.numeric(yearm) - year) +  1)
     ) %>%
-  left_join(
-    dmdat$port_list %>% select(portid, sweight), by = 'portid'
-  ) 
+    left_join(
+      dmdat$port_list %>% select(portid, sweight), by = 'portid'
+    ) 
+  # sanity check
+  # temp2 = dmdat$ret  %>% filter(signalid <= 100)
+  # 
+  # checkdat = temp2 %>% 
+  #   mutate(
+  #     year = as.integer(floor(yearm))
+  #     , month = round(12*(as.numeric(yearm) - year) +  1)
+  #   ) %>% 
+  #   mutate(
+  #     yearcheck = year(yearm), monthcheck = month(yearm)
+  #     , zero = abs(year*100 + month - yearcheck*100-monthcheck)
+  #   ) %>% 
+  #   print()
+  # 
+  # checkdat$zero %>% max  
+  
+  # split EW / VW
+  ret_ew = temp %>% filter(sweight == 'ew') %>% 
+    select(signalid, year, month, ret, nstock) %>% 
+    arrange(signalid, year, month, )
+  
+  ret_vw = temp %>% filter(sweight == 'vw') %>% 
+    select(signalid, year, month, ret, nstock) %>% 
+    arrange(signalid, year, month, )
+  
+  # Write to disk 
+  fwrite(ret_ew, paste0(csvname, 'EW.csv'), row.names = F)
+  fwrite(ret_vw, paste0(csvname, 'VW.csv'), row.names = F)
+  fwrite(dmdat$signal_list, paste0(csvname, 'SignalList.csv'), row.names = F)
+  
+  # write a small sample
+  fwrite(ret_ew %>% filter(signalid <= 10) 
+         , paste0(csvname,'Sample.csv'), row.names = F)
+  
+}
 
-# split EW / VW
-ret_ew = temp %>% filter(sweight == 'ew') %>% 
-  select(signalid, year, month, ret, nstock) %>% 
-  arrange(signalid, year, month, )
+# Compustat Mining ---------------------------------------------------------------
+
+rdataname = '../Data/Processed/CZ-style-v6 LongShort.RData'
+csvname = '../Data/Export/DataMinedLongShortReturns'
+
+rdata_to_csv(rdataname = rdataname, csvname = csvname)
 
 
-ret_vw = temp %>% filter(sweight == 'vw') %>% 
-  select(signalid, year, month, ret, nstock) %>% 
-  arrange(signalid, year, month, )
+# Ticker Mining -----------------------------------------------------------
 
+rdataname = '../Data/Processed/ticker_Harvey2017JF.RDS'
+csvname = '../Data/Export/tickerHarvey2017'
 
+rdata_to_csv(rdataname = rdataname, csvname = csvname)
 
-# Write to disk -------------------------------------------------------------------------
-
-
-fwrite(ret_ew, '../Data/Export/DataMinedLongShortReturnsEW.csv', row.names = F)
-fwrite(ret_vw, '../Data/Export/DataMinedLongShortReturnsVW.csv', row.names = F)
-fwrite(dmdat$signal_list, '../Data/Export/DataMinedSignalList.csv', row.names = F)
-
-# write a small sample
-fwrite(ret_ew %>% filter(signalid <= 10) 
-  , '../Data/Export/DataMinedLongShortReturnsSample.csv', row.names = F)

@@ -28,10 +28,10 @@ crsp <- copy(crsp0)
 crsp <- crsp[exchcd %in% c(1, 2, 3) & shrcd %in% c(10, 11, 12)]
 
 # select key variables
-crsp <- crsp[, .(permno, date, ret, ticker, me)]
+crsp <- crsp[, .(permno, yearm, ret, ticker, me)]
 
 # lag ticker and me
-crsp <- crsp[order(permno, date)]
+crsp <- crsp[order(permno, yearm)]
 crsp[, `:=`(
     lag_tic = data.table::shift(ticker, 1L, type = "lag"),
     lag_me = data.table::shift(me, 1L, type = "lag")
@@ -53,7 +53,7 @@ tic_kth_letter_port <- function(k) {
             ret_ew = mean(ret), ret_vw = weighted.mean(ret, lag_me),
             nstock = .N
         ),
-        by = c("date", "port")
+        by = c("yearm", "port")
     ] %>%
         pivot_longer(
             cols = c("ret_ew", "ret_vw"), names_to = "sweight", values_to = "ret",
@@ -124,22 +124,26 @@ for (i in 1:n_ls) {
 
     # get long portfolio returns
     longcur <- longport[sweight == setcur$sweight & port == setcur$longport] %>%
-        transmute(date, ret_long = ret, nlong = nstock)
+        transmute(yearm, ret_long = ret, nlong = nstock)
 
     # get short portfolio returns
     shortcur <- longport[sweight == setcur$sweight & port == setcur$shortport] %>%
-        transmute(date, ret_short = ret, nshort = nstock)
+        transmute(yearm, ret_short = ret, nshort = nstock)
 
     # merge long and short
-    lscur <- merge(longcur, shortcur, by = "date", all = TRUE) %>%
+    lscur <- merge(longcur, shortcur, by = "yearm", all = TRUE) %>%
         mutate(ret = ret_long - ret_short)
 
     # store
     tempret[[i]] <- lscur %>%
         mutate(signalid = setcur$signalid, portid = setcur$portid) %>%
-        select(signalid, portid, date, ret, nlong, nshort)
+        select(signalid, portid, yearm, ret, nlong, nshort)
 } # end for i
 lsret <- rbindlist(tempret) %>% setDT()
+
+# add nstock column
+# apparently, signal_to_ports defines nstock as nlong + nshort
+lsret[, nstock := nlong + nshort]
 
 # save to disk -------------------------------------------------
 
@@ -152,57 +156,4 @@ ticdat = list(
 
 saveRDS(ticdat, '../Data/Processed/ticker_Harvey2017JF.RDS')
 
-# save to csv for sharing -------------------------------------------------
-
-dir.create('../Data/Export/', showWarnings = F)
-
-# save equal-weighted
-portcur <- port_list[sweight == "ew"]
-temp = lsret[portid == portcur$portid] %>% 
-    left_join(signal_list[, .(signalid, signalname)], by = "signalid") %>% 
-    select(signalname, date, ret, nlong, nshort)
-fwrite(temp, '../Data/Export/ticker_Harvey2017JF_ew.csv', row.names = FALSE)
-
-
-# save value-weighted
-portcur <- port_list[sweight == "vw"]
-temp = lsret[portid == portcur$portid] %>% 
-    left_join(signal_list[, .(signalid, signalname)], by = "signalid") %>% 
-    select(signalname, date, ret, nlong, nshort)
-fwrite(temp, '../Data/Export/ticker_Harvey2017JF_vw.csv', row.names = FALSE)    
-
 # check -------------------------------------------------
-portcur <- port_list[sweight == "ew"]
-
-ls_sum <- lsret[portid == portcur$portid & year(date) >= 1963 &
-    !is.na(ret)] %>%
-    group_by(signalid) %>%
-    summarize(
-        rbar = mean(ret), vol = sd(ret), nmonth = n(), tstat = rbar / vol * sqrt(nmonth)
-    )
-
-ls_sum
-
-# compare to standard normal
-Femp = ecdf(ls_sum$tstat)
-
-tlist = seq(-4, 4, by = 0.5)
-
-plotme = tibble(
-    tleft = tlist[-length(tlist)]
-    , tright = tlist[-1]
-    , tmid = (tleft + tright) / 2
-    , Pr_emp = Femp(tright) - Femp(tleft)
-    , Pr_norm = pnorm(tright) - pnorm(tleft)
-) %>% 
-pivot_longer(cols = c("Pr_emp", "Pr_norm"), names_to = "type", values_to = "Pr") 
-
-plt = ggplot(plotme, aes(x = tmid, y = Pr, color = type)) +
-    geom_line() +
-    geom_point() +
-    theme_bw() +
-    labs(x = "t-stat", y = "Pr(t-stat)") +
-    scale_color_manual(values = c("black", "red")) 
-
-ggsave('temp.pdf', scale = 0.5)
-

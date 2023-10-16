@@ -59,7 +59,10 @@ signaldoc =  data.table::fread('../Data/Raw/SignalDoc.csv') %>%
             , Rep_Quality = `Signal Rep Quality`) %>% 
   filter(
     OP_pred %in% c('1_clear','2_likely')
-  ) 
+  ) %>% 
+  mutate(
+    sweight = if_else(is.na(sweight), 'ew', sweight)
+  )
 
 
 # make monthly ls returns with sample def
