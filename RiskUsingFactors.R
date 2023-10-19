@@ -142,27 +142,45 @@ average_by_ntile <- czret[eventDate >0 ,
                             risk_via_ff5 = first(risk_via_ff5)
                             ), by = signalname]
 
-average_by_ntile[, plot(risk_via_mkt, ret)]
-ggplot(average_by_ntile, aes(x=risk_via_mkt, y=ret)) + 
+library(ggplot2)
+library(gridExtra)
+
+# Create the individual plots
+p1 <- ggplot(average_by_ntile, aes(x=risk_via_mkt, y=ret)) + 
   geom_point() +
   labs(title="Average Return by Risk via Mkt",
        x="b'r/mu",
        y="Average Return") + xlim(c(-3, 3)) + ylim(c(-300, 300))
-ggplot(average_by_ntile, aes(x=risk_via_ff3, y=ret)) + 
+
+p2 <- ggplot(average_by_ntile, aes(x=risk_via_ff3, y=ret)) + 
   geom_point() +
   labs(title="Average Return by Risk via FF3",
        x="b'r/mu",
        y="Average Return") + xlim(c(-3, 3)) + ylim(c(-300, 300))
-ggplot(average_by_ntile, aes(x=risk_via_ff5, y=ret)) + 
+
+p3 <- ggplot(average_by_ntile, aes(x=risk_via_ff5, y=ret)) + 
   geom_point() +
   labs(title="Average Return by Risk via FF5",
        x="b'r/mu",
        y="Average Return") + xlim(c(-3,3)) + ylim(c(-300, 300))
 
-average_by_ntile[, plot(risk_via_ff3, ret)]
-average_by_ntile[, plot(risk_via_ff5, ret)]
+# Combine the plots into a single plot with three panels
+# Specify the file name and open the PDF device
+pdf("combined_plots.pdf", width=7, height=10)  # Adjust width and height as necessary
 
+# Draw the combined plots
+grid.arrange(p1, p2, p3, ncol=2)
 
+# Close the PDF device
+dev.off()
+
+pdf("combined_plots3.pdf", width=10, height=7)  # Adjust width and height as necessary
+
+# Draw the combined plots in two columns
+grid.arrange(p1, p2, p3, ncol=3)
+
+# Close the PDF device
+dev.off()
 capm_cat <- average_by_ntile[,.(capm = mean(ret), N_capm = .N), by = .(catID_risk_via_mkt)] 
 ff3_cat <- average_by_ntile[,.(ff3 = mean(ret), N_ff3 = .N), by = .(catID_risk_via_ff3)]
 ff5_cat <- average_by_ntile[, .(ff5 =mean(ret), N_ff5 = .N), by = .(catID_risk_via_ff5)]
