@@ -596,7 +596,7 @@ ReturnPlotsWithDM = function(dt, suffix = '', rollmonths = 60, colors = NA,
                              xl = -360, xh = 240, yl = -10, yh = 130, fig.width = 10,
                              fig.height = 8, fontsize = 18, basepath = NA_character_,
                              labelmatch = FALSE, hideoos = FALSE,
-                             legendlabels = c('Published','Data-mined','Data-mined Low Cor'),
+                             legendlabels = c('Published','Matched data-mined','Alt data-mined'),
                              legendpos = c(80,85)/100,
                              filetype = '.pdf') {
   
@@ -604,9 +604,16 @@ ReturnPlotsWithDM = function(dt, suffix = '', rollmonths = 60, colors = NA,
   #' @param suffix String to attach to saved pdf figure 
   #' @param rollmonths Number of months over which moving average is computed
   #' @param xl, xh, yl, yh Upper and lower limits for x and y axes  
-  
+
+  # check if you have matchRetAlt and adjust accordingly
+  if (any(names(dt)=='matchRetAlt')){
+    select_cols = c('eventDate','ret','matchRet','matchRetAlt')
+  } else{
+    select_cols = c('eventDate','ret','matchRet')
+  }
+    
   dt = dt %>% 
-    select(eventDate, ret, matchRet, matchRetAlt)  %>% 
+    select(all_of(select_cols))  %>% 
     gather(key = 'SignalType', value = 'return', -eventDate) %>% 
     group_by(SignalType, eventDate) %>% 
     summarise(rbar = mean(return), na.rm=TRUE) %>% 

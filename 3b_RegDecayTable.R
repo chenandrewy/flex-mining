@@ -69,7 +69,7 @@ chen_theme =   theme_minimal() +
 
 signalcat = fread('DataInput/SignalsTheoryChecked.csv') 
 
-czret_1 = readRDS('../Data/Processed/czsum_all207.RDS') %>% setDT()
+czret_1 = readRDS('../Data/Processed/czsum_allpredictors.RDS') %>% setDT()
 
 setkey(czret_1, signalname)
 setkey(signalcat, signalname)
@@ -80,16 +80,16 @@ signalcat <- signalcat[Keep == TRUE,]
 # # czreturns
 
 # redundant, but fix me carefully later
-czret = readRDS('../Data/Processed/czret.RDS') %>% 
+czret = readRDS('../Data/Processed/czret_keeponly.RDS') %>% 
   filter(!is.na(samptype)) %>% 
   mutate(in_samp = samptype == 'insamp') %>%
   mutate(post_samp = samptype %in% c('oos','postpub')) %>% 
   mutate(post_pub = samptype == 'postpub') %>%  
   left_join(
-    signalcat %>% dplyr::select(signalname, theory1)
+    signalcat %>% dplyr::select(signalname, theory)
     , by = 'signalname'
   ) %>% 
-  mutate(risk_theory = theory1 == 'risk')  %>%  
+  mutate(risk_theory = theory == 'risk')  %>%  
   filter(Keep == TRUE) %>%
   setDT()
 
@@ -103,14 +103,14 @@ tempsum = czret %>%
   setDT()
 
 tempret = czret %>% 
-  dplyr::select(signalname, date, ret, sampstart, sampend, theory1,
+  dplyr::select(signalname, date, ret, sampstart, sampend, theory,
                 in_samp, risk_theory, post_pub, post_samp) %>% 
   mutate(
     samp_time = year(date) + month(date)/12
     - (year(sampend) + month(sampend)/12)
   ) %>% 
   left_join(tempsum, by = 'signalname')  %>% 
-  filter(!is.na(theory1)) %>% 
+  filter(!is.na(theory)) %>% 
   mutate(
     ret_n = 100*ret/rbar_insamp
   )%>% setDT()
@@ -121,7 +121,7 @@ tempret = czret %>%
 tempret[, mean(ret), by = risk_theory]
 
 a1_model <- tempret %>%
-  lm(ret_n ~ post_samp +  I(I(post_samp == TRUE)*I(theory1 == 'risk')) , data = .)
+  lm(ret_n ~ post_samp +  I(I(post_samp == TRUE)*I(theory == 'risk')) , data = .)
 a1 <- a1_model %>%
   coeftest(., vcov = vcovCL, cluster = ~ date) %>% round(10)
 
@@ -136,8 +136,8 @@ p_val_a1 <- sum_a1$test$pvalues[1]
 
 
 a2_model <- tempret %>%
-  lm(ret_n ~ post_samp + post_pub + I(I(post_samp == TRUE)*I(theory1 == 'risk')) +
-       I(I(post_pub == TRUE)*I(theory1 == 'risk')), data = .)
+  lm(ret_n ~ post_samp + post_pub + I(I(post_samp == TRUE)*I(theory == 'risk')) +
+       I(I(post_pub == TRUE)*I(theory == 'risk')), data = .)
 a2 <- a2_model %>%
   coeftest(., vcov = vcovCL, cluster = ~ date) %>% round(10)
 
@@ -152,8 +152,8 @@ sum_a2 <- summary(ametest_2)
 p_val_a2 <- sum_a2$test$pvalues[1]
 
 a3_model <- tempret %>%
-  lm(ret_n ~ post_samp +  I(I(post_samp == TRUE)*I(theory1 == 'risk'))+
-       I(I(post_samp == TRUE)*I(theory1 == 'mispricing')), data = .)
+  lm(ret_n ~ post_samp +  I(I(post_samp == TRUE)*I(theory == 'risk'))+
+       I(I(post_samp == TRUE)*I(theory == 'mispricing')), data = .)
 a3 <- a3_model %>%
   coeftest(., vcov = vcovCL, cluster = ~ date) %>% round(10)
 
@@ -181,10 +181,10 @@ p_table_3_misp <- ifelse(p_val_a3_misp < 0.01, '< 1%', round(p_val_a3_misp, 2))
 
 
 a4_model <- tempret %>%
-  lm(ret_n ~ post_samp + post_pub + I(I(post_samp == TRUE)*I(theory1 == "risk")) +
-       I(I(post_pub == TRUE)*I(theory1 == "risk")) +
-       I(I(post_samp == TRUE)*I(theory1 == "mispricing")) +
-       I(I(post_pub == TRUE)*I(theory1 == "mispricing")) , data = .)
+  lm(ret_n ~ post_samp + post_pub + I(I(post_samp == TRUE)*I(theory == "risk")) +
+       I(I(post_pub == TRUE)*I(theory == "risk")) +
+       I(I(post_samp == TRUE)*I(theory == "mispricing")) +
+       I(I(post_pub == TRUE)*I(theory == "mispricing")) , data = .)
 
 a4 <- a4_model %>%
   coeftest(., vcov = vcovCL, cluster = ~ date) %>% round(10)
@@ -221,10 +221,10 @@ reg_save <- huxreg(a1, a2, a3, a4, coefs = c(
   "Intercept" = "(Intercept)",
   "Post-Sample" = "post_sampTRUE",
   "Post-Pub" = 'post_pubTRUE',
-  'Post-Sample x Risk' = 'I(I(post_samp == TRUE) * I(theory1 == "risk"))',
-  'Post-Pub x Risk' = 'I(I(post_pub == TRUE) * I(theory1 == "risk"))',
-  'Post-Sample x Mispricing' = 'I(I(post_samp == TRUE) * I(theory1 == "mispricing"))',
-  'Post-Pub x Mispricing' = 'I(I(post_pub == TRUE) * I(theory1 == "mispricing"))'),
+  'Post-Sample x Risk' = 'I(I(post_samp == TRUE) * I(theory == "risk"))',
+  'Post-Pub x Risk' = 'I(I(post_pub == TRUE) * I(theory == "risk"))',
+  'Post-Sample x Mispricing' = 'I(I(post_samp == TRUE) * I(theory == "mispricing"))',
+  'Post-Pub x Mispricing' = 'I(I(post_pub == TRUE) * I(theory == "mispricing"))'),
   statistics = c('nobs'), stars = NULL, number_format = 2) %>% 
   insert_row(c('Null: Mispricing Decay', '', '', p_table_3_misp, p_table_4_misp)
            , after = 16)%>%

@@ -17,11 +17,11 @@ ReturnPlotsWithDM(dt = allRets %>%
 
 
 # Plot re-scaled returns over time by category
-for (jj in unique(allRets$theory1)) {
+for (jj in unique(allRets$theory)) {
   print(jj)
   
   ReturnPlotsWithDM(dt = allRets %>% 
-                      filter(!is.na(matchRet), theory1 == jj, Keep == 1) %>% # To exclude unmatched signals
+                      filter(!is.na(matchRet), theory == jj, Keep == 1) %>% # To exclude unmatched signals
                       dplyr::select(eventDate, ret, matchRet),
                     basepath = '../Results/Fig_PublicationsVsDataMining',
                     suffix = paste0(jj, '_DM'),
@@ -66,11 +66,11 @@ ReturnPlotsWithDM(dt = allRets %>%
 
 source('0_Environment.R')
 # Plot re-scaled returns over time by category, hide
-for (jj in unique(allRets$theory1)) {
+for (jj in unique(allRets$theory)) {
   print(jj)
   
   ReturnPlotsWithDM(dt = allRets %>% 
-                      filter(!is.na(matchRet), theory1 == jj, Keep == 1) %>% # To exclude unmatched signals
+                      filter(!is.na(matchRet), theory == jj, Keep == 1) %>% # To exclude unmatched signals
                       dplyr::select(eventDate, ret, matchRet),
                     basepath = '../Results/Extra/Fig_PublicationsVsDataMining',
                     suffix = paste0(jj, '_DM_hide'),
@@ -82,11 +82,11 @@ for (jj in unique(allRets$theory1)) {
 }
 
 # Plot re-scaled returns over time by category
-for (jj in unique(allRets$theory1)) {
+for (jj in unique(allRets$theory)) {
   print(jj)
   
   ReturnPlotsWithDM(dt = allRets %>% 
-                      filter(!is.na(matchRet), theory1 == jj, Keep == 1) %>% # To exclude unmatched signals
+                      filter(!is.na(matchRet), theory == jj, Keep == 1) %>% # To exclude unmatched signals
                       dplyr::select(eventDate, ret, matchRet),
                     basepath = '../Results/Extra/Fig_PublicationsVsDataMining',
                     suffix = paste0(jj, '_DM'),

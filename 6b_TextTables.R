@@ -50,7 +50,7 @@ chen_theme =   theme_minimal() +
 signal_text <- fread('DataIntermediate/TextClassification.csv')
 signal_text[, Keep := NULL]
 # redundant, but fix me carefully later
-czret = readRDS('../Data/Processed/czsum_all207.RDS') %>% setDT()
+czret = readRDS('../Data/Processed/czsum_allpredictors.RDS') %>% setDT()
 
 setkey(czret, signalname)
 setkey(signal_text, signalname)
@@ -61,7 +61,7 @@ signal_text <- signal_text[Keep == TRUE,]
 
 
 sub_sample_text <- signal_text %>% dplyr::select(signalname, Journal,
-                                                 Authors, Year, theory1,
+                                                 Authors, Year, theory,
                                                  misp_count, risk_count,
                                                  misprice_risk_ratio) 
 
@@ -69,9 +69,9 @@ sub_sample_text <- signal_text %>% dplyr::select(signalname, Journal,
 
 
 
-sub_sample_text[, anom := (theory1 == 'mispricing')*1]
+sub_sample_text[, anom := (theory == 'mispricing')*1]
 
-sub_sample_text[theory1 == 'risk', anom := -1]
+sub_sample_text[theory == 'risk', anom := -1]
 
 sub_sample_text[, cor(misprice_risk_ratio, anom)]
 
@@ -85,7 +85,7 @@ sub_sample_text[, plot(anom, misprice_risk_ratio)]
 # 
 # View(sub_sample_text[anom > 0, ])
 
-sub_sample_text[, unique(theory1)]
+sub_sample_text[, unique(theory)]
 
 signal_text[,hist(sampend, breaks = 20)]
 
@@ -103,7 +103,7 @@ signal_text[, median(sampend)]
 
 signal_text[, median(sampstart)]
 
-signal_text_to_table <- signal_text[, .(signalname, theory1,
+signal_text_to_table <- signal_text[, .(signalname, theory,
                                         Predictor = desc,
         ExampleText = str_replace_all(quote, "[\r\n]" , "") %>%
           str_replace_all("[.] " , ".\n"),
@@ -114,7 +114,7 @@ signal_text_to_table <- signal_text[, .(signalname, theory1,
         misprice_risk_ratio)]
 
 # Use dcast to create the two-way frequency table
-freq_table <- dcast(signal_text_to_table, Journal ~ theory1, fun.aggregate = length)
+freq_table <- dcast(signal_text_to_table, Journal ~ theory, fun.aggregate = length)
 
 names_theory <- colnames(freq_table)[-1]
 theory_counts <- freq_table[, colSums(.SD), .SDcols = names_theory]
@@ -132,21 +132,21 @@ prop_table <- freq_table %>%
 
 
 summary_df <- signal_text_to_table %>% 
-  group_by(theory1, Journal) %>% 
+  group_by(theory, Journal) %>% 
   summarise(n=n()) %>% 
   group_by(Journal) %>% 
   mutate(perc = n / sum(n) * 100)
 
 summary_matrix <- summary_df %>%
-  pivot_wider(names_from = theory1, values_from = perc, values_fill = 0) 
+  pivot_wider(names_from = theory, values_from = perc, values_fill = 0) 
 %>%
   column_to_rownames(var = "Journal") 
 %>%
   as.matrix()
 
-journal_type_table <- signal_text_to_table %>% group_by(Journal, theory1) %>% summarise(n=n()) %>% mutate(perc = n / sum(n) * 100)
+journal_type_table <- signal_text_to_table %>% group_by(Journal, theory) %>% summarise(n=n()) %>% mutate(perc = n / sum(n) * 100)
 
-journal_type_table <- signal_text_to_table[, table(Journal, theory1)] %>% as.data.frame.matrix()
+journal_type_table <- signal_text_to_table[, table(Journal, theory)] %>% as.data.frame.matrix()
 
 text_examples <- signal_text_to_table[signalname == 'ShareRepurchase', ] %>%
   rbind(signal_text_to_table[signalname == 'SurpriseRD', ]) %>%
@@ -157,7 +157,7 @@ text_examples <- signal_text_to_table[signalname == 'ShareRepurchase', ] %>%
   rbind(signal_text_to_table[signalname == 'ChEQ', ])  %>%
   rbind(signal_text_to_table[signalname == 'hire', ])  %>%
   rbind(signal_text_to_table[signalname == 'realestate', ])  %>%
-  rename(Theory = theory1) %>%
+  rename(Theory = theory) %>%
   mutate(Reference = paste(Authors, PubYear))  %>%
   dplyr::select(!c(signalname, word_count, misp_count, risk_count, Authors, PubYear, Journal)) %>%
   arrange(misprice_risk_ratio)  %>%
@@ -174,8 +174,8 @@ fwrite(text_examples, '../Results/text_examples.csv')
 
 summary_text <- bind_rows(
   signal_text,
-  signal_text %>% mutate(theory1 = "Any")
-) %>% group_by(theory1) %>%
+  signal_text %>% mutate(theory = "Any")
+) %>% group_by(theory) %>%
   mutate(RiskMispricingRatio = (1/misprice_risk_ratio) %>% round(2)) %>%
   arrange(-RiskMispricingRatio)  %>%
   summarise(holder_0 = '', Count = n(), CountPre2004 = sum(Year < 2004),
@@ -192,7 +192,7 @@ summary_text <- bind_rows(
             q95RiskMispricingRatio = quantile(RiskMispricingRatio, 0.95) %>% round(2)  %>% as.character()
             # MaxRiskMispricingRatio = max(RiskMispricingRatio) %>% round(2)  %>% as.character()
             )  %>%
-  rename(Theory = theory1) %>%
+  rename(Theory = theory) %>%
   arrange(factor(Theory,
                  levels = c('risk', 'mispricing', 'agnostic', 'Any'))) %>% 
   mutate(Theory = str_to_title(Theory))

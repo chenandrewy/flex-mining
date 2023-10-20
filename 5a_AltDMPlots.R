@@ -20,13 +20,13 @@ dmtic$name = '../Data/Processed/ticker_Harvey2017JF.RDS'
 ## Load Global Data ---------------------------------------------------------------
 
 # these are treated as globals (don't modify pls)
-czsum <- readRDS("../Data/Processed/czsum_all207.RDS") %>% 
+czsum <- readRDS("../Data/Processed/czsum_allpredictors.RDS") %>% 
   filter(Keep)
 
-czcat <- fread("DataIntermediate/TextClassification.csv") %>%
-  select(signalname, Year, theory1, misprice_risk_ratio)
+czcat <- fread("DataInput/SignalsTheoryChecked.csv") %>%
+  select(signalname, Year, theory)
 
-czret <- readRDS("../Data/Processed/czret.RDS") %>%
+czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
   left_join(czcat, by = "signalname") %>%
   mutate(ret_scaled = ret / rbar * 100)
 

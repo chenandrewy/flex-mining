@@ -422,7 +422,7 @@ signal_text <- fread('DataInput/SignalsTheoryChecked.csv')
 
 # signal_text[, Keep := NULL]
 # redundant, but fix me carefully later
-czret = readRDS('../Data/Processed/czsum_all207.RDS') %>% setDT()
+czret = readRDS('../Data/Processed/czsum_allpredictors.RDS') %>% setDT()
 
 setkey(czret, signalname)
 setkey(signal_text, signalname)
@@ -494,7 +494,7 @@ signal_text2 <- signal_text %>% merge(joined_final)
 signal_text2[, risk_mispricing_ratio := 1/misprice_risk_ratio]
 
 signal_text2 <- signal_text2 %>% relocate(signalname, Journal,
-                                          Authors, Year, theory1, desc,
+                                          Authors, Year, theory, desc,
                                           misp_count, risk_count,
                                           misprice_risk_ratio, risk_mispricing_ratio,
                                           quote)

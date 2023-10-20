@@ -17,14 +17,14 @@ matchname = paste0('../Data/Processed/', name, ' MatchPub.RData')
 # Import and Clean Matched Data ------------------------------------------------------
 
 # CZ data
-czcat = fread('DataIntermediate/TextClassification.csv') %>% 
-  select(signalname, Year, theory1, misprice_risk_ratio)
+czcat = fread('DataInput/SignalsTheoryChecked.csv') %>% 
+  select(signalname, theory)
 
-czsum = readRDS('../Data/Processed/czsum_all207.RDS') %>% 
+czsum = readRDS('../Data/Processed/czsum_allpredictors.RDS') %>% 
   filter(Keep) %>% 
   left_join(czcat, by = 'signalname') 
 
-czret = readRDS('../Data/Processed/czret.RDS') %>% 
+czret = readRDS('../Data/Processed/czret_keeponly.RDS') %>% 
   left_join(czcat, by = 'signalname') %>% 
   mutate(
     retOrig = ret
@@ -78,8 +78,7 @@ rm(tempsumCand, tempCand)
 
 # Run Exhibits ---------------------------------------------
 
-
-source('5a_DataMiningSummary.R', echo = T)  # this can take several minutes
-source('5b_MatchingSummary.R', echo = T)
-source('5c_ResearchVsDMPlots.R', echo = T)
-source('5d_InspectTables.R', echo = T)
+source('4a_DataMiningSummary.R', echo = T)  # this can take several minutes
+source('4b_MatchingSummary.R', echo = T)
+source('4c_ResearchVsDMPlots.R', echo = T)
+source('4d_InspectTables.R', echo = T)

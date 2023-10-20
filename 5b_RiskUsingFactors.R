@@ -3,13 +3,12 @@ rm(list = ls())
 source('0_Environment.R')
 
 
-czsum = readRDS('../Data/Processed/czsum_all207.RDS')
+czsum = readRDS('../Data/Processed/czsum_allpredictors.RDS')
 
-czcat = fread('DataIntermediate/TextClassification.csv') %>% 
-  select(signalname, Year, theory1, misprice_risk_ratio)
+czcat = fread('DataInput/SignalsTheoryChecked.csv') %>% 
+  select(signalname, Year, theory)
 
-
-czret = readRDS('../Data/Processed/czret.RDS') %>% 
+czret = readRDS('../Data/Processed/czret_keeponly.RDS') %>% 
   left_join(czcat, by = 'signalname') %>% 
   mutate(
     retOrig = ret

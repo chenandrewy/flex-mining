@@ -10,14 +10,10 @@ tmpUnmatched = allRets %>%
 
 tableUnmatched = czsum %>% 
   filter(signalname %in% tmpUnmatched$signalname) %>% 
-  left_join(data.table::fread('../Data/Raw/SignalDoc.csv') %>% 
-              as_tibble() %>% select(Acronym, Authors, Journal),
-            by = c('signalname' = 'Acronym')
-  ) %>% 
   transmute(Authors, Year, Journal, rbar, tstat,
             SampleStartYear = year(sampstart),
             SampleEndYear   = year(sampend),
-            theory1,
+            theory,
             sweight,
             signalname) %>% 
   arrange(Authors)
@@ -26,22 +22,22 @@ tableUnmatched = czsum %>%
 # Table 2: Matching summary ----
 tmpUnmatchedByCat = czsum %>% 
   filter(!(signalname %in% unique(candidateReturns$actSignal))) %>% 
-  group_by(theory1) %>% 
+  group_by(theory) %>% 
   count() %>% 
-  transmute(theory1, SignalsUnmatched = n)
+  transmute(theory, SignalsUnmatched = n)
 
 tmpMatchedByCat = czsum %>% 
   filter(signalname %in% unique(candidateReturns$actSignal)) %>% 
-  group_by(theory1) %>% 
+  group_by(theory) %>% 
   count() %>% 
-  transmute(theory1, SignalsMatched = n)
+  transmute(theory, SignalsMatched = n)
 
 tmpNMatches = candidateReturns %>% 
   group_by(actSignal) %>% 
   summarise(nSignals = n_distinct(candSignalname)) %>% 
   ungroup() %>%
-  left_join(czsum %>% select(signalname, theory1, sampstart, sampend), by = c('actSignal' = 'signalname')) %>% 
-  group_by(theory1) %>% 
+  left_join(czsum %>% select(signalname, theory, sampstart, sampend), by = c('actSignal' = 'signalname')) %>% 
+  group_by(theory) %>% 
   summarise(medianStartYear = median(year(sampstart)),
             medianEndYear   = median(year(sampend)),
             min = min(nSignals), 
@@ -52,11 +48,11 @@ tmpNMatches = candidateReturns %>%
 
 tempsumRets = allRets %>% 
   filter(samptype == 'insamp', !(signalname %in% tmpUnmatched$signalname)) %>%
-  group_by(theory1, signalname) %>% 
+  group_by(theory, signalname) %>% 
   summarise(retm = mean(retOrig),
             rett = mean(retOrig)/sd(retOrig)*sqrt(dplyr::n()),
             matchRet = mean(matchRetOrig, na.rm = TRUE)) %>% 
-  group_by(theory1) %>% 
+  group_by(theory) %>% 
   summarize(rbar_insampAct = mean(retm),
             tstat_insampAct = mean(rett, na.rm = TRUE),
             rbar_insampMatched = mean(matchRet))
@@ -69,21 +65,21 @@ tempSumTstats = candidateReturns %>%
   group_by(actSignal) %>% 
   summarise(tstat_insampMatched = mean(tstat)) %>% 
   left_join(czsum, by = c('actSignal' = 'signalname')) %>% 
-  group_by(theory1) %>% 
+  group_by(theory) %>% 
   summarise(tstat_insampMatched = mean(tstat_insampMatched))
 
 tempsumRets = tempsumRets %>% 
   left_join(tempSumTstats) %>% 
-  select(theory1, starts_with('rbar'), starts_with('tstat')) # to change ordering
+  select(theory, starts_with('rbar'), starts_with('tstat')) # to change ordering
 
 
 tableSumStats = tempsumRets %>% 
   left_join(tmpNMatches) %>% 
   left_join(tmpUnmatchedByCat) %>% 
   left_join(tmpMatchedByCat) %>% 
-  arrange(desc(theory1)) %>% 
+  arrange(desc(theory)) %>% 
   # Change ordering
-  select(theory1, medianStartYear, medianEndYear, rbar_insampAct, rbar_insampMatched,
+  select(theory, medianStartYear, medianEndYear, rbar_insampAct, rbar_insampMatched,
          tstat_insampAct, tstat_insampMatched, min, Q25, Q50, Q75, max, SignalsUnmatched,
          SignalsMatched)
 
@@ -108,19 +104,19 @@ tmpPredDecay = allRets %>%
 
 tmpDecay = tmpPredDecay %>% 
   left_join(czsum) %>% 
-  group_by(Sample, Predictor, theory1) %>% 
+  group_by(Sample, Predictor, theory) %>% 
   summarise(meanReturn = mean(return, na.rm = TRUE),
             sdReturn = sd(return, na.rm = TRUE),
             seMean = sdReturn/sqrt(n())) 
 
 tmpMeans = tmpDecay %>% 
   select(-sdReturn, -seMean) %>% 
-  pivot_wider(names_from = c(theory1, Sample, Predictor),
+  pivot_wider(names_from = c(theory, Sample, Predictor),
               values_from = c(meanReturn))
 
 tmpSEs = tmpDecay %>% 
   select(-sdReturn, -meanReturn) %>% 
-  pivot_wider(names_from = c(theory1, Sample, Predictor),
+  pivot_wider(names_from = c(theory, Sample, Predictor),
               values_from = c(seMean))
 
 tableSignificance = tmpMeans %>% 
@@ -244,9 +240,9 @@ saveRDS(allRhos, '../Results/PairwiseCorrelationsActualAndMatches.RDS')
 
 # Create table
 tmpCorrelations = allRhos %>% 
-  left_join(czsum %>% select(signalname, theory1),
+  left_join(czsum %>% select(signalname, theory),
             by = c('actSignal' = 'signalname')) %>% 
-  group_by(theory1) %>% 
+  group_by(theory) %>% 
   summarise(
     Min = min(rho),
     Q05 = quantile(rho, probs = 0.05, na.rm = TRUE),
@@ -258,7 +254,7 @@ tmpCorrelations = allRhos %>%
     Q95 = quantile(rho, probs = 0.95, na.rm = TRUE),
     Max = max(rho)
   ) %>%
-  arrange(desc(theory1)) %>% 
+  arrange(desc(theory)) %>% 
   tibble()
 
 
@@ -267,7 +263,7 @@ tmpCorrelations = allRhos %>%
 
 #dm-sum part 1
 tableSumStats %>% 
-  transmute(Category = str_to_sentence(theory1),
+  transmute(Category = str_to_sentence(theory),
             empty1 = NA_character_,
             medianStartYear = as.integer(medianStartYear),
             medianEndYear   = as.integer(medianEndYear),
@@ -290,7 +286,7 @@ tableSumStats %>%
 tableSumStats %>% 
   mutate_at(.vars = vars(min, starts_with('Q'), max, starts_with("Signal")),
             .funs = list(~as.integer(.))) %>% 
-  transmute(Category = str_to_sentence(theory1),
+  transmute(Category = str_to_sentence(theory),
             empty1 = NA_character_,
             min, Q25, Q50, Q75, max,
             empty2 = NA_character_,
@@ -315,11 +311,11 @@ tableUnmatched = tableUnmatched %>%
 for (rr in c('risk', 'mispricing', 'agnostic')) {
   
   tableUnmatched %>% 
-    filter(theory1 == rr) %>% 
+    filter(theory == rr) %>% 
     arrange(Authors) %>% 
     transmute(Authors = paste0(Authors, ' (', as.character(Year), ')'), 
               LongDescription = str_to_sentence(LongDescription),
-              theory1 = str_to_sentence(theory1), 
+              theory = str_to_sentence(theory), 
               rbar = round(100*rbar, 1), 
               tstat = round(tstat,2)) %>% 
     xtable(digits = c(0, 0, 0, 0, 1, 2)) %>% 
@@ -335,7 +331,7 @@ for (rr in c('risk', 'mispricing', 'agnostic')) {
 
 # Correlations
 tmpCorrelations %>% 
-  transmute(Category = str_to_sentence(theory1),
+  transmute(Category = str_to_sentence(theory),
             empty1 = NA_character_,
             # Min,
             Q05,

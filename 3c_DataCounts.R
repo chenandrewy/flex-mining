@@ -5,7 +5,7 @@
 
 source('0_Environment.R')
 
-czsum = readRDS('../Data/Processed/czsum_all207.RDS') %>% 
+czsum = readRDS('../Data/Processed/czsum_allpredictors.RDS') %>% 
   select(signalname,rbar,nobs_postsamp,rbar_ok,n_ok,Keep) %>% 
   left_join(
   fread('../Data/Raw/SignalDoc.csv')[, 1:15] %>% 

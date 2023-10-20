@@ -1,105 +1,8 @@
-# Setup -------------------------------------------------------------------
-rm(list = ls())
-source('0_Environment.R')
-
-
-czsum = readRDS('../Data/Processed/czsum_all207.RDS')
-
-czcat = fread('DataIntermediate/TextClassification.csv') %>% 
-  select(signalname, Year, theory1, misprice_risk_ratio)
-
-czret = readRDS('../Data/Processed/czret.RDS') %>% 
-  left_join(czcat, by = 'signalname') %>% 
-  mutate(
-    retOrig = ret
-    , ret = ret/rbar*100
-  )
-
-
-# Main Figure  ----------------------------------
-
-
-# All Signals
-ReturnPlotsNoDM(dt = czret %>% 
-                  transmute(eventDate,
-                            signalname,
-                            ret,
-                            catID = theory1),
-                basepath = '../Results/Fig_PublicationsOverTime',
-                suffix = 'AllSignals'
-)
-
-
-
-# Post-2000 samp ends only ------------------------------------------------
-
-temp = czret %>% 
-  filter(Year > 2004) %>% 
-  transmute(eventDate,
-            signalname,
-            ret,
-            catID = theory1)  
-
-temp %>% distinct(signalname)
-
-# All Signals
-ReturnPlotsNoDM(dt = temp,
-                basepath = '../Results/Fig_PublicationsOverTime',
-                suffix = 'PubPost2004'
-)
-
-
-
-
-# Animations for Slides ---------------------------------------------------
-
-
-
-
-ReturnPlotsNoDM(dt = czret %>% 
-                  mutate(
-                    ret = NA_real_
-                  ) %>% 
-                  transmute(eventDate,
-                            signalname,
-                            ret,
-                            catID = theory1),
-                basepath = '../Results/Extra/Anim-Pub-1',
-                suffix = 'AllSignals',
-                filetype = '.png'
-)
-
-
-ReturnPlotsNoDM(dt = czret %>% 
-                  mutate(
-                    ret = if_else(theory1 == 'risk', NA_real_, ret)
-                  ) %>% 
-                  transmute(eventDate,
-                            signalname,
-                            ret,
-                            catID = theory1),
-                basepath = '../Results/Extra/Anim-Pub-2',
-                suffix = 'AllSignals',
-                filetype = '.png'
-)
-
-
-ReturnPlotsNoDM(dt = czret %>% 
-                  transmute(eventDate,
-                            signalname,
-                            ret,
-                            catID = theory1),
-                basepath = '../Results/Extra/Anim-Pub-3',
-                suffix = 'AllSignals',
-                filetype = '.png'
-)
-
-
 
 # Plot oos return vs risk to misprice -----------------------------------------------------------------
 
 wordcount = fread('DataIntermediate/TextClassification.csv') %>% 
-  select(signalname, theory1, misprice_risk_ratio)
+  select(signalname, theory, misprice_risk_ratio)
 
 # calc decay
 czdecay = czret %>% 
@@ -159,11 +62,11 @@ ggplot(aes(log_risk_misprice, diff_ret), data = plotme) +
   annotate('text',x=xbase, y=ybase, label = regstr, size = 8, color = colors[1]) +
   annotate('text',x=xbase, y=ybase - 30, label = sestr, size = 8, color = colors[1])  +
   scale_y_continuous(breaks = seq(-500,500,100)) 
-  # ggrepel::geom_text_repel(
-  #   aes(label=signalname), max.overlaps = Inf, box.padding = 1.5
-  #   , data = plotme %>% filter(rank <= 10), color = 'magenta'
-  # ) 
-  
+# ggrepel::geom_text_repel(
+#   aes(label=signalname), max.overlaps = Inf, box.padding = 1.5
+#   , data = plotme %>% filter(rank <= 10), color = 'magenta'
+# ) 
+
 
 ggsave('../Results/Fig_DecayVsWords.pdf', width = 10, height = 8)
 
@@ -171,7 +74,7 @@ ggsave('../Results/Fig_DecayVsWords.pdf', width = 10, height = 8)
 # Plot oos vs words w/ signal names ----------------------------------------------------------------
 
 wordcount = fread('DataIntermediate/TextClassification.csv') %>% 
-  select(signalname, theory1, misprice_risk_ratio)
+  select(signalname, theory, misprice_risk_ratio)
 
 # calc decay
 czdecay = czret %>% 
@@ -214,7 +117,7 @@ xbase = 1
 ybase = 300
 repelsize = 6
 repelcolor = 'royalblue4'
-  
+
 ggplot(aes(log_risk_misprice, diff_ret), data = plotme) +
   geom_hline(yintercept = 0, color = 'gray', size = 1) +
   geom_hline(yintercept = 1, color = 'gray', size = 1) +  

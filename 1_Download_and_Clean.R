@@ -1,6 +1,7 @@
 # Setup -------------------------------------------------------------------
 rm(list = ls())
 source('0_Environment.R')
+library(googledrive)
 
 user <- getPass('wrds username: ')
 pass <- getPass('wrds password: ')
@@ -15,16 +16,15 @@ wrds <- dbConnect(Postgres(),
 
 numRowsToPull <- -1 # Set to -1 for all rows and to some positive value for testing
 
-# March 2022 cz data
-url <- "https://drive.google.com/drive/folders/1O18scg9iBTiBaDiQFhoGxdn4FdsbMqGo" 
+# August 2023 CZ Data
+url <- "https://drive.google.com/drive/folders/1EP6oEabyZRamveGNyzYU0u6qJ-N43Qfq" 
 
-
+# trigger login
+url %>% drive_ls()
 
 # Chen-Zimmermann data -------------------------------------------
 
 ## dl from gdrive ====
-
-library(googledrive)
 
 SUBDIR = 'Full Sets OP'; 
 FILENAME = 'PredictorPortsFull.csv'
@@ -56,7 +56,9 @@ signaldoc =  data.table::fread('../Data/Raw/SignalDoc.csv') %>%
   transmute(signalname, Authors, Year, pubdate, sampend, sampstart
             , OP_pred = `Predictability in OP`
             , sweight = tolower(`Stock Weight`)
-            , Rep_Quality = `Signal Rep Quality`) %>% 
+            , Rep_Quality = `Signal Rep Quality`
+            , Journal
+            , LongDescription) %>% 
   filter(
     OP_pred %in% c('1_clear','2_likely')
   ) %>% 
@@ -102,7 +104,8 @@ czsum = czret %>%
   mutate(
     nobs_postsamp = if_else(is.na(nobs_postsamp), 0L, nobs_postsamp)
   ) %>% 
-  left_join(signaldoc %>% select(signalname, sampstart, sampend, sweight, Rep_Quality)
+  left_join(signaldoc %>% select(signalname, sampstart, sampend, sweight, Rep_Quality
+                                 , Authors, Year, Journal, LongDescription)
             , by = 'signalname')
 
 
@@ -134,8 +137,8 @@ czret2 = czret2 %>%
 # need RDS for yearmon format argh
 # also conceptually, these two are distinct.
 
-saveRDS(czsum, '../Data/Processed/czsum_all207.RDS')
-saveRDS(czret2, '../Data/Processed/czret.RDS')
+saveRDS(czsum, '../Data/Processed/czsum_allpredictors.RDS')
+saveRDS(czret2, '../Data/Processed/czret_keeponly.RDS')
 
 
 # CRSP -----------------------------------------------------------
