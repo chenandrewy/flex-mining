@@ -117,22 +117,12 @@ czret[, risk_via_mkt :=  mkt_implied_category(.SD), by = signalname]
 czret[, risk_via_ff3 :=  ff3_implied_category(.SD), by = signalname]
 czret[, risk_via_ff5 :=  ff5_implied_category(.SD), by = signalname]
 
-
-# risk_measure <- 'risk_via_mkt'
-# breaks <- quantile(czret[!is.na(get(risk_measure)),
-#                          median(get(risk_measure)),
-#                          by = signalname][, V1],
-#                    probs = -0:3/3,  
-#                    include.lowest = TRUE, 
-#                    type = 2)
-# 
-
 add_catID(czret, "risk_via_mkt", 3)
 add_catID(czret, "risk_via_ff3", 3)
 add_catID(czret, "risk_via_ff5", 3)
 
 average_by_ntile <- czret[eventDate >0 ,
-                          .(ret = mean(ret),
+                          .(ret = mean(ret)/100,
                             catID_risk_via_mkt = first(catID_risk_via_mkt),
                             catID_risk_via_ff3 = first(catID_risk_via_ff3),
                             catID_risk_via_ff5 = first(catID_risk_via_ff5),
@@ -143,63 +133,76 @@ average_by_ntile <- czret[eventDate >0 ,
 
 library(ggplot2)
 library(gridExtra)
-
+ylab <- "[Post-Sample]/[In-Sample]"
+xlab <- "[Predicted by Risk Model]/[In-Sample]"
 # Create the individual plots
-p1 <- ggplot(average_by_ntile, aes(x=risk_via_mkt, y=ret)) + 
-  geom_point() +
-  labs(title="Average Return by Risk via Mkt",
-       x="b'r/mu",
-       y="Average Return") + xlim(c(-3, 3)) + ylim(c(-300, 300))
+xax <- c(-.5, 1)
+repelsize = 6
+repelcolor = 'royalblue4'
+reg_camp = lm(ret ~ risk_via_mkt, average_by_ntile) %>% 
+  summary()
+p1 <- ggplot(average_by_ntile, aes(x=risk_via_mkt, y=ret)) +
+  geom_hline(yintercept = 0, color = 'gray', size =2) +
+  geom_vline(xintercept =  0, color = 'gray', size = 1) +
+  geom_hline(yintercept = 1, color = 'gray', size = 2) +
+  geom_point(size = 2.5) +
+  theme_light(base_size = 26) +
+  theme(
+    legend.position = c(80,85)/100
+    , legend.spacing.y = unit(0, units = 'cm')
+    , legend.background = element_rect(fill='transparent')) +
+  labs(
+    x=xlab,
+    y=ylab) +
+  xlim(xax) + ylim(c(-1, 2))    +
+  geom_abline(
+    aes(intercept = reg_camp$coefficients[1], slope = reg_camp$coefficients[2])
+    , color = colors[1], size = 2
+  ) 
+p1
+ggsave('../Results/Fig_Risk_via_CAPM.pdf', p1, width = 10, height = 8)
+reg_ff3 = lm(ret ~ risk_via_ff3, average_by_ntile) %>% 
+  summary()
+p2 <- ggplot(average_by_ntile, aes(x=risk_via_ff3, y=ret)) +
+  geom_hline(yintercept = 0, color = 'gray', size = 2) +
+  geom_vline(xintercept =  0, color = 'gray', size = 1) +
+  geom_hline(yintercept = 1, color = 'gray', size = 2) +
+  geom_point(size = 2.5) +
+  theme_light(base_size = 26) +
+  theme(
+    legend.position = c(80,85)/100
+    , legend.spacing.y = unit(0, units = 'cm')
+    , legend.background = element_rect(fill='transparent')) +
+  labs(
+    x=xlab,
+    y=ylab) +
+  xlim(xax) + ylim(c(-1, 2))    +
+  geom_abline(
+    aes(intercept = reg_ff3$coefficients[1], slope = reg_ff3$coefficients[2])
+    , color = colors[1], size = 2
+  ) 
+p2
+ggsave('../Results/Fig_Risk_via_FF3.pdf', p2, width = 10, height = 8)
 
-p2 <- ggplot(average_by_ntile, aes(x=risk_via_ff3, y=ret)) + 
-  geom_point() +
-  labs(title="Average Return by Risk via FF3",
-       x="b'r/mu",
-       y="Average Return") + xlim(c(-3, 3)) + ylim(c(-300, 300))
-
-p3 <- ggplot(average_by_ntile, aes(x=risk_via_ff5, y=ret)) + 
-  geom_point() +
-  labs(title="Average Return by Risk via FF5",
-       x="b'r/mu",
-       y="Average Return") + xlim(c(-3,3)) + ylim(c(-300, 300))
-
-# Combine the plots into a single plot with three panels
-# Specify the file name and open the PDF device
-pdf("combined_plots.pdf", width=7, height=10)  # Adjust width and height as necessary
-
-# Draw the combined plots
-grid.arrange(p1, p2, p3, ncol=2)
-
-# Close the PDF device
-dev.off()
-
-pdf("combined_plots3.pdf", width=10, height=7)  # Adjust width and height as necessary
-
-# Draw the combined plots in two columns
-grid.arrange(p1, p2, p3, ncol=3)
-
-# Close the PDF device
-dev.off()
-capm_cat <- average_by_ntile[,.(capm = mean(ret), N_capm = .N), by = .(catID_risk_via_mkt)] 
-ff3_cat <- average_by_ntile[,.(ff3 = mean(ret), N_ff3 = .N), by = .(catID_risk_via_ff3)]
-ff5_cat <- average_by_ntile[, .(ff5 =mean(ret), N_ff5 = .N), by = .(catID_risk_via_ff5)]
-
-# Convert to data.tables for easier merging and set keys for the merge
-setDT(capm_cat, key = "catID_risk_via_mkt")
-setDT(ff3_cat, key = "catID_risk_via_ff3")
-setDT(ff5_cat, key = "catID_risk_via_ff5")
-
-# Merge the data.tables
-results <- capm_cat[ff3_cat][ff5_cat]
-
-
-
-# Convert data.table to matrix
-results_mat <- as.matrix(results)
-
-# Transpose the matrix
-transposed_results <- t(results_mat)
-
-# Convert back to data.frame for pretty printing
-transposed_results <- as.data.frame(transposed_results)[-1,]
-colnames(transposed_results) <- c('negative', 'positive', 'Too high')
+reg_ff5 = lm(ret ~ risk_via_ff5, average_by_ntile) %>% 
+  summary()
+p3 <- ggplot(average_by_ntile, aes(x=risk_via_ff5, y=ret)) +
+  geom_hline(yintercept = 0, color = 'gray', size = 2) +
+  geom_vline(xintercept =  0, color = 'gray', size = 1) +
+  geom_hline(yintercept = 1, color = 'gray', size = 2) +
+  geom_point(size = 2.5) +
+  theme_light(base_size = 26) +
+  theme(
+    legend.position = c(80,85)/100
+    , legend.spacing.y = unit(0, units = 'cm')
+    , legend.background = element_rect(fill='transparent')) +
+  labs(
+    x=xlab,
+    y=ylab) +
+  xlim(xax) + ylim(c(-1, 2))    +
+  geom_abline(
+    aes(intercept = reg_ff5$coefficients[1], slope = reg_ff5$coefficients[2])
+    , color = colors[1], size = 2
+  ) 
+p3
+ggsave('../Results/Fig_Risk_via_FF5.pdf', p3, width = 10, height = 8)
