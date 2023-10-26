@@ -390,6 +390,30 @@ plot_one_setting = function(plotdat){
 
 ## t_min plots ---------------------------------------------------------------
 
+### Plot abs(t) > 0.5 ----------------------------------------------------------
+
+plotdat <- list()
+
+plotdat$name <- "t_min_0.5"
+plotdat$legprefix = "|t|>0.5"
+plotdat$npubmax = Inf
+plotdat$use_sign_info = TRUE
+
+plotdat$matchset <- list(
+  # tolerance in levels
+  t_tol = .1 * Inf,
+  r_tol = .3 * Inf,
+  # tolerance relative to op stat
+  t_reltol = 0.1 * Inf,
+  r_reltol = 0.3 * Inf,
+  # alternative filtering
+  t_min = 0.5, # Default = 0, minimum screened t-stat
+  t_max = Inf, # maximum screened t-stat
+  t_rankpct_min = 100, # top x% of data mined t-stats, 100% for off
+  minNumStocks = 10 # Minimum number of stocks in any month over the in-sample period to include a strategy
+)
+plot_one_setting(plotdat)
+
 ### Plot abs(t) > 1 ----------------------------------------------------------
 
 plotdat <- list()
