@@ -137,91 +137,7 @@ writexl::write_xlsx(toExcel, path = '../Results/MatchingSummary_DM.xlsx')
 
 
 ## Table 4: Pairwise correlations between actual and DM/matched returns
-
-# Compute correlations between each actual signal and each DM strategy (including unmatched)
-# Note: This takes a very long time, I'm commenting this out for now, bc not sure it's worth it
-# allRhos = tibble()
-# num_cores = round(.4*detectCores())
-# for (act in unique(czret$signalname)) {
-#   print(act)
-#   tmp = czret %>% 
-#     filter(samptype == 'insamp') %>% 
-#     filter(signalname == act) %>% 
-#     select(date, retOrig) %>% 
-#     left_join(dmdat$ret %>%   # This gives a very large table (1.3b rows)
-#                 filter(portid == 1) %>% 
-#                 select(yearm, ret, signalid),
-#               by = c('date' = 'yearm'))
-#   
-#   
-#   
-#   tmpDMids = unique(tmp$signalid)
-#   setDTthreads(1)
-#   cl <- makePSOCKcluster(num_cores)
-#   registerDoParallel(cl)
-#   tmpRhos = foreach(signali=1:length(tmpDMids), 
-#                        .combine = rbind,
-#                        .packages = c('tidyverse')) %dopar% {
-#                          
-#                          tibble(actSignal = act,
-#                                 candidateSignal = tmpDMids[signali],
-#                                 rho = cor(tmp$ret[tmp$signalid == tmpDMids[signali]], 
-#                                           tmp$retOrig[tmp$signalid == tmpDMids[signali]], 
-#                                           use = 'complete.obs'))
-# 
-#                        }     
-#   
-#   stopCluster(cl)
-#   setDTthreads()
-#   
-#   
-#   # add to list
-#   allRhos = bind_rows(
-#     allRhos,
-#     tmpRhos
-#   )
-#   
-# }
-
-# Pairwise correlations between actual signals and matched DM signals ----
-tmpCands = candidateReturns %>% 
-  filter(actSignal %in% czsum$signalname) %>% 
-  filter(samptype == 'insamp') %>%  # interested in in-sample correlation with actual signals
-  # Merge actual returns to candidate returns
-  select(candSignalname, eventDate, ret, actSignal) %>% 
-  inner_join(czret %>% 
-               transmute(actSignal = signalname,
-                         eventDate,
-                         retActual = retOrig))
-
-allRhos = tibble()
-
-for (act in unique(tmpCands$actSignal)) {
-  print(act)
-  tmp = tmpCands %>% 
-    filter(actSignal == act)
-  
-  # compute correlations for one actual signal
-  tmpRhos = tibble()
-  for (i in unique(tmp$candSignalname)) {
-    
-    tmpRhos = bind_rows(
-      tmpRhos,
-      tibble(actSignal = act,
-             candidateSignal = i,
-             rho = cor(tmp$ret[tmp$candSignalname == i], tmp$retActual[tmp$candSignalname == i]))
-    )
-    
-  }
-  
-  # add to list
-  allRhos = bind_rows(
-    allRhos,
-    tmpRhos
-  )
-  
-}
-
+allRhos = readRDS('../Results/PairwiseCorrelationsActualAndMatches.RDS')
 
 
 # Plots and numbers
@@ -233,10 +149,6 @@ allRhos %>%
   theme_light(base_size = 18) +
   geom_vline(xintercept = median(allRhos$rho))
 
-
-#quantile(allRhos$rho, probs = seq(0,1,.1))
-
-saveRDS(allRhos, '../Results/PairwiseCorrelationsActualAndMatches.RDS')
 
 # Create table
 tmpCorrelations = allRhos %>% 
