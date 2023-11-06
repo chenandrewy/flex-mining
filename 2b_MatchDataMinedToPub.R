@@ -199,3 +199,51 @@ toc0 = Sys.time()
 
 toc0 - tic0
 
+
+# Compute pairwise correlations between actual signals and matched DM signals -----
+
+# filter for Keep only
+candidateReturns = candidateReturns %>% 
+  filter(actSignal %in% (czsum %>% filter(Keep) %>% pull(signalname)))
+
+
+tmpCands = candidateReturns %>% 
+  filter(actSignal %in% czsum$signalname) %>% 
+  filter(samptype == 'insamp') %>%  # interested in in-sample correlation with actual signals
+  # Merge actual returns to candidate returns
+  select(candSignalname, eventDate, ret, actSignal) %>% 
+  inner_join(czret %>% 
+               transmute(actSignal = signalname,
+                         eventDate,
+                         retActual = retOrig))
+
+allRhos = tibble()
+
+for (act in unique(tmpCands$actSignal)) {
+  print(act)
+  tmp = tmpCands %>% 
+    filter(actSignal == act)
+  
+  # compute correlations for one actual signal
+  tmpRhos = tibble()
+  for (i in unique(tmp$candSignalname)) {
+    
+    tmpRhos = bind_rows(
+      tmpRhos,
+      tibble(actSignal = act,
+             candidateSignal = i,
+             rho = cor(tmp$ret[tmp$candSignalname == i], tmp$retActual[tmp$candSignalname == i]))
+    )
+    
+  }
+  
+  # add to list
+  allRhos = bind_rows(
+    allRhos,
+    tmpRhos
+  )
+  
+}
+
+saveRDS(allRhos, '../Results/PairwiseCorrelationsActualAndMatches.RDS')
+
