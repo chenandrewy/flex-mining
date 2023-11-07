@@ -598,7 +598,10 @@ ReturnPlotsWithDM = function(dt, suffix = '', rollmonths = 60, colors = NA,
                              labelmatch = FALSE, hideoos = FALSE,
                              legendlabels = c('Published','Matched data-mined','Alt data-mined'),
                              legendpos = c(80,85)/100,
-                             filetype = '.pdf') {
+                             yaxislab = 'Trailing 5-Year Mean Return (bps p.m.)',
+                             filetype = '.pdf',
+                             linesize = 1.1
+                             ) {
   
   #' @param dt Table with columns (eventDate, ret, matchRet, matchRetAlt)
   #' @param suffix String to attach to saved pdf figure 
@@ -632,7 +635,7 @@ ReturnPlotsWithDM = function(dt, suffix = '', rollmonths = 60, colors = NA,
              = factor(SignalType, levels = c('ret', 'matchRet','matchRetAlt')
                , labels = legendlabels)) %>% 
       ggplot(aes(x = eventDate, y = roll_rbar, color = SignalType, linetype = SignalType)) +
-      geom_line(size = 1.1) +
+      geom_line(size = linesize) +
       #  scale_color_grey() + 
       # scale_color_brewer(palette = 'Dark2') + 
       scale_color_manual(values = colors) + 
@@ -646,13 +649,13 @@ ReturnPlotsWithDM = function(dt, suffix = '', rollmonths = 60, colors = NA,
       scale_x_continuous(breaks = seq(-360,360,60)) +  
       geom_hline(yintercept = 100, color = 'dimgrey') +
       geom_hline(yintercept = 0) +
-      ylab('Trailing 5-Year Mean Return (bps p.m.)') +
+      ylab(yaxislab) +
       xlab('Months Since Original Sample Ended') +
       labs(color = '', linetype = '') +
       theme_light(base_size = fontsize) +
       theme(
         legend.position = legendpos
-        , legend.spacing.y = unit(0, units = 'cm')
+        , legend.spacing.y = unit(0.1, units = 'cm')
         , legend.background = element_rect(fill='transparent')
       ) 
   
