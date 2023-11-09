@@ -26,7 +26,7 @@ for (jj in unique(allRets$theory)) {
                     basepath = '../Results/Fig_PublicationsVsDataMining',
                     suffix = paste0(jj, '_DM'),
                     colors = colors,
-                    yl = -60, yh = 170, fig.width = 18, fontsize = 28) 
+                    yl = -90, yh = 170, fig.width = 18, fontsize = 28) 
   
 }
 
@@ -100,7 +100,7 @@ for (jj in unique(allRets$theory)) {
 # Excluding high correlations --------------------------------------------------
 allRhos = readRDS('../Results/PairwiseCorrelationsActualAndMatches.RDS')
 
-exclCorrelations = c(10, 20, 30, 40, 50)
+exclCorrelations = c(10)  # c(10, 20, 30, 40, 50)
 
 for (cc in exclCorrelations) {
   
@@ -111,6 +111,9 @@ for (cc in exclCorrelations) {
                      'actSignal'      = 'actSignal')) %>% 
     filter(rho <= cc/100) %>% 
     select(-rho)
+  
+  print('The following actual signals are dropped by the correlation restriction')
+  print(setdiff(unique(candidateReturns$actSignal), unique(corCandidateReturns$actSignal)))
   
   # Normalize candidate returns
   # In-sample means
@@ -147,7 +150,7 @@ for (cc in exclCorrelations) {
                     suffix = paste0('All_DM_Correlation', cc),
                     rollmonths = 60,
                     colors = colors,
-                    yl = -80, yh = 170
+                    yl = -90, yh = 170
   )
   
   # Plot returns over time by category
@@ -160,7 +163,7 @@ for (cc in exclCorrelations) {
                       basepath = '../Results/Fig_PublicationsVsDataMining',
                       suffix = paste0(jj, '_DM_Correlation', cc),
                       colors = colors,
-                      yl = -80, yh = 170
+                      yl = -90, yh = 170
                       
     ) 
     

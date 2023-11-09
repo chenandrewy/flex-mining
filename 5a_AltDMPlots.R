@@ -372,7 +372,8 @@ plot_one_setting = function(plotdat){
     rollmonths = 60,
     colors = colors,
     labelmatch = FALSE,
-    yl = -30,
+    yl = -50,
+    yh = 140,
     legendlabels =
       c(
         paste0("Pub w/ Mining Matches (", length(unique(ret_for_plotting$pubname)), ")"),

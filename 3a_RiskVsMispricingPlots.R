@@ -26,9 +26,9 @@ ReturnPlotsNoDM(dt = czret %>%
                             ret,
                             catID = theory),
                 basepath = '../Results/Fig_PublicationsOverTime',
-                suffix = 'AllSignals'
+                suffix = 'AllSignals',
+                yl = -90, yh = 180
 )
-
 
 
 # Post-2000 samp ends only ------------------------------------------------
@@ -45,7 +45,8 @@ temp %>% distinct(signalname)
 # All Signals
 ReturnPlotsNoDM(dt = temp,
                 basepath = '../Results/Fig_PublicationsOverTime',
-                suffix = 'PubPost2004'
+                suffix = 'PubPost2004',
+                yl = -120, yh = 200
 )
 
 
