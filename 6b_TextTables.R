@@ -12,6 +12,8 @@ library("readxl")
 library(janitor)
 library(stringr)
 library(xtable)
+library(tools)
+
 Mode <- function(x) {
   ux <- unique(x)
   ux[which.max(tabulate(match(x, ux)))]
@@ -85,26 +87,26 @@ sub_sample_text[, plot(anom, misprice_risk_ratio)]
 # 
 # View(sub_sample_text[anom > 0, ])
 
-sub_sample_text[, unique(theory)]
-
-signal_text[,hist(sampend, breaks = 20)]
-
-signal_text[,hist(sampstart, breaks = 20)]
-
-signal_text[, Mode(sampend)]
-
-signal_text[, Mode(sampstart)]
-
-signal_text[, mean(sampend)]
-
-signal_text[, mean(sampstart)]
-
-signal_text[, median(sampend)]
-
-signal_text[, median(sampstart)]
+# sub_sample_text[, unique(theory)]
+# 
+# signal_text[,hist(sampend, breaks = 20)]
+# 
+# signal_text[,hist(sampstart, breaks = 20)]
+# 
+# signal_text[, Mode(sampend)]
+# 
+# signal_text[, Mode(sampstart)]
+# 
+# signal_text[, mean(sampend)]
+# 
+# signal_text[, mean(sampstart)]
+# 
+# signal_text[, median(sampend)]
+# 
+# signal_text[, median(sampstart)]
 
 signal_text_to_table <- signal_text[, .(signalname, theory,
-                                        Predictor = desc,
+                                        Predictor = LongDescription,
         ExampleText = str_replace_all(quote, "[\r\n]" , "") %>%
           str_replace_all("[.] " , ".\n"),
         Authors,
@@ -138,15 +140,17 @@ summary_df <- signal_text_to_table %>%
   mutate(perc = n / sum(n) * 100)
 
 summary_matrix <- summary_df %>%
-  pivot_wider(names_from = theory, values_from = perc, values_fill = 0) 
-%>%
-  column_to_rownames(var = "Journal") 
-%>%
-  as.matrix()
+  pivot_wider(names_from = theory, values_from = perc, values_fill = 0)
+
+# %>%
+#   column_to_rownames(var = "Journal") %>%
+#   as.matrix()
 
 journal_type_table <- signal_text_to_table %>% group_by(Journal, theory) %>% summarise(n=n()) %>% mutate(perc = n / sum(n) * 100)
 
 journal_type_table <- signal_text_to_table[, table(Journal, theory)] %>% as.data.frame.matrix()
+
+setnames(journal_type_table, names(journal_type_table), toTitleCase(names(journal_type_table)))
 
 text_examples <- signal_text_to_table[signalname == 'ShareRepurchase', ] %>%
   rbind(signal_text_to_table[signalname == 'SurpriseRD', ]) %>%
@@ -191,15 +195,113 @@ summary_text <- bind_rows(
             # q75RiskMispricingRatio = quantile(RiskMispricingRatio, 0.75) %>% round(2)  %>% as.character(),
             q95RiskMispricingRatio = quantile(RiskMispricingRatio, 0.95) %>% round(2)  %>% as.character()
             # MaxRiskMispricingRatio = max(RiskMispricingRatio) %>% round(2)  %>% as.character()
+            , holder_2 = ''
             )  %>%
   rename(Theory = theory) %>%
   arrange(factor(Theory,
                  levels = c('risk', 'mispricing', 'agnostic', 'Any'))) %>% 
-  mutate(Theory = str_to_title(Theory))
+  mutate(Theory = str_to_title(Theory)) %>% setDT()
 
-x_summ <-  summary_text %>% xtable()
+to_merge_csv <- fread('DataIntermediate/FollowUpToMerge.csv')
 
-print(x_summ, include.rownames=FALSE, include.colnames = FALSE, hline.after = c(3))
+setkey(to_merge_csv, Theory)
 
+setkey(summary_text, Theory)
+
+##############
+# First panel
+##############
+
+
+# Custom order for column1
+custom_order <- c("Risk", "Mispricing", "Agnostic", "Any")
+
+# Factor the column with levels specified by custom order
+summary_text[, Theory := factor(Theory, levels = custom_order)]
+setorder(summary_text, Theory)
+
+
+x_summ <- xtable(summary_text, align = c("l", "l", rep("r", 9)))
+
+# Define the LaTeX code to add
+headerRow <- c("\\toprule Source of &   & \\multicolumn{3}{c}{Num Published Predictors} &   & \\multicolumn{3}{c}{Risk Words to Mispricing Words}  \\\\",
+               "Predictability &   & \\multicolumn{1}{c}{Total} & \\multicolumn{1}{c}{1981-2004} & \\multicolumn{1}{c}{2005-2016} &   & \\multicolumn{1}{c}{p05} & \\multicolumn{1}{c}{p50} \\\\",
+               "\\cmidrule{1-1} \\cmidrule{3-5} \\cmidrule{7-9}
+"
+)
+# Calculate the position for the \hline before the last row
+nrows <- nrow(summary_text)
+hline_pos <- nrows - 1  # Since indexing starts at zero
+
+# Specify where to add the custom header and the \hline
+addtorow <- list(
+  pos = list(0, hline_pos),  # Add header at the beginning and hline before the last row
+  command = c(paste(headerRow, collapse = "\n"), "\\hline
+")
+)
+# Start the sink to redirect output to a file
+sink("../Results/table_theory_follow_up_a.tex")
+
+# Print the xtable with the custom LaTeX header and specified alignment
+print(x_summ, include.rownames = FALSE, include.colnames = FALSE,
+      hline.after = NULL,
+      add.to.row = addtorow,
+      booktabs = TRUE, sanitize.text.function = function(x){x},
+      only.contents = TRUE)
+sink()
+print(x_summ, include.rownames = FALSE, include.colnames = FALSE,
+      hline.after = NULL,
+      add.to.row = addtorow,
+      booktabs = TRUE, sanitize.text.function = function(x){x},
+      only.contents = FALSE)
+
+##############
+# Second panel
+##############
+
+merged_summary <-to_merge_csv %>% copy()
+merged_summary[, holder_1 := '']
+setcolorder(merged_summary, c('Theory', 'holder_1'))
+# Custom order for column1
+custom_order <- c("Risk", "Mispricing", "Agnostic", "Any")
+
+# Factor the column with levels specified by custom order
+merged_summary[, Theory := factor(Theory, levels = custom_order)]
+setorder(merged_summary, Theory)
+
+
+x_summ <- xtable(merged_summary, align = c("l", "l", rep("r", 5)))
+
+# Define the LaTeX code to add
+headerRow <- c("\\toprule Source of &   & \\multicolumn{4}{c}{Follow-Up Citations Category}\\\\",
+               "Predictability &   &Incidental &  Methodological & Substantial&   Other \\\\",
+               "\\cmidrule{1-1} \\cmidrule{3-6}
+"
+)
+# Calculate the position for the \hline before the last row
+nrows <- nrow(summary_text)
+hline_pos <- nrows - 1  # Since indexing starts at zero
+
+# Specify where to add the custom header and the \hline
+addtorow <- list(
+  pos = list(0, hline_pos),  # Add header at the beginning and hline before the last row
+  command = c(paste(headerRow, collapse = "\n"), "\\hline
+")
+)
+# Start the sink to redirect output to a file
+sink("../Results/table_theory_follow_up_b.tex")
+
+# Print the xtable with the custom LaTeX header and specified alignment
+print(x_summ, include.rownames = FALSE, include.colnames = FALSE,
+      hline.after = NULL,
+      add.to.row = addtorow,
+      booktabs = TRUE, sanitize.text.function = function(x){x},
+      only.contents = TRUE)
+sink()
+print(x_summ, include.rownames = FALSE, include.colnames = FALSE,
+      hline.after = NULL,
+      add.to.row = addtorow,
+      booktabs = TRUE, sanitize.text.function = function(x){x},
+      only.contents = FALSE)
 fwrite(summary_text, '../Results/summary_text.csv')
 
