@@ -29,7 +29,6 @@ url %>% drive_ls()
 SUBDIR = 'Full Sets OP'; 
 FILENAME = 'PredictorPortsFull.csv'
 
-
 url %>% drive_ls() %>%
   filter(name == "Portfolios") %>% drive_ls() %>% 
   filter(name == SUBDIR) %>% drive_ls() %>% 
@@ -40,7 +39,6 @@ url %>% drive_ls() %>%
 url %>% drive_ls() %>% 
   filter(name == "SignalDoc.csv") %>% 
   drive_download(path = "../Data/Raw/SignalDoc.csv", overwrite = TRUE)
-
 
 ## Cleaning 1 ====
 
@@ -66,7 +64,6 @@ signaldoc =  data.table::fread('../Data/Raw/SignalDoc.csv') %>%
     sweight = if_else(is.na(sweight), 'ew', sweight)
   )
 
-
 # make monthly ls returns with sample def
 czret = data.table::fread("../Data/Raw/PredictorPortsFull.csv") %>% 
   as_tibble() %>% 
@@ -84,7 +81,11 @@ czret = data.table::fread("../Data/Raw/PredictorPortsFull.csv") %>%
   select(signalname, date, ret, samptype, sampstart, sampend, pubdate, Rep_Quality) %>% 
   filter(!is.na(samptype)) %>% 
   # Add event time
-  mutate(eventDate = interval(sampend, date) %/% months(1))
+  mutate(eventDate = interval(sampend, date) %/% months(1)) %>% 
+  # fix sign of dCPVolSpread: https://github.com/OpenSourceAP/CrossSection/issues/139
+  mutate(
+    ret = if_else(signalname == 'dCPVolSpread', -ret, ret)
+  ) 
 
 # summary stats
 czsum = czret %>%
@@ -108,7 +109,6 @@ czsum = czret %>%
                                  , Authors, Year, Journal, LongDescription)
             , by = 'signalname')
 
-
 # add filtering info
 czsum = czsum %>% 
   mutate(
@@ -125,12 +125,10 @@ czret2 = czret %>%
     , by = 'signalname'
   )
 
-
 #  filter Keep
 czret2 = czret2 %>% 
   filter(Keep) %>% 
   setDT()
-
 
 ## save to disk ====
 
@@ -139,7 +137,6 @@ czret2 = czret2 %>%
 
 saveRDS(czsum, '../Data/Processed/czsum_allpredictors.RDS')
 saveRDS(czret2, '../Data/Processed/czret_keeponly.RDS')
-
 
 # CRSP -----------------------------------------------------------
 
@@ -162,7 +159,6 @@ crspm_raw <- dbSendQuery(conn = wrds, statement =
   # Pull data
   dbFetch(n = numRowsToPull) %>%
   as_tibble()
-
 crspm = crspm_raw %>% mutate(
   ret = 100*ret
   , dlret = 100*dlret
@@ -173,7 +169,6 @@ crspm = crspm_raw %>% mutate(
 
 # write to disk
 saveRDS(crspm, '../Data/Raw/crspm.RData')
-
 
 # Fama-French Factors ----------------------------------------------------
 
@@ -199,10 +194,8 @@ FamaFrenchFactors <- FamaFrenchFactors %>%
          ) %>% 
   select(-date)
 
-
 # write to disk 
 saveRDS(FamaFrenchFactors, '../Data/Raw/FamaFrenchFactors.RData')
-
 
 # Compustat ----------------------------------------------------------------
 
@@ -223,11 +216,9 @@ qstring = paste0(
       AND a.indfmt = 'INDL'"  
 )  
 
-
 CompustatAnnualRaw = dbSendQuery(conn = wrds, statement = qstring) %>% 
   dbFetch(n = numRowsToPull) %>% 
   as.data.table()
-
 
 # Download link table
 CCM_LinkingTable <- dbSendQuery(conn = wrds, statement = 
@@ -244,7 +235,6 @@ CCM_LinkingTable <- dbSendQuery(conn = wrds, statement =
   dbFetch(n = numRowsToPull) %>%
   as_tibble()
 
-
 ## Clean -------------------------------------------------------------------
 
 # Add identifiers for merging
@@ -260,13 +250,11 @@ CompustatAnnual <- CompustatAnnual %>%
     permno = lpermno
   )
 
-
 #Use only if datadate is within the validity period of the link
 CompustatAnnual <- CompustatAnnual %>% 
   mutate(
     permno = if_else(linkdt <= datadate & (datadate <= linkenddt | is.na(linkenddt) == TRUE), permno, NA_real_)
   )
-
 
 # merge on me that matches datadate (me_datadate)
 crspm = readRDS('../Data/Raw/crspm.RData') %>% 
@@ -275,18 +263,13 @@ crspm = readRDS('../Data/Raw/crspm.RData') %>%
 CompustatAnnual = CompustatAnnual %>% 
   left_join(crspm, by = c('permno','datayearm'))
 
-
 # Save to disk 
 # fst format doesn't save yearmon format
 saveRDS(
   CompustatAnnual,'../Data/Raw/CompustatAnnual.RData'
 )
 
-
-
-
 # Save data for valid denominators ------------------------------------------------
-
 
 comp0 = readRDS('../Data/Raw/CompustatAnnual.RData') 
 
@@ -302,7 +285,6 @@ comp0 %>%
   ) %>% 
   print(n=30)
 
-
 # count obs
 fobs_list = comp0 %>% 
   filter(year(datadate)==1963, !is.na(permno)) %>% 
@@ -316,7 +298,6 @@ fobs_list = comp0 %>%
     name, freq_obs_1963 = value
   )
 
-
 # keep only accounting vars + crsp me
 tempnames = union(compnames$yz.numer, compnames$yz.denom) 
 fobs_list = fobs_list %>% 
@@ -325,17 +306,13 @@ fobs_list = fobs_list %>%
 
 fwrite(fobs_list, 'DataIntermediate/freq_obs_1963.csv')
 
-
 # manual checks -----------------------------------------------------------
-
 
 fobs_list %>% 
   filter(name == 'me_datadate')
 
 fobs_list %>% 
   filter(freq_obs_1963 > 0.25)
-
-
 
 namecheck = fobs_list %>% filter(freq_obs_1963 > 0.25) %>% pull(name) 
 

@@ -529,6 +529,7 @@ read_fst_yearm = function(filename, yearm_names = c('yearm')){
 
 # Create a plot by category without data-mining benchmark
 ReturnPlotsNoDM = function(dt, suffix = '', rollmonths = 60, filetype = '.pdf',
+                           xl = -360, xh = 240, yl = -10, yh = 130, 
                            basepath = NA_character_) {
   
   #' @param dt Table with four columns (signalname, ret, eventDate, catID)
@@ -563,7 +564,7 @@ ReturnPlotsNoDM = function(dt, suffix = '', rollmonths = 60, filetype = '.pdf',
            scale_linetype_manual(values = c('solid','longdash','dashed'), breaks = catfac) +
            geom_vline(xintercept = 0) +
            coord_cartesian(
-             xlim = c(-360, 240), ylim = c(-60, 170)
+                xlim = c(xl, xh), ylim = c(yl, yh)
            ) +
            scale_y_continuous(breaks = seq(-200,180,25)) +
            scale_x_continuous(breaks = seq(-360,360,60)) +  

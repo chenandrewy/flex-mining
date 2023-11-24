@@ -2,7 +2,6 @@
 rm(list = ls())
 source('0_Environment.R')
 
-
 czsum = readRDS('../Data/Processed/czsum_allpredictors.RDS')
 
 czcat = fread('DataInput/SignalsTheoryChecked.csv') %>% 
@@ -15,9 +14,7 @@ czret = readRDS('../Data/Processed/czret_keeponly.RDS') %>%
     , ret = ret/rbar*100
   )
 
-
 # Main Figure  ----------------------------------
-
 
 # All Signals
 ReturnPlotsNoDM(dt = czret %>% 
@@ -29,7 +26,6 @@ ReturnPlotsNoDM(dt = czret %>%
                 suffix = 'AllSignals',
                 yl = -90, yh = 180
 )
-
 
 # Post-2000 samp ends only ------------------------------------------------
 
@@ -49,13 +45,7 @@ ReturnPlotsNoDM(dt = temp,
                 yl = -120, yh = 200
 )
 
-
-
-
 # Animations for Slides ---------------------------------------------------
-
-
-
 
 ReturnPlotsNoDM(dt = czret %>% 
                   mutate(
@@ -70,7 +60,6 @@ ReturnPlotsNoDM(dt = czret %>%
                 filetype = '.png'
 )
 
-
 ReturnPlotsNoDM(dt = czret %>% 
                   mutate(
                     ret = if_else(theory == 'risk', NA_real_, ret)
@@ -83,7 +72,6 @@ ReturnPlotsNoDM(dt = czret %>%
                 suffix = 'AllSignals',
                 filetype = '.png'
 )
-
 
 ReturnPlotsNoDM(dt = czret %>% 
                   transmute(eventDate,
