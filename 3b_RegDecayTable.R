@@ -270,7 +270,7 @@ round_numbers_in_strings <- function(strings_with_numbers) {
     number_in_string <- as.numeric(gsub("[^[:digit:].]", "", regmatches(string_with_number, regexpr(regex_pattern, string_with_number))))
     
     # Round the number to two decimal places
-    rounded_number <- round(number_in_string, 1)
+    rounded_number <- sprintf("%.1f",number_in_string)  %>% as.character()
     
     # Replace the original number in the string with the rounded number
     string_with_rounded_number <- gsub(regex_pattern, toString(rounded_number), string_with_number)
