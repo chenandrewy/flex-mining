@@ -50,16 +50,33 @@ chen_theme =   theme_minimal() +
 
 
 signal_text <- fread('DataIntermediate/TextClassification.csv')
+# signal_text[, theory := NULL]
+
+czcat = fread('DataInput/SignalsTheoryChecked.csv') %>% 
+  select(signalname, theory)
+
+czsum = readRDS('../Data/Processed/czsum_allpredictors.RDS') %>% setDT()
+
+czcat <- merge(czsum[Keep == TRUE, .(signalname)], czcat)
+czcat[, theory2 := theory]
+setkey(signal_text, signalname)
+setkey(czcat, signalname)
+
+czcat[, .N, by = theory]
+signal_text[, .N, by = theory]
+
+signal_text[czcat, theory2 := theory2]
+signal_text[, .N, by = theory2]
+
 signal_text[, Keep := NULL]
 # redundant, but fix me carefully later
 czret = readRDS('../Data/Processed/czsum_allpredictors.RDS') %>% setDT()
-
 setkey(czret, signalname)
-setkey(signal_text, signalname)
+
 
 signal_text[czret, Keep := Keep]
-
 signal_text <- signal_text[Keep == TRUE,]  
+
 
 
 sub_sample_text <- signal_text %>% dplyr::select(signalname, Journal,
@@ -152,6 +169,14 @@ journal_type_table <- signal_text_to_table[, table(Journal, theory)] %>% as.data
 
 setnames(journal_type_table, names(journal_type_table), toTitleCase(names(journal_type_table)))
 
+# Assuming journal_type_table is your data frame or matrix
+xt <- xtable(journal_type_table)
+
+# Print the xtable object to LaTeX
+# include.rownames=TRUE ensures row names are included
+# include.colnames=TRUE ensures column names are included
+print(xtable(xt), include.rownames=TRUE, include.colnames=TRUE, comment=FALSE)
+
 text_examples <- signal_text_to_table[signalname == 'ShareRepurchase', ] %>%
   rbind(signal_text_to_table[signalname == 'SurpriseRD', ]) %>%
   rbind(signal_text_to_table[signalname == 'cfp', ])  %>%
@@ -185,17 +210,17 @@ summary_text <- bind_rows(
   summarise(holder_0 = '', Count = n(), CountPre2004 = sum(Year < 2004),
             CountPost2004 = sum(Year >= 2004),
             holder_1 = '',
+            holder_2 = '',
             # TypicalSampleStart = median(ymd(sampstart)) %>% as.character(),
             # TypicalSampleEnd = median(ymd(sampend))  %>% as.character(),
             # MeanRiskMispricingRatio = mean(RiskMispricingRatio) %>% round(2)  %>% as.character(),
             # MinRiskMispricingRatio = min(RiskMispricingRatio) %>% round(2)  %>% as.character(),
-            q05RiskMispricingRatio = quantile(RiskMispricingRatio, 0.05) %>% round(2)  %>% as.character(),
+            q05RiskMispricingRatio = quantile(RiskMispricingRatio, 0.05, na.rm = TRUE) %>% sprintf("%.2f",.)  %>% as.character(),
             # q25RiskMispricingRatio = quantile(RiskMispricingRatio, 0.25) %>% round(2)  %>% as.character(),
-            MedianRiskMispricingRatio = median(RiskMispricingRatio) %>% round(2)  %>% as.character(),
+            MedianRiskMispricingRatio = median(RiskMispricingRatio, na.rm = TRUE) %>% sprintf("%.2f",.)  %>% as.character(),
             # q75RiskMispricingRatio = quantile(RiskMispricingRatio, 0.75) %>% round(2)  %>% as.character(),
-            q95RiskMispricingRatio = quantile(RiskMispricingRatio, 0.95) %>% round(2)  %>% as.character()
+            q95RiskMispricingRatio = quantile(RiskMispricingRatio, 0.95, na.rm = TRUE) %>% sprintf("%.2f",.)  %>% as.character()
             # MaxRiskMispricingRatio = max(RiskMispricingRatio) %>% round(2)  %>% as.character()
-            , holder_2 = ''
             )  %>%
   rename(Theory = theory) %>%
   arrange(factor(Theory,
@@ -222,11 +247,14 @@ setorder(summary_text, Theory)
 
 
 x_summ <- xtable(summary_text, align = c("l", "l", rep("r", 9)))
-
+x_summ
 # Define the LaTeX code to add
-headerRow <- c("\\toprule Source of &   & \\multicolumn{3}{c}{Num Published Predictors} &   & \\multicolumn{3}{c}{Risk Words to Mispricing Words}  \\\\",
-               "Predictability &   & \\multicolumn{1}{c}{Total} & \\multicolumn{1}{c}{1981-2004} & \\multicolumn{1}{c}{2005-2016} &   & \\multicolumn{1}{c}{p05} & \\multicolumn{1}{c}{p50} \\\\",
-               "\\cmidrule{1-1} \\cmidrule{3-5} \\cmidrule{7-9}
+headerRow <- c("   \\toprule
+   \\multicolumn{10}{c}{Panel (a)} \\\\",
+               "\\cmidrule{1-11}",
+               "Source of &   & \\multicolumn{3}{c}{Num Published Predictors} &    \\multicolumn{6}{c}{Risk Words to Mispricing Words}  \\\\",
+               "Predictability &   & \\multicolumn{1}{c}{Total} & \\multicolumn{1}{c}{1981-2004} & \\multicolumn{1}{c}{2005-2016} & \\phantom  & & \\multicolumn{1}{c}{p05} & \\multicolumn{1}{c}{p50} & p95 & \\phantom{a}\\\\",
+               "\\cmidrule{1-1} \\cmidrule{3-5} \\cmidrule{7-11}
 "
 )
 # Calculate the position for the \hline before the last row
@@ -235,9 +263,8 @@ hline_pos <- nrows - 1  # Since indexing starts at zero
 
 # Specify where to add the custom header and the \hline
 addtorow <- list(
-  pos = list(0, hline_pos),  # Add header at the beginning and hline before the last row
-  command = c(paste(headerRow, collapse = "\n"), "\\hline
-")
+  pos = list(0, hline_pos, nrows),  # Add header at the beginning and hline before the last row
+  command = c(paste(headerRow, collapse = "\n"), "\\hline\n", "\\bottomrule")
 )
 # Start the sink to redirect output to a file
 sink("../Results/table_theory_follow_up_a.tex")
@@ -254,6 +281,13 @@ print(x_summ, include.rownames = FALSE, include.colnames = FALSE,
       add.to.row = addtorow,
       booktabs = TRUE, sanitize.text.function = function(x){x},
       only.contents = FALSE)
+
+print(x_summ, include.rownames = FALSE, include.colnames = FALSE,
+      hline.after = NULL,
+      add.to.row = addtorow,
+      booktabs = TRUE, sanitize.text.function = function(x){x},
+      only.contents = TRUE)
+
 
 ##############
 # Second panel
@@ -273,7 +307,10 @@ setorder(merged_summary, Theory)
 x_summ <- xtable(merged_summary, align = c("l", "l", rep("r", 5)))
 
 # Define the LaTeX code to add
-headerRow <- c("\\toprule Source of &   & \\multicolumn{4}{c}{Follow-Up Citations Category}\\\\",
+headerRow <- c("\\toprule
+\\multicolumn{6}{c}{Panel (b)} \\\\",
+"\\cmidrule{1-6}",
+               "Source of &   & \\multicolumn{4}{c}{Follow-Up Citations Category}\\\\",
                "Predictability &   &Incidental &  Methodological & Substantial&   Other \\\\",
                "\\cmidrule{1-1} \\cmidrule{3-6}
 "

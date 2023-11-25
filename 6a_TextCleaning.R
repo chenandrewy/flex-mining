@@ -454,15 +454,25 @@ names_so_far <- unique(joined_so_far$signalname.x)
 to_join <- signal_text %>% filter(!signalname %in% names_so_far )  %>%
   dplyr::select(signalname, Year, Journal, author_merge, Authors) %>%
   rename(Authors2 = Authors, Authors = author_merge) %>%
-  stringdist_left_join(subset_text , by = c('Authors'),
-                       max_dist = 2) %>%
-  filter(abs(Year.x - Year.y) < 5)
+  stringdist_inner_join(subset_text ,
+                        by = c('Authors', 'Journal'),
+                        max_dist = 2) %>% filter(abs(Year.x - Year.y) < 3)
 
 joined_so_far <- rbind(joined_so_far, to_join)
 
 names_so_far <- unique(joined_so_far$signalname.x)
 
-authors_y <- unique(joined_so_far$Authors.y)
+
+to_join <- signal_text %>% filter(!signalname %in% names_so_far )  %>%
+  dplyr::select(signalname, Year, Journal, author_merge, Authors) %>%
+  rename(Authors2 = Authors, Authors = author_merge) %>%
+  stringdist_left_join(subset_text , by = c('Authors'),
+                       max_dist = 1) %>%
+  filter(abs(Year.x - Year.y) < 5)
+
+joined_so_far <- rbind(joined_so_far, to_join)
+
+names_so_far <- unique(joined_so_far$signalname.x)
 
 to_join <- signal_text %>% filter(!signalname %in% names_so_far )  %>%
   dplyr::select(signalname, Year, Journal, author_merge, Authors) %>%
@@ -479,8 +489,31 @@ to_join <- signal_text %>% filter(!signalname %in% names_so_far ) %>%
   dplyr::select(signalname, Year, Journal, author_merge, Authors) %>%
   rename(Authors2 = Authors, Authors = author_merge) %>%
   stringdist_left_join(subset_text , by = c('Authors' = 'FirstAuthor'),
-                       max_dist = 1) %>%
+                       max_dist = 2) %>%
   filter(abs(Year.x - Year.y) < 2) %>% filter(Journal.x == Journal.y)
+
+
+joined_so_far <- rbind(joined_so_far, to_join)
+
+names_so_far <- unique(joined_so_far$signalname.x)
+
+to_join <- signal_text %>% filter(!signalname %in% names_so_far ) %>%
+  dplyr::select(signalname, Year, Journal, author_merge, Authors) %>%
+  rename(Authors2 = Authors, Authors = author_merge) %>%
+  stringdist_left_join(., subset_text , by = c('Authors2' = 'Authors'),
+                       max_dist = 4) %>%
+  filter(abs(Year.x - Year.y) < 2) %>% filter(Journal.x == Journal.y)
+
+joined_so_far <- rbind(joined_so_far, to_join)
+
+names_so_far <- unique(joined_so_far$signalname.x)
+
+to_join <- signal_text %>% filter(!signalname %in% names_so_far ) %>%
+  dplyr::select(signalname, Year, Journal, author_merge, Authors) %>%
+  rename(Authors2 = Authors, Authors = author_merge) %>%
+  stringdist_left_join(., subset_text , by = c('Authors' = 'Authors'),
+                       max_dist = 4) %>%
+  filter(abs(Year.x - Year.y) < 1) %>% filter(Journal.x == Journal.y)
 
 
 joined_final <- rbind(joined_so_far, to_join) %>%
@@ -494,7 +527,7 @@ signal_text2 <- signal_text %>% merge(joined_final)
 signal_text2[, risk_mispricing_ratio := 1/misprice_risk_ratio]
 
 signal_text2 <- signal_text2 %>% relocate(signalname, Journal,
-                                          Authors, Year, theory, desc,
+                                          Authors, Year, theory, LongDescription,
                                           misp_count, risk_count,
                                           misprice_risk_ratio, risk_mispricing_ratio,
                                           quote)

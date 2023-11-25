@@ -28,6 +28,7 @@ systematic_risk
 returns_risk
 averse
 rational
+volatility_risk
 idiosyncratic_risk
 arbitrage_risk
 compensation_risk
@@ -45,7 +46,6 @@ consumption-based
 consume
 priced_risk
 equity_risk
-volatility_risk
 low-risk
 mediumrisk
 high-risk
@@ -63,6 +63,7 @@ asterisk
 credit_risk
 tail_risk
 thisrisk
+jumprisk
 value-at-risk
 rationale
 proxy_risk

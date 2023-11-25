@@ -215,7 +215,7 @@ tmpCands = candidateReturns %>%
   inner_join(czret %>% 
                transmute(actSignal = signalname,
                          eventDate,
-                         retActual = retOrig))
+                         retActual = ret))
 
 allRhos = tibble()
 

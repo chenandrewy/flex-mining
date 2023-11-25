@@ -255,7 +255,7 @@ tmpCorrelations %>%
             Q95,
             # Max,
             empty2 = NA_character_) %>% 
-  xtable(digits = c(0, 0, 2, 2, 2, 2, 2, 2, 2, 0, 0)) %>% 
+  xtable(digits = c(0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0)) %>% 
   print(
     include.rownames = FALSE,
     include.colnames = FALSE,
