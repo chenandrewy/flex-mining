@@ -25,10 +25,6 @@ setDT()
 
 # settings and functions ------------------------
 
-# fix sample to be well-populated
-yearm_min = 1995
-yearm_max = 2019
-
 # function for computing PCA
 compute_pca = function(sweightselect='ew',nstratmax=10000){
 
@@ -77,6 +73,11 @@ compute_pca = function(sweightselect='ew',nstratmax=10000){
 } # end compute_pca 
 
 # run function over cases ------------------------
+
+# fix sample 
+yearm_min = 1984
+yearm_max = 2019
+
 nstratmax = 40000
 pca_ew = compute_pca(sweightselect='ew', nstratmax=nstratmax)
 pca_vw = compute_pca(sweightselect='vw', nstratmax=nstratmax)
@@ -126,7 +127,35 @@ file.copy('../Results/DM_pca.tex'
     , overwrite = TRUE)
 
 
-# check coverage to console
-dm_rets$dmname %>% unique() %>% length()
+# check stuff on console ------------------------
+
+# check coverage 
+nall = dm_rets$dmname %>% unique() %>% length()
 pca_ew$nstrat[1]
 pca_vw$nstrat[1]
+1-pca_ew$nstrat[1]/nall
+
+
+# check robustness to part of sample
+yearm_min = 2003
+yearm_max = 2019
+
+nstratmax = 40000
+pca_ew_alt = compute_pca(sweightselect='ew', nstratmax=nstratmax)
+pca_vw_alt = compute_pca(sweightselect='vw', nstratmax=nstratmax)
+
+pca_ew_alt %>% transmute(n_pc, pct_exp_ew = cum_pct_exp) %>% 
+    left_join(
+        pca_vw_alt %>% transmute(n_pc, pct_exp_vw = cum_pct_exp),
+        by = c('n_pc')
+    ) %>% 
+    filter(n_pc %in% c(1, 5, seq(10, 100, 10))) %>% 
+    mutate(
+            n_pc = as.character(as.integer(n_pc))
+            , pct_exp_ew = round(pct_exp_ew, 0)
+            , pct_exp_vw = round(pct_exp_vw, 0)
+    )  %>% 
+    t() 
+
+pca_ew_alt$nstrat[1]
+1-pca_ew_alt$nstrat[1]/nall
