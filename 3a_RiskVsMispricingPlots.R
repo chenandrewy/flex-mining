@@ -57,7 +57,22 @@ ReturnPlotsNoDM(dt = czret %>%
                             catID = theory),
                 basepath = '../Results/Extra/Anim-Pub-1',
                 suffix = 'AllSignals',
-                filetype = '.png'
+                filetype = '.png',
+                yl = -90, yh = 180
+)
+
+ReturnPlotsNoDM(dt = czret %>% 
+                  mutate(
+                    ret = if_else(theory != 'mispricing', NA_real_, ret)
+                  ) %>% 
+                  transmute(eventDate,
+                            signalname,
+                            ret,
+                            catID = theory),
+                basepath = '../Results/Extra/Anim-Pub-2',
+                suffix = 'AllSignals',
+                filetype = '.png',
+                yl = -90, yh = 180
 )
 
 ReturnPlotsNoDM(dt = czret %>% 
@@ -68,9 +83,10 @@ ReturnPlotsNoDM(dt = czret %>%
                             signalname,
                             ret,
                             catID = theory),
-                basepath = '../Results/Extra/Anim-Pub-2',
+                basepath = '../Results/Extra/Anim-Pub-3',
                 suffix = 'AllSignals',
-                filetype = '.png'
+                filetype = '.png',
+                yl = -90, yh = 180
 )
 
 ReturnPlotsNoDM(dt = czret %>% 
@@ -78,9 +94,10 @@ ReturnPlotsNoDM(dt = czret %>%
                             signalname,
                             ret,
                             catID = theory),
-                basepath = '../Results/Extra/Anim-Pub-3',
+                basepath = '../Results/Extra/Anim-Pub-4',
                 suffix = 'AllSignals',
-                filetype = '.png'
+                filetype = '.png',
+                yl = -90, yh = 180
 )
 
 

@@ -11,6 +11,7 @@ library(doParallel)
 
 # settings
 ncores <- round(detectCores() / 2)
+# ncores = 4
 
 dmcomp <- list()
 dmtic <- list()
@@ -301,19 +302,13 @@ make_DM_event_returns <- function(
   return(event_dm_scaled)
 } # end MakeMatchedPanel
 
-
-# Plots v2 ----------------------------------------------------------------
-
-
-## Shared setup ------------------------------------------------------------
+# Shared Plot Setup (plot_one_setting) -------------------------------------------
 
 # shared aesthetic settings
 fontsizeall = 28
 legposall = c(30,15)/100
 ylaball = 'Trailing 5-Year Return (bps pm)'
 linesizeall = 1.5
-
-
 plot_one_setting = function(plotdat){
   
   # make event time returns for Compustat DM
@@ -388,58 +383,9 @@ plot_one_setting = function(plotdat){
   
 } # end plot_one_setting
 
+# Main Plots ----------------------------------------------------------------
 
-## t_min plots ---------------------------------------------------------------
-
-### Plot abs(t) > 0.5 ----------------------------------------------------------
-
-plotdat <- list()
-
-plotdat$name <- "t_min_0.5"
-plotdat$legprefix = "|t|>0.5"
-plotdat$npubmax = Inf
-plotdat$use_sign_info = TRUE
-
-plotdat$matchset <- list(
-  # tolerance in levels
-  t_tol = .1 * Inf,
-  r_tol = .3 * Inf,
-  # tolerance relative to op stat
-  t_reltol = 0.1 * Inf,
-  r_reltol = 0.3 * Inf,
-  # alternative filtering
-  t_min = 0.5, # Default = 0, minimum screened t-stat
-  t_max = Inf, # maximum screened t-stat
-  t_rankpct_min = 100, # top x% of data mined t-stats, 100% for off
-  minNumStocks = 10 # Minimum number of stocks in any month over the in-sample period to include a strategy
-)
-plot_one_setting(plotdat)
-
-### Plot abs(t) > 1 ----------------------------------------------------------
-
-plotdat <- list()
-
-plotdat$name <- "t_min_1"
-plotdat$legprefix = "|t|>1.0"
-plotdat$npubmax = Inf
-plotdat$use_sign_info = TRUE
-
-plotdat$matchset <- list(
-  # tolerance in levels
-  t_tol = .1 * Inf,
-  r_tol = .3 * Inf,
-  # tolerance relative to op stat
-  t_reltol = 0.1 * Inf,
-  r_reltol = 0.3 * Inf,
-  # alternative filtering
-  t_min = 1, # Default = 0, minimum screened t-stat
-  t_max = Inf, # maximum screened t-stat
-  t_rankpct_min = 100, # top x% of data mined t-stats, 100% for off
-  minNumStocks = 10 # Minimum number of stocks in any month over the in-sample period to include a strategy
-)
-plot_one_setting(plotdat)
-
-### Plot abs(t) > 2 ----------------------------------------------------------
+## Plot abs(t) > 2 ----------------------------------------------------------
 
 plotdat <- list()
 
@@ -463,7 +409,105 @@ plotdat$matchset <- list(
 )
 plot_one_setting(plotdat)
 
-### Plot abs(t) > 3 ----------------------------------------------------------
+## Plot top 5% of abs(t) ----------------------------------------------------------
+plotdat <- list()
+
+plotdat$name <- "t_rankpct_min_5"
+plotdat$legprefix = "top 5% |t|"
+plotdat$npubmax = Inf
+plotdat$use_sign_info = TRUE
+
+plotdat$matchset <- list(
+  # tolerance in levels
+  t_tol = .1 * Inf,
+  r_tol = .3 * Inf,
+  # tolerance relative to op stat
+  t_reltol = 0.1 * Inf,
+  r_reltol = 0.3 * Inf,
+  # alternative filtering
+  t_min = 0, # minimum screened t-stat
+  t_max = Inf, # maximum screened t-stat
+  t_rankpct_min = 5, # minimum t-stat rank (in pctile)
+  minNumStocks = 10 # Minimum number of stocks in any month over the in-sample period to include a strategy
+)
+
+plot_one_setting(plotdat)
+
+## Plot abs(t) > 0.5 ----------------------------------------------------------
+
+plotdat <- list()
+
+plotdat$name <- "t_min_0.5"
+plotdat$legprefix = "|t|>0.5"
+plotdat$npubmax = Inf
+plotdat$use_sign_info = TRUE
+
+plotdat$matchset <- list(
+  # tolerance in levels
+  t_tol = .1 * Inf,
+  r_tol = .3 * Inf,
+  # tolerance relative to op stat
+  t_reltol = 0.1 * Inf,
+  r_reltol = 0.3 * Inf,
+  # alternative filtering
+  t_min = 0.5, # Default = 0, minimum screened t-stat
+  t_max = Inf, # maximum screened t-stat
+  t_rankpct_min = 100, # top x% of data mined t-stats, 100% for off
+  minNumStocks = 10 # Minimum number of stocks in any month over the in-sample period to include a strategy
+)
+plot_one_setting(plotdat)
+
+## Plot top 90% of abs(t) ----------------------------------------------------------
+plotdat <- list()
+
+plotdat$name <- "t_rankpct_min_90"
+plotdat$legprefix = "top 90% |t|"
+plotdat$npubmax = Inf
+plotdat$use_sign_info = TRUE
+
+plotdat$matchset <- list(
+  # tolerance in levels
+  t_tol = .1 * Inf,
+  r_tol = .3 * Inf,
+  # tolerance relative to op stat
+  t_reltol = 0.1 * Inf,
+  r_reltol = 0.3 * Inf,
+  # alternative filtering
+  t_min = 0, # minimum screened t-stat
+  t_max = Inf, # maximum screened t-stat
+  t_rankpct_min = 90, # minimum t-stat rank (in pctile)
+  minNumStocks = 10 # Minimum number of stocks in any month over the in-sample period to include a strategy
+)
+plot_one_setting(plotdat)
+
+# Extra t_min plots ---------------------------------------------------------------
+
+## Plot abs(t) > 1 ----------------------------------------------------------
+
+plotdat <- list()
+
+plotdat$name <- "t_min_1"
+plotdat$legprefix = "|t|>1.0"
+plotdat$npubmax = Inf
+plotdat$use_sign_info = TRUE
+
+plotdat$matchset <- list(
+  # tolerance in levels
+  t_tol = .1 * Inf,
+  r_tol = .3 * Inf,
+  # tolerance relative to op stat
+  t_reltol = 0.1 * Inf,
+  r_reltol = 0.3 * Inf,
+  # alternative filtering
+  t_min = 1, # Default = 0, minimum screened t-stat
+  t_max = Inf, # maximum screened t-stat
+  t_rankpct_min = 100, # top x% of data mined t-stats, 100% for off
+  minNumStocks = 10 # Minimum number of stocks in any month over the in-sample period to include a strategy
+)
+
+plot_one_setting(plotdat)
+
+## Plot abs(t) > 3 ----------------------------------------------------------
 
 plotdat <- list()
 
@@ -488,35 +532,9 @@ plotdat$matchset <- list(
 
 plot_one_setting(plotdat)
 
+# Extra t_rankpct_min plots ---------------------------------------------------------------
 
-## t_rankpct_min plots ---------------------------------------------------------------
-
-### Plot top 90% of abs(t) ----------------------------------------------------------
-plotdat <- list()
-
-plotdat$name <- "t_rankpct_min_90"
-plotdat$legprefix = "top 90% |t|"
-plotdat$npubmax = Inf
-plotdat$use_sign_info = TRUE
-
-plotdat$matchset <- list(
-  # tolerance in levels
-  t_tol = .1 * Inf,
-  r_tol = .3 * Inf,
-  # tolerance relative to op stat
-  t_reltol = 0.1 * Inf,
-  r_reltol = 0.3 * Inf,
-  # alternative filtering
-  t_min = 0, # minimum screened t-stat
-  t_max = Inf, # maximum screened t-stat
-  t_rankpct_min = 90, # minimum t-stat rank (in pctile)
-  minNumStocks = 10 # Minimum number of stocks in any month over the in-sample period to include a strategy
-)
-
-plot_one_setting(plotdat)
-
-
-### Plot top 75% of abs(t) ----------------------------------------------------------
+## Plot top 75% of abs(t) ----------------------------------------------------------
 plotdat <- list()
 
 plotdat$name <- "t_rankpct_min_75"
@@ -539,7 +557,6 @@ plotdat$matchset <- list(
 )
 
 plot_one_setting(plotdat)
-
 
 ### Plot top 50% of abs(t) ----------------------------------------------------------
 plotdat <- list()
@@ -565,33 +582,7 @@ plotdat$matchset <- list(
 
 plot_one_setting(plotdat)
 
-
-### Plot top 5% of abs(t) ----------------------------------------------------------
-plotdat <- list()
-
-plotdat$name <- "t_rankpct_min_5"
-plotdat$legprefix = "top 5% |t|"
-plotdat$npubmax = Inf
-plotdat$use_sign_info = TRUE
-
-plotdat$matchset <- list(
-  # tolerance in levels
-  t_tol = .1 * Inf,
-  r_tol = .3 * Inf,
-  # tolerance relative to op stat
-  t_reltol = 0.1 * Inf,
-  r_reltol = 0.3 * Inf,
-  # alternative filtering
-  t_min = 0, # minimum screened t-stat
-  t_max = Inf, # maximum screened t-stat
-  t_rankpct_min = 5, # minimum t-stat rank (in pctile)
-  minNumStocks = 10 # Minimum number of stocks in any month over the in-sample period to include a strategy
-)
-
-plot_one_setting(plotdat)
-
-
-### Plot top 0.5% of abs(t) ----------------------------------------------------------
+## Plot top 0.5% of abs(t) ----------------------------------------------------------
 plotdat <- list()
 
 plotdat$name <- "t_rankpct_min_0.5"
