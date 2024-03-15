@@ -446,15 +446,14 @@ signal_to_ports = function(dt0, form, portnum, sweight, trim = NULL){
     }    
     
     # find long-short return
-    return(
-      dt %>% 
-        select(yearm, port, ret, nstock) %>% 
-        pivot_wider(names_from = port, values_from = c(ret, nstock)) %>% 
-        mutate(ret_ls = ret_long - ret_short,
-               nstocks_ls = nstock_long + nstock_short) %>% 
-        filter(!is.na(ret_ls)) %>% 
-        transmute(yearm, ret = ret_ls, nstock = nstocks_ls)
-    )
+    dt_ls = dt %>% 
+      select(yearm, port, ret, nstock) %>% 
+      pivot_wider(names_from = port, values_from = c(ret, nstock)) %>% 
+      mutate(ret_ls = ret_long - ret_short) %>% 
+      filter(!is.na(ret_ls)) %>% 
+      transmute(yearm, ret = ret_ls, nstock_long, nstock_short)
+    
+    return(dt_ls)
     
   } # if form
   
@@ -640,7 +639,7 @@ ReturnPlotsWithDM = function(dt, suffix = '', rollmonths = 60, colors = NA,
       #  scale_color_grey() + 
       # scale_color_brewer(palette = 'Dark2') + 
       scale_color_manual(values = colors) + 
-      scale_linetype_manual(values = c('solid', 'twodash','dotted')) +
+      scale_linetype_manual(values = c('solid', 'longdash','dashed')) +
       # scale_linetype(guide = 'none') +
       geom_vline(xintercept = 0) +
       coord_cartesian(
@@ -658,6 +657,7 @@ ReturnPlotsWithDM = function(dt, suffix = '', rollmonths = 60, colors = NA,
         legend.position = legendpos
         , legend.spacing.y = unit(0.1, units = 'cm')
         , legend.background = element_rect(fill='transparent')
+        , legend.key.width = unit(1.5, units = 'cm')
       ) 
   
   if (labelmatch == TRUE){
