@@ -124,11 +124,11 @@ for (i in 1:n_ls) {
 
     # get long portfolio returns
     longcur <- longport[sweight == setcur$sweight & port == setcur$longport] %>%
-        transmute(yearm, ret_long = ret, nlong = nstock)
+        transmute(yearm, ret_long = ret, nstock_long = nstock)
 
     # get short portfolio returns
     shortcur <- longport[sweight == setcur$sweight & port == setcur$shortport] %>%
-        transmute(yearm, ret_short = ret, nshort = nstock)
+        transmute(yearm, ret_short = ret, nstock_short = nstock)
 
     # merge long and short
     lscur <- merge(longcur, shortcur, by = "yearm", all = TRUE) %>%
@@ -137,13 +137,9 @@ for (i in 1:n_ls) {
     # store
     tempret[[i]] <- lscur %>%
         mutate(signalid = setcur$signalid, portid = setcur$portid) %>%
-        select(signalid, portid, yearm, ret, nlong, nshort)
+        select(signalid, portid, yearm, ret, nstock_long, nstock_short)
 } # end for i
 lsret <- rbindlist(tempret) %>% setDT()
-
-# add nstock column
-# apparently, signal_to_ports defines nstock as nlong + nshort
-lsret[, nstock := nlong + nshort]
 
 # save to disk -------------------------------------------------
 

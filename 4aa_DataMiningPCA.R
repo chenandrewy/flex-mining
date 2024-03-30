@@ -3,7 +3,9 @@
 # Environment ------------------------
 source('0_Environment.R')
 
-DMname = '../Data/Processed/CZ-style-v6 LongShort.RData'
+DMname = paste0('../Data/Processed/',
+                globalSettings$dataVersion, 
+                ' LongShort.RData')
 
 # read in DM strats
 dm_rets <- readRDS(DMname)$ret
@@ -19,7 +21,8 @@ transmute(
     dmname = signalid,
     yearm,
     ret,
-    nstock
+    nstock_long,
+    nstock_short
 ) %>%
 setDT()
 
@@ -155,7 +158,3 @@ pca_ew_alt %>% transmute(n_pc, pct_exp_ew = cum_pct_exp) %>%
             , pct_exp_ew = round(pct_exp_ew, 0)
             , pct_exp_vw = round(pct_exp_vw, 0)
     )  %>% 
-    t() 
-
-pca_ew_alt$nstrat[1]
-1-pca_ew_alt$nstrat[1]/nall

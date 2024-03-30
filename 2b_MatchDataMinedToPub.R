@@ -11,7 +11,9 @@ tic0 = Sys.time()
 source('0_Environment.R')
 library(doParallel)
 
-DMname = '../Data/Processed/CZ-style-v6 LongShort.RData'
+DMname = paste0('../Data/Processed/',
+                globalSettings$dataVersion, 
+                ' LongShort.RData')
 
 
 # tolerance in levels  
@@ -24,7 +26,7 @@ r_tol = .3*Inf
 t_reltol = 0.1
 r_reltol = 0.3
 
-minNumStocks = 20  # Minimum number of stocks in any month over the in-sample period to include a strategy
+minNumStocks = globalSettings$minNumStocks
 ncores = round(0.25*detectCores())
 
 # Load data ---------------------------------------------------------------
@@ -51,7 +53,8 @@ bm_rets = bm_rets %>% left_join(
     , dmname = signalid
     , yearm
     , ret
-    , nstock)
+    , nstock_long
+    , nstock_short)
 
 setDT(bm_rets)
   
@@ -82,7 +85,8 @@ dm_insamp = foreach(sampi = 1:dim(samplist)[1],
                         & !is.na(ret)
                         , .(
                           rbar = mean(ret), tstat = mean(ret)/sd(ret)*sqrt(.N)
-                          , min_nstock = min(nstock)
+                          , min_nstock_long  = min(nstock_long)
+                          , min_nstock_short = min(nstock_short)
                         )
                         , by = c('sweight','dmname')
                       ] 
@@ -150,7 +154,8 @@ candidateReturns =  foreach(pubi = 1:dim(czsum)[1],
                                 & diff_tstat <= t_tol
                                 & diff_rbar / rbar_op <= r_reltol
                                 & diff_tstat / tstat_op <= t_reltol    
-                                & min_nstock >= minNumStocks
+                                & min_nstock_long  >= minNumStocks/2
+                                & min_nstock_short >= minNumStocks/2
                                 & nlastyear == 12
                               ] %>%
                                 transmute(sweight, dmname, sign = sign(rbar))
