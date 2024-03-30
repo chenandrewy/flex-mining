@@ -77,8 +77,9 @@ ggplot(tabjournal, aes(x='',y=pct,fill=jcat)) +
 
 source('0_Environment.R')
 
-dmdat = readRDS('../Data/Processed/CZ-style-v6 LongShort.RData')
-        
+dmdat = readRDS(paste0('../Data/Processed/',
+                       globalSettings$dataVersion, 
+                       ' LongShort.RData'))
 
 dmdat %>% names()
 

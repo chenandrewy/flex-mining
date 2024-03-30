@@ -19,7 +19,8 @@ bm_rets = bm_rets %>%
     , signalname = signalid
     , yearm
     , ret
-    , nstock)
+    , nstock_long
+    , nstock_short)
 
 
 for (var_type in var_types) {

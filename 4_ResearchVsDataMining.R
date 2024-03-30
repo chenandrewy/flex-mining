@@ -5,7 +5,9 @@ rm(list = ls())
 
 source('0_Environment.R')
 
-DMname = '../Data/Processed/CZ-style-v6 LongShort.RData' # for autofill convenience
+DMname = paste0('../Data/Processed/',
+                globalSettings$dataVersion, 
+                ' LongShort.RData')
 
 name = DMname %>% 
   str_remove('../Data/Processed/') %>% 
