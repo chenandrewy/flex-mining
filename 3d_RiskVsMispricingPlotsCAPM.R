@@ -23,17 +23,55 @@ czret = readRDS('../Data/Processed/czret_keeponly.RDS') %>%
 FamaFrenchFactors <- readRDS('../Data/Raw/FamaFrenchFactors.RData') %>%
   rename(date = yearm)
 
+####################################
 czret <- czret %>% left_join(FamaFrenchFactors, by  = c('date'))
 
-czret[, exr_bp := ret - rf*100]
+czret[, beta_all :=  extract_beta(ret, mktrf*100), by = signalname]
 
-czret[, beta_all :=  extract_beta(exr_bp, mktrf*100), by = signalname]
+czret[, abnormal_all := ret - beta_all*mktrf*100]
 
-czret[, abnormal_all := exr_bp - beta_all*mktrf*100]
+czret[samptype == 'insamp', abar_all := mean(abnormal_all, na.rm = TRUE), by = signalname]
 
-czret[, beta_roll :=  coefficients(roll_lm(exr_bp, mktrf*100, width = 60))[, 2], by = signalname]
+czret[, abar_all := nafill(abar_all, "locf"), by = .(signalname)]
 
-czret[, abnormal_roll := exr_bp - beta_roll*mktrf*100]
+czret[, abnormal_all_normalized := 100*abnormal_all/abar_all]
+
+################################
+
+czret[, beta_roll :=  coefficients(roll_lm(ret, mktrf*100, width = 60))[, 2], by = signalname]
+
+czret[, abnormal_roll := ret - beta_roll*mktrf*100]
+
+czret[samptype == 'insamp', abar_roll := mean(abnormal_roll, na.rm = TRUE), by = signalname]
+
+czret[, abar_roll := nafill(abar_roll, "locf"), by = .(signalname)]
+
+czret[, abnormal_roll_normalized := 100*abnormal_roll/abar_roll]
+
+################################
+czret[, insamp := (samptype == 'insamp')]
+
+czret[, beta_all_not_norm :=  extract_beta(retOrig, mktrf), by = .(signalname, insamp)]
+
+czret[, abnormal_all_not_norm := retOrig - beta_all_not_norm*mktrf]
+
+czret[samptype == 'insamp', abar_all_not_norm := mean(abnormal_all_not_norm, na.rm = TRUE), by = signalname]
+
+czret[samptype == 'insamp', abar_all_not_norm_t := t.test(abnormal_all_not_norm, na.rm = TRUE)$statistic, by = signalname]
+
+czret[, abar_all_not_norm := nafill(abar_all_not_norm, "locf"), by = .(signalname)]
+
+czret[, abar_all_not_norm_t := nafill(abar_all_not_norm_t, "locf"), by = .(signalname)]
+
+czret[, abnormal_all_normalized_v2 := 100*abnormal_all_not_norm/abar_all_not_norm]
+
+czret[, mean(abnormal_all, na.rm = TRUE), by = samptype]
+czret[, mean(abnormal_roll, na.rm = TRUE), by = samptype]
+czret[, mean(abnormal_all_normalized, na.rm = TRUE), by = samptype]
+czret[, mean(abnormal_roll_normalized, na.rm = TRUE), by = samptype]
+czret[, mean(abnormal_all_normalized_v2, na.rm = TRUE), by = samptype]
+czret[, mean(abar_all_not_norm_t, na.rm = TRUE), by = samptype]
+
 
 
 # Create a plot by category without data-mining benchmark
@@ -99,8 +137,6 @@ ReturnPlotsNoDMAlpha = function(dt, suffix = '', rollmonths = 60, filetype = '.p
   
 }
 
-
-
 # Main Figure  ----------------------------------
 
 # All Signals
@@ -110,8 +146,19 @@ ReturnPlotsNoDMAlpha(dt = czret %>%
                             alpha = abnormal_all,
                             catID = theory),
                 basepath = '../Results/Fig_PublicationsOverTime',
-                suffix = 'AllSignalsAlphaFullSample',
+                suffix = 'AllSignalsAlphaFullSampleNormalizedRet',
                 yl = -120, yh = 200
+)
+
+# All Signals
+ReturnPlotsNoDMAlpha(dt = czret %>% 
+                       transmute(eventDate,
+                                 signalname,
+                                 alpha = abnormal_all_normalized,
+                                 catID = theory),
+                     basepath = '../Results/Fig_PublicationsOverTime',
+                     suffix = 'AllSignalsAlphaFullSampleNormalizedRetThenAbnormal',
+                     yl = -120, yh = 200
 )
 
 # All Signals
@@ -121,6 +168,52 @@ ReturnPlotsNoDMAlpha(dt = czret %>%
                                  alpha = abnormal_roll,
                                  catID = theory),
                      basepath = '../Results/Fig_PublicationsOverTime',
-                     suffix = 'AllSignalsAlphaRollSample',
+                     suffix = 'AllSignalsAlphaRollNormalizedRetThenAbnormal',
                      yl = -120, yh = 200
+)
+
+# All Signals
+ReturnPlotsNoDMAlpha(dt = czret %>% 
+                       transmute(eventDate,
+                                 signalname,
+                                 alpha = abnormal_roll,
+                                 catID = theory),
+                     basepath = '../Results/Fig_PublicationsOverTime',
+                     suffix = 'AllSignalsAlphaRollNormalizedRetThenAbnormal',
+                     yl = -120, yh = 200
+)
+
+
+
+# All Signals
+ReturnPlotsNoDMAlpha(dt = czret[abar_all_not_norm_t >= 1, ] %>%
+                       transmute(eventDate,
+                                 signalname,
+                                 alpha = abnormal_all_normalized_v2,
+                                 catID = theory),
+                     basepath = '../Results/Fig_PublicationsOverTime',
+                     suffix = 'AllSignalsAlphaFullSampleNormalizedAbnormalTge1',
+                     yl = -120, yh = 300
+)
+
+# All Signals
+ReturnPlotsNoDMAlpha(dt = czret[abar_all_not_norm_t >= 2, ] %>%
+                       transmute(eventDate,
+                                 signalname,
+                                 alpha = abnormal_all_normalized_v2,
+                                 catID = theory),
+                     basepath = '../Results/Fig_PublicationsOverTime',
+                     suffix = 'AllSignalsAlphaFullSampleNormalizedAbnormalTge2',
+                     yl = -120, yh = 300
+)
+
+# All Signals
+ReturnPlotsNoDMAlpha(dt = czret[abar_all_not_norm_t >= 3, ] %>%
+                       transmute(eventDate,
+                                 signalname,
+                                 alpha = abnormal_all_normalized_v2,
+                                 catID = theory),
+                     basepath = '../Results/Fig_PublicationsOverTime',
+                     suffix = 'AllSignalsAlphaFullSampleNormalizedAbnormalTge3',
+                     yl = -120, yh = 300
 )
