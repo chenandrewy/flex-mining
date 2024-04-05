@@ -15,7 +15,9 @@ ncores <- round(detectCores() / 2)
 
 dmcomp <- list()
 dmtic <- list()
-dmcomp$name <- "../Data/Processed/CZ-style-v6 LongShort.RData"
+dmcomp$name <- paste0('../Data/Processed/',
+                      globalSettings$dataVersion, 
+                      ' LongShort.RData')
 dmtic$name <- "../Data/Processed/ticker_Harvey2017JF.RDS"
 
 ## Load Global Data ---------------------------------------------------------------
@@ -36,7 +38,9 @@ czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
 
 # function for computing DM strat sumstats in pub samples
 sumstats_for_DM_Strats <- function(
-    DMname = "../Data/Processed/CZ-style-v6 LongShort.RData",
+    DMname = paste0('../Data/Processed/',
+                    globalSettings$dataVersion, 
+                    ' LongShort.RData'),
     nsampmax = Inf) {
   # read in DM strats
   dm_rets <- readRDS(DMname)$ret
@@ -52,7 +56,8 @@ sumstats_for_DM_Strats <- function(
       dmname = signalid,
       yearm,
       ret,
-      nstock
+      nstock_long,
+      nstock_short
     ) %>%
     setDT()
 
@@ -90,11 +95,11 @@ sumstats_for_DM_Strats <- function(
         !is.na(ret),
       .(
         rbar = mean(ret), tstat = mean(ret) / sd(ret) * sqrt(.N),
-        min_nstock = min(nstock)
+        min_nstock_long = min(nstock_long),
+        min_nstock_short = min(nstock_short)
       ),
       by = c("sweight", "dmname")
     ]
-
     # find number of obs in the last year of the sample
     filtcur <- dm_rets[
       floor(yearm) == year(sampcur$sampend) &
@@ -194,7 +199,8 @@ SelectDMStrats <- function(insampsum, settings) {
       diff_tstat <= settings$t_tol &
       diff_rbar / rbar_op <= settings$r_reltol &
       diff_tstat / tstat_op <= settings$t_reltol &
-      min_nstock >= settings$minNumStocks &
+      min_nstock_long >= settings$minNumStocks/2 &
+      min_nstock_short >= settings$minNumStocks/2 &
       nlastyear == 12 &
       abs(tstat) > settings$t_min &
       abs(tstat) < settings$t_max &
@@ -213,7 +219,9 @@ SelectDMStrats <- function(insampsum, settings) {
 
 make_DM_event_returns <- function(
     match_strats,
-    DMname = "../Data/Processed/CZ-style-v6 LongShort.RData",
+    DMname = paste0('../Data/Processed/',
+                    globalSettings$dataVersion, 
+                    ' LongShort.RData'),
     npubmax = Inf,
     czsum,
     use_sign_info = TRUE
@@ -239,8 +247,9 @@ make_DM_event_returns <- function(
       dmname = signalid,
       yearm,
       ret,
-      nstock
-    ) %>%
+      nstock_long,
+      nstock_short
+  ) %>%
     setDT()
 
   cl <- makePSOCKcluster(ncores)
@@ -405,7 +414,7 @@ plotdat$matchset <- list(
   t_min = 2, # Default = 0, minimum screened t-stat
   t_max = Inf, # maximum screened t-stat
   t_rankpct_min = 100, # top x% of data mined t-stats, 100% for off
-  minNumStocks = 10 # Minimum number of stocks in any month over the in-sample period to include a strategy
+  minNumStocks = globalSettings$minNumStocks
 )
 plot_one_setting(plotdat)
 
@@ -428,7 +437,7 @@ plotdat$matchset <- list(
   t_min = 0, # minimum screened t-stat
   t_max = Inf, # maximum screened t-stat
   t_rankpct_min = 5, # minimum t-stat rank (in pctile)
-  minNumStocks = 10 # Minimum number of stocks in any month over the in-sample period to include a strategy
+  minNumStocks = globalSettings$minNumStocks
 )
 
 plot_one_setting(plotdat)
@@ -453,7 +462,7 @@ plotdat$matchset <- list(
   t_min = 0.5, # Default = 0, minimum screened t-stat
   t_max = Inf, # maximum screened t-stat
   t_rankpct_min = 100, # top x% of data mined t-stats, 100% for off
-  minNumStocks = 10 # Minimum number of stocks in any month over the in-sample period to include a strategy
+  minNumStocks = globalSettings$minNumStocks
 )
 plot_one_setting(plotdat)
 
@@ -476,9 +485,8 @@ plotdat$matchset <- list(
   t_min = 0, # minimum screened t-stat
   t_max = Inf, # maximum screened t-stat
   t_rankpct_min = 90, # minimum t-stat rank (in pctile)
-  minNumStocks = 10 # Minimum number of stocks in any month over the in-sample period to include a strategy
+  minNumStocks = globalSettings$minNumStocks
 )
-plot_one_setting(plotdat)
 
 # Extra t_min plots ---------------------------------------------------------------
 
@@ -502,7 +510,7 @@ plotdat$matchset <- list(
   t_min = 1, # Default = 0, minimum screened t-stat
   t_max = Inf, # maximum screened t-stat
   t_rankpct_min = 100, # top x% of data mined t-stats, 100% for off
-  minNumStocks = 10 # Minimum number of stocks in any month over the in-sample period to include a strategy
+  minNumStocks = globalSettings$minNumStocks
 )
 
 plot_one_setting(plotdat)
@@ -527,7 +535,7 @@ plotdat$matchset <- list(
   t_min = 3, # Default = 0, minimum screened t-stat
   t_max = Inf, # maximum screened t-stat
   t_rankpct_min = 100, # top x% of data mined t-stats, 100% for off
-  minNumStocks = 10 # Minimum number of stocks in any month over the in-sample period to include a strategy
+  minNumStocks = globalSettings$minNumStocks
 )
 
 plot_one_setting(plotdat)
@@ -553,7 +561,7 @@ plotdat$matchset <- list(
   t_min = 0, # minimum screened t-stat
   t_max = Inf, # maximum screened t-stat
   t_rankpct_min = 75, # minimum t-stat rank (in pctile)
-  minNumStocks = 10 # Minimum number of stocks in any month over the in-sample period to include a strategy
+  minNumStocks = globalSettings$minNumStocks
 )
 
 plot_one_setting(plotdat)
@@ -577,7 +585,7 @@ plotdat$matchset <- list(
   t_min = 0, # minimum screened t-stat
   t_max = Inf, # maximum screened t-stat
   t_rankpct_min = 50, # minimum t-stat rank (in pctile)
-  minNumStocks = 10 # Minimum number of stocks in any month over the in-sample period to include a strategy
+  minNumStocks = globalSettings$minNumStocks
 )
 
 plot_one_setting(plotdat)
@@ -601,7 +609,7 @@ plotdat$matchset <- list(
   t_min = 0, # minimum screened t-stat
   t_max = Inf, # maximum screened t-stat
   t_rankpct_min = 5, # minimum t-stat rank (in pctile)
-  minNumStocks = 10 # Minimum number of stocks in any month over the in-sample period to include a strategy
+  minNumStocks = globalSettings$minNumStocks
 )
 
 plot_one_setting(plotdat)

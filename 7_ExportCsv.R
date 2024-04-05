@@ -40,11 +40,11 @@ rdata_to_csv = function(rdataname, csvname){
   
   # split EW / VW
   ret_ew = temp %>% filter(sweight == 'ew') %>% 
-    select(signalid, year, month, ret, nstock) %>% 
+    select(signalid, year, month, ret, nstock_long, nstock_short) %>% 
     arrange(signalid, year, month, )
   
   ret_vw = temp %>% filter(sweight == 'vw') %>% 
-    select(signalid, year, month, ret, nstock) %>% 
+    select(signalid, year, month, ret, nstock_long, nstock_short) %>% 
     arrange(signalid, year, month, )
   
   # Write to disk 
@@ -60,7 +60,9 @@ rdata_to_csv = function(rdataname, csvname){
 
 # Compustat Mining ---------------------------------------------------------------
 
-rdataname = '../Data/Processed/CZ-style-v6 LongShort.RData'
+rdataname = paste0('../Data/Processed/',
+                   globalSettings$dataVersion, 
+                   ' LongShort.RData')
 csvname = '../Data/Export/DataMinedLongShortReturns'
 
 rdata_to_csv(rdataname = rdataname, csvname = csvname)

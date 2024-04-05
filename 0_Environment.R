@@ -49,6 +49,11 @@ dir.create('../Results/Extra/', showWarnings = F)
 # Globals ====
 options(stringsAsFactors = FALSE)
 
+globalSettings = list(
+  dataVersion = 'CZ-style-v7',
+  minNumStocks = 20 # Minimum number of stocks in any month over the in-sample period to include a DM strategy for matching to published strategies (ie minNumStocks/2 in each leg)
+)
+
 # Set seed for random sampling
 set.seed(1337)
 
@@ -446,15 +451,14 @@ signal_to_ports = function(dt0, form, portnum, sweight, trim = NULL){
     }    
     
     # find long-short return
-    return(
-      dt %>% 
-        select(yearm, port, ret, nstock) %>% 
-        pivot_wider(names_from = port, values_from = c(ret, nstock)) %>% 
-        mutate(ret_ls = ret_long - ret_short,
-               nstocks_ls = nstock_long + nstock_short) %>% 
-        filter(!is.na(ret_ls)) %>% 
-        transmute(yearm, ret = ret_ls, nstock = nstocks_ls)
-    )
+    dt_ls = dt %>% 
+      select(yearm, port, ret, nstock) %>% 
+      pivot_wider(names_from = port, values_from = c(ret, nstock)) %>% 
+      mutate(ret_ls = ret_long - ret_short) %>% 
+      filter(!is.na(ret_ls)) %>% 
+      transmute(yearm, ret = ret_ls, nstock_long, nstock_short)
+    
+    return(dt_ls)
     
   } # if form
   
@@ -640,7 +644,7 @@ ReturnPlotsWithDM = function(dt, suffix = '', rollmonths = 60, colors = NA,
       #  scale_color_grey() + 
       # scale_color_brewer(palette = 'Dark2') + 
       scale_color_manual(values = colors) + 
-      scale_linetype_manual(values = c('solid', 'twodash','dotted')) +
+      scale_linetype_manual(values = c('solid', 'longdash','dashed')) +
       # scale_linetype(guide = 'none') +
       geom_vline(xintercept = 0) +
       coord_cartesian(
@@ -658,6 +662,7 @@ ReturnPlotsWithDM = function(dt, suffix = '', rollmonths = 60, colors = NA,
         legend.position = legendpos
         , legend.spacing.y = unit(0.1, units = 'cm')
         , legend.background = element_rect(fill='transparent')
+        , legend.key.width = unit(1.5, units = 'cm')
       ) 
   
   if (labelmatch == TRUE){
@@ -677,103 +682,103 @@ ReturnPlotsWithDM = function(dt, suffix = '', rollmonths = 60, colors = NA,
 }
 
 
-# Finds matching strategies for a predictor from the universe of strategies
-matchedReturns = function(bm_rets,
-                          actSignalname, 
-                          actSampleStart, # TBD: Unify dates to end of calendar month (current workaround: year(date))
-                          actSampleEnd, 
-                          actTStat,
-                          actRBar,
-                          tol_t = .3,
-                          tol_r = .3,
-                          minStocks = 50) {
-  
-  #' @param bm_rets Table of universe of strategies
-  #' @param actSignalname String of actual predictor name
-  #' @param tol_t Tolerance level for difference in t-stats
-  #' @param tol_r Tolerance level for difference in mean returns
-  
-  # Restrict benchmark sample to in-sample dates and compute summary stats
-  tmpSumStats = bm_rets %>% 
-    filter(
-      yearm >= actSampleStart, yearm <= actSampleEnd
-    )
-  # Make sure that samples are the spanning the entire length (and not just small subsets)
-  # group_by(signalname) %>% 
-  # mutate(minDate = min(date),
-  #        maxDate = max(date)) %>% 
-  # ungroup() %>% 
-  # filter(year(minDate) == year(actSampleStart),
-  #        year(maxDate) == year(actSampleEnd)) %>% 
-  # Make sure that samples are available for at least 80% of predictor in-sample period
-  # group_by(signalname) %>% 
-  # mutate(tmpN = n()) %>% 
-  # ungroup() %>% 
-  # filter(tmpN > .8*12*(year(actSampleEnd) - year(actSampleStart)))
-  
-  # Make sure at least minStocks stocks in each month of the sample period
-  if (minStocks > 0){
-    tmpAtLeastNStocks = tmpSumStats %>% 
-      filter(floor(yearm) !=1963) %>%   #Somewhat quick and dirty way to deal with the fact that in early 1963 we have few obs
-      group_by(signalname) %>% 
-      summarise(minN = min(nstock)) %>% 
-      ungroup() %>% 
-      filter(minN >= minStocks)
-  } else {
-    tmpAtLeastNStocks = tmpSumStats %>% 
-      select(signalname) %>% 
-      distinct()
-  }
-  
-  tmpSumStats = tmpSumStats %>% 
-    filter(signalname %in% tmpAtLeastNStocks$signalname)
-  
-  # Make sure predictors fully available in last in-sample year
-  tmpFullyLastYear = tmpSumStats %>% 
-    filter(floor(yearm) == floor(actSampleEnd)) %>% 
-    group_by(signalname) %>% 
-    filter(n() == 12) %>% 
-    ungroup() %>% 
-    select(signalname) %>% 
-    distinct()
-  
-  tmpSumStats = tmpSumStats %>% 
-    filter(signalname %in% tmpFullyLastYear$signalname)
-  
-  # Sum stats
-  tmpSumStats = tmpSumStats %>% 
-    group_by(signalname) %>%
-    summarize(
-      rbar = mean(ret)
-      #    , vol = sd(ret)
-      , tstat = mean(ret)/sd(ret)*sqrt(dplyr::n())) %>% 
-    ungroup()
-  
-  # Find matches (can define different metrics here if desired. Currently, all strats with t-stat difference within tol)
-  tmpCandidates = tmpSumStats %>% 
-    mutate(diff_t = abs(tstat) - abs(actTStat),
-           diff_r = abs(rbar)  - abs(actRBar)) %>% 
-    filter(abs(diff_t) < tol_t,
-           abs(diff_r) < tol_r)
-  
-  # Return candidate strategy returns
-  bm_rets %>% 
-    filter(signalname %in% tmpCandidates$signalname) %>% 
-    inner_join(tmpSumStats %>% 
-                 filter(signalname %in% tmpCandidates$signalname)) %>% 
-    transmute(candSignalname = signalname,
-              eventDate = as.integer(round(12*(yearm-tmpSampleEnd))),
-              # Sign returns
-              ret = ifelse(rbar >0, ret, -ret),
-              samptype = case_when(
-                (yearm >= actSampleStart) & (yearm <= actSampleEnd) ~ 'insamp'
-                , (yearm > actSampleEnd) ~ 'oos' 
-                , TRUE ~ NA_character_
-              ),
-              actSignal = actSignalname
-    )
-  
-}
+#' # Finds matching strategies for a predictor from the universe of strategies
+#' matchedReturns = function(bm_rets,
+#'                           actSignalname, 
+#'                           actSampleStart, # TBD: Unify dates to end of calendar month (current workaround: year(date))
+#'                           actSampleEnd, 
+#'                           actTStat,
+#'                           actRBar,
+#'                           tol_t = .3,
+#'                           tol_r = .3,
+#'                           minStocks = 50) {
+#'   
+#'   #' @param bm_rets Table of universe of strategies
+#'   #' @param actSignalname String of actual predictor name
+#'   #' @param tol_t Tolerance level for difference in t-stats
+#'   #' @param tol_r Tolerance level for difference in mean returns
+#'   
+#'   # Restrict benchmark sample to in-sample dates and compute summary stats
+#'   tmpSumStats = bm_rets %>% 
+#'     filter(
+#'       yearm >= actSampleStart, yearm <= actSampleEnd
+#'     )
+#'   # Make sure that samples are the spanning the entire length (and not just small subsets)
+#'   # group_by(signalname) %>% 
+#'   # mutate(minDate = min(date),
+#'   #        maxDate = max(date)) %>% 
+#'   # ungroup() %>% 
+#'   # filter(year(minDate) == year(actSampleStart),
+#'   #        year(maxDate) == year(actSampleEnd)) %>% 
+#'   # Make sure that samples are available for at least 80% of predictor in-sample period
+#'   # group_by(signalname) %>% 
+#'   # mutate(tmpN = n()) %>% 
+#'   # ungroup() %>% 
+#'   # filter(tmpN > .8*12*(year(actSampleEnd) - year(actSampleStart)))
+#'   
+#'   # Make sure at least minStocks stocks in each month of the sample period
+#'   if (minStocks > 0){
+#'     tmpAtLeastNStocks = tmpSumStats %>% 
+#'       filter(floor(yearm) !=1963) %>%   #Somewhat quick and dirty way to deal with the fact that in early 1963 we have few obs
+#'       group_by(signalname) %>% 
+#'       summarise(minN = min(nstock)) %>% 
+#'       ungroup() %>% 
+#'       filter(minN >= minStocks)
+#'   } else {
+#'     tmpAtLeastNStocks = tmpSumStats %>% 
+#'       select(signalname) %>% 
+#'       distinct()
+#'   }
+#'   
+#'   tmpSumStats = tmpSumStats %>% 
+#'     filter(signalname %in% tmpAtLeastNStocks$signalname)
+#'   
+#'   # Make sure predictors fully available in last in-sample year
+#'   tmpFullyLastYear = tmpSumStats %>% 
+#'     filter(floor(yearm) == floor(actSampleEnd)) %>% 
+#'     group_by(signalname) %>% 
+#'     filter(n() == 12) %>% 
+#'     ungroup() %>% 
+#'     select(signalname) %>% 
+#'     distinct()
+#'   
+#'   tmpSumStats = tmpSumStats %>% 
+#'     filter(signalname %in% tmpFullyLastYear$signalname)
+#'   
+#'   # Sum stats
+#'   tmpSumStats = tmpSumStats %>% 
+#'     group_by(signalname) %>%
+#'     summarize(
+#'       rbar = mean(ret)
+#'       #    , vol = sd(ret)
+#'       , tstat = mean(ret)/sd(ret)*sqrt(dplyr::n())) %>% 
+#'     ungroup()
+#'   
+#'   # Find matches (can define different metrics here if desired. Currently, all strats with t-stat difference within tol)
+#'   tmpCandidates = tmpSumStats %>% 
+#'     mutate(diff_t = abs(tstat) - abs(actTStat),
+#'            diff_r = abs(rbar)  - abs(actRBar)) %>% 
+#'     filter(abs(diff_t) < tol_t,
+#'            abs(diff_r) < tol_r)
+#'   
+#'   # Return candidate strategy returns
+#'   bm_rets %>% 
+#'     filter(signalname %in% tmpCandidates$signalname) %>% 
+#'     inner_join(tmpSumStats %>% 
+#'                  filter(signalname %in% tmpCandidates$signalname)) %>% 
+#'     transmute(candSignalname = signalname,
+#'               eventDate = as.integer(round(12*(yearm-tmpSampleEnd))),
+#'               # Sign returns
+#'               ret = ifelse(rbar >0, ret, -ret),
+#'               samptype = case_when(
+#'                 (yearm >= actSampleStart) & (yearm <= actSampleEnd) ~ 'insamp'
+#'                 , (yearm > actSampleEnd) ~ 'oos' 
+#'                 , TRUE ~ NA_character_
+#'               ),
+#'               actSignal = actSignalname
+#'     )
+#'   
+#' }
 
 
 f.custom.t <- function(x){

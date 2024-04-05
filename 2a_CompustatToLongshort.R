@@ -17,10 +17,10 @@ threads_fst(1) # since fst is used inside foreach, might want to limit cpus, tho
 user = list()
 
 # name of output file (by default use time and date)
-user$name = Sys.time() %>% substr(1,17) 
-substr(user$name, 17,17) = 'm'
-substr(user$name, 14,14) = 'h'
-user$name = 'CZ-style-v6'
+# user$name = Sys.time() %>% substr(1,17) 
+# substr(user$name, 17,17) = 'm'
+# substr(user$name, 14,14) = 'h'
+user$name = globalSettings$dataVersion
 
 # signal choices
 user$signal = list(
