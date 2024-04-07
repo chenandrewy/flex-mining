@@ -8,7 +8,6 @@ matchdat = candidateReturns # loaded earlier
 
 stratdat = readRDS(DMname) # only really need the signal_list from here
 
-
 # load pub stuff, add author info
 czsum2 = czsum %>% left_join(
   fread('../Data/Raw/SignalDoc.csv') %>% 
@@ -23,8 +22,6 @@ czret2 = czret %>%
     czsum2 %>% select(signalname,sign) 
   ) %>% 
   setDT()
-
-
 
 # Merge dm and pub --------------------------------------------------------
 
@@ -55,8 +52,6 @@ candsum = allret[
   , by = c('source','actSignal','candSignalname','samptype')
 ]
 
-
-
 pubsum = candsum[
   , .(rbar = mean(rbar), nmonth = mean(nmonth), t = mean(t), nstrat = .N)
   , by = c('actSignal','source','samptype')
@@ -78,10 +73,7 @@ pubsum2 = pubsum[ source == '1_pub'] %>% select(actSignal, starts_with('rbar_'),
   ) %>% 
   mutate(diff_rbar_oos = rbar_oos - rbar_oos_dm)
 
-
-
-# Inspect select predictors ------------------------------------------------------------------
-
+# Inspect select predictors -----------------------------------------------------------
 
 # read compvars doc
 compdoc = readxl::read_xlsx('DataInput/Yan-Zheng-Compustat-Vars.xlsx') %>% 
@@ -90,7 +82,6 @@ compdoc = readxl::read_xlsx('DataInput/Yan-Zheng-Compustat-Vars.xlsx') %>%
     , longname 
     , shortername 
   ) 
-
 
 # create function for outputting tables
 inspect_one_pub = function(name){
@@ -179,8 +170,6 @@ inspect_one_pub = function(name){
   
 } # end inspect_one_pub
 
-
-
 # make tables
 namelist = c('Size','BMdec','Mom12m','realestate','OrgCap','Coskewness')
 
@@ -191,7 +180,6 @@ tabout$allsignals = pubsum2
 
 # save to disk
 write_xlsx(tabout, '../Results/InspectMatch.xlsx')
-
 
 # Check diversity to console --------------------------------------------------------------------
 # not sure how to put this in the paper =()
@@ -220,9 +208,7 @@ tabout$Mom12m %>%
 
 # Make latex inputs -------------------------------------------------------
 
-
 outpath = '../Results/'
-
 
 write_tex_from_tab = function(
     tab, id1 = 1:10, id2 = 21:25, 
@@ -314,7 +300,6 @@ write_tex_from_tab(tab, id1 = 1:10, id2 = 101:105,
                    signalnamelong = 'Book / Market (Fama-French 1992)',
                    filename = 'inspect-BMdec.tex')
 
-
 # momentum
 tab = readxl::read_xlsx(paste0(outpath,'InspectMatch.xlsx'), sheet = 'Mom12m') %>% 
   janitor::clean_names() %>% 
@@ -323,8 +308,6 @@ write_tex_from_tab(tab, id1 = 1:10, id2 = 21:25,
                    signalnamelong = '12-Month Momentum (Jegadeesh-Titman 1993)',
                    filename = 'inspect-Mom12m.tex')
 
-
-
 # size
 tab = readxl::read_xlsx(paste0(outpath,'InspectMatch.xlsx'), sheet = 'Size') %>% 
   janitor::clean_names() %>% 
@@ -332,9 +315,6 @@ tab = readxl::read_xlsx(paste0(outpath,'InspectMatch.xlsx'), sheet = 'Size') %>%
 write_tex_from_tab(tab, id1 = 1:10, id2 = 101:105, 
                    signalnamelong = 'Size (Banz 1981)',
                    filename = 'inspect-Size.tex')
-
-
-
 
 # Tuzel
 tab = readxl::read_xlsx(paste0(outpath,'InspectMatch.xlsx'), sheet = 'realestate') %>% 

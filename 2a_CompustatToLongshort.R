@@ -57,7 +57,6 @@ debugset = list(
   , shortlist = F
 )
 
-
 ## prep varlist ------------------------------------------------------------
 
 numer_ok = readxl::read_excel('DataInput/Yan-Zheng-Compustat-Vars.xlsx') %>% 

@@ -1,6 +1,5 @@
 # Setup -------------------------------------------------------------------
 
-
 rm(list = ls())
 
 source('0_Environment.R')
@@ -14,7 +13,6 @@ name = DMname %>%
   str_remove(' LongShort.RData')
 
 matchname = paste0('../Data/Processed/', name, ' MatchPub.RData')
-
 
 # Import and Clean Matched Data ------------------------------------------------------
 
@@ -42,12 +40,9 @@ candidateReturns = tmp$candidateReturns
 user = tmp$user
 rm(tmp)
 
-
 # filter for Keep only
 candidateReturns = candidateReturns %>% 
   filter(actSignal %in% (czsum %>% filter(Keep) %>% pull(signalname)))
-
-
 
 # Normalize candidate returns
 
@@ -76,7 +71,6 @@ allRets = czret %>%
   left_join(tempCand, by = c('signalname' = 'actSignal', 'eventDate' = 'eventDate'))
 
 rm(tempsumCand, tempCand)
-
 
 # Run Exhibits ---------------------------------------------
 
