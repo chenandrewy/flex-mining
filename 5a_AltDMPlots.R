@@ -42,6 +42,7 @@ sumstats_for_DM_Strats <- function(
                     globalSettings$dataVersion, 
                     ' LongShort.RData'),
     nsampmax = Inf) {
+      
   # read in DM strats
   dm_rets <- readRDS(DMname)$ret
   dm_info <- readRDS(DMname)$port_list
@@ -96,7 +97,8 @@ sumstats_for_DM_Strats <- function(
       .(
         rbar = mean(ret), tstat = mean(ret) / sd(ret) * sqrt(.N),
         min_nstock_long = min(nstock_long),
-        min_nstock_short = min(nstock_short)
+        min_nstock_short = min(nstock_short),
+        nmonth = sum(!is.na(ret))
       ),
       by = c("sweight", "dmname")
     ]
@@ -201,10 +203,11 @@ SelectDMStrats <- function(insampsum, settings) {
       diff_tstat / tstat_op <= settings$t_reltol &
       min_nstock_long >= settings$minNumStocks/2 &
       min_nstock_short >= settings$minNumStocks/2 &
-      nlastyear == 12 &
       abs(tstat) > settings$t_min &
       abs(tstat) < settings$t_max &
-      rank_tstat / n_dm_tot <= settings$t_rankpct_min / 100
+      rank_tstat / n_dm_tot <= settings$t_rankpct_min / 100 &
+      nlastyear == 12 &   # tbc: make flexible
+      nmonth >= 5*12 # tbc: make flexible
   ]
 
   print("summary of matching:")
