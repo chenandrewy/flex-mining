@@ -299,12 +299,11 @@ make_DM_event_returns <- function(
     }
 
     # average down to one matched return per event date
-    eventsumscaled <- eventpan[, .(dm_mean = mean(ret_scaled), dm_sd = sd(ret_scaled), dm_n = .N),
-      by = c("eventDate")
+    eventsumscaled <- eventpan[, .(dm_mean = mean(ret_scaled), 
+      dm_sd = sd(ret_scaled), dm_n = .N),
+      by = c("eventDate",'samptype')
     ] %>%
-      mutate(
-        pubname = pubcur$signalname
-      )
+      mutate(pubname = pubcur$signalname)
 
     return(eventsumscaled)
   } # end do pubi = 1:npub
@@ -420,6 +419,38 @@ plotdat$matchset <- list(
   minNumStocks = globalSettings$minNumStocks
 )
 plot_one_setting(plotdat)
+
+## numbers for intro ----------------------------------------------------------
+
+  # make event time returns for Compustat DM
+  temp = list()
+  temp$matched <- SelectDMStrats(dmcomp$insampsum, plotdat$matchset)
+  
+  print("Making accounting event time returns")
+  print("Can take a few minutes...")
+  start_time <- Sys.time()
+  temp$event_time <- make_DM_event_returns(
+    DMname = dmcomp$name, match_strats = temp$matched, npubmax = plotdat$npubmax, 
+    czsum = czsum, use_sign_info = plotdat$use_sign_info
+  )
+  stop_time <- Sys.time()
+  stop_time - start_time
+
+  # summarize
+  temp$event_time[ 
+    !is.na(samptype), .(dm_rbar=mean(dm_mean)), by=c('pubname', 'samptype')
+  ] %>% 
+    group_by(samptype) %>% summarize(mean(dm_rbar))
+
+  # compare to czret
+  czret %>% 
+    mutate(samptype 
+      = if_else(samptype%in%c('postpub','oos'), 'postsamp', samptype)) %>% 
+    group_by(signalname, samptype) %>% 
+    summarise(rbar = mean(ret_scaled)) %>% 
+    group_by(samptype) %>% summarize(mean(rbar))
+
+
 
 ## Plot top 5% of abs(t) ----------------------------------------------------------
 plotdat <- list()
