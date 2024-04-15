@@ -322,7 +322,13 @@ legposall = c(30,15)/100
 ylaball = 'Trailing 5-Year Return (bps pm)'
 linesizeall = 1.5
 
-plot_one_setting = function(plotdat, theory_filter = NULL){
+plot_one_setting = function(plotdat, theory_filter = NULL,
+                            font_size_plot = 28,
+                            leg_pos_plot = c(30,15)/100,
+                            ylab_plot = 'Trailing 5-Year Return (bps pm)',
+                            line_size_plot = 1.5,
+                            y_low = -100, y_high = 175,
+                            fig_width_plot = 18){
   
   # make event time returns for Compustat DM
   temp = list()
@@ -397,8 +403,6 @@ plot_one_setting = function(plotdat, theory_filter = NULL){
 
   if(!is.null(theory_filter)){
     legendlabelsplot <- c('Published','Matched data-mined','Alt data-mined')
-    yl = -100
-    yh = 175
     ReturnPlotsWithDM(
       dt = ret_for_plotting,
       basepath = "../Results/Fig_DM",
@@ -406,8 +410,9 @@ plot_one_setting = function(plotdat, theory_filter = NULL){
       rollmonths = 60,
       colors = colors,
       labelmatch = FALSE,
-      yl = -90, yh = 170,
-      fig.width = 18, fontsize = 28,
+      yl =y_low, yh = y_high,
+      fig.width = fig_width_plot,
+      fontsize = font_size_plot,
       legendlabels =
         c(
           paste0("Published"),
@@ -465,7 +470,12 @@ plotdat$matchset <- list(
   minNumStocks = globalSettings$minNumStocks
 )
 
-plot_one_setting(plotdat, theory_filter = 'all')
+plot_one_setting(plotdat, theory_filter = 'all', font_size_plot = 28,
+                 leg_pos_plot = c(30,15)/100,
+                 ylab_plot = 'Trailing 5-Year Return (bps pm)',
+                 line_size_plot = 1.5,
+                 y_low = -100, y_high = 175,
+                 fig_width_plot = 18)
 
 
 # Plot re-scaled returns over time by category
@@ -473,7 +483,11 @@ for (jj in unique(czret$theory)) {
   print(jj)
   plotdat$name <- paste0("t_min_2_cat_", jj)
   
-  plot_one_setting(plotdat, theory_filter = jj )
+  plot_one_setting(plotdat, theory_filter = jj, font_size_plot = 28,
+                   leg_pos_plot = c(30,15)/100,
+                   ylab_plot = 'Trailing 5-Year Return (bps pm)',
+                   line_size_plot = 1.5,
+                   y_low = -100, y_high = 175,
+                   fig_width_plot = 18 )
   
 }
-
