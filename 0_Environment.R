@@ -678,6 +678,8 @@ ReturnPlotsWithDM = function(dt, suffix = '', rollmonths = 60, colors = NA,
   # print(printme)
   
   ggsave(paste0(basepath, '_', suffix, filetype), width = fig.width, height = fig.height)
+
+  return(printme)
   
 }
 

@@ -64,6 +64,12 @@ signaldoc =  data.table::fread('../Data/Raw/SignalDoc.csv') %>%
     sweight = if_else(is.na(sweight), 'ew', sweight)
   )
 
+# patch Ritter 1991 typo
+# see https://github.com/OpenSourceAP/CrossSection/issues/142
+badrow = which(signaldoc$signalname == 'AgeIPO')
+signaldoc[badrow, ]$sampstart = as.yearmon('Jul 1975')
+signaldoc[badrow, ]$sampend = as.yearmon('Dec 1987')
+
 # make monthly ls returns with sample def
 czret = data.table::fread("../Data/Raw/PredictorPortsFull.csv") %>% 
   as_tibble() %>% 
