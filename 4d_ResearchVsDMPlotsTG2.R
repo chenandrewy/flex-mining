@@ -373,7 +373,17 @@ plot_one_setting = function(plotdat, theory_filter = NULL){
     # keep only rows where both matchrets are observed
     filter(!is.na(matchRet) & !is.na(matchRetAlt))
   }else{
-    ret_for_plotting <- czret %>%
+    if(theory_filter == 'all'){
+      ret_for_plotting <- czret %>%
+        transmute(pubname = signalname, eventDate, ret = ret_scaled) %>%
+        left_join(
+          plotdat$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
+        ) %>%
+        select(eventDate, ret, matchRet, pubname) %>%
+        # keep only rows where DM matchrets are observed
+        filter(!is.na(matchRet) )
+    }else{    
+      ret_for_plotting <- czret %>%
       filter(theory == theory_filter) %>%
       transmute(pubname = signalname, eventDate, ret = ret_scaled) %>%
       left_join(
@@ -381,7 +391,8 @@ plot_one_setting = function(plotdat, theory_filter = NULL){
       ) %>%
       select(eventDate, ret, matchRet, pubname) %>%
       # keep only rows where DM matchrets are observed
-      filter(!is.na(matchRet) )
+      filter(!is.na(matchRet) )}
+
   }
 
   if(!is.null(theory_filter)){
@@ -390,13 +401,19 @@ plot_one_setting = function(plotdat, theory_filter = NULL){
     yh = 175
     ReturnPlotsWithDM(
       dt = ret_for_plotting,
-      basepath = "../Results/Fig_AltDM",
+      basepath = "../Results/Fig_DM",
       suffix = plotdat$name,
       rollmonths = 60,
       colors = colors,
       labelmatch = FALSE,
       yl = -90, yh = 170,
-      fig.width = 18, fontsize = 28
+      fig.width = 18, fontsize = 28,
+      legendlabels =
+        c(
+          paste0("Published"),
+          paste0(plotdat$legprefix, " Mining Accounting"), 
+          paste0(plotdat$legprefix, " Mining Tickers")
+        )
     )
   }else{
     # plot
@@ -448,10 +465,8 @@ plotdat$matchset <- list(
   minNumStocks = globalSettings$minNumStocks
 )
 
-plot_one_setting(plotdat)
+plot_one_setting(plotdat, theory_filter = 'all')
 
-plotdat$name <- "t_min_2_cat_risk"
-plot_one_setting(plotdat, theory_filter = 'risk')
 
 # Plot re-scaled returns over time by category
 for (jj in unique(czret$theory)) {
