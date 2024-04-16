@@ -382,7 +382,7 @@ plot_one_setting = function(plotdat){
     yh = 140,
     legendlabels =
       c(
-        paste0("Pub w/ Mining Matches (", length(unique(ret_for_plotting$pubname)), ")"),
+        paste0("Published"),
         paste0(plotdat$legprefix, " Mining Accounting"), 
         paste0(plotdat$legprefix, " Mining Tickers")
       ),
