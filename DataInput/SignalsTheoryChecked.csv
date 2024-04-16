@@ -1,371 +1,371 @@
-signalname,Authors,Year,Journal,LongDescription,theory,quote,liquidity,LiquidityNotes,Notes,post_2004,author_merge
-ChInvIA,Abarbanell and Bushee,1998,AR,Change in capital inv (ind adj),mispricing,These results suggest that unaccounted for risk is not a complete explanation for the success of the strategy.,0,,,FALSE,Abarbanell Bushee
-GrSaleToGrInv,Abarbanell and Bushee,1998,AR,Sales growth over inventory growth,mispricing,These results suggest that unaccounted for risk is not a complete explanation for the success of the strategy.,0,,,FALSE,Abarbanell Bushee
-GrSaleToGrOverhead,Abarbanell and Bushee,1998,AR,Sales growth over overhead growth,mispricing,These results suggest that unaccounted for risk is not a complete explanation for the success of the strategy.,,,,FALSE,
-IdioVolAHT,"Ali, Hwang, and Trombley",2003,JFE,Idiosyncratic risk (AHT),mispricing,These findings are consistent with the Shleifer and Vishny (1997) thesis that risk associated with the volatility of arbitrage returns deters arbitrage activity,0,,,FALSE,Ali Hwang Trombley
-EarningsConsistency,Alwathainani,2009,BAR,Earnings consistency,mispricing,"Firms consistently ranking in the top 30 percent of growth rates earn slightly lower returns than inconsistent high-growth firms. These findings indicate that investors overreact to consistency in financial metrics, but this overreaction is more pronounced and persistent for consistent low-growth firms than that for consistent high-performing firms.",0,,,TRUE,Alwathainani
-Illiquidity,Amihud,2002,JFM,Amihud's illiquidity,mispricing,"If investors anticipate higher market illiquidity, they will price stocks so that they generate higher expected return. This suggests that stock excess return, traditionally interpreted as ‘‘risk premium,’’ includes a premium for illiquidity. [This illiquidity should decrease over time and can be thought of as mispricing.]",1,Liquidity should increase over time,,FALSE,Amihud
-BidAskSpread,Amihud and Mendelson,1986,JFE,Bid-ask spread,mispricing,"there is a clientele effect whereby investors with longer holding periods select assets with higher [bid ask] spreads. The resulting testable hypothesis is that asset returns are an increasing and concave function of the spread. The model also predicts that expected returns net of trading costs increase with the holding period, and consequently higher-spread assets yield higher net returns to their holders. Hence, an investor expecting a long holding period can gain by holding high-spread assets.",0,,,FALSE,Amihud Mendelsohn
-dCPVolSpread,"An, Ang, Bali, Cakici",2014,JF,Change in put vol minus change in call vol,mispricing,"The predictability from options to stock returns is consistent with economies wherein informed traders choose the option market to trade first… ...This causes the option market to lead the stock market, where informed trading does not predominate.",,,,TRUE,
-dVolCall,"An, Ang, Bali, Cakici",2014,JF,Change in call vol,mispricing,"The predictability from options to stock returns is consistent with economies wherein informed traders choose the option market to trade first… ...This causes the option market to lead the stock market, where informed trading does not predominate.",,,,TRUE,
-dVolPut,"An, Ang, Bali, Cakici",2014,JF,Change in put vol,mispricing,"The predictability from options to stock returns is consistent with economies wherein informed traders choose the option market to trade first… ...This causes the option market to lead the stock market, where informed trading does not predominate.",,,,TRUE,
-grcapx,Anderson and Garcia-Feijoo,2006,JF,Change in capex (two years),risk,"These findings are consistent with recent theoretical models (e.g., Berk, Green, and Naik (1999)) in which the exercise of investment growth options results in changes in both valuation and expected stock returns",0,,,TRUE,Anderson Garcia-Feijoo
+signalname,Authors,Year,Journal,LongDescription,theory,quote,liquidity,LiquidityNotes,Notes,post_2004,author_merge,NoModel,Stylized,Dynamic,Quantitative,Notes.1
+ChInvIA,Abarbanell and Bushee,1998,AR,Change in capital inv (ind adj),mispricing,These results suggest that unaccounted for risk is not a complete explanation for the success of the strategy.,0,,,FALSE,Abarbanell Bushee,1,0,0,0,
+GrSaleToGrInv,Abarbanell and Bushee,1998,AR,Sales growth over inventory growth,mispricing,These results suggest that unaccounted for risk is not a complete explanation for the success of the strategy.,0,,,FALSE,Abarbanell Bushee,1,0,0,0,
+GrSaleToGrOverhead,Abarbanell and Bushee,1998,AR,Sales growth over overhead growth,mispricing,These results suggest that unaccounted for risk is not a complete explanation for the success of the strategy.,,,,FALSE,,1,0,0,0,
+IdioVolAHT,"Ali, Hwang, and Trombley",2003,JFE,Idiosyncratic risk (AHT),mispricing,These findings are consistent with the Shleifer and Vishny (1997) thesis that risk associated with the volatility of arbitrage returns deters arbitrage activity,0,,,FALSE,Ali Hwang Trombley,1,0,0,0,
+EarningsConsistency,Alwathainani,2009,BAR,Earnings consistency,mispricing,"Firms consistently ranking in the top 30 percent of growth rates earn slightly lower returns than inconsistent high-growth firms. These findings indicate that investors overreact to consistency in financial metrics, but this overreaction is more pronounced and persistent for consistent low-growth firms than that for consistent high-performing firms.",0,,,TRUE,Alwathainani,1,0,0,0,
+Illiquidity,Amihud,2002,JFM,Amihud's illiquidity,mispricing,"If investors anticipate higher market illiquidity, they will price stocks so that they generate higher expected return. This suggests that stock excess return, traditionally interpreted as ‘‘risk premium,’’ includes a premium for illiquidity. [This illiquidity should decrease over time and can be thought of as mispricing.]",1,Liquidity should increase over time,,FALSE,Amihud,1,0,0,0,
+BidAskSpread,Amihud and Mendelson,1986,JFE,Bid-ask spread,mispricing,"there is a clientele effect whereby investors with longer holding periods select assets with higher [bid ask] spreads. The resulting testable hypothesis is that asset returns are an increasing and concave function of the spread. The model also predicts that expected returns net of trading costs increase with the holding period, and consequently higher-spread assets yield higher net returns to their holders. Hence, an investor expecting a long holding period can gain by holding high-spread assets.",0,,,FALSE,Amihud Mendelsohn,0,0,1,0,
+dCPVolSpread,"An, Ang, Bali, Cakici",2014,JF,Change in put vol minus change in call vol,mispricing,"The predictability from options to stock returns is consistent with economies wherein informed traders choose the option market to trade first… ...This causes the option market to lead the stock market, where informed trading does not predominate.",,,,TRUE,,0,1,0,0,
+dVolCall,"An, Ang, Bali, Cakici",2014,JF,Change in call vol,mispricing,"The predictability from options to stock returns is consistent with economies wherein informed traders choose the option market to trade first… ...This causes the option market to lead the stock market, where informed trading does not predominate.",,,,TRUE,,0,1,0,0,
+dVolPut,"An, Ang, Bali, Cakici",2014,JF,Change in put vol,mispricing,"The predictability from options to stock returns is consistent with economies wherein informed traders choose the option market to trade first… ...This causes the option market to lead the stock market, where informed trading does not predominate.",,,,TRUE,,0,1,0,0,
+grcapx,Anderson and Garcia-Feijoo,2006,JF,Change in capex (two years),risk,"These findings are consistent with recent theoretical models (e.g., Berk, Green, and Naik (1999)) in which the exercise of investment growth options results in changes in both valuation and expected stock returns",0,,,TRUE,Anderson Garcia-Feijoo,1,0,0,0,
 grcapx3y,Anderson and Garcia-Feijoo,2006,JF,Change in capex (three years),risk,"These findings are consistent with recent theoretical models (e.g., Berk, Green, and Naik (1999)) in which the exercise
 of investment-growth options results in changes in both valuation and expected stock
-returns",0,,,TRUE,Anderson Garcia-Feijoo
-IdioVol3F,Ang et al.,2006,JF,Idiosyncratic risk (3 factor),agnostic,"Hence, our results on idiosyncratic volatility represent a substantive puzzle",0,,,TRUE,Ang
-RealizedVol,Ang et al.,2006,JF,Realized (Total) Volatility,agnostic,"Hence, our results on idiosyncratic volatility represent a substantive puzzle",,,,TRUE,
-betaVIX,Ang et al.,2006,JF,Systematic volatility,risk,We find that innovations in aggregate volatility carry a statistically significant negative price of risk,0,,,TRUE,Ang
-CoskewACX,"Ang, Chen and Xing",2006,RFS,Coskewness using daily returns,risk,"Agents who are averse to downside losses demand greater compensation, in the form of higher expected returns, for holding stocks with high downside risk.",0,,,TRUE,Ang Chen Xing
-IO_ShortInterest,Asquith Pathak and Ritter,2005,JFE,Inst own among high short interest,mispricing,"We also find that the underperformance of high short interest stocks is fairly brief. Thus, to realize the negative abnormal returns on these stocks, frequent portfolio rebalancing is required.",0,,,TRUE,Asquith Pathak Ritter
-Mom6mJunk,Avramov et al,2007,JF,Junk Stock Momentum,risk,The results show that the link between momentum and credit risk remains strong and significant,0,,,TRUE,Avramov
+returns",0,,,TRUE,Anderson Garcia-Feijoo,1,0,0,0,
+IdioVol3F,Ang et al.,2006,JF,Idiosyncratic risk (3 factor),agnostic,"Hence, our results on idiosyncratic volatility represent a substantive puzzle",0,,,TRUE,Ang,1,0,0,0,
+RealizedVol,Ang et al.,2006,JF,Realized (Total) Volatility,agnostic,"Hence, our results on idiosyncratic volatility represent a substantive puzzle",,,,TRUE,,1,0,0,0,
+betaVIX,Ang et al.,2006,JF,Systematic volatility,risk,We find that innovations in aggregate volatility carry a statistically significant negative price of risk,0,,,TRUE,Ang,1,0,0,0,
+CoskewACX,"Ang, Chen and Xing",2006,RFS,Coskewness using daily returns,risk,"Agents who are averse to downside losses demand greater compensation, in the form of higher expected returns, for holding stocks with high downside risk.",0,,,TRUE,Ang Chen Xing,0,1,0,0,
+IO_ShortInterest,Asquith Pathak and Ritter,2005,JFE,Inst own among high short interest,mispricing,"We also find that the underperformance of high short interest stocks is fairly brief. Thus, to realize the negative abnormal returns on these stocks, frequent portfolio rebalancing is required.",0,,,TRUE,Asquith Pathak Ritter,1,0,0,0,
+Mom6mJunk,Avramov et al,2007,JF,Junk Stock Momentum,risk,The results show that the link between momentum and credit risk remains strong and significant,0,,,TRUE,Avramov,1,0,0,0,
 OrderBacklogChg,Baik and Ahn,2007,Other,Change in order backlog,mispricing,"our evidence indicates that analysts underreact to the
-information in changes in order backlog.",0,,,TRUE,Baik Ahn
-roaq,"Balakrishnan, Bartov and Faurel",2010,JAE,Return on assets (qtrly),mispricing,We document a market failure to fully respond to loss/profit quarterly announcements.,0,,,TRUE,Balakrishnan Bartov Faurel
-CPVolSpread,Bali and Hovakimian,2009,MS,Call minus Put Vol,risk,we find evidence that the realized-implied volatility spread is a proxy for volatility risk that has a significantly negative premium in the cross sectional pricing of individual stocks.,,,,TRUE,
-RIVolSpread,Bali and Hovakimian,2009,MS,Realized minus Implied Vol,risk,we find evidence that the realized-implied volatility spread is a proxy for volatility risk that has a significantly negative premium in the cross sectional pricing of individual stocks.,,,,TRUE,
-MaxRet,"Bali, Cakici, and Whitelaw",2011,JFE,Maximum return over month,mispricing,Why is the effect we report not traded away by other well-diversified investors? Exploiting this phenomenon would require shorting stocks with extreme positive returns. The inability and/or unwillingness of many investors to engage in short-selling has been discussed extensively in the literature.,0,,,TRUE,Bali Cakici Whitelaw
-ReturnSkew,"Bali, Engle and Murray",2015,Book,Return skewness,agnostic,"The idea that the skewness, or the third moment, of returns is an important consideration to investors when determining optimal investments is introduced by Arditti (1967, 1971), who shows theoretically and empirically that investors demand a higher (loweAs with the CAPM, according to three-moment model of Kraus and Litzenberger (1976), unsystematic risk (both variance and skewness) is diversifiable and thus does not play a role in determining expected security returns… … Some papers have challenged the notion that idiosyncratic skewness is diversified away and therefore cannot be priced… … In this chapter, we examine the relations between skewness and expected stock returns.r) rate of return on investments whose return distributions are negatively (positively) skewed. ",0,,,TRUE,Bali Engle Murray
-ReturnSkew3F,"Bali, Engle and Murray",2015,Book,Idiosyncratic skewness (3F model),agnostic,"The idea that the skewness, or the third moment, of returns is an important consideration to investors when determining optimal investments is introduced by Arditti (1967, 1971), who shows theoretically and empirically that investors demand a higher (loweAs with the CAPM, according to three-moment model of Kraus and Litzenberger (1976), unsystematic risk (both variance and skewness) is diversifiable and thus does not play a role in determining expected security returns… … Some papers have challenged the notion that idiosyncratic skewness is diversified away and therefore cannot be priced… … In this chapter, we examine the relations between skewness and expected stock returns.r) rate of return on investments whose return distributions are negatively (positively) skewed. ",0,,,TRUE,Bali Engle Murray
+information in changes in order backlog.",0,,,TRUE,Baik Ahn,1,0,0,0,
+roaq,"Balakrishnan, Bartov and Faurel",2010,JAE,Return on assets (qtrly),mispricing,We document a market failure to fully respond to loss/profit quarterly announcements.,0,,,TRUE,Balakrishnan Bartov Faurel,1,0,0,0,
+CPVolSpread,Bali and Hovakimian,2009,MS,Call minus Put Vol,risk,we find evidence that the realized-implied volatility spread is a proxy for volatility risk that has a significantly negative premium in the cross sectional pricing of individual stocks.,,,,TRUE,,1,0,0,0,
+RIVolSpread,Bali and Hovakimian,2009,MS,Realized minus Implied Vol,risk,we find evidence that the realized-implied volatility spread is a proxy for volatility risk that has a significantly negative premium in the cross sectional pricing of individual stocks.,,,,TRUE,,1,0,0,0,
+MaxRet,"Bali, Cakici, and Whitelaw",2011,JFE,Maximum return over month,mispricing,Why is the effect we report not traded away by other well-diversified investors? Exploiting this phenomenon would require shorting stocks with extreme positive returns. The inability and/or unwillingness of many investors to engage in short-selling has been discussed extensively in the literature.,0,,,TRUE,Bali Cakici Whitelaw,1,0,0,0,
+ReturnSkew,"Bali, Engle and Murray",2015,Book,Return skewness,agnostic,"The idea that the skewness, or the third moment, of returns is an important consideration to investors when determining optimal investments is introduced by Arditti (1967, 1971), who shows theoretically and empirically that investors demand a higher (loweAs with the CAPM, according to three-moment model of Kraus and Litzenberger (1976), unsystematic risk (both variance and skewness) is diversifiable and thus does not play a role in determining expected security returns… … Some papers have challenged the notion that idiosyncratic skewness is diversified away and therefore cannot be priced… … In this chapter, we examine the relations between skewness and expected stock returns.r) rate of return on investments whose return distributions are negatively (positively) skewed. ",0,,,TRUE,Bali Engle Murray,1,0,0,0,
+ReturnSkew3F,"Bali, Engle and Murray",2015,Book,Idiosyncratic skewness (3F model),agnostic,"The idea that the skewness, or the third moment, of returns is an important consideration to investors when determining optimal investments is introduced by Arditti (1967, 1971), who shows theoretically and empirically that investors demand a higher (loweAs with the CAPM, according to three-moment model of Kraus and Litzenberger (1976), unsystematic risk (both variance and skewness) is diversifiable and thus does not play a role in determining expected security returns… … Some papers have challenged the notion that idiosyncratic skewness is diversified away and therefore cannot be priced… … In this chapter, we examine the relations between skewness and expected stock returns.r) rate of return on investments whose return distributions are negatively (positively) skewed. ",0,,,TRUE,Bali Engle Murray,1,0,0,0,
 CBOperProf,Ball et al.,2016,JFE,Cash-based operating profitability,agnostic,"This could indicate an initial market under-reaction to cash
 flow information that is gradually corrected over a decade.
 Alternatively, this result could indicate that cash-based
 profitability and expected returns share common economic
 determinants (such as risk) that are relatively stationary
-over time ( Ball, 1978 ).",0,,,TRUE,Ball
+over time ( Ball, 1978 ).",0,,,TRUE,Ball,1,0,0,0,
 OperProfRD,Ball et al.,2016,JFE,Operating profitability R&D adjusted,agnostic,"This could indicate an initial market under-reaction to cash
 flow information that is gradually corrected over a decade.
 Alternatively, this result could indicate that cash-based
 profitability and expected returns share common economic
 determinants (such as risk) that are relatively stationary
-over time ( Ball, 1978 ).",0,,,TRUE,Ball
-Size,Banz,1981,JFE,Size,agnostic,"To summarize, the size effect exists but it is not at all clear why it exists.",0,,,FALSE,Banz
+over time ( Ball, 1978 ).",0,,,TRUE,Ball,1,0,0,0,
+Size,Banz,1981,JFE,Size,agnostic,"To summarize, the size effect exists but it is not at all clear why it exists.",0,,,FALSE,Banz,1,0,0,0,
 SP,"Barbee, Mukherji and Raines",1996,FAJ,Sales-to-price,agnostic,"The arguments and evidence presented in the
 preceding paragraphs suggest that the S/P and
 D/E may be more efficient explanatory factors for
 common stock returns than the variables identified
-by Fama and French",0,,,FALSE,Barbee Mukherji Raines
+by Fama and French",0,,,FALSE,Barbee Mukherji Raines,1,0,0,0,
 ConsRecomm,Barber et al.,2001,JF,Consensus Recommendation,mispricing,"We believe it is most likely that our results are evidence of a market that
-is semistrong inefficient (before transactions costs).",0,,,FALSE,Barber
+is semistrong inefficient (before transactions costs).",0,,,FALSE,Barber,1,0,0,0,
 DownRecomm,Barber et al.,2001,JF,Down forecast EPS,mispricing,"We believe it is most likely that our results are evidence of a market that
-is semistrong inefficient (before transactions costs).",0,,,FALSE,Barber
+is semistrong inefficient (before transactions costs).",0,,,FALSE,Barber,1,0,0,0,
 UpRecomm,Barber et al.,2001,JF,Up Forecast,mispricing,"We believe it is most likely that our results are evidence of a market that
-is semistrong inefficient (before transactions costs).",0,,,FALSE,Barber
-FirmAge,Barry and Brown,1984,JFE,Firm age based on CRSP,risk,securities for which there is relatively little information available may be perceived as riskier securities than are securities for which more information is available.,,,,FALSE,
-ChForecastAccrual,Barth and Hutton,2004,RAS,Change in Forecast and Accrual,mispricing,"Our findings indicate that although forecast revisions reflect information about accrual and earnings persistence beyond that reflected in the level of current year accruals, investors do not fully incorporate this information into their valuation assessments.",0,,,TRUE,Barth Hutton
-AccrualsBM,Bartov and Kim,2004,RFQA,Book-to-market and accruals,mispricing,"In addition, this superior stock return performance is more pronounced among firms held primarily by small (unsophisticated) investors and followed less closely by market participants (stock price <$10).",0,,,TRUE,Bartov Kim
-EP,Basu,1977,JF,Earnings-to-Price Ratio,mispricing,"Contrary to the growing belief that publicly available information is instantaneously impounded in security prices, there seem to be lags and frictions in the adjustment process",0,,,FALSE,Basu
-hire,"Bazdresch, Belo and Lin",2014,JPE,Employment growth,risk,"we interpret this difference in average returns, which we refer to as the hiring return spread, as reflecting the relatively lower risk of the firms with higher hiring rates",0,,,TRUE,Bazdresch Belo Lin
-InvGrowth,Belo and Lin,2012,RFS,Inventory Growth,risk,Optimal capital and inventory investment determine firmsâ€™ dividends and market value thus establishing an endogenous link between the inventory investment rate and firmsâ€™ risk,0,,,TRUE,Belo Lin
+is semistrong inefficient (before transactions costs).",0,,,FALSE,Barber,1,0,0,0,
+FirmAge,Barry and Brown,1984,JFE,Firm age based on CRSP,risk,securities for which there is relatively little information available may be perceived as riskier securities than are securities for which more information is available.,,,,FALSE,,0,1,0,0,
+ChForecastAccrual,Barth and Hutton,2004,RAS,Change in Forecast and Accrual,mispricing,"Our findings indicate that although forecast revisions reflect information about accrual and earnings persistence beyond that reflected in the level of current year accruals, investors do not fully incorporate this information into their valuation assessments.",0,,,TRUE,Barth Hutton,1,0,0,0,
+AccrualsBM,Bartov and Kim,2004,RFQA,Book-to-market and accruals,mispricing,"In addition, this superior stock return performance is more pronounced among firms held primarily by small (unsophisticated) investors and followed less closely by market participants (stock price <$10).",0,,,TRUE,Bartov Kim,1,0,0,0,
+EP,Basu,1977,JF,Earnings-to-Price Ratio,mispricing,"Contrary to the growing belief that publicly available information is instantaneously impounded in security prices, there seem to be lags and frictions in the adjustment process",0,,,FALSE,Basu,1,0,0,0,
+hire,"Bazdresch, Belo and Lin",2014,JPE,Employment growth,risk,"we interpret this difference in average returns, which we refer to as the hiring return spread, as reflecting the relatively lower risk of the firms with higher hiring rates",0,,,TRUE,Bazdresch Belo Lin,0,0,0,1,
+InvGrowth,Belo and Lin,2012,RFS,Inventory Growth,risk,Optimal capital and inventory investment determine firmsâ€™ dividends and market value thus establishing an endogenous link between the inventory investment rate and firmsâ€™ risk,0,,,TRUE,Belo Lin,0,0,0,1,
 BrandInvest,"Belo, Lin and Vitorino",2014,RED,Brand capital investment,risk,"Through its effect on cash flows, the brand capital stock is likely to affect the risk properties of
-the firm, and hence its cost of capital and market value.",0,,,TRUE,Belo Lin Vitorino
+the firm, and hence its cost of capital and market value.",0,,,TRUE,Belo Lin Vitorino,0,0,0,1,
 Leverage,Bhandari,1988,JF,Market leverage,mispricing,"it is not likely that the """"""""""""""""premiums"""""""""""""""" associated with DER, LTEQ, and probably
-even BETA are due to higher risk",0,,,FALSE,Bhandari
+even BETA are due to higher risk",0,,,FALSE,Bhandari,1,0,0,0,
 ResidualMomentum,"Blitz, Huij and Martens",2011,JEmpFin,Momentum based on FF3 residuals,mispricing,"Our results are inconsistent with the notion that the momentum phenomenon can be
-attributed to a priced risk factor or market microstructure effects.",0,,,TRUE,Blitz Huij Martens
+attributed to a priced risk factor or market microstructure effects.",0,,,TRUE,Blitz Huij Martens,1,0,0,0,
 Price,Blume and Husic,1973,JF,Price,agnostic,"the results
 in this paper suggest that the return generating function may be considerably
-more complex than many investigators have previously assumed.",0,,,FALSE,Blume Husic
-NetPayoutYield,Boudoukh et al.,2007,JF,Net Payout Yield,agnostic,"We show that the apparent demise of dividend yields as a predictor is due more to mismeasurement than alternative explanations such as spurious correlation, learning, etc.",0,,The high minus low payout yield portfolio is a priced factor,TRUE,Boudoukh
-PayoutYield,Boudoukh et al.,2007,JF,Payout Yield,agnostic,"This shift in payout policy resulted in a magnification of an existing problem in measures of payout yields, namely, the exclusion of share repurchases. We show that once repurchases are taken into account, our measures of the total payout yield show significant predictive ability in both the time series and cross section of equity returns.",0,,The high minus low payout yield portfolio is a priced factor,TRUE,Boudoukh
+more complex than many investigators have previously assumed.",0,,,FALSE,Blume Husic,1,0,0,0,
+NetPayoutYield,Boudoukh et al.,2007,JF,Net Payout Yield,agnostic,"We show that the apparent demise of dividend yields as a predictor is due more to mismeasurement than alternative explanations such as spurious correlation, learning, etc.",0,,The high minus low payout yield portfolio is a priced factor,TRUE,Boudoukh,1,0,0,0,
+PayoutYield,Boudoukh et al.,2007,JF,Payout Yield,agnostic,"This shift in payout policy resulted in a magnification of an existing problem in measures of payout yields, namely, the exclusion of share repurchases. We show that once repurchases are taken into account, our measures of the total payout yield show significant predictive ability in both the time series and cross section of equity returns.",0,,The high minus low payout yield portfolio is a priced factor,TRUE,Boudoukh,1,0,0,0,
 NetDebtFinance,"Bradshaw, Richardson, Sloan",2006,JAE,Net debt financing,mispricing,"Consistent with the misvaluation
 explanation, our measure of external financing is positively related to overoptimism in analystsâ€™
-forecasts.",0,,,TRUE,Bradshaw Richardson Sloan
+forecasts.",0,,,TRUE,Bradshaw Richardson Sloan,1,0,0,0,
 NetEquityFinance,"Bradshaw, Richardson, Sloan",2006,JAE,Net equity financing,mispricing,"Consistent with the misvaluation
 explanation, our measure of external financing is positively related to overoptimism in analystsâ€™
-forecasts.",0,,,TRUE,Bradshaw Richardson Sloan
+forecasts.",0,,,TRUE,Bradshaw Richardson Sloan,1,0,0,0,
 XFIN,"Bradshaw, Richardson, Sloan",2006,JAE,Net external financing,mispricing,"Consistent with the misvaluation
 explanation, our measure of external financing is positively related to overoptimism in analystsâ€™
-forecasts.",0,,,TRUE,Bradshaw Richardson Sloan
-DolVol,"Brennan, Chordia, Subra",1998,JFE,Past trading volume,mispricing,"â€œRegardless of the method used to risk-adjust returns, we find a strong negative relation between average returns and trading volume, which is consistent with a liquidity premium in asset prices.â€",1,Liquidity should improve over time,consistent with a liquidity premium in asset prices.  But liquidity should improve as time goes on.,FALSE,Brennan Chordia Subra
+forecasts.",0,,,TRUE,Bradshaw Richardson Sloan,1,0,0,0,
+DolVol,"Brennan, Chordia, Subra",1998,JFE,Past trading volume,mispricing,"â€œRegardless of the method used to risk-adjust returns, we find a strong negative relation between average returns and trading volume, which is consistent with a liquidity premium in asset prices.â€",1,Liquidity should improve over time,consistent with a liquidity premium in asset prices.  But liquidity should improve as time goes on.,FALSE,Brennan Chordia Subra,1,0,0,0,
 FEPS,"Cen, Wei, and Zhang",2006,WP,Analyst earnings per share,mispricing,"This FEPS effect is the strongest for stocks of small firms, those with low prices, those with little analyst coverage, and those that were past losers
 
-We also find that trading strategies based on FEPS are not fundamentally riskier.",0,,"Published as Cen, Hilary, and Wei 2013 JFQA.  Published version is somewhat different by adjusting for industry medians and the argument is somewhat different, though still behavioral.  Seems like a nice example of data mining and then explanation years later.",TRUE,Cen Wei Zhang
-MomRev,Chan and Ko,2006,JOIM,Momentum and LT Reversal,mispricing,"Suppose a stock overshoots the equilibrium value so that it experiences a price reversal. Since a price reversal is triggered only if there is substantial mispricing, the price momentum in the early stage of price reversal will be large in order to push the price back to the equilibrium value.",0,,,TRUE,Chan Ko
+We also find that trading strategies based on FEPS are not fundamentally riskier.",0,,"Published as Cen, Hilary, and Wei 2013 JFQA.  Published version is somewhat different by adjusting for industry medians and the argument is somewhat different, though still behavioral.  Seems like a nice example of data mining and then explanation years later.",TRUE,Cen Wei Zhang,1,0,0,0,
+MomRev,Chan and Ko,2006,JOIM,Momentum and LT Reversal,mispricing,"Suppose a stock overshoots the equilibrium value so that it experiences a price reversal. Since a price reversal is triggered only if there is substantial mispricing, the price momentum in the early stage of price reversal will be large in order to push the price back to the equilibrium value.",0,,,TRUE,Chan Ko,1,0,0,0,
 AnnouncementReturn,"Chan, Jegadeesh and Lakonishok",1996,JF,Earnings announcement return,mispricing,"The results suggest a market that responds only gradually to new
-information.",0,,,FALSE,Chan Jegadeesh Lakonishok
+information.",0,,,FALSE,Chan Jegadeesh Lakonishok,1,0,0,0,
 REV6,"Chan, Jegadeesh and Lakonishok",1996,JF,Earnings forecast revisions,mispricing,"The results suggest a market that responds only gradually to new
-information.",0,,,FALSE,Chan Jegadeesh Lakonishok
-AdExp,"Chan, Lakonishok and Sougiannis",2001,JF,Advertising Expense,mispricing,"However, the market is apparently too pessimistic about beaten-down R&D-intensive technology stocks' prospects. Companies with high R&D to equity market value (which tend to have poor past returns) earn large excess returns.",0,,,FALSE,Chan Lakonishok Sougiannis
-RD,"Chan, Lakonishok and Sougiannis",2001,JF,R&D over market cap,mispricing,"However, the market is apparently too pessimistic about beaten-down R&D-intensive technology stocks' prospects. Companies with high R&D to equity market value (which tend to have poor past returns) earn large excess returns.",0,,,FALSE,Chan Lakonishok Sougiannis
-CashProd,Chandrashekar and Rao,2009,WP,Cash Productivity,agnostic,"The literature continues to debate whether the return premia associated with size, book-to-market and momentum are driven by risk or by mispricing. In either case, this paper aims to test for an effect over and above these known determinants.",0,,"Published as Rao, Tang, and Chandrashekar 2013 Journal of Investing.",TRUE,Chandrashekar Rao
+information.",0,,,FALSE,Chan Jegadeesh Lakonishok,1,0,0,0,
+AdExp,"Chan, Lakonishok and Sougiannis",2001,JF,Advertising Expense,mispricing,"However, the market is apparently too pessimistic about beaten-down R&D-intensive technology stocks' prospects. Companies with high R&D to equity market value (which tend to have poor past returns) earn large excess returns.",0,,,FALSE,Chan Lakonishok Sougiannis,1,0,0,0,
+RD,"Chan, Lakonishok and Sougiannis",2001,JF,R&D over market cap,mispricing,"However, the market is apparently too pessimistic about beaten-down R&D-intensive technology stocks' prospects. Companies with high R&D to equity market value (which tend to have poor past returns) earn large excess returns.",0,,,FALSE,Chan Lakonishok Sougiannis,1,0,0,0,
+CashProd,Chandrashekar and Rao,2009,WP,Cash Productivity,agnostic,"The literature continues to debate whether the return premia associated with size, book-to-market and momentum are driven by risk or by mispricing. In either case, this paper aims to test for an effect over and above these known determinants.",0,,"Published as Rao, Tang, and Chandrashekar 2013 Journal of Investing.",TRUE,Chandrashekar Rao,0,1,0,0,
 DelBreadth,"Chen, Hong and Stein",2002,JFE,Breadth of ownership,mispricing,"the evidence is
 broadly consistent with the idea that short-sales constraints matter for equilibrium
-stock prices and expected returns",0,,model with differences of opinion and short-sales constraints,FALSE,Chen Hong Stein
+stock prices and expected returns",0,,model with differences of opinion and short-sales constraints,FALSE,Chen Hong Stein,0,1,0,0,
 VolSD,"Chordia, Subra, Anshuman",2001,JFE,Volume Variance,agnostic,"However, our findings do not lend themselves to an obvious explanation, so that further
 investigation of our results would appear to be a reasonable topic for future
-research.",0,,,FALSE,Chordia Subra Anshuman
+research.",0,,,FALSE,Chordia Subra Anshuman,1,0,0,0,
 std_turn,"Chordia, Subra, Anshuman",2001,JFE,Share turnover volatility,agnostic,"However, our
 findings do not lend themselves to an obvious explanation, so that further
 investigation of our results would appear to be a reasonable topic for future
-research.",0,,,FALSE,Chordia Subra Anshuman
-CustomerMomentum,Cohen and Frazzini,2008,JF,Customer momentum,mispricing,"We test the hypothesis that in the presence of investors subject to attention constraints, stock prices do not promptly incorporate news about economically related firms, generating return predictability across assets.",0,,,TRUE,Cohen Frazzini
+research.",0,,,FALSE,Chordia Subra Anshuman,1,0,0,0,
+CustomerMomentum,Cohen and Frazzini,2008,JF,Customer momentum,mispricing,"We test the hypothesis that in the presence of investors subject to attention constraints, stock prices do not promptly incorporate news about economically related firms, generating return predictability across assets.",0,,,TRUE,Cohen Frazzini,1,0,0,0,
 retConglomerate,Cohen and Lou,2012,JFE,Conglomerate return,mispricing,"Consistent with processing complexity driving the return relation, we further
 show that the more complicated the firm, the more pronounced the return predict-
-ability.",0,,,TRUE,Cohen Lou
-RDAbility,"Cohen, Diether and Malloy",2013,RFS,R&D ability,mispricing,the stock market appears to ignore the implications of past successes when valuing future innovation,0,,,TRUE,Cohen Diether Malloy
-AssetGrowth,"Cooper, Gulen and Schill",2008,JF,Asset growth,mispricing,"Overall, our findings are most consistent with the interpretation that investors over extrapolate past gains to growth.",0,,,TRUE,Cooper Gulen Schill
+ability.",0,,,TRUE,Cohen Lou,1,0,0,0,
+RDAbility,"Cohen, Diether and Malloy",2013,RFS,R&D ability,mispricing,the stock market appears to ignore the implications of past successes when valuing future innovation,0,,,TRUE,Cohen Diether Malloy,1,0,0,0,
+AssetGrowth,"Cooper, Gulen and Schill",2008,JF,Asset growth,mispricing,"Overall, our findings are most consistent with the interpretation that investors over extrapolate past gains to growth.",0,,,TRUE,Cooper Gulen Schill,1,0,0,0,
 Activism1,Cremers and Nair,2005,JF,Takeover vulnerability,agnostic,"However, any further differentiation among these interpretations hinges on the development
-of a theory that would explain why (and if) governance should be associated with any priced risk",0,,,TRUE,Cremers Nair
+of a theory that would explain why (and if) governance should be associated with any priced risk",0,,,TRUE,Cremers Nair,1,0,0,0,
 Activism2,Cremers and Nair,2005,JF,Active shareholders,agnostic,"However, any
 further differentiation among these interpretations hinges on the development
 of a theory that would explain why (and if) governance should be associated
-with any priced risk",0,,,TRUE,Cremers Nair
-Spinoff,"Cusatis, Miles and Woolridge",1993,JFE,Spinoffs,mispricing,These post-spinoff findings indicate that investors have not fully anticipated the increased takeover activity and therefore have underestimated the value created by spinoffs,0,,,FALSE,Cusatis Miles Woolridge
+with any priced risk",0,,,TRUE,Cremers Nair,1,0,0,0,
+Spinoff,"Cusatis, Miles and Woolridge",1993,JFE,Spinoffs,mispricing,These post-spinoff findings indicate that investors have not fully anticipated the increased takeover activity and therefore have underestimated the value created by spinoffs,0,,,FALSE,Cusatis Miles Woolridge,1,0,0,0,
 EarningsForecastDisparity,Da and Warachka,2011,JFE,Long-vs-short EPS forecasts,mispricing,"We provide direct evidence that investor inattention is
 responsible for the return predictability associated with
-the disparity between LTG and ISTG.",0,,,TRUE,Da Warachka
-CompEquIss,Daniel and Titman,2006,JF,Composite equity issuance,agnostic,Our findingâ€¦ â€¦is potentially consistent with standard risk-based modelsâ€¦ â€¦Behavioral theories may offer another avenue for explaining these results.,0,,,TRUE,Daniel Titman
-IntanBM,Daniel and Titman,2006,JF,Intangible return using BM,agnostic,Our findingâ€¦ â€¦is potentially consistent with standard risk-based modelsâ€¦ â€¦Behavioral theories may offer another avenue for explaining these results.,0,,,TRUE,Daniel Titman
-IntanCFP,Daniel and Titman,2006,JF,Intangible return using CFtoP,agnostic,Our findingâ€¦ â€¦is potentially consistent with standard risk-based modelsâ€¦ â€¦Behavioral theories may offer another avenue for explaining these results.,0,,,TRUE,Daniel Titman
-IntanEP,Daniel and Titman,2006,JF,Intangible return using EP,agnostic,Our findingâ€¦ â€¦is potentially consistent with standard risk-based modelsâ€¦ â€¦Behavioral theories may offer another avenue for explaining these results.,0,,,TRUE,Daniel Titman
-IntanSP,Daniel and Titman,2006,JF,Intangible return using Sale2P,agnostic,Our findingâ€¦ â€¦is potentially consistent with standard risk-based modelsâ€¦ â€¦Behavioral theories may offer another avenue for explaining these results.,0,,,TRUE,Daniel Titman
-ShareIss5Y,Daniel and Titman,2006,JF,Share issuance (5 year),agnostic,Our findingâ€¦ â€¦is potentially consistent with standard risk-based modelsâ€¦ â€¦Behavioral theories may offer another avenue for explaining these results.,0,,,TRUE,Daniel Titman
-ShareVol,"Datar, Naik and Radcliffe",1998,JFM,Share Volume,mispricing,The evidence suggests that liquidity plays a significant role in explaining the cross-sectional variation in stock returns.,1,Liquidity should improve over time,liquidity,FALSE,Datar Naik Radcliffe
-LRreversal,De Bondt and Thaler,1985,JF,Long-run reversal,mispricing,"The empirical evidence, based on CRSP monthly return data, is consistent with the overreaction hypothesis. Substantial weak form market inefficiencies are discovered. The results also shed new light on the January returns earned by prior â€œwinnersâ€ and â€œlosers.â€ Portfolios of losers experience exceptionally large January returns as late as five years after portfolio formation.",0,,,FALSE,De Bondt Thaler
-MRreversal,De Bondt and Thaler,1985,JF,Medium-run reversal,mispricing,"The empirical evidence, based on CRSP monthly return data, is consistent with the overreaction hypothesis. Substantial weak form market inefficiencies are discovered. The results also shed new light on the January returns earned by prior â€œwinnersâ€ and â€œlosers.â€ Portfolios of losers experience exceptionally large January returns as late as five years after portfolio formation.",0,,,FALSE,De Bondt Thaler
-ShortInterest,Dechow et al.,2001,JFE,Short Interest,mispricing,"Under this interpretation, short-sellers achieve superior returns by short-selling low-risk stocks.",0,,,FALSE,Dechow
+the disparity between LTG and ISTG.",0,,,TRUE,Da Warachka,1,0,0,0,
+CompEquIss,Daniel and Titman,2006,JF,Composite equity issuance,agnostic,Our findingâ€¦ â€¦is potentially consistent with standard risk-based modelsâ€¦ â€¦Behavioral theories may offer another avenue for explaining these results.,0,,,TRUE,Daniel Titman,1,0,0,0,
+IntanBM,Daniel and Titman,2006,JF,Intangible return using BM,agnostic,Our findingâ€¦ â€¦is potentially consistent with standard risk-based modelsâ€¦ â€¦Behavioral theories may offer another avenue for explaining these results.,0,,,TRUE,Daniel Titman,1,0,0,0,
+IntanCFP,Daniel and Titman,2006,JF,Intangible return using CFtoP,agnostic,Our findingâ€¦ â€¦is potentially consistent with standard risk-based modelsâ€¦ â€¦Behavioral theories may offer another avenue for explaining these results.,0,,,TRUE,Daniel Titman,1,0,0,0,
+IntanEP,Daniel and Titman,2006,JF,Intangible return using EP,agnostic,Our findingâ€¦ â€¦is potentially consistent with standard risk-based modelsâ€¦ â€¦Behavioral theories may offer another avenue for explaining these results.,0,,,TRUE,Daniel Titman,1,0,0,0,
+IntanSP,Daniel and Titman,2006,JF,Intangible return using Sale2P,agnostic,Our findingâ€¦ â€¦is potentially consistent with standard risk-based modelsâ€¦ â€¦Behavioral theories may offer another avenue for explaining these results.,0,,,TRUE,Daniel Titman,1,0,0,0,
+ShareIss5Y,Daniel and Titman,2006,JF,Share issuance (5 year),agnostic,Our findingâ€¦ â€¦is potentially consistent with standard risk-based modelsâ€¦ â€¦Behavioral theories may offer another avenue for explaining these results.,0,,,TRUE,Daniel Titman,1,0,0,0,
+ShareVol,"Datar, Naik and Radcliffe",1998,JFM,Share Volume,mispricing,The evidence suggests that liquidity plays a significant role in explaining the cross-sectional variation in stock returns.,1,Liquidity should improve over time,liquidity,FALSE,Datar Naik Radcliffe,1,0,0,0,
+LRreversal,De Bondt and Thaler,1985,JF,Long-run reversal,mispricing,"The empirical evidence, based on CRSP monthly return data, is consistent with the overreaction hypothesis. Substantial weak form market inefficiencies are discovered. The results also shed new light on the January returns earned by prior â€œwinnersâ€ and â€œlosers.â€ Portfolios of losers experience exceptionally large January returns as late as five years after portfolio formation.",0,,,FALSE,De Bondt Thaler,1,0,0,0,
+MRreversal,De Bondt and Thaler,1985,JF,Medium-run reversal,mispricing,"The empirical evidence, based on CRSP monthly return data, is consistent with the overreaction hypothesis. Substantial weak form market inefficiencies are discovered. The results also shed new light on the January returns earned by prior â€œwinnersâ€ and â€œlosers.â€ Portfolios of losers experience exceptionally large January returns as late as five years after portfolio formation.",0,,,FALSE,De Bondt Thaler,1,0,0,0,
+ShortInterest,Dechow et al.,2001,JFE,Short Interest,mispricing,"Under this interpretation, short-sellers achieve superior returns by short-selling low-risk stocks.",0,,,FALSE,Dechow,1,0,0,0,
 EquityDuration,"Dechow, Sloan and Soliman",2004,RAS,Equity Duration,risk,"Our research shows how structured financial statement analysis can be used to construct superior
-measures of equity security risk.",0,,,TRUE,Dechow Sloan Soliman
-cfp,"Desai, Rajgopal, Venkatachalam",2004,AR,Operating Cash flows to price,mispricing,CFO/P is a powerful and comprehensive measure that subsumes the mispricing attributed to all the other value-glamour proxies.,0,,,TRUE,Desai Rajgopal Venkatachalam
-ExchSwitch,Dharan and Ikenberry,1995,JF,Exchange Switch,agnostic,"Researchers continue to examine why it is that excess long-run performance persists over time. While efforts progress along these liens, the evidence here is consistent with the notion that managers time their application for listing on an organized stock exchange.",0,,,FALSE,Dharan Ikenberry
+measures of equity security risk.",0,,,TRUE,Dechow Sloan Soliman,1,0,0,0,
+cfp,"Desai, Rajgopal, Venkatachalam",2004,AR,Operating Cash flows to price,mispricing,CFO/P is a powerful and comprehensive measure that subsumes the mispricing attributed to all the other value-glamour proxies.,0,,,TRUE,Desai Rajgopal Venkatachalam,1,0,0,0,
+ExchSwitch,Dharan and Ikenberry,1995,JF,Exchange Switch,agnostic,"Researchers continue to examine why it is that excess long-run performance persists over time. While efforts progress along these liens, the evidence here is consistent with the notion that managers time their application for listing on an organized stock exchange.",0,,,FALSE,Dharan Ikenberry,1,0,0,0,
 OScore,Dichev,1998,JF,O Score,mispricing,"Evidence from trading strategies long on healthy firms
 and short on distressed firms and an examination of longer return windows
 suggest that mispricing is the more likely explanation for this surprising
-phenomenon.",0,,,FALSE,Dichev
-CredRatDG,Dichev and Piotroski,2001,JF,Credit Rating Downgrade,mispricing,"More importantly, we find some evidence of significant differences in returns at subsequent earnings announcements of stocks with upgrades and downgrades, which suggests that the market does not fully anticipate the predictable future changes in earnings",0,,,FALSE,Dichev Piotroski
-ForecastDispersion,"Diether, Malloy and Scherbina",2002,JF,EPS Forecast Dispersion,mispricing,"We provide evidence that stocks with higher dispersion in analysts' earnings forecasts earn lower future returns than otherwise similar stocks. ... Interpreting dispersion in analysts' forecasts as a proxy for differences in opinion about a stock, we show that this evidence is consistent with the hypothesis that prices will reflect the optimistic view whenever investors with the lowest valuations do not trade",0,,,FALSE,Diether Malloy Scherbina
-ExclExp,"Doyle, Lundholm and Soliman",2003,RAS,Excluded Expenses,mispricing,We also find that investors do not fully appreciate the lower cash flow implications at the time of the earnings announcement,0,,,FALSE,Doyle Lundholm Soliman
+phenomenon.",0,,,FALSE,Dichev,1,0,0,0,
+CredRatDG,Dichev and Piotroski,2001,JF,Credit Rating Downgrade,mispricing,"More importantly, we find some evidence of significant differences in returns at subsequent earnings announcements of stocks with upgrades and downgrades, which suggests that the market does not fully anticipate the predictable future changes in earnings",0,,,FALSE,Dichev Piotroski,1,0,0,0,
+ForecastDispersion,"Diether, Malloy and Scherbina",2002,JF,EPS Forecast Dispersion,mispricing,"We provide evidence that stocks with higher dispersion in analysts' earnings forecasts earn lower future returns than otherwise similar stocks. ... Interpreting dispersion in analysts' forecasts as a proxy for differences in opinion about a stock, we show that this evidence is consistent with the hypothesis that prices will reflect the optimistic view whenever investors with the lowest valuations do not trade",0,,,FALSE,Diether Malloy Scherbina,1,0,0,0,
+ExclExp,"Doyle, Lundholm and Soliman",2003,RAS,Excluded Expenses,mispricing,We also find that investors do not fully appreciate the lower cash flow implications at the time of the earnings announcement,0,,,FALSE,Doyle Lundholm Soliman,1,0,0,0,
 Recomm_ShortInterest,"Drake, Rees and Swanson",2011,AR,Analyst Recommendations and Short-Interest,mispricing,"The characteristics of misvalued stocks can change over time, as long as short sellers and analysts disagree
 about valuation and the current stock price under-weights the views of short sellers. The extent of
 disagreement is also likely to be greatest in periods of high return volatility, and this is the type of
-market environment in which investors want stock-picking guidance. Consistent with this conjecture, we find the highest returns during the 1999â€“2003 sub-period.",0,,,TRUE,Drake Rees Swanson
-ProbInformedTrading,"Easley, Hvidkjaer and O'Hara",2002,JF,Probability of Informed Trading,risk,We show in a rational expectation example how private information affects equilibrium asset returns.,0,,,FALSE,Easley Hvidkjaer O'Hara
-SurpriseRD,"Eberhart, Maxwell and Siddique",2004,JF,Unexpected R&D increase,mispricing,"We find consistent evidence of a mis-reaction, as manifested in the significantly positive abnormal stock returns that our sample firms' shareholders experience following these increases.",0,,,TRUE,Eberhart Maxwell Siddique
+market environment in which investors want stock-picking guidance. Consistent with this conjecture, we find the highest returns during the 1999â€“2003 sub-period.",0,,,TRUE,Drake Rees Swanson,1,0,0,0,
+ProbInformedTrading,"Easley, Hvidkjaer and O'Hara",2002,JF,Probability of Informed Trading,risk,We show in a rational expectation example how private information affects equilibrium asset returns.,0,,,FALSE,Easley Hvidkjaer O'Hara,0,0,0,1,
+SurpriseRD,"Eberhart, Maxwell and Siddique",2004,JF,Unexpected R&D increase,mispricing,"We find consistent evidence of a mis-reaction, as manifested in the significantly positive abnormal stock returns that our sample firms' shareholders experience following these increases.",0,,,TRUE,Eberhart Maxwell Siddique,1,0,0,0,
 OrgCap,Eisfeldt and Papanikolaou,2013,JF,Organizational capital,risk,"We refer
 to this type of intangible capital as organization capital and develop a structural model
 to analyze its effect on asset prices. We argue that shareholders consider rms with high
 levels of organization capital to be riskier than rms with more physical capital, and provide
-empirical evidence supporting this claim.",0,,,TRUE,Eisfeldt Papanikolaou
-sfe,"Elgers, Lo and Pfeiffer",2001,AR,Earnings Forecast to price,mispricing,"This delayed price response is more pronounced for firms with relatively low analyst coverage, consistent with the premise that low financial analyst coverage is associated with a variety of factors that impede the information efficiency of the security market.",0,,,FALSE,Elgers Lo Pfeiffer
-GrLTNOA,"Fairfield, Whisenant and Yohn",2003,AR,Growth in long term operating assets,mispricing,"Thus, the results suggest that the accrual anomaly documented in Sloan (1996) is a subset of a larger anomaly with respect to a general market mispricing of growth in net operating assets",0,,,FALSE,Fairfield Whisenant Yohn
+empirical evidence supporting this claim.",0,,,TRUE,Eisfeldt Papanikolaou,0,0,1,0,
+sfe,"Elgers, Lo and Pfeiffer",2001,AR,Earnings Forecast to price,mispricing,"This delayed price response is more pronounced for firms with relatively low analyst coverage, consistent with the premise that low financial analyst coverage is associated with a variety of factors that impede the information efficiency of the security market.",0,,,FALSE,Elgers Lo Pfeiffer,1,0,0,0,
+GrLTNOA,"Fairfield, Whisenant and Yohn",2003,AR,Growth in long term operating assets,mispricing,"Thus, the results suggest that the accrual anomaly documented in Sloan (1996) is a subset of a larger anomaly with respect to a general market mispricing of growth in net operating assets",0,,,FALSE,Fairfield Whisenant Yohn,1,0,0,0,
 AM,Fama and French,1992,JF,Total assets to market,agnostic,"Our main result is that two easily measured variables, size and book-to-market equity, seem to describe the cross-section of average stock returns.
-Prescriptions for using this evidence depend on (a) whether it will persist, and (b) whether it results from rational or irrational asset-pricing.",0,,,FALSE,Fama French
+Prescriptions for using this evidence depend on (a) whether it will persist, and (b) whether it results from rational or irrational asset-pricing.",0,,,FALSE,Fama French,1,0,0,0,
 BookLeverage,Fama and French,1992,JF,Book leverage (annual),agnostic,"Our main result is that two easily measured variables, size and book-to-market equity, seem to describe the cross-section of average stock returns.
-Prescriptions for using this evidence depend on (a) whether it will persist, and (b) whether it results from rational or irrational asset-pricing.",0,,,FALSE,Fama French
+Prescriptions for using this evidence depend on (a) whether it will persist, and (b) whether it results from rational or irrational asset-pricing.",0,,,FALSE,Fama French,1,0,0,0,
 BMdec,Fama and French,1992,JPM,Book to market using December ME,agnostic,"Our main result is that two easily measured variables, size and book-to-market equity, seem to describe the cross-section of average stock returns.
-Prescriptions for using this evidence depend on (a) whether it will persist, and (b) whether it results from rational or irrational asset-pricing.",0,,,FALSE,Fama French
-OperProf,Fama and French,2006,JFE,operating profits / book equity,agnostic,We take no stance on whether the patterns in average returns observed here are rational or irrational.,0,,,TRUE,Fama French
-Beta,Fama and MacBeth,1973,JPE,CAPM beta,risk,"the pricing of common stocks reflects the attempts of risk-averse investors to hold portfolios that are """"""""""""""""efficient"""""""""""""""" in terms of expected value and dispersion of return.",0,,,FALSE,Fama MacBeth
-EarningsSurprise,"Foster, Olsen and Shevlin",1984,AR,Earnings Surprise,agnostic,"The set of explanations â€¦ â€¦can be classified into (a) capital market inefficiency explanations, and (b) noncapital market inefficiency explanations",0,,,FALSE,Foster Olsen Shevlin
+Prescriptions for using this evidence depend on (a) whether it will persist, and (b) whether it results from rational or irrational asset-pricing.",0,,,FALSE,Fama French,1,0,0,0,
+OperProf,Fama and French,2006,JFE,operating profits / book equity,agnostic,We take no stance on whether the patterns in average returns observed here are rational or irrational.,0,,,TRUE,Fama French,1,0,0,0,
+Beta,Fama and MacBeth,1973,JPE,CAPM beta,risk,"the pricing of common stocks reflects the attempts of risk-averse investors to hold portfolios that are """"""""""""""""efficient"""""""""""""""" in terms of expected value and dispersion of return.",0,,,FALSE,Fama MacBeth,0,1,0,0,
+EarningsSurprise,"Foster, Olsen and Shevlin",1984,AR,Earnings Surprise,agnostic,"The set of explanations â€¦ â€¦can be classified into (a) capital market inefficiency explanations, and (b) noncapital market inefficiency explanations",0,,,FALSE,Foster Olsen Shevlin,1,0,0,0,
 AOP,Frankel and Lee,1998,JAE,Analyst Optimism,agnostic,"we acknowledge that high V_f/P firms may still be riskier
 than low V_f /P firms in some other, as yet unidentified, dimension. We leave this
-question to future research.",0,,,FALSE,Frankel Lee
-AnalystValue,Frankel and Lee,1998,JAE,Analyst Value,agnostic,"we acknowledge that high V_f/P firms may still be riskier than low V_f /P firms in some other, as yet unidentified, dimension. We leave this question to future research.",0,,,FALSE,Frankel Lee
+question to future research.",0,,,FALSE,Frankel Lee,1,0,0,0,
+AnalystValue,Frankel and Lee,1998,JAE,Analyst Value,agnostic,"we acknowledge that high V_f/P firms may still be riskier than low V_f /P firms in some other, as yet unidentified, dimension. We leave this question to future research.",0,,,FALSE,Frankel Lee,1,0,0,0,
 PredictedFE,Frankel and Lee,1998,JAE,Predicted Analyst forecast error,agnostic,"we acknowledge that high V_f/P firms may still be riskier
 than low V_f /P firms in some other, as yet unidentified, dimension. We leave this
-question to future research.",0,,,FALSE,Frankel Lee
-FR,Franzoni and Marin,2006,JF,Pension Funding Status,mispricing,The paper argues that the market significantly overvalues firms with severely underfunded pensions,0,,,TRUE,Franzoni Marin
-BetaFP,Frazzini and Pedersen,2014,JFE,Frazzini-Pedersen Beta,mispricing,"many investors, such as individuals, pension funds, and mutual funds, are constrained in the leverage that they can take, and they therefore overweight risky securities instead of using leverage. [...] This behavior of tilting toward high-beta assets suggests that risky high-beta assets require lower risk-adjusted returns than low-beta assets, which require leverage.",,,,TRUE,
-High52,George and Hwang,2004,JF,52 week high,mispricing,these findings present a serious challenge to the view that markets are semi strong-form efficient,0,,,TRUE,George Hwang
-Governance,"Gompers, Ishii and Metrick",2003,QJE,Governance Index,agnostic,"We consider several explanations for the results, but the data do not allow strong conclusions about causality",0,,,FALSE,Gompers Ishii Metrick
-RDIPO,"Gou, Lev and Shi",2006,JBFA,IPO and no R&D spending,mispricing,Financial scholars who research the initial underpricing and long-term underperformance of IPOs generally attribute these phenomena to information asymmetry and investors' misvaluations ... .our identification of R&D as a major factor affecting IPO's performance contributes to the understanding of this important economic and capital market phenomenon.,0,,,TRUE,Gou Lev Shi
-IndMom,Grinblatt and Moskowitz,1999,JF,Industry Momentum,agnostic,* conclusion offers multiple explanations for excess returns in  intermediate time horizon industry momentum trading relating to behavioral and risk characteristics,0,,,FALSE,Grinblatt Moskowitz
+question to future research.",0,,,FALSE,Frankel Lee,1,0,0,0,
+FR,Franzoni and Marin,2006,JF,Pension Funding Status,mispricing,The paper argues that the market significantly overvalues firms with severely underfunded pensions,0,,,TRUE,Franzoni Marin,1,0,0,0,
+BetaFP,Frazzini and Pedersen,2014,JFE,Frazzini-Pedersen Beta,mispricing,"many investors, such as individuals, pension funds, and mutual funds, are constrained in the leverage that they can take, and they therefore overweight risky securities instead of using leverage. [...] This behavior of tilting toward high-beta assets suggests that risky high-beta assets require lower risk-adjusted returns than low-beta assets, which require leverage.",,,,TRUE,,0,0,1,0,
+High52,George and Hwang,2004,JF,52 week high,mispricing,these findings present a serious challenge to the view that markets are semi strong-form efficient,0,,,TRUE,George Hwang,1,0,0,0,
+Governance,"Gompers, Ishii and Metrick",2003,QJE,Governance Index,agnostic,"We consider several explanations for the results, but the data do not allow strong conclusions about causality",0,,,FALSE,Gompers Ishii Metrick,1,0,0,0,
+RDIPO,"Gou, Lev and Shi",2006,JBFA,IPO and no R&D spending,mispricing,Financial scholars who research the initial underpricing and long-term underperformance of IPOs generally attribute these phenomena to information asymmetry and investors' misvaluations ... .our identification of R&D as a major factor affecting IPO's performance contributes to the understanding of this important economic and capital market phenomenon.,0,,,TRUE,Gou Lev Shi,1,0,0,0,
+IndMom,Grinblatt and Moskowitz,1999,JF,Industry Momentum,agnostic,* conclusion offers multiple explanations for excess returns in  intermediate time horizon industry momentum trading relating to behavioral and risk characteristics,0,,,FALSE,Grinblatt Moskowitz,1,0,0,0,
 PctAcc,"Hafzalla, Lundholm, Van Winkle",2011,AR,Percent Operating Accruals,mispricing,"our results are consistent with the earnings fixation hypothesis
-and are inconsistent with some alternative explanations for the accrual anomaly.",0,,,TRUE,Hafzalla Lundholm Van Winkle
+and are inconsistent with some alternative explanations for the accrual anomaly.",0,,,TRUE,Hafzalla Lundholm Van Winkle,1,0,0,0,
 PctTotAcc,"Hafzalla, Lundholm, Van Winkle",2011,AR,Percent Total Accruals,mispricing,"our results are consistent with the earnings fixation hypothesis
-and are inconsistent with some alternative explanations for the accrual anomaly.",0,,,TRUE,Hafzalla Lundholm Van Winkle
-tang,Hahn and Lee,2009,JF,Tangibility,risk,"In the language of asset pricing, higher debt capacity firms have higher exposure to the risk associated with changes in the availability of internal and external funds for investment. Consequently, if such risk is priced by the market, then we should expect that high debt capacity firms will earn higher returns on average",0,,,TRUE,Hahn Lee
+and are inconsistent with some alternative explanations for the accrual anomaly.",0,,,TRUE,Hafzalla Lundholm Van Winkle,1,0,0,0,
+tang,Hahn and Lee,2009,JF,Tangibility,risk,"In the language of asset pricing, higher debt capacity firms have higher exposure to the risk associated with changes in the availability of internal and external funds for investment. Consequently, if such risk is priced by the market, then we should expect that high debt capacity firms will earn higher returns on average",0,,,TRUE,Hahn Lee,0,1,0,0,
 TrendFactor,"Han, Zhou, Zhu",2016,JFE,Trend Factor,agnostic,"we provide a trend factor that synthesizes
 the short-, intermediate-, and long-term price signals of
-the stock market.",0,,,TRUE,Han Zhou Zhu
-DivSeason,Hartzmark and Salomon,2013,JFE,Dividend seasonality,mispricing,"Consistent with the above intuition, we find evidence of mispricing of stocks whereby companies have significantly higher returns in months when they are expected to issue a dividend",0,,,TRUE,Hartzmark Salomon
-Coskewness,Harvey and Siddique,2000,JF,Coskewness,risk,Our results show that conditional skewness helps explain the cross-sectional variation of expected returns across assets and is significant even when factors based on size and book-to-market are included,0,,,FALSE,Harvey Siddique
-RoE,Haugen and Baker,1996,JFE,net income / book equity,mispricing,"Overall, the results seem to reveal a major failure in the Efficient Markets Hypothesis.",0,,,FALSE,Haugen Baker
-VarCF,Haugen and Baker,1996,JFE,Cash-flow  to price variance,mispricing,"Overall, the results seem to reveal a major failure in the Efficient Markets Hypothesis.",,,,FALSE,
-VolMkt,Haugen and Baker,1996,JFE,Volume to market equity,mispricing,"Overall, the results seem to reveal a major failure in the Efficient Markets Hypothesis.",0,,,FALSE,Haugen Baker
-VolumeTrend,Haugen and Baker,1996,JFE,Volume Trend,mispricing,"Overall, the results seem to reveal a major failure in the Efficient Markets Hypothesis.",0,,,FALSE,Haugen Baker
+the stock market.",0,,,TRUE,Han Zhou Zhu,0,0,1,0,
+DivSeason,Hartzmark and Salomon,2013,JFE,Dividend seasonality,mispricing,"Consistent with the above intuition, we find evidence of mispricing of stocks whereby companies have significantly higher returns in months when they are expected to issue a dividend",0,,,TRUE,Hartzmark Salomon,1,0,0,0,
+Coskewness,Harvey and Siddique,2000,JF,Coskewness,risk,Our results show that conditional skewness helps explain the cross-sectional variation of expected returns across assets and is significant even when factors based on size and book-to-market are included,0,,,FALSE,Harvey Siddique,0,1,0,0,
+RoE,Haugen and Baker,1996,JFE,net income / book equity,mispricing,"Overall, the results seem to reveal a major failure in the Efficient Markets Hypothesis.",0,,,FALSE,Haugen Baker,1,0,0,0,
+VarCF,Haugen and Baker,1996,JFE,Cash-flow  to price variance,mispricing,"Overall, the results seem to reveal a major failure in the Efficient Markets Hypothesis.",,,,FALSE,,1,0,0,0,
+VolMkt,Haugen and Baker,1996,JFE,Volume to market equity,mispricing,"Overall, the results seem to reveal a major failure in the Efficient Markets Hypothesis.",0,,,FALSE,Haugen Baker,1,0,0,0,
+VolumeTrend,Haugen and Baker,1996,JFE,Volume Trend,mispricing,"Overall, the results seem to reveal a major failure in the Efficient Markets Hypothesis.",0,,,FALSE,Haugen Baker,1,0,0,0,
 AnalystRevision,"Hawkins, Chamberlin, Daniel",1984,FAJ,EPS forecast revision,mispricing,"the evidence
 strongly suggests that revisions in consensus
 earnings estimates can be used to predict subsequent stock price performance, and that the
-market is not efficient in processing such information",0,,,FALSE,Hawkins Chamberlin Daniel
-Mom12mOffSeason,Heston and Sadka,2008,JFE,Momentum without the seasonal part,agnostic,"[no nice quotes] Additional diagnostics show the seasonal effect occurs within industry and size categories. In this respect, it does not appear to be a byproduct of stock characteristics or simple proxies for risk.",0,,,TRUE,Heston Sadka
-MomOffSeason,Heston and Sadka,2008,JFE,Off season long-term reversal,agnostic,"[no nice quotes] Additional diagnostics show the seasonal effect occurs within industry and size categories. In this respect, it does not appear to be a byproduct of stock characteristics or simple proxies for risk.",0,,,TRUE,Heston Sadka
-MomOffSeason06YrPlus,Heston and Sadka,2008,JFE,Off season reversal years 6 to 10,agnostic,"[no nice quotes] Additional diagnostics show the seasonal effect occurs within industry and size categories. In this respect, it does not appear to be a byproduct of stock characteristics or simple proxies for risk.",0,,,TRUE,Heston Sadka
-MomOffSeason11YrPlus,Heston and Sadka,2008,JFE,Off season reversal years 11 to 15,agnostic,"[no nice quotes] Additional diagnostics show the seasonal effect occurs within industry and size categories. In this respect, it does not appear to be a byproduct of stock characteristics or simple proxies for risk.",0,,,TRUE,Heston Sadka
-MomOffSeason16YrPlus,Heston and Sadka,2008,JFE,Off season reversal years 16 to 20,agnostic,"[no nice quotes] Additional diagnostics show the seasonal effect occurs within industry and size categories. In this respect, it does not appear to be a byproduct of stock characteristics or simple proxies for risk.",0,,,TRUE,Heston Sadka
-MomSeason,Heston and Sadka,2008,JFE,Return seasonality years 2 to 5,agnostic,"[no nice quotes] Additional diagnostics show the seasonal effect occurs within industry and size categories. In this respect, it does not appear to be a byproduct of stock characteristics or simple proxies for risk.",0,,,TRUE,Heston Sadka
-MomSeason06YrPlus,Heston and Sadka,2008,JFE,Return seasonality years 6 to 10,agnostic,"[no nice quotes] Additional diagnostics show the seasonal effect occurs within industry and size categories. In this respect, it does not appear to be a byproduct of stock characteristics or simple proxies for risk.",0,,,TRUE,Heston Sadka
-MomSeason11YrPlus,Heston and Sadka,2008,JFE,Return seasonality years 11 to 15,agnostic,"[no nice quotes] Additional diagnostics show the seasonal effect occurs within industry and size categories. In this respect, it does not appear to be a byproduct of stock characteristics or simple proxies for risk.",0,,,TRUE,Heston Sadka
-MomSeason16YrPlus,Heston and Sadka,2008,JFE,Return seasonality years 16 to 20,agnostic,"[no nice quotes] Additional diagnostics show the seasonal effect occurs within industry and size categories. In this respect, it does not appear to be a byproduct of stock characteristics or simple proxies for risk.",0,,,TRUE,Heston Sadka
-MomSeasonShort,Heston and Sadka,2008,JFE,Return seasonality last year,agnostic,"[no nice quotes] Additional diagnostics show the seasonal effect occurs within industry and size categories. In this respect, it does not appear to be a byproduct of stock characteristics or simple proxies for risk.",0,,,TRUE,Heston Sadka
-CitationsRD,"Hirschleifer, Hsu and Li",2013,JFE,Citations to RD expenses,mispricing,"The IE-return relation is associated with the loading on a mispricing factor, and the high Sharpe ratio of the Efficient Minus Inefficient (EMI) portfolio suggests that mispricing plays an important role.",0,,,TRUE,Hirschleifer Hsu Li
-PatentsRD,"Hirschleifer, Hsu and Li",2013,JFE,Patents to RD expenses,mispricing,"The IE-return relation is associated with the loading on a mispricing factor, and the high Sharpe ratio of the Efficient Minus Inefficient (EMI) portfolio suggests that mispricing plays an important role.",0,,,TRUE,Hirschleifer Hsu Li
-NOA,Hirshleifer et al.,2004,JAE,Net Operating Assets,mispricing,"When the balance sheet is 'bloated' in this fashion, we argue that investors with limited attention will overvalue the firm",0,,,TRUE,Hirshleifer
-dNoa,"Hirshleifer, Hou, Teoh, Zhang",2004,JAE,change in net operating assets,mispricing,"When the balance sheet is 'bloated' in this fashion, we argue that investors with limited attention will overvalue the firm",0,,,TRUE,Hirshleifer Hou Teoh Zhang
+market is not efficient in processing such information",0,,,FALSE,Hawkins Chamberlin Daniel,1,0,0,0,
+Mom12mOffSeason,Heston and Sadka,2008,JFE,Momentum without the seasonal part,agnostic,"[no nice quotes] Additional diagnostics show the seasonal effect occurs within industry and size categories. In this respect, it does not appear to be a byproduct of stock characteristics or simple proxies for risk.",0,,,TRUE,Heston Sadka,1,0,0,0,
+MomOffSeason,Heston and Sadka,2008,JFE,Off season long-term reversal,agnostic,"[no nice quotes] Additional diagnostics show the seasonal effect occurs within industry and size categories. In this respect, it does not appear to be a byproduct of stock characteristics or simple proxies for risk.",0,,,TRUE,Heston Sadka,1,0,0,0,
+MomOffSeason06YrPlus,Heston and Sadka,2008,JFE,Off season reversal years 6 to 10,agnostic,"[no nice quotes] Additional diagnostics show the seasonal effect occurs within industry and size categories. In this respect, it does not appear to be a byproduct of stock characteristics or simple proxies for risk.",0,,,TRUE,Heston Sadka,1,0,0,0,
+MomOffSeason11YrPlus,Heston and Sadka,2008,JFE,Off season reversal years 11 to 15,agnostic,"[no nice quotes] Additional diagnostics show the seasonal effect occurs within industry and size categories. In this respect, it does not appear to be a byproduct of stock characteristics or simple proxies for risk.",0,,,TRUE,Heston Sadka,1,0,0,0,
+MomOffSeason16YrPlus,Heston and Sadka,2008,JFE,Off season reversal years 16 to 20,agnostic,"[no nice quotes] Additional diagnostics show the seasonal effect occurs within industry and size categories. In this respect, it does not appear to be a byproduct of stock characteristics or simple proxies for risk.",0,,,TRUE,Heston Sadka,1,0,0,0,
+MomSeason,Heston and Sadka,2008,JFE,Return seasonality years 2 to 5,agnostic,"[no nice quotes] Additional diagnostics show the seasonal effect occurs within industry and size categories. In this respect, it does not appear to be a byproduct of stock characteristics or simple proxies for risk.",0,,,TRUE,Heston Sadka,1,0,0,0,
+MomSeason06YrPlus,Heston and Sadka,2008,JFE,Return seasonality years 6 to 10,agnostic,"[no nice quotes] Additional diagnostics show the seasonal effect occurs within industry and size categories. In this respect, it does not appear to be a byproduct of stock characteristics or simple proxies for risk.",0,,,TRUE,Heston Sadka,1,0,0,0,
+MomSeason11YrPlus,Heston and Sadka,2008,JFE,Return seasonality years 11 to 15,agnostic,"[no nice quotes] Additional diagnostics show the seasonal effect occurs within industry and size categories. In this respect, it does not appear to be a byproduct of stock characteristics or simple proxies for risk.",0,,,TRUE,Heston Sadka,1,0,0,0,
+MomSeason16YrPlus,Heston and Sadka,2008,JFE,Return seasonality years 16 to 20,agnostic,"[no nice quotes] Additional diagnostics show the seasonal effect occurs within industry and size categories. In this respect, it does not appear to be a byproduct of stock characteristics or simple proxies for risk.",0,,,TRUE,Heston Sadka,1,0,0,0,
+MomSeasonShort,Heston and Sadka,2008,JFE,Return seasonality last year,agnostic,"[no nice quotes] Additional diagnostics show the seasonal effect occurs within industry and size categories. In this respect, it does not appear to be a byproduct of stock characteristics or simple proxies for risk.",0,,,TRUE,Heston Sadka,1,0,0,0,
+CitationsRD,"Hirschleifer, Hsu and Li",2013,JFE,Citations to RD expenses,mispricing,"The IE-return relation is associated with the loading on a mispricing factor, and the high Sharpe ratio of the Efficient Minus Inefficient (EMI) portfolio suggests that mispricing plays an important role.",0,,,TRUE,Hirschleifer Hsu Li,1,0,0,0,
+PatentsRD,"Hirschleifer, Hsu and Li",2013,JFE,Patents to RD expenses,mispricing,"The IE-return relation is associated with the loading on a mispricing factor, and the high Sharpe ratio of the Efficient Minus Inefficient (EMI) portfolio suggests that mispricing plays an important role.",0,,,TRUE,Hirschleifer Hsu Li,1,0,0,0,
+NOA,Hirshleifer et al.,2004,JAE,Net Operating Assets,mispricing,"When the balance sheet is 'bloated' in this fashion, we argue that investors with limited attention will overvalue the firm",0,,,TRUE,Hirshleifer,1,0,0,0,
+dNoa,"Hirshleifer, Hou, Teoh, Zhang",2004,JAE,change in net operating assets,mispricing,"When the balance sheet is 'bloated' in this fashion, we argue that investors with limited attention will overvalue the firm",0,,,TRUE,Hirshleifer Hou Teoh Zhang,1,0,0,0,
 sinAlgo,Hong and Kacperczyk,2009,JFE,Sin Stock (selection criteria),risk,"Sin stocks also have higher expected returns than otherwise comparable stocks, consistent with them being neglected by norm-constrained investors and facing greater litigation risk heightened by social norms
 
-In this paper, we provide evidence of significant effects of social norms on markets by studying the investing environment of â€˜â€˜sinâ€™â€™ stocks",0,,"Could be mispricing, since they cite Merton (1987).",TRUE,Hong Kacperczyk
+In this paper, we provide evidence of significant effects of social norms on markets by studying the investing environment of â€˜â€˜sinâ€™â€™ stocks",0,,"Could be mispricing, since they cite Merton (1987).",TRUE,Hong Kacperczyk,1,0,0,0,
 EarnSupBig,Hou,2007,RFS,Earnings surprise of big firms,mispricing,"I primarily focus on a third group of explanations,
 which argues that the lead-lag effect arises because certain firms react
-more sluggishly to common information than do others",0,,,TRUE,Hou
+more sluggishly to common information than do others",0,,,TRUE,Hou,1,0,0,0,
 IndRetBig,Hou,2007,RFS,Industry return of big firms,mispricing,"I primarily focus on a third group of explanations,
 which argues that the lead-lag effect arises because certain firms react
-more sluggishly to common information than do others",0,,,TRUE,Hou
-PriceDelayRsq,Hou and Moskowitz,2005,RFS,Price delay r square,mispricing,"These results cannot be explained by microstructure, liquidity effects, market risk, or other known determinants of average returns, but appear most consistent with Merton's (1987) investor-recognition hypothesis",0,,,TRUE,Hou Moskowitz
-PriceDelaySlope,Hou and Moskowitz,2005,RFS,Price delay coeff,mispricing,"These results cannot be explained by microstructure, liquidity effects, market risk, or other known determinants of average returns, but appear most consistent with Merton's (1987) investor-recognition hypothesis",0,,,TRUE,Hou Moskowitz
-PriceDelayTstat,Hou and Moskowitz,2005,RFS,Price delay SE adjusted,mispricing,"These results cannot be explained by microstructure, liquidity effects, market risk, or other known determinants of average returns, but appear most consistent with Merton's (1987) investor-recognition hypothesis",0,,,TRUE,Hou Moskowitz
+more sluggishly to common information than do others",0,,,TRUE,Hou,1,0,0,0,
+PriceDelayRsq,Hou and Moskowitz,2005,RFS,Price delay r square,mispricing,"These results cannot be explained by microstructure, liquidity effects, market risk, or other known determinants of average returns, but appear most consistent with Merton's (1987) investor-recognition hypothesis",0,,,TRUE,Hou Moskowitz,1,0,0,0,
+PriceDelaySlope,Hou and Moskowitz,2005,RFS,Price delay coeff,mispricing,"These results cannot be explained by microstructure, liquidity effects, market risk, or other known determinants of average returns, but appear most consistent with Merton's (1987) investor-recognition hypothesis",0,,,TRUE,Hou Moskowitz,1,0,0,0,
+PriceDelayTstat,Hou and Moskowitz,2005,RFS,Price delay SE adjusted,mispricing,"These results cannot be explained by microstructure, liquidity effects, market risk, or other known determinants of average returns, but appear most consistent with Merton's (1987) investor-recognition hypothesis",0,,,TRUE,Hou Moskowitz,1,0,0,0,
 Herf,Hou and Robinson,2006,JF,Industry concentration (sales),risk,"Our findings are consistent with the view that innovation/distress
 risk, which is more pronounced in competitive industries, is a priced source of
 risk in the context of the multifactor asset pricing models of Merton (1973) and
-Ross (1976).",0,,,TRUE,Hou Robinson
+Ross (1976).",0,,,TRUE,Hou Robinson,1,0,0,0,
 HerfAsset,Hou and Robinson,2006,JF,Industry concentration (assets),risk,"Our findings are consistent with the view that innovation/distress
 risk, which is more pronounced in competitive industries, is a priced source of
 risk in the context of the multifactor asset pricing models of Merton (1973) and
-Ross (1976).",0,,,TRUE,Hou Robinson
+Ross (1976).",0,,,TRUE,Hou Robinson,1,0,0,0,
 HerfBE,Hou and Robinson,2006,JF,Industry concentration (equity),risk,"Our findings are consistent with the view that innovation/distress
 risk, which is more pronounced in competitive industries, is a priced source of
 risk in the context of the multifactor asset pricing models of Merton (1973) and
-Ross (1976).",0,,,TRUE,Hou Robinson
-ShareRepurchase,"Ikenberry, Lakonishok, Vermaelen",1995,JFE,Share repurchases,mispricing,"Thus, at least with respect to value stocks, the market errs in its initial response and appears to ignore much of the information conveyed through repurchase announcements",0,,,FALSE,Ikenberry Lakonishok Vermaelen
-STreversal,Jegadeesh,1990,JF,Short term reversal,agnostic,Predictability of stock returns can be attributed either to market inefficiency or to systematic changes in expected stock returns,0,,,FALSE,Jegadeesh
-RevenueSurprise,Jegadeesh and Livnat,2006,JAE,Revenue Surprise,mispricing,"Although analysts revise their forecasts of future earnings in response to revenue surprises, they are slow to incorporate fully the information in revenue surprises.",0,,,TRUE,Jegadeesh Livnat
-Mom12m,Jegadeesh and Titman,1993,JF,Momentum (12 month),mispricing,"The evidence is, however, consistent with delayed price reactions to firm-specific information.",0,,,FALSE,Jegadeesh Titman
-Mom6m,Jegadeesh and Titman,1993,JF,Momentum (6 month),mispricing,"The evidence is, however, consistent with delayed price reactions to firm-specific information.",0,,,FALSE,Jegadeesh Titman
+Ross (1976).",0,,,TRUE,Hou Robinson,1,0,0,0,
+ShareRepurchase,"Ikenberry, Lakonishok, Vermaelen",1995,JFE,Share repurchases,mispricing,"Thus, at least with respect to value stocks, the market errs in its initial response and appears to ignore much of the information conveyed through repurchase announcements",0,,,FALSE,Ikenberry Lakonishok Vermaelen,1,0,0,0,
+STreversal,Jegadeesh,1990,JF,Short term reversal,agnostic,Predictability of stock returns can be attributed either to market inefficiency or to systematic changes in expected stock returns,0,,,FALSE,Jegadeesh,1,0,0,0,
+RevenueSurprise,Jegadeesh and Livnat,2006,JAE,Revenue Surprise,mispricing,"Although analysts revise their forecasts of future earnings in response to revenue surprises, they are slow to incorporate fully the information in revenue surprises.",0,,,TRUE,Jegadeesh Livnat,1,0,0,0,
+Mom12m,Jegadeesh and Titman,1993,JF,Momentum (12 month),mispricing,"The evidence is, however, consistent with delayed price reactions to firm-specific information.",0,,,FALSE,Jegadeesh Titman,1,0,0,0,
+Mom6m,Jegadeesh and Titman,1993,JF,Momentum (6 month),mispricing,"The evidence is, however, consistent with delayed price reactions to firm-specific information.",0,,,FALSE,Jegadeesh Titman,1,0,0,0,
 ChangeInRecommendation,Jegadeesh et al.,2004,JF,Change in recommendation,mispricing,"In contrast, we find that the quarterly change in consensus recommendations is a robust return predictor that appears to contain information orthogonal to a large range of other predictive variables
 
-Naive adherence to these recommendations can be costly, because the level of the consensus recommendation adds value only among stocks with favorable quantitative characteristics",0,,,TRUE,Jegadeesh
+Naive adherence to these recommendations can be costly, because the level of the consensus recommendation adds value only among stocks with favorable quantitative characteristics",0,,,TRUE,Jegadeesh,1,0,0,0,
 OptionVolume1,Johnson and So,2012,JFE,Option to stock volume,mispricing,"We argue that the negative relation between O/S and
 future returns is driven by short-sale costs in equity
 markets, which make option markets an attractive venue
-for traders with negative news.",0,,short-sale costs,TRUE,Johnson So
+for traders with negative news.",0,,short-sale costs,TRUE,Johnson So,0,1,0,0,
 OptionVolume2,Johnson and So,2012,JFE,Option volume to average,mispricing,"We argue that the negative relation between O/S and
 future returns is driven by short-sale costs in equity
 markets, which make option markets an attractive venue
-for traders with negative news.",0,,,TRUE,Johnson So
+for traders with negative news.",0,,,TRUE,Johnson So,0,1,0,0,
 BetaTailRisk,Kelly and Jiang,2014,RFS,Tail risk beta,risk,"Because investors are tail risk averse, increases in tail risk raise the return
 required by investors to hold the market, thereby inducing a positive predictive relationship
-between tail risk and future returns.",0,,,TRUE,Kelly Jiang
-fgr5yrLag,La Porta,1996,JF,Long-term EPS forecast,mispricing,I show that investment strategies that seek to exploit errors in analysts' forecasts earn superior returns because expectations about future growth in earnings are too extreme.,0,,,FALSE,La Porta
-CF,"Lakonishok, Shleifer, Vishny",1994,JF,Cash flow to market,mispricing,This article provides evidence that value strategies yield higher returns because these strategies exploit the suboptimal behavior of the typical investor and not because these strategies are fundamentally riskier.,0,,,FALSE,Lakonishok Shleifer Vishny
-MeanRankRevGrowth,"Lakonishok, Shleifer, Vishny",1994,JF,Revenue Growth Rank,mispricing,This article provides evidence that value strategies yield higher returns because these strategies exploit the suboptimal behavior of the typical investor and not because these strategies are fundamentally riskier.,0,,,FALSE,Lakonishok Shleifer Vishny
+between tail risk and future returns.",0,,,TRUE,Kelly Jiang,1,0,0,0,
+fgr5yrLag,La Porta,1996,JF,Long-term EPS forecast,mispricing,I show that investment strategies that seek to exploit errors in analysts' forecasts earn superior returns because expectations about future growth in earnings are too extreme.,0,,,FALSE,La Porta,1,0,0,0,
+CF,"Lakonishok, Shleifer, Vishny",1994,JF,Cash flow to market,mispricing,This article provides evidence that value strategies yield higher returns because these strategies exploit the suboptimal behavior of the typical investor and not because these strategies are fundamentally riskier.,0,,,FALSE,Lakonishok Shleifer Vishny,1,0,0,0,
+MeanRankRevGrowth,"Lakonishok, Shleifer, Vishny",1994,JF,Revenue Growth Rank,mispricing,This article provides evidence that value strategies yield higher returns because these strategies exploit the suboptimal behavior of the typical investor and not because these strategies are fundamentally riskier.,0,,,FALSE,Lakonishok Shleifer Vishny,1,0,0,0,
 RDS,Landsman et al.,2011,AR,Real dirty surplus,mispricing,"Taken together, the findings are consistent with investors over-valuing firms that have large
-negative really dirty surplus",0,,,TRUE,Landsman
-MomVol,Lee and Swaminathan,2000,JF,Momentum in high volume stocks,mispricing,"our evidence shows that the information content of trading volume is related to market misperceptions of firmsâ€™ future earnings prospects. Specifically, we provide strong evidence that low ~high! volume stocks tend to be under- ~over-! valued by the market",0,,,FALSE,Lee Swaminathan
-Tax,Lev and Nissim,2004,AR,Taxable income to income,mispricing,"It appears, therefore, that during the 1990s investors became increasingly adept at using the forward-looking information in taxable income (or correlated information) in securities valuation",0,,,TRUE,Lev Nissim
-RDcap,Li,2011,RFS,R&D capital-to-assets,risk,", R&D-intensive firmsâ€™ risk increases with their financial constraints",0,,,TRUE,Li
-DivYieldST,Litzenberger and Ramaswamy,1979,JF,Predicted div yield next month,risk,The equilibrium relationship indicates that before-tax expected rates of return are linearly related to systematic risk and to dividend yield.,0,,,FALSE,Litzenberger Ramaswamy
+negative really dirty surplus",0,,,TRUE,Landsman,1,0,0,0,
+MomVol,Lee and Swaminathan,2000,JF,Momentum in high volume stocks,mispricing,"our evidence shows that the information content of trading volume is related to market misperceptions of firmsâ€™ future earnings prospects. Specifically, we provide strong evidence that low ~high! volume stocks tend to be under- ~over-! valued by the market",0,,,FALSE,Lee Swaminathan,1,0,0,0,
+Tax,Lev and Nissim,2004,AR,Taxable income to income,mispricing,"It appears, therefore, that during the 1990s investors became increasingly adept at using the forward-looking information in taxable income (or correlated information) in securities valuation",0,,,TRUE,Lev Nissim,1,0,0,0,
+RDcap,Li,2011,RFS,R&D capital-to-assets,risk,", R&D-intensive firmsâ€™ risk increases with their financial constraints",0,,,TRUE,Li,0,1,0,0,
+DivYieldST,Litzenberger and Ramaswamy,1979,JF,Predicted div yield next month,risk,The equilibrium relationship indicates that before-tax expected rates of return are linearly related to systematic risk and to dividend yield.,0,,,FALSE,Litzenberger Ramaswamy,0,1,0,0,
 zerotrade,Liu,2006,JFE,Days with zero trades,risk,"The success of the liquidity-augmented two-factor model suggests that liquidity
-risk is an especially promising direction in this continued search.",1,Exposure to liquidity risk,,TRUE,Liu
+risk is an especially promising direction in this continued search.",1,Exposure to liquidity risk,,TRUE,Liu,1,0,0,0,
 zerotradeAlt1,Liu,2006,JFE,Days with zero trades,risk,"The success of the liquidity-augmented two-factor model suggests that liquidity
-risk is an especially promising direction in this continued search.",1,Exposure to liquidity risk,,TRUE,Liu
+risk is an especially promising direction in this continued search.",1,Exposure to liquidity risk,,TRUE,Liu,1,0,0,0,
 zerotradeAlt12,Liu,2006,JFE,Days with zero trades,risk,"The success of the liquidity-augmented two-factor model suggests that liquidity
-risk is an especially promising direction in this continued search.",1,Exposure to liquidity risk,,TRUE,Liu
-ChEQ,Lockwood and Prombutr,2010,JFR,Growth in book equity,risk,Additional tests indicate that the sustainable growth effect is attributable to risk and not to mispricing,0,,,TRUE,Lockwood Prombutr
+risk is an especially promising direction in this continued search.",1,Exposure to liquidity risk,,TRUE,Liu,1,0,0,0,
+ChEQ,Lockwood and Prombutr,2010,JFR,Growth in book equity,risk,Additional tests indicate that the sustainable growth effect is attributable to risk and not to mispricing,0,,,TRUE,Lockwood Prombutr,1,0,0,0,
 EarningsStreak,Loh and Warachka,2012,MS,Earnings surprise streak,mispricing,"Overall,
 post-earnings-announcement drift has a significant time-series component that is consistent with the gamblerâ€™s
-fallacy.",0,,,TRUE,Loh Warachka
+fallacy.",0,,,TRUE,Loh Warachka,1,0,0,0,
 NumEarnIncrease,Loh and Warachka,2012,MS,Earnings streak length,mispricing,"Overall,
 post-earnings-announcement drift has a significant time-series component that is consistent with the gamblerâ€™s
-fallacy.",0,,,TRUE,Loh Warachka
+fallacy.",0,,,TRUE,Loh Warachka,1,0,0,0,
 GrAdExp,Lou,2014,RFS,Growth in advertising expenses,mispricing,"This paper provides evidence that managers adjust firm advertising, in part, to attract investor
-attention and influence short-term stock returns",0,,,TRUE,Lou
+attention and influence short-term stock returns",0,,,TRUE,Lou,1,0,0,0,
 EntMult,Loughran and Wellman,2011,JFQA,Enterprise Multiple,mispricing,"We interpret EM as a proxy for
 the unlevered investment return (i.e., the WACC), which is in turn positively re-
-lated to the firmâ€™s cost of equity.",0,,,TRUE,Loughran Wellman
+lated to the firmâ€™s cost of equity.",0,,,TRUE,Loughran Wellman,1,0,0,0,
 CompositeDebtIssuance,"Lyandres, Sun and Zhang",2008,RFS,Composite debt issuance,risk,"Our evidence lends support to the investment-based explanation of the new
-issues puzzle(e.g.,Zhang,2005a;and Carlson,Fisher,and Giammarino,2006).",0,,,TRUE,Lyandres Sun Zhang
+issues puzzle(e.g.,Zhang,2005a;and Carlson,Fisher,and Giammarino,2006).",0,,,TRUE,Lyandres Sun Zhang,1,0,0,0,mention but do not develop
 InvestPPEInv,"Lyandres, Sun and Zhang",2008,RFS,change in ppe and inv/assets,risk,"In their real options model, Carlson et al. argue that firms have expansion
 options and assets in place prior to equity issuance. This composition is levered
 and risky. If real investment is financed by equity, then risk and expected returns
-must decrease because investment extinguishes the risky expansion options.",0,,,TRUE,Lyandres Sun Zhang
+must decrease because investment extinguishes the risky expansion options.",0,,,TRUE,Lyandres Sun Zhang,1,0,0,0,
 iomom_cust,Menzly and Ozbas,2010,JF,Customers momentum,mispricing,"All of these findings are consistent
-with limited-information models",0,,,TRUE,Menzly Ozbas
+with limited-information models",0,,,TRUE,Menzly Ozbas,1,0,0,0,
 iomom_supp,Menzly and Ozbas,2010,JF,Suppliers momentum,mispricing,"All of these findings are consistent
-with limited-information models",0,,,TRUE,Menzly Ozbas
+with limited-information models",0,,,TRUE,Menzly Ozbas,1,0,0,0,
 DivInit,"Michaely, Thaler and Womack",1995,JF,Dividend Initiation,mispricing,"We hope future research will
-help us understand why the market appears to overreact in some circumstances and to underreact in others.",0,,,FALSE,Michaely Thaler Womack
+help us understand why the market appears to overreact in some circumstances and to underreact in others.",0,,,FALSE,Michaely Thaler Womack,1,0,0,0,
 DivOmit,"Michaely, Thaler and Womack",1995,JF,Dividend Omission,mispricing,"We hope future research will
-help us understand why the market appears to overreact in some circumstances and to underreact in others.",0,,,FALSE,Michaely Thaler Womack
-MS,Mohanram,2005,RAS,Mohanram G-score,mispricing,"the results are inconsistent with a risk-based explanation as returns are positive in most years, and firms with lower risk earn higher returns.",0,,,TRUE,Mohanram
+help us understand why the market appears to overreact in some circumstances and to underreact in others.",0,,,FALSE,Michaely Thaler Womack,1,0,0,0,
+MS,Mohanram,2005,RAS,Mohanram G-score,mispricing,"the results are inconsistent with a risk-based explanation as returns are positive in most years, and firms with lower risk earn higher returns.",0,,,TRUE,Mohanram,1,0,0,0,
 RIO_Disp,Nagel,2005,JFE,Inst Own and Forecast Dispersion,mispricing,"the evidence in this
-paper supports mispricing explanations of cross-sectional return predictability.",0,,,TRUE,Nagel
+paper supports mispricing explanations of cross-sectional return predictability.",0,,,TRUE,Nagel,1,0,0,0,
 RIO_MB,Nagel,2005,JFE,Inst Own and Market to Book,mispricing,"the evidence in this
-paper supports mispricing explanations of cross-sectional return predictability.",0,,,TRUE,Nagel
+paper supports mispricing explanations of cross-sectional return predictability.",0,,,TRUE,Nagel,1,0,0,0,
 RIO_Turnover,Nagel,2005,JFE,Inst Own and Turnover,mispricing,"the evidence in this
-paper supports mispricing explanations of cross-sectional return predictability.",0,,,TRUE,Nagel
+paper supports mispricing explanations of cross-sectional return predictability.",0,,,TRUE,Nagel,1,0,0,0,
 RIO_Volatility,Nagel,2005,JFE,Inst Own and Idio Vol,mispricing,"the evidence in this
-paper supports mispricing explanations of cross-sectional return predictability.",0,,,TRUE,Nagel
-Frontier,Nguyen and Swanson,2009,JFQA,Efficient frontier index,risk,"This paper does not address what causes inefficiencies, but instead examines the linkage between the firm efficiency level and subsequent stock performance",0,,Recategorized Nov 13,TRUE,Nguyen Swanson
+paper supports mispricing explanations of cross-sectional return predictability.",0,,,TRUE,Nagel,1,0,0,0,
+Frontier,Nguyen and Swanson,2009,JFQA,Efficient frontier index,risk,"This paper does not address what causes inefficiencies, but instead examines the linkage between the firm efficiency level and subsequent stock performance",0,,Recategorized Nov 13,TRUE,Nguyen Swanson,0,1,0,0,
 OPLeverage,Novy-Marx,2011,ROF,Operating leverage,risk,"I derive and test implications of the operating leverage hypothesis for the cross-section
-of expected returns",0,,,TRUE,Novy-Marx
+of expected returns",0,,,TRUE,Novy-Marx,0,1,0,0,
 IntMom,Novy-Marx,2012,JFE,Intermediate Momentum,agnostic,"None of the popular explanations,
 either behavioral (e.g., Barberis, Shleifer and Vishny, 1998;
 Hong and Stein, 1999; Hirshleifer and Subrahmanyam,
 1999) or rational (e.g., Johnson, 2002; Sagi and Seasholes,
 2007), delivers the observed term-structure of momentum
-information,",0,,,TRUE,Novy-Marx
-GP,Novy-Marx,2013,JFE,gross profits / total assets,agnostic,"These results are difficult to reconcile with popular explanations of the value premium, as profitable firms are less prone to distress, have longer cash flow durations, and have lower levels of operating leverage.",0,,,TRUE,Novy-Marx
-Cash,Palazzo,2012,JFE,Cash to assets,risk,"Given that a larger increase in riskiness also causes a larger increase in cash holdings, a stronger marginal effect of expected equity returns should be observed",0,,,TRUE,Palazzo
-BetaLiquidityPS,Pastor and Stambaugh,2003,JPE,Pastor-Stambaugh liquidity beta,risk,a liquidity risk measure accounts for half of the profits to a momentum strategy over the same 34-year period,1,Exposure to liquidity risk,,FALSE,Pastor Stambaugh
+information,",0,,,TRUE,Novy-Marx,1,0,0,0,
+GP,Novy-Marx,2013,JFE,gross profits / total assets,agnostic,"These results are difficult to reconcile with popular explanations of the value premium, as profitable firms are less prone to distress, have longer cash flow durations, and have lower levels of operating leverage.",0,,,TRUE,Novy-Marx,1,0,0,0,
+Cash,Palazzo,2012,JFE,Cash to assets,risk,"Given that a larger increase in riskiness also causes a larger increase in cash holdings, a stronger marginal effect of expected equity returns should be observed",0,,,TRUE,Palazzo,0,1,0,0,
+BetaLiquidityPS,Pastor and Stambaugh,2003,JPE,Pastor-Stambaugh liquidity beta,risk,a liquidity risk measure accounts for half of the profits to a momentum strategy over the same 34-year period,1,Exposure to liquidity risk,,FALSE,Pastor Stambaugh,1,0,0,0,
 BPEBM,"Penman, Richardson and Tuna",2007,JAR,Leverage component of BM,agnostic,"This observation accords with the
 view that the enterprise book-to-price ratio is a firm characteristic that loads
 on a risk factor, but is also consistent with the mispricing of book values.
 In the absence of a well-specified asset pricing model, the issue cannot be
-sorted out.",0,,,TRUE,Penman Richardson Tuna
+sorted out.",0,,,TRUE,Penman Richardson Tuna,1,0,0,0,
 EBM,"Penman, Richardson and Tuna",2007,JAR,Enterprise component of BM,agnostic,"This observation accords with the
 view that the enterprise book-to-price ratio is a firm characteristic that loads
 on a risk factor, but is also consistent with the mispricing of book values.
 In the absence of a well-specified asset pricing model, the issue cannot be
-sorted out.",0,,,TRUE,Penman Richardson Tuna
+sorted out.",0,,,TRUE,Penman Richardson Tuna,1,0,0,0,
 NetDebtPrice,"Penman, Richardson and Tuna",2007,JAR,Net debt to price,agnostic,"This observation accords with the
 view that the enterprise book-to-price ratio is a firm characteristic that loads
 on a risk factor, but is also consistent with the mispricing of book values.
 In the absence of a well-specified asset pricing model, the issue cannot be
-sorted out.",0,,,TRUE,Penman Richardson Tuna
-PS,Piotroski,2000,JAR,Piotroski F-score,mispricing,"Overall, the evidence suggests that  the market does not fully incorporate historical financial information into prices in a timely manner",0,,,FALSE,Piotroski
-ShareIss1Y,Pontiff and Woodgate,2008,JF,Share issuance (1 year),agnostic,"Although we do not address whether the source of this predictability is mispricing or a rational response to an asset pricing model, it appears doubtful that these results can be explained solely by a risk-based asset pricing model.",0,,,TRUE,Pontiff Woodgate
+sorted out.",0,,,TRUE,Penman Richardson Tuna,1,0,0,0,
+PS,Piotroski,2000,JAR,Piotroski F-score,mispricing,"Overall, the evidence suggests that  the market does not fully incorporate historical financial information into prices in a timely manner",0,,,FALSE,Piotroski,1,0,0,0,
+ShareIss1Y,Pontiff and Woodgate,2008,JF,Share issuance (1 year),agnostic,"Although we do not address whether the source of this predictability is mispricing or a rational response to an asset pricing model, it appears doubtful that these results can be explained solely by a risk-based asset pricing model.",0,,,TRUE,Pontiff Woodgate,1,0,0,0,
 DelDRC,Prakash and Sinha,2013,CAR,Deferred Revenue,mispricing,"The analysis shows that such changes are associated with mis-priced securities and
-significant errors in analyst forecasts.",0,,,TRUE,Prakash Sinha
-OrderBacklog,"Rajgopal, Shevlin, Venkatachalam",2003,RAS,Order backlog,mispricing,We find that the stock market overweights the contribution of order backlog in predicting future earnings and a hedge strategy that exploits such overweighting generates significant future abnormal returns,0,,,FALSE,Rajgopal Shevlin Venkatachalam
-DelCOA,Richardson et al.,2005,JAE,Change in current operating assets,mispricing,"Empirical tests generally confirm that less reliable accruals lead to lower earnings persistence and that investors do not fully anticipate the lower earnings persistence, leading to significant security mispricing",0,,,TRUE,Richardson
-DelCOL,Richardson et al.,2005,JAE,Change in current operating liabilities,mispricing,"Empirical tests generally confirm that less reliable accruals lead to lower earnings persistence and that investors do not fully anticipate the lower earnings persistence, leading to significant security mispricing.",0,,,TRUE,Richardson
-DelEqu,Richardson et al.,2005,JAE,Change in equity to assets,mispricing,"Empirical tests generally confirm that less reliable accruals lead to lower earnings persistence and that investors do not fully anticipate the lower earnings persistence, leading to significant security mispricing.",0,,,TRUE,Richardson
-DelFINL,Richardson et al.,2005,JAE,Change in financial liabilities,mispricing,"Empirical tests generally confirm that less reliable accruals lead to lower earnings persistence and that investors do not fully anticipate the lower earnings persistence, leading to significant security mispricing.",0,,,TRUE,Richardson
+significant errors in analyst forecasts.",0,,,TRUE,Prakash Sinha,1,0,0,0,
+OrderBacklog,"Rajgopal, Shevlin, Venkatachalam",2003,RAS,Order backlog,mispricing,We find that the stock market overweights the contribution of order backlog in predicting future earnings and a hedge strategy that exploits such overweighting generates significant future abnormal returns,0,,,FALSE,Rajgopal Shevlin Venkatachalam,1,0,0,0,
+DelCOA,Richardson et al.,2005,JAE,Change in current operating assets,mispricing,"Empirical tests generally confirm that less reliable accruals lead to lower earnings persistence and that investors do not fully anticipate the lower earnings persistence, leading to significant security mispricing",0,,,TRUE,Richardson,1,0,0,0,
+DelCOL,Richardson et al.,2005,JAE,Change in current operating liabilities,mispricing,"Empirical tests generally confirm that less reliable accruals lead to lower earnings persistence and that investors do not fully anticipate the lower earnings persistence, leading to significant security mispricing.",0,,,TRUE,Richardson,1,0,0,0,
+DelEqu,Richardson et al.,2005,JAE,Change in equity to assets,mispricing,"Empirical tests generally confirm that less reliable accruals lead to lower earnings persistence and that investors do not fully anticipate the lower earnings persistence, leading to significant security mispricing.",0,,,TRUE,Richardson,1,0,0,0,
+DelFINL,Richardson et al.,2005,JAE,Change in financial liabilities,mispricing,"Empirical tests generally confirm that less reliable accruals lead to lower earnings persistence and that investors do not fully anticipate the lower earnings persistence, leading to significant security mispricing.",0,,,TRUE,Richardson,1,0,0,0,
 DelLTI,Richardson et al.,2005,JAE,Change in long-term investment,mispricing,"Empirical tests generally confirm that less reliable accruals lead to lower earnings
-persistence and that investors do not fully anticipate the lower earnings persistence, leading to significant security mispricing",0,,,TRUE,Richardson
-DelNetFin,Richardson et al.,2005,JAE,Change in net financial assets,mispricing,"Empirical tests generally confirm that less reliable accruals lead to lower earnings persistence and that investors do not fully anticipate the lower earnings persistence, leading to significant security mispricing.",0,,,TRUE,Richardson
+persistence and that investors do not fully anticipate the lower earnings persistence, leading to significant security mispricing",0,,,TRUE,Richardson,1,0,0,0,
+DelNetFin,Richardson et al.,2005,JAE,Change in net financial assets,mispricing,"Empirical tests generally confirm that less reliable accruals lead to lower earnings persistence and that investors do not fully anticipate the lower earnings persistence, leading to significant security mispricing.",0,,,TRUE,Richardson,1,0,0,0,
 TotalAccruals,Richardson et al.,2005,JAE,Total accruals,mispricing,"Empirical tests generally confirm that less reliable accruals lead to lower earnings
-persistence and that investors do not fully anticipate the lower earnings persistence, leading to significant security mispricing",0,,,TRUE,Richardson
+persistence and that investors do not fully anticipate the lower earnings persistence, leading to significant security mispricing",0,,,TRUE,Richardson,1,0,0,0,
 AgeIPO,Ritter,1991,JF,IPO and age,mispricing,"The patterns are consistent with an
 IPO market in which (1) investors are periodically overoptimistic about the earnings potential of young growth companies, and (2) firms take advantage of these
-""""""""""""""""windows of opportunity.""""""""""""""""",0,,,FALSE,Ritter
+""""""""""""""""windows of opportunity.""""""""""""""""",0,,,FALSE,Ritter,1,0,0,0,
 IndIPO,Ritter,1991,JF,Initial Public Offerings,mispricing,"The patterns are consistent with an
 IPO market in which (1) investors are periodically overoptimistic about the earnings potential of young growth companies, and (2) firms take advantage of these
-""""""""""""""""windows of opportunity.""""""""""""""""",0,,,FALSE,Ritter
-ChNAnalyst,Scherbina,2008,ROF,Decline in Analyst Coverage,mispricing,I present evidence of inefficient information processing in equity markets by documenting that negative information withheld by securities analysts is incorporated in stock prices with a significant delay.,0,,,TRUE,Scherbina
-Accruals,Sloan,1996,AR,Accruals,mispricing,"stock prices are found to act as if investors """"""""""""""""fixate' on earnings, failing to reflect fully information contained in the accrual and cash flow components of current earnings until that information impacts future earnings",0,,,FALSE,Sloan
+""""""""""""""""windows of opportunity.""""""""""""""""",0,,,FALSE,Ritter,1,0,0,0,
+ChNAnalyst,Scherbina,2008,ROF,Decline in Analyst Coverage,mispricing,I present evidence of inefficient information processing in equity markets by documenting that negative information withheld by securities analysts is incorporated in stock prices with a significant delay.,0,,,TRUE,Scherbina,1,0,0,0,
+Accruals,Sloan,1996,AR,Accruals,mispricing,"stock prices are found to act as if investors """"""""""""""""fixate' on earnings, failing to reflect fully information contained in the accrual and cash flow components of current earnings until that information impacts future earnings",0,,,FALSE,Sloan,1,0,0,0,
 ChAssetTurnover,Soliman,2008,AR,Change in Asset Turnover,mispricing,"In the spirit of Abarbanell and Bernard
 (1992), it points to the possibility that investors may be misled partially because analysts
-do not impound the differential time-series properties of these two components.",0,,,TRUE,Soliman
+do not impound the differential time-series properties of these two components.",0,,,TRUE,Soliman,1,0,0,0,
 ChNNCOA,Soliman,2008,AR,Change in Net Noncurrent Op Assets,mispricing,"In the spirit of Abarbanell and Bernard
 (1992), it points to the possibility that investors may be misled partially because analysts
-do not impound the differential time-series properties of these two components.",0,,,TRUE,Soliman
+do not impound the differential time-series properties of these two components.",0,,,TRUE,Soliman,1,0,0,0,
 ChNWC,Soliman,2008,AR,Change in Net Working Capital,mispricing,"In the spirit of Abarbanell and Bernard
 (1992), it points to the possibility that investors may be misled partially because analysts
-do not impound the differential time-series properties of these two components.",0,,,TRUE,Soliman
+do not impound the differential time-series properties of these two components.",0,,,TRUE,Soliman,1,0,0,0,
 DebtIssuance,Spiess and Affleck-Graves,1999,JFE,Debt Issuance,mispricing,"the market appears to underreact at the time of the debt
-offering announcement",0,,,FALSE,Spiess Affleck-Graves
-BM,Stattman,1980,Other,"Book to market, original (Stattman 1980)",agnostic,The evidence is consistent with a positive relationship between BP and subsequent RAR which is large and consistent enough to be useful information to investors seeking to earn stock returns which are abnormally high given the associated level of risk… …The persistence of the returns over years indicates that the market is either unaware of the information in BP or uninterested in adjusting to it... It seems more consistent to view ... ..the results as indicating that BP and PE proxy for an omitted variable... ...The true nature of the underlying omitted factor is still open to inquiry.,0,,,FALSE,Stattman
-ChInv,Thomas and Zhang,2002,RAS,Inventory Growth,mispricing,"We speculate that demand shifts explain our results, and examine the feasibility of alternative reasons for the stock marketâ€™s apparent inability to recognize the impending profitability reversals",0,,,FALSE,Thomas Zhang
-ChTax,Thomas and Zhang,2011,JAR,Change in Taxes,mispricing,We investigate the joint hypothesis that (1) tax expense contains information about core profitability that is incremental to reported earnings and (2) that information is reflected in stock prices with a delay,0,,,TRUE,Thomas Zhang
-Investment,"Titman, Wei and Xie",2004,JFQA,Investment to revenue,mispricing,These observations are consistent with the hypothesis that investors tend to underreact to the empire building implications of increased investment expenditures,0,,,TRUE,Titman Wei Xie
-realestate,Tuzel,2010,RFS,Real estate holdings,risk,"I develop a general equilibrium production economy where firms use two factors: real estate and other capital. Investment is subject to asymmetric adjustment costs. Because real estate depreciates slowly, firms with high real estate holdings are more vulnerable to bad productivity shocks and hence are riskier and have higher expected returns.",0,,,TRUE,Tuzel
+offering announcement",0,,,FALSE,Spiess Affleck-Graves,1,0,0,0,
+BM,Stattman,1980,Other,"Book to market, original (Stattman 1980)",agnostic,The evidence is consistent with a positive relationship between BP and subsequent RAR which is large and consistent enough to be useful information to investors seeking to earn stock returns which are abnormally high given the associated level of risk… …The persistence of the returns over years indicates that the market is either unaware of the information in BP or uninterested in adjusting to it... It seems more consistent to view ... ..the results as indicating that BP and PE proxy for an omitted variable... ...The true nature of the underlying omitted factor is still open to inquiry.,0,,,FALSE,Stattman,1,0,0,0,
+ChInv,Thomas and Zhang,2002,RAS,Inventory Growth,mispricing,"We speculate that demand shifts explain our results, and examine the feasibility of alternative reasons for the stock marketâ€™s apparent inability to recognize the impending profitability reversals",0,,,FALSE,Thomas Zhang,1,0,0,0,
+ChTax,Thomas and Zhang,2011,JAR,Change in Taxes,mispricing,We investigate the joint hypothesis that (1) tax expense contains information about core profitability that is incremental to reported earnings and (2) that information is reflected in stock prices with a delay,0,,,TRUE,Thomas Zhang,1,0,0,0,
+Investment,"Titman, Wei and Xie",2004,JFQA,Investment to revenue,mispricing,These observations are consistent with the hypothesis that investors tend to underreact to the empire building implications of increased investment expenditures,0,,,TRUE,Titman Wei Xie,1,0,0,0,
+realestate,Tuzel,2010,RFS,Real estate holdings,risk,"I develop a general equilibrium production economy where firms use two factors: real estate and other capital. Investment is subject to asymmetric adjustment costs. Because real estate depreciates slowly, firms with high real estate holdings are more vulnerable to bad productivity shocks and hence are riskier and have higher expected returns.",0,,,TRUE,Tuzel,0,0,0,1,
 ConvDebt,Valta,2016,JFQA,Convertible debt indicator,risk,"This paper analyzes whether renegotiation frictions and the firmâ€™s debt structure affect expected stock returns. In the model, shareholders can act strategically
-to induce default and recover a substantial fraction of firm value in renegotiation.",0,,,TRUE,Valta
-AbnormalAccruals,Xie,2001,AR,Abnormal Accruals,mispricing,"I find that the market overestimates the persistence, or one-year-ahead earnings implications, of abnormal accruals, and consequently overprices these accruals",0,,,FALSE,Xie
+to induce default and recover a substantial fraction of firm value in renegotiation.",0,,,TRUE,Valta,0,0,1,0,
+AbnormalAccruals,Xie,2001,AR,Abnormal Accruals,mispricing,"I find that the market overestimates the persistence, or one-year-ahead earnings implications, of abnormal accruals, and consequently overprices these accruals",0,,,FALSE,Xie,1,0,0,0,
 skew1,"Xing, Zhang and Zhao",2010,JFQA,Volatility smirk near the money,mispricing,"The results are consistent with the notion that informed traders with negative
 news prefer to trade out-of-the-money put options, and that the equity market is slow in
-incorporating the information embedded in volatility smirks.",0,,,TRUE,Xing Zhang Zhao
-SmileSlope,Yan,2011,JFE,Put volatility minus call volatility,risk,"In the presence of jump risk, expected stock return is a function of the average jump size, which can be proxied by the slope of option implied volatility smile",0,,,TRUE,Yan
-FirmAgeMom,Zhang,2006,JF,Firm Age - Momentum,mispricing,"My main hypothesis is that if investors underreact to public information, they will underreact even more in cases of greater information uncertainty",0,,,TRUE,Zhang
+incorporating the information embedded in volatility smirks.",0,,,TRUE,Xing Zhang Zhao,1,0,0,0,
+SmileSlope,Yan,2011,JFE,Put volatility minus call volatility,risk,"In the presence of jump risk, expected stock return is a function of the average jump size, which can be proxied by the slope of option implied volatility smile",0,,,TRUE,Yan,0,0,1,0,
+FirmAgeMom,Zhang,2006,JF,Firm Age - Momentum,mispricing,"My main hypothesis is that if investors underreact to public information, they will underreact even more in cases of greater information uncertainty",0,,,TRUE,Zhang,1,0,0,0,
