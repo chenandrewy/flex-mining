@@ -491,7 +491,7 @@ for (jj in unique(czret$theory)) {
     labelmatch = FALSE,
     yl =-100, yh = 175,
     fig.width = 18,
-    fontsize = 44,
+    fontsize = 38,
     legendlabels =
       c(
         paste0("Published"),
@@ -503,4 +503,3 @@ for (jj in unique(czret$theory)) {
   )  
   
 }
-
