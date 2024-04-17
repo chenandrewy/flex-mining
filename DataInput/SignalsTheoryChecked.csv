@@ -146,7 +146,7 @@ OrgCap,Eisfeldt and Papanikolaou,2013,JF,Organizational capital,risk,"We refer
 to this type of intangible capital as organization capital and develop a structural model
 to analyze its effect on asset prices. We argue that shareholders consider rms with high
 levels of organization capital to be riskier than rms with more physical capital, and provide
-empirical evidence supporting this claim.",0,,,TRUE,Eisfeldt Papanikolaou,0,0,1,0,
+empirical evidence supporting this claim.",0,,,TRUE,Eisfeldt Papanikolaou,0,0,0,1,
 sfe,"Elgers, Lo and Pfeiffer",2001,AR,Earnings Forecast to price,mispricing,"This delayed price response is more pronounced for firms with relatively low analyst coverage, consistent with the premise that low financial analyst coverage is associated with a variety of factors that impede the information efficiency of the security market.",0,,,FALSE,Elgers Lo Pfeiffer,1,0,0,0,
 GrLTNOA,"Fairfield, Whisenant and Yohn",2003,AR,Growth in long term operating assets,mispricing,"Thus, the results suggest that the accrual anomaly documented in Sloan (1996) is a subset of a larger anomaly with respect to a general market mispricing of growth in net operating assets",0,,,FALSE,Fairfield Whisenant Yohn,1,0,0,0,
 AM,Fama and French,1992,JF,Total assets to market,agnostic,"Our main result is that two easily measured variables, size and book-to-market equity, seem to describe the cross-section of average stock returns.
@@ -253,7 +253,7 @@ RDS,Landsman et al.,2011,AR,Real dirty surplus,mispricing,"Taken together, the f
 negative really dirty surplus",0,,,TRUE,Landsman,1,0,0,0,
 MomVol,Lee and Swaminathan,2000,JF,Momentum in high volume stocks,mispricing,"our evidence shows that the information content of trading volume is related to market misperceptions of firmsâ€™ future earnings prospects. Specifically, we provide strong evidence that low ~high! volume stocks tend to be under- ~over-! valued by the market",0,,,FALSE,Lee Swaminathan,1,0,0,0,
 Tax,Lev and Nissim,2004,AR,Taxable income to income,mispricing,"It appears, therefore, that during the 1990s investors became increasingly adept at using the forward-looking information in taxable income (or correlated information) in securities valuation",0,,,TRUE,Lev Nissim,1,0,0,0,
-RDcap,Li,2011,RFS,R&D capital-to-assets,risk,", R&D-intensive firmsâ€™ risk increases with their financial constraints",0,,,TRUE,Li,0,1,0,0,
+RDcap,Li,2011,RFS,R&D capital-to-assets,risk,", R&D-intensive firmsâ€™ risk increases with their financial constraints",0,,,TRUE,Li,0,0,1,0,
 DivYieldST,Litzenberger and Ramaswamy,1979,JF,Predicted div yield next month,risk,The equilibrium relationship indicates that before-tax expected rates of return are linearly related to systematic risk and to dividend yield.,0,,,FALSE,Litzenberger Ramaswamy,0,1,0,0,
 zerotrade,Liu,2006,JFE,Days with zero trades,risk,"The success of the liquidity-augmented two-factor model suggests that liquidity
 risk is an especially promising direction in this continued search.",1,Exposure to liquidity risk,,TRUE,Liu,1,0,0,0,
