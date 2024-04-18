@@ -13,9 +13,6 @@ czcat[, modeltype := factor(modeltype, levels = c('No Model', 'Stylized', 'Dynam
 czret = readRDS('../Data/Processed/czret_keeponly.RDS') %>% 
   left_join(czcat, by = 'signalname') 
 # Plot oos return vs risk to misprice -----------------------------------------------------------------
-# 
-# wordcount = fread('DataIntermediate/TextClassification.csv') %>% 
-#   select(signalname, theory, misprice_risk_ratio)
 
 # calc decay
 czdecay = czret %>% 
@@ -58,21 +55,19 @@ repelsize = 5
 repelcolor = 'royalblue4'
 # Use ggplot to create the plot
 pos <- position_jitter(width = 0.2, seed = 1)
-ggplot(plotme, aes(x = modeltype, y = diff_ret)) +
+ggplot(plotme, aes(x = modeltype, y = diff_ret))+  
+  geom_abline(
+    aes(intercept = reg$coefficients[1], slope = reg$coefficients[2])
+    , color = colors[1], size = 2, alpha = 1
+  ) +
   geom_hline(yintercept = 0, color = 'gray', size = 1) +
   geom_hline(yintercept = 1, color = 'gray', size = 1) +  
   geom_jitter(size = 2.5,alpha = 0.5,
               position = pos) +
-  # geom_point(stat = "identity",size = 2.5,
-  #            position = position_jitter(width = 0.2, seed = 1), alpha = 0.5) +
   labs(y = expression('[Post-Sample] / [In-Sample]')
        , x = '') +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))+  
-  geom_abline(
-    aes(intercept = reg$coefficients[1], slope = reg$coefficients[2])
-    , color = colors[1], size = 2, alpha = 1
-  )+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
   theme_light(base_size = 26) +
   theme(
     legend.position = c(80,85)/100
@@ -80,7 +75,8 @@ ggplot(plotme, aes(x = modeltype, y = diff_ret)) +
     , legend.background = element_rect(fill='transparent')) +
   scale_y_continuous(breaks = seq(-5,5,1)) +
   ggrepel::geom_text_repel(
-    aes(label=ifelse(rank <= 5 & modeltype == 'No Model', signalname, '')),
+    aes(label=ifelse(signalname %in% c('BMdec', 'Mom12m', 'Size', 'AssetGrowth', 'OperProf') 
+                     & modeltype == 'No Model', signalname, '')),
     position = pos,
     max.overlaps = Inf
     , box.padding = 1.5
@@ -88,7 +84,7 @@ ggplot(plotme, aes(x = modeltype, y = diff_ret)) +
     , xlim = c(0, 1.2)
   ) +
   ggrepel::geom_text_repel(
-    aes(label=ifelse(rank <= 5 & modeltype == 'Stylized', signalname, '')),
+    aes(label=ifelse(rank <= 10 & modeltype == 'Stylized', signalname, '')),
     position = pos,
     max.overlaps = Inf
     , box.padding = 1.5, color = repelcolor, size = repelsize
@@ -103,7 +99,7 @@ ggplot(plotme, aes(x = modeltype, y = diff_ret)) +
     , xlim = c(2.2, 3.2)
   ) +
   ggrepel::geom_text_repel(
-    aes(label=ifelse(rank <= 5 & modeltype == 'Quantitative', signalname, '')),
+    aes(label=ifelse(rank <= 10 & modeltype == 'Quantitative', signalname, '')),
     position = pos,
     max.overlaps = Inf,
     box.padding = 1.5,
