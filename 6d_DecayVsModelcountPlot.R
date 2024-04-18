@@ -108,3 +108,69 @@ ggplot(plotme, aes(x = modeltype, y = diff_ret))+
   ) + coord_cartesian(xlim = c(0.5,4))
 
 ggsave('../Results/Fig_DecayVsModel_Names.pdf', width = 10, height = 8)
+
+
+
+# Calculate means
+
+######################
+# Use ggplot to create the plot
+pos <- position_jitter(width = 0.2, seed = 1)
+ggplot(plotme, aes(x = modeltype, y = diff_ret)) + 
+  geom_jitter(size = 2.5,alpha = 0.5,
+              position = pos) +
+  stat_summary(fun = mean, geom = "point", aes(group = 1),
+               color = "blue", size = repelsize, shape = 18)+
+  geom_line(data = means, aes(x = modeltype, y = mean_diff_ret, group = 1),
+            color = colors[1], size = 1) +  
+  geom_hline(yintercept = 0, color = 'gray', size = 1) +
+  geom_hline(yintercept = 1, color = 'gray', size = 1) +  
+
+  labs(y = expression('[Post-Sample] / [In-Sample]')
+       , x = '') +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  theme_light(base_size = 26) +
+  theme(
+    legend.position = c(80,85)/100
+    , legend.spacing.y = unit(0, units = 'cm')
+    , legend.background = element_rect(fill='transparent')) +
+  scale_y_continuous(breaks = seq(-5,5,1)) +
+  ggrepel::geom_text_repel(
+    aes(label=ifelse(signalname %in% c('BMdec', 'Mom12m', 'Size', 'AssetGrowth', 'OperProf') 
+                     & modeltype == 'No Model', signalname, '')),
+    position = pos,
+    max.overlaps = Inf
+    , box.padding = 1.5
+    , color = repelcolor, size = repelsize
+    , xlim = c(0, 1.2)
+  ) +
+  ggrepel::geom_text_repel(
+    aes(label=ifelse(rank <= 10 & modeltype == 'Stylized', signalname, '')),
+    position = pos,
+    max.overlaps = Inf
+    , box.padding = 1.5, color = repelcolor, size = repelsize
+    , xlim = c(1.2, 2.2)
+  ) +
+  ggrepel::geom_text_repel(
+    aes(label=ifelse(rank <= 5 & modeltype == 'Dynamic', signalname, '')),
+    position = pos,
+    max.overlaps = Inf,
+    box.padding = 1.5,
+    color = repelcolor, size = repelsize
+    , xlim = c(2.2, 3.2)
+  ) +
+  ggrepel::geom_text_repel(
+    aes(label=ifelse(rank <= 10 & modeltype == 'Quantitative', signalname, '')),
+    position = pos,
+    max.overlaps = Inf,
+    box.padding = 1.5,
+    color = repelcolor, size = repelsize
+    , xlim = c(3.2, 4.2)
+  ) + coord_cartesian(xlim = c(0.5,4))
+
+ggsave('../Results/Fig_DecayVsModel_NamesMeans.pdf', width = 10, height = 8)
+
+
+
+#####################
