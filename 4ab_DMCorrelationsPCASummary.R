@@ -267,7 +267,7 @@ if (TG2Set == 'Matches') {
            yearm <= as.yearmon('2020-12-31')) %>% 
     mutate(TG2 = abs(t_30y_l) > 2) %>% 
     group_by(dmname, sweight) %>%
-    summarise(ShareTG2 = mean(TG2)) %>% 
+    summarise(ShareTG2 = mean(TG2, na.rm = TRUE)) %>% 
     ungroup()
   
   # Find DM strategies with t-stat greater 2 share of at least minShareTG2
@@ -279,20 +279,6 @@ if (TG2Set == 'Matches') {
       filter(ShareTG2 > minShareTG2, sweight == 'vw') %>%
       pull(dmname)
   )  
-  
-  
-  DMstratTG2 = list(
-    ew = dt %>% 
-      filter(abs(t_30y_l) > 2, sweight == 'ew',
-             yearm >= as.yearmon('1994-01-01'),
-             yearm <= as.yearmon('2020-12-31')) %>%  
-      pull(dmname) %>% unique(),
-    vw = dt %>% 
-      filter(abs(t_30y_l) > 2, sweight == 'vw',
-             yearm >= as.yearmon('1994-01-01'),
-             yearm <= as.yearmon('2020-12-31')) %>%  
-      pull(dmname) %>% unique()
-  )
   
 } else {
   print('TG2Set has to be one of Matches or 1994-2020 or Rolling1994-2020')
