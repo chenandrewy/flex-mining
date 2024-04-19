@@ -10,6 +10,7 @@ minShareTG2 = .1  # Include strategies with t-stat >2 in at least X % of matches
 TG2Set = '1994-2020' # 'Matches' 
 # 1994-2020: DM strategies evaluated over 1994-2020
 # Matches: all sample matching periods
+# Rolling1994-2020: DM strategies evaluated on rolling t-stats in 1994-2020
 
 DMname = paste0('../Data/Processed/',
                 globalSettings$dataVersion, 
@@ -245,8 +246,56 @@ if (TG2Set == 'Matches') {
       pull(dmname)
   )
   
+} else if (TG2Set == 'Rolling1994-2020') {
+  
+  dt = dm_rets %>%
+    transmute(
+      dmname, yearm, ret, sweight
+    ) %>% 
+    arrange(dmname, sweight, yearm) %>% 
+    as.data.table() %>% 
+    setkey(dmname, yearm)
+  
+  # Compute rolling t-stats
+  dt[, ret_30y_l := data.table::shift(frollmean(ret, 12*30, NA)), by = .(dmname, sweight)]
+  dt[, t_30y_l   := data.table::shift(frollapply(ret, 12*30, f.custom.t, fill = NA)), by = .(dmname, sweight)]
+  
+  
+  # Find share of each DM strategies with t-stat greater 2
+  DMstratT = dt %>% 
+    filter(yearm >= as.yearmon('1994-01-01'),
+           yearm <= as.yearmon('2020-12-31')) %>% 
+    mutate(TG2 = abs(t_30y_l) > 2) %>% 
+    group_by(dmname, sweight) %>%
+    summarise(ShareTG2 = mean(TG2)) %>% 
+    ungroup()
+  
+  # Find DM strategies with t-stat greater 2 share of at least minShareTG2
+  DMstratTG2 = list(
+    ew = DMstratT %>% 
+      filter(ShareTG2 > minShareTG2, sweight == 'ew') %>%
+      pull(dmname),
+    vw = DMstratT %>% 
+      filter(ShareTG2 > minShareTG2, sweight == 'vw') %>%
+      pull(dmname)
+  )  
+  
+  
+  DMstratTG2 = list(
+    ew = dt %>% 
+      filter(abs(t_30y_l) > 2, sweight == 'ew',
+             yearm >= as.yearmon('1994-01-01'),
+             yearm <= as.yearmon('2020-12-31')) %>%  
+      pull(dmname) %>% unique(),
+    vw = dt %>% 
+      filter(abs(t_30y_l) > 2, sweight == 'vw',
+             yearm >= as.yearmon('1994-01-01'),
+             yearm <= as.yearmon('2020-12-31')) %>%  
+      pull(dmname) %>% unique()
+  )
+  
 } else {
-  print('TG2Set has to be one of Matches or 1994-2020')
+  print('TG2Set has to be one of Matches or 1994-2020 or Rolling1994-2020')
 }
 
 
