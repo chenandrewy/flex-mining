@@ -7,7 +7,9 @@ library(doParallel)
 # settings
 ncores <- round(detectCores() / 2)
 minShareTG2 = .1  # Include strategies with t-stat >2 in at least X % of matches
-
+TG2Set = '1994-2020' # 'Matches' 
+# 1994-2020: DM strategies evaluated over 1994-2020
+# Matches: all sample matching periods
 
 DMname = paste0('../Data/Processed/',
                 globalSettings$dataVersion, 
@@ -181,39 +183,71 @@ compute_pca = function(ret1){
 } # end compute_pca 
 
 
-# Compute DM summary states ----------------------------------------------------
+# Find relevant TG2 set  -----------------------------------------------------
 
-print("creating Compustat mining in-sample sumstats")
-print("Takes about 4 minutes using 4 cores")
-start_time <- Sys.time()
-dmcomp$insampsum <- sumstats_for_DM_Strats(
-  DMname = dmcomp$name,
-  nsampmax = Inf
-)
-print("finished")
-stop_time <- Sys.time()
-stop_time - start_time
-
-# Find DM strategies with t-stat greater 2 in at least 10% of cases
-DMstratT = dmcomp$insampsum %>% 
-  mutate(TG2 = abs(tstat) > 2) %>% 
-  group_by(dmname, sweight) %>%
-  summarise(ShareTG2 = mean(TG2)) %>% 
-  ungroup()
-
-DMstratT %>% 
-  ggplot(aes(x = ShareTG2)) +
-  geom_histogram() +
-  facet_wrap(~sweight)
-
-DMstratTG2 = list(
-  ew = DMstratT %>% 
-    filter(ShareTG2 > minShareTG2, sweight == 'ew') %>%
-    pull(dmname),
-  vw = DMstratT %>% 
-    filter(ShareTG2 > minShareTG2, sweight == 'vw') %>%
-    pull(dmname)
-)  
+if (TG2Set == 'Matches') {
+  
+  print("creating Compustat mining in-sample sumstats")
+  print("Takes about 4 minutes using 4 cores")
+  start_time <- Sys.time()
+  dmcomp$insampsum <- sumstats_for_DM_Strats(
+    DMname = dmcomp$name,
+    nsampmax = Inf
+  )
+  print("finished")
+  stop_time <- Sys.time()
+  stop_time - start_time
+  
+  # Find DM strategies with t-stat greater 2 in at least 10% of cases
+  DMstratT = dmcomp$insampsum %>% 
+    mutate(TG2 = abs(tstat) > 2) %>% 
+    group_by(dmname, sweight) %>%
+    summarise(ShareTG2 = mean(TG2)) %>% 
+    ungroup()
+  
+  # DMstratT %>% 
+  #   ggplot(aes(x = ShareTG2)) +
+  #   geom_histogram() +
+  #   facet_wrap(~sweight)
+  
+  DMstratTG2 = list(
+    ew = DMstratT %>% 
+      filter(ShareTG2 > minShareTG2, sweight == 'ew') %>%
+      pull(dmname),
+    vw = DMstratT %>% 
+      filter(ShareTG2 > minShareTG2, sweight == 'vw') %>%
+      pull(dmname)
+  )  
+  
+} else if (TG2Set == '1994-2020') {
+  
+  # Alternative: Regardless of published sample matches, just look at t-stats in 1994-2020
+  DMStratT19942020 = dm_rets[
+    yearm >= as.yearmon('1994-01-01') &
+      yearm <= as.yearmon('2020-12-31') &   
+      !is.na(ret),
+    .(
+      rbar = mean(ret), tstat = mean(ret) / sd(ret) * sqrt(.N),
+      min_nstock_long = min(nstock_long),
+      min_nstock_short = min(nstock_short),
+      nmonth = sum(!is.na(ret))
+    ),
+    by = c("sweight", "dmname")
+  ]
+  
+  # Find DM strategies with t-stat greater 2
+  DMstratTG2 = list(
+    ew = DMStratT19942020 %>% 
+      filter(abs(tstat) > 2, sweight == 'ew') %>% 
+      pull(dmname),
+    vw = DMStratT19942020 %>% 
+      filter(abs(tstat) > 2, sweight == 'vw') %>% 
+      pull(dmname)
+  )
+  
+} else {
+  print('TG2Set has to be one of Matches or 1994-2020')
+}
 
 
 # Calculate correlations -------------------------------------------------------
@@ -316,8 +350,8 @@ quantilesCorDM %>%
 # PCA  -------------------------------------------------------------------------
 
 # fix sample 
-yearm_min = 1984
-yearm_max = 2019
+yearm_min = 1994
+yearm_max = 2020
 
 pca_ew = compute_pca(ret1 = dm_rets %>% 
                        filter(sweight == 'ew',
@@ -325,7 +359,7 @@ pca_ew = compute_pca(ret1 = dm_rets %>%
                               yearm >= yearm_min, 
                               yearm <= yearm_max) %>% 
                        select(yearm, dmname, ret)
-                     )
+)
 
 pca_vw = compute_pca(ret1 = dm_rets %>% 
                        filter(sweight == 'vw',
