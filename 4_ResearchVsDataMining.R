@@ -75,6 +75,7 @@ rm(tempsumCand, tempCand)
 # Run Exhibits ---------------------------------------------
 
 source('4a_DataMiningSummary.R', echo = T)  # this can take several minutes
+source('4ab_DMCorrelationsPCASummary.R', echo = T)  # This might take around an hour or so
 source('4b_MatchingSummary.R', echo = T)
 source('4c_ResearchVsDMPlots.R', echo = T)
 source('4d_InspectTables.R', echo = T)

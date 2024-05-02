@@ -138,18 +138,24 @@ for (cc in exclCorrelations) {
   
   # Combine with matched signals
   CorAllRets = czret %>% 
-    left_join(tempCand, by = c('signalname' = 'actSignal', 'eventDate' = 'eventDate'))
+    left_join(tempCand, by = c('signalname' = 'actSignal', 'eventDate' = 'eventDate')) %>% 
+  # Add matched returns without excluding correlations
+    left_join(allRets %>% transmute(signalname, date, 
+                                    matchRetAlt = matchRet))
   
   rm(tempsumCand, tempCand, corCandidateReturns)
   
   # Plot returns over time over all categories
   ReturnPlotsWithDM(dt = CorAllRets %>% 
                       filter(!is.na(matchRet), Keep == 1) %>% # To exclude unmatched signals
-                      transmute(eventDate, ret, matchRet),
+                      transmute(eventDate, ret, matchRet, matchRetAlt),
                     basepath = '../Results/Fig_PublicationsVsDataMining',
                     suffix = paste0('All_DM_Correlation', cc),
                     rollmonths = 60,
                     colors = colors,
+                    legendlabels = c('Published','Matched data-mined (excl correlated)','Matched data-mined (all)'),
+                    legendpos = c(35,45)/100,
+                    fontsize = 24,
                     yl = -90, yh = 170
   )
   
@@ -159,10 +165,13 @@ for (cc in exclCorrelations) {
     
     ReturnPlotsWithDM(dt = CorAllRets %>% 
                         filter(!is.na(matchRet), theory == jj, Keep == 1) %>% # To exclude unmatched signals
-                        dplyr::select(eventDate, ret, matchRet),
+                        dplyr::select(eventDate, ret, matchRet, matchRetAlt),
                       basepath = '../Results/Fig_PublicationsVsDataMining',
                       suffix = paste0(jj, '_DM_Correlation', cc),
                       colors = colors,
+                      legendlabels = c('Published','Matched data-mined (excl correlated)','Matched data-mined (all)'),
+                      legendpos = c(35,45)/100,
+                      fontsize = 24,
                       yl = -90, yh = 170
                       
     ) 
