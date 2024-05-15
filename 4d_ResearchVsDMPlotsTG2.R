@@ -1,4 +1,4 @@
-# Data-mining comparisons --------------------------------------
+# Data-mining comparisons 
 # These are the new main plots as of 2024 04.
 
 # Setup --------------------------------------------------------
@@ -23,11 +23,12 @@ dmcomp$name <- paste0('../Data/Processed/',
                       ' LongShort.RData')
 dmtic$name <- "../Data/Processed/ticker_Harvey2017JF.RDS"
 
-## Load Global Data ---------------------------------------------------------------
+## Load Global Data -------------------------------------------
 
 # these are treated as globals (don't modify pls)
 czsum <- readRDS("../Data/Processed/czsum_allpredictors.RDS") %>%
-  filter(Keep)
+  filter(Keep) %>% 
+  setDT()
 
 czcat <- fread("DataInput/SignalsTheoryChecked.csv") %>%
   select(signalname, Year, theory)
@@ -37,111 +38,6 @@ czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
   mutate(ret_scaled = ret / rbar * 100)
 
 # In-samp Sumstats (about 4 min on 4 cores) -------------------
-## Declare function --------------------------------------------
-
-# function for computing DM strat sumstats in pub samples
-sumstats_for_DM_Strats <- function(
-    DMname = paste0('../Data/Processed/',
-                    globalSettings$dataVersion, 
-                    ' LongShort.RData'),
-    nsampmax = Inf) {
-  
-  # read in DM strats
-  dm_rets <- readRDS(DMname)$ret
-  dm_info <- readRDS(DMname)$port_list
-  
-  dm_rets <- dm_rets %>%
-    left_join(
-      dm_info %>% select(portid, sweight),
-      by = c("portid")
-    ) %>%
-    transmute(
-      sweight,
-      dmname = signalid,
-      yearm,
-      ret,
-      nstock_long,
-      nstock_short
-    ) %>%
-    setDT()
-  
-  # Finds sum stats for dm in each pub sample
-  # the output for this can be used for all dm selection methods
-  samplist <- czsum %>%
-    distinct(sampstart, sampend) %>%
-    arrange(sampstart, sampend)
-  
-  # set up for parallel
-  cl <- makePSOCKcluster(ncores)
-  registerDoParallel(cl)
-  
-  # loop setup
-  nsamp <- dim(samplist)[1]
-  nsamp <- min(nsamp, nsampmax)
-  dm_insamp <- list()
-  
-  # dopar in a function needs some special setup
-  # https://stackoverflow.com/questions/6689937/r-problem-with-foreach-dopar-inside-function-called-by-optim
-  dm_insamp <- foreach(
-    sampi = 1:nsamp,
-    .combine = rbind,
-    .packages = c("data.table", "tidyverse", "zoo"),
-    .export = ls(envir = globalenv())
-  ) %dopar% {
-    # feedback
-    print(paste0("DM sample stats for sample ", sampi, " of ", nsamp))
-    
-    # find sum stats for the current sample
-    sampcur <- samplist[sampi, ]
-    sumcur <- dm_rets[
-      yearm >= sampcur$sampstart &
-        yearm <= sampcur$sampend &
-        !is.na(ret),
-      .(
-        rbar = mean(ret), tstat = mean(ret) / sd(ret) * sqrt(.N),
-        min_nstock_long = min(nstock_long),
-        min_nstock_short = min(nstock_short),
-        nmonth = sum(!is.na(ret))
-      ),
-      by = c("sweight", "dmname")
-    ]
-    # find number of obs in the last year of the sample
-    filtcur <- dm_rets[
-      floor(yearm) == year(sampcur$sampend) &
-        !is.na(ret),
-      .(nlastyear = .N),
-      by = c("sweight", "dmname")
-    ]
-    
-    # combine and save
-    sumcur <- sumcur %>%
-      left_join(filtcur, by = c("sweight", "dmname")) %>%
-      mutate(
-        sampstart = sampcur$sampstart, sampend = sampcur$sampend
-      )
-    
-    return(sumcur)
-  } # end dm_insamp loop
-  stopCluster(cl)
-  
-  # Merge with czsum
-  # insampsum key is c(pubname,dmname). Each row is a dm strat that matches a pub
-  insampsum <- czsum %>%
-    transmute(
-      pubname = signalname, rbar_op = rbar, tstat_op = tstat, sampstart, sampend,
-      sweight = tolower(sweight)
-    ) %>%
-    left_join(
-      dm_insamp,
-      by = c("sampstart", "sampend", "sweight"),
-      relationship = "many-to-many" # required to suppress warning
-    ) %>%
-    arrange(pubname, desc(tstat))
-  
-  setDT(insampsum)
-  
-  return(insampsum)
-} # end Sumstats function
 
 ## Run Function on Compustat DM --------------------------------
 
@@ -170,151 +66,14 @@ stop_time <- Sys.time()
 stop_time - start_time
 
 # Convenience Save ---------------------------------------------
-save.image("../Data/tmpAltDMPlots.RData")
+save.image("../Data/tmpTG2Plots.RData")
 
 # Convenience Load --------------------------------------------
-load("../Data/tmpAltDMPlots.RData")
+load("../Data/tmpTG2Plots.RData")
 
 source('0_Environment.R') # in case there are function updates
 
-# Functions for making event time returns ---------------------
-
-SelectDMStrats <- function(insampsum, settings) {
-  # input:
-  #     insampsum = summary stats for each pubname, dmname combination
-  #     dmset = settings for selection
-  # output: matchcur = all pubname, dmname that satisfy dmset
-  
-  # add derivative statistics
-  insampsum <- insampsum %>%
-    group_by(sweight, sampstart, sampend) %>%
-    arrange(desc(abs(tstat))) %>%
-    mutate(rank_tstat = row_number()) %>%
-    arrange(desc(abs(rbar))) %>%
-    mutate(rank_rbar = row_number(), n_dm_tot = n()) %>%
-    mutate(
-      diff_rbar = abs(rbar * sign(rbar) - rbar_op),
-      diff_tstat = abs(tstat * sign(rbar) - tstat_op)
-    ) %>%
-    setDT()
-  
-  # filter
-  matchcur <- insampsum[
-    diff_rbar <= settings$r_tol &
-      diff_tstat <= settings$t_tol &
-      diff_rbar / rbar_op <= settings$r_reltol &
-      diff_tstat / tstat_op <= settings$t_reltol &
-      min_nstock_long >= settings$minNumStocks/2 &
-      min_nstock_short >= settings$minNumStocks/2 &
-      abs(tstat) > settings$t_min &
-      abs(tstat) < settings$t_max &
-      rank_tstat / n_dm_tot <= settings$t_rankpct_min / 100 &
-      nlastyear == 12 &   # tbc: make flexible
-      nmonth >= 5*12 # tbc: make flexible
-  ]
-  
-  print("summary of matching:")
-  matchcur[, .(n_dm_match = .N, sampstart = min(sampstart), sampend = min(sampend)), by = "pubname"] %>%
-    arrange(-n_dm_match) %>%
-    print()
-  
-  return(matchcur)
-  
-  print("end selectStrats")
-}
-
-make_DM_event_returns <- function(
-    match_strats,
-    DMname = paste0('../Data/Processed/',
-                    globalSettings$dataVersion, 
-                    ' LongShort.RData'),
-    npubmax = Inf,
-    czsum,
-    use_sign_info = TRUE
-) {
-  # input: match_strats = summary stats for each selected pubname, dmname pair
-  #     outname = name of RDS output
-  # you need to pass in czsum (can't use the global) because of
-  # a mysterious dopar error (object 'czsum' not found)
-  # output: for each pubname-eventDate, average dm returns
-  gc()
-  
-  # read in DM strats
-  dm_rets <- readRDS(DMname)$ret
-  dm_info <- readRDS(DMname)$port_list
-  
-  dm_rets <- dm_rets %>%
-    left_join(
-      dm_info %>% select(portid, sweight),
-      by = c("portid")
-    ) %>%
-    transmute(
-      sweight,
-      dmname = signalid,
-      yearm,
-      ret,
-      nstock_long,
-      nstock_short
-    ) %>%
-    setDT()
-  
-  cl <- makePSOCKcluster(ncores)
-  registerDoParallel(cl)
-  npub <- dim(czsum)[1]
-  npub <- min(npub, npubmax)
-  event_dm_scaled <- foreach(
-    pubi = 1:npub,
-    .combine = rbind,
-    .packages = c("data.table", "tidyverse", "zoo")
-  ) %dopar% {
-    # feedback
-    print(paste0("pubi ", pubi, " of ", npub))
-    
-    pubcur <- czsum[pubi, ]
-    
-    # select matching dm strats for the current pubname
-    matchcur <- match_strats[pubname == pubcur$signalname]
-    
-    matchcur <- matchcur %>%
-      transmute(sweight, dmname, sign = sign(rbar), rbar)
-    
-    # make an event time panel
-    eventpan <- dm_rets %>%
-      inner_join(matchcur, by = c("sweight", "dmname")) %>%
-      transmute(
-        candSignalname = dmname,
-        eventDate = as.integer(round(12 * (yearm - pubcur$sampend))),
-        sign,
-        # scale returns
-        ret_scaled = ret * sign / abs(rbar) * 100,
-        # # sign returns (sanity check)
-        # ret_scaled = ifelse(use_sign_info, sign*ret_scaled, ret_scaled),
-        samptype = case_when(
-          (yearm >= pubcur$sampstart) & (yearm <= pubcur$sampend) ~ "insamp",
-          (yearm > pubcur$sampend) ~ "oos",
-          TRUE ~ NA_character_
-        )
-      )
-    
-    if (use_sign_info==FALSE){
-      # remove sign_info if requested (for testing)
-      eventpan[ , ret_scaled := sign*ret_scaled]
-    }
-    
-    # average down to one matched return per event date
-    eventsumscaled <- eventpan[, .(dm_mean = mean(ret_scaled), 
-                                   dm_sd = sd(ret_scaled), dm_n = .N),
-                               by = c("eventDate",'samptype')
-    ] %>%
-      mutate(pubname = pubcur$signalname)
-    
-    return(eventsumscaled)
-  } # end do pubi = 1:npub
-  
-  stopCluster(cl)
-  
-  return(event_dm_scaled)
-} # end MakeMatchedPanel
+# Declare Function  ---------------------
 
 make_ret_for_plotting <- function(plotdat, theory_filter = NULL){
   # takes in acct dm and ticker dm data and returns
@@ -503,3 +262,4 @@ for (jj in unique(czret$theory)) {
   )  
   
 }
+
