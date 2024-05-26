@@ -28,7 +28,7 @@ library(dendextend)
 n_dm_for_cor = 300 
 
 # number of cores
-ncores = 2
+ncores = 4
 
 # name of compustat LS file
 dmcomp <- list()
@@ -92,7 +92,7 @@ czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
 ## dm signal descriptions ---------------------------------------
 
 # read compustat acronyms
-dmdoc = readRDS(DMname)$signal_list %>%  setDT() 
+dmdoc = readRDS(dmcomp$name)$signal_list %>%  setDT() 
 yzdoc = readxl::read_xlsx('DataInput/Yan-Zheng-Compustat-Vars.xlsx') %>% 
   transmute(acronym = tolower(acronym), longname , shortername ) %>% 
   setDT() 
@@ -127,6 +127,8 @@ print("finished")
 stop_time <- Sys.time()
 stop_time - start_time
 
+
+save.image(file = "first_part.RData")
 # Create dmpred: matched dm strats and spanning cat -----------------------
 
 ## Select strats -----------------------
@@ -283,7 +285,7 @@ rownames(cmat) = temprowname
 # make alternative cmat with more descriptive names
 cmat2 = cmat
 temp = data.table(i = 1:nrow(cmat), name = rownames(cmat)) %>% 
-    left_join(dm_linktable[,.(id, desc)], by = c('name' = 'id')) %>% 
+    left_join(dm_linktable[,.(dmcode, desc)], by = c('name' = 'dmcode')) %>% 
     arrange(i)
 rownames(cmat2) = temp$desc
 colnames(cmat2) = temp$desc
