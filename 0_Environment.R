@@ -972,7 +972,14 @@ sumstats_for_DM_Strats <- function(
       tempret = czret[signalname == pubname & date >= sampcur$sampstart
         & date <= sampcur$sampend, .(date,ret)]
       dm_rets[tempret, temppubret := i.ret, on = .(yearm = date)]
-
+      
+      # Perform PPCA on the wide version of tempret
+      tempret_wide <- dcast(tempret, date ~ pubname, value.var = "ret")
+      pca_model <- pca(tempret_wide[,-1, with=FALSE], method = "ppca", nPcs = 5)
+      pca_scores <- scores(pca_model)
+      # Add the date back to PCA scores
+      pca_scores <- data.table(date = tempret_wide$date, pca_scores)
+      
       # compute correlation
       tempcor = dm_rets[yearm >= sampcur$sampstart & yearm <= sampcur$sampend
         , .(cor = cor(ret, temppubret, use = "pairwise")), by = c("dmname", "sweight")]
@@ -1145,3 +1152,229 @@ make_DM_event_returns <- function(
   
   return(event_dm_scaled)
 } # end MakeMatchedPanel
+
+adj_R2_with_PPCA <- function(
+    DMname = paste0('../Data/Processed/',
+                    globalSettings$dataVersion, 
+                    ' LongShort.RData'),
+    nsampmax = Inf) {
+  # convert czsum to data.table (this should be done more globally)
+  setDT(czsum)
+  
+  # read in DM strats
+  dm_rets <- readRDS(DMname)$ret
+  dm_info <- readRDS(DMname)$port_list
+  
+  dm_rets <- dm_rets %>%
+    left_join(
+      dm_info %>% select(portid, sweight), by = c("portid")
+    ) %>%
+    transmute(
+      sweight, dmname = signalid, yearm, ret, nstock_long, nstock_short
+    ) %>%
+    setDT()
+  
+  # Finds sum stats for dm in each pub sample
+  # the output for this can be used for all dm selection methods
+  samplist <- czsum %>%
+    distinct(sampstart, sampend) %>%
+    arrange(sampstart, sampend)
+  
+  # set up for parallel
+  cl <- makePSOCKcluster(ncores)
+  registerDoParallel(cl)
+  
+  # loop setup
+  nsamp <- dim(samplist)[1]
+  nsamp <- min(nsamp, nsampmax)
+  dm_insamp <- list()
+  
+  # dopar in a function needs some special setup
+  # https://stackoverflow.com/questions/6689937/r-problem-with-foreach-dopar-inside-function-called-by-optim
+  start_time <- Sys.time()
+  print(start_time)
+  dm_insamp <- foreach(
+    sampi = 1:nsamp,
+    .combine = rbind,
+    .packages = c("data.table", "tidyverse", "zoo", "pcaMethods", "broom"),
+    .export = c("samplist", "dm_rets", "czsum", "czret", "nsamp")
+  ) %dopar% {
+    #) %do% {
+    # feedback
+    print(paste0("DM sample stats for sample ", sampi, " of ", nsamp))
+    print(Sys.time())
+    # find sum stats for the current sample
+    sampcur <- samplist[sampi, ]
+    sumcur <- dm_rets[
+      yearm >= sampcur$sampstart & yearm <= sampcur$sampend &
+        !is.na(ret),
+      .(
+        rbar = mean(ret), tstat = mean(ret) / sd(ret) * sqrt(.N),
+        min_nstock_long = min(nstock_long),
+        min_nstock_short = min(nstock_short),
+        nmonth = sum(!is.na(ret))
+      ),
+      by = c("sweight", "dmname")
+    ]
+    # find number of obs in the last year of the sample
+    filtcur <- dm_rets[
+      floor(yearm) == year(sampcur$sampend) &
+        !is.na(ret),
+      .(nlastyear = .N),
+      by = c("sweight", "dmname")
+    ]
+    # Perform the left join
+    sumcur <- sumcur[filtcur, on = .(sweight, dmname)]
+    
+    # Add sampstart and sampend columns
+    sumcur[, `:=`(sampstart = sampcur$sampstart, sampend = sampcur$sampend)]
+    
+    # expand with published signalnames available by then and reorg
+    pubnamelist = czsum[sampend <= sampcur$sampend, .(signalname)] %>% 
+      rename(pubname = signalname)
+    # pubsumcur = expand_grid(pubnamelist, sumcur) %>% 
+    #   select(pubname, sampstart, sampend, everything()) %>% 
+    #   setDT()
+    # merge pub returns onto dm returns, temporarily
+    tempret_pca = czret[signalname %in% pubnamelist$pubname & date >= sampcur$sampstart
+                        & date <= sampcur$sampend, .(signalname, date, ret)]
+    npcs <- min(5, pubnamelist[, .N])
+    # Pivot the data to wide format
+    # Pivot the data to wide format
+    tempret_wide <- dcast(tempret_pca, date ~ signalname, value.var = "ret")
+    
+    # Check the number of columns
+    if (ncol(tempret_wide) < 7) {
+      # Run regression with the columns in tempret_wide
+      formula_temp <- paste('ret ~ ',  colnames(tempret_wide)[-1] %>% paste(., collapse = ' + ')) %>% as.formula()
+      dm_rets2 <- dm_rets[tempret_wide, on = .(yearm = date)]
+      dm_rets2 <- dm_rets2[!is.na(dmname)]
+      dm_rets2[, available_obs := .N, by  = c("dmname", "sweight")]
+      sumcur[, npcs := 0]
+      
+    } else {
+      # Perform PCA and run regression with PCA scores
+      pca_model <- pca(tempret_wide[,-1, with=FALSE] %>% as.matrix(), method = "ppca", nPcs = npcs)
+      pca_scores <- scores(pca_model)
+      formula_pca <- paste('ret ~ ',  colnames(pca_scores) %>% paste(., collapse = ' + ')) %>% as.formula()
+      pca_scores <- data.table(date = tempret_wide$date, pca_scores)
+      dm_rets2 <- dm_rets[pca_scores, on = .(yearm = date)]
+      dm_rets2 <- dm_rets2[!is.na(dmname)]
+      dm_rets2[, available_obs := .N, by  = c("dmname", "sweight")]
+      dm_rets2[available_obs > 30, adj_r2 := summary(lm(formula = formula_pca, data = .SD))$adj.r.squared, by = c("dmname", "sweight")]
+      sumcur[, npcs := npcs]
+    }
+    
+    adj_r2_dt <- dm_rets2[, {
+      model <- lm(formula = if (ncol(tempret_wide) < 7) formula_temp else formula_pca, data = .SD)
+      model_summary <- summary(model)
+      .(r2 = model_summary$r.squared,
+        adj_r2 = model_summary$adj.r.squared,
+        N_pca = .N)
+    }, by = c("dmname", "sweight")]
+    
+    test <- merge(sumcur, adj_r2_dt)
+    return(test)
+  } # end dm_insamp loop
+  stop_time <- Sys.time()
+  print(stop_time - start_time)
+  stopCluster(cl)
+  
+  return(dm_insamp)
+} # end Sumstats function
+
+
+ReturnPlotsWithDM4series <- function(dt, suffix = '', rollmonths = 60, colors = NA,
+                                     xl = -360, xh = 240, yl = -10, yh = 130, fig.width = 15,
+                                     fig.height = 12, fontsize = 18, basepath = NA_character_,
+                                     labelmatch = FALSE, hideoos = FALSE,
+                                     legendlabels = c('Published', 'Matched data-mined', 'Alt data-mined', 'New data-mined'),
+                                     legendpos = c(80, 85) / 100,
+                                     yaxislab = 'Trailing 5-Year Mean Return (bps p.m.)',
+                                     filetype = '.pdf',
+                                     linesize = 1.1) {
+  
+  #' @param dt Table with columns (eventDate, ret, matchRet, matchRetAlt, newRet)
+  #' @param suffix String to attach to saved pdf figure 
+  #' @param rollmonths Number of months over which moving average is computed
+  #' @param xl, xh, yl, yh Upper and lower limits for x and y axes  
+  
+  # check if you have matchRetAlt and newRet, and adjust accordingly
+  if (all(c('matchRetAlt', 'newRet') %in% names(dt))) {
+    select_cols <- c('eventDate', 'ret', 'matchRet', 'matchRetAlt', 'newRet')
+  } else if ('matchRetAlt' %in% names(dt)) {
+    select_cols <- c('eventDate', 'ret', 'matchRet', 'matchRetAlt')
+  } else {
+    select_cols <- c('eventDate', 'ret', 'matchRet')
+  }
+  
+  dt <- dt %>% 
+    select(all_of(select_cols)) %>% 
+    gather(key = 'SignalType', value = 'return', -eventDate) %>% 
+    group_by(SignalType, eventDate) %>% 
+    summarise(rbar = mean(return, na.rm = TRUE)) %>% 
+    arrange(SignalType, eventDate) %>% 
+    mutate(
+      roll_rbar = zoo::rollmean(rbar, k = rollmonths, fill = NA, align = 'right')
+    )
+  
+  if (hideoos == TRUE) {
+    dt <- dt %>% 
+      filter(!(SignalType == 'matchRet' & eventDate > 0))
+  }
+  
+  printme <- dt %>% 
+    mutate(SignalType = factor(SignalType, levels = select_cols[-1], labels = legendlabels)) %>% 
+    ggplot(aes(x = eventDate, y = roll_rbar, color = SignalType, linetype = SignalType)) +
+    geom_line(size = linesize) +
+    scale_color_manual(values = colors) + 
+    scale_linetype_manual(values = c('solid', 'longdash', 'dashed', 'dotdash')) +
+    geom_vline(xintercept = 0) +
+    coord_cartesian(
+      xlim = c(xl, xh), ylim = c(yl, yh)
+    ) +
+    scale_y_continuous(breaks = seq(-200, 180, 25)) +
+    scale_x_continuous(breaks = seq(-360, 360, 60)) +  
+    geom_hline(yintercept = 100, color = 'dimgrey') +
+    geom_hline(yintercept = 0) +
+    ylab(yaxislab) +
+    xlab('Months Since Original Sample Ended') +
+    labs(color = '', linetype = '') +
+    theme_light(base_size = fontsize) +
+    theme(
+      legend.position = legendpos,
+      legend.spacing.y = unit(0.1, units = 'cm'),
+      legend.background = element_rect(fill = 'transparent'),
+      legend.key.width = unit(1.5, units = 'cm')
+    )
+  
+  if (labelmatch == TRUE) {
+    printme <- printme +
+      annotate('text', x = -90, y = 12, fontface = 'italic',
+               label = '<- matching region',
+               color = 'grey40', size = 5) +
+      annotate('text', x = 70, y = 12, fontface = 'italic',
+               label = 'unmatched ->',
+               color = 'grey40', size = 5)
+  }
+  
+  ggsave(paste0(basepath, '_', suffix, filetype), width = fig.width, height = fig.height)
+  
+  return(printme)
+  
+}
+# Define a function to handle repeated tasks with different conditions
+process_event_time_returns <- function(dm_name, match_strats, npubmax, czsum, use_sign_info) {
+  start_time <- Sys.time()
+  event_time <- make_DM_event_returns(
+    DMname = dm_name,
+    match_strats = match_strats,
+    npubmax = npubmax,
+    czsum = czsum,
+    use_sign_info = use_sign_info
+  )
+  stop_time <- Sys.time()
+  print(stop_time - start_time)
+  
+  return(event_time)
+}
