@@ -128,7 +128,7 @@ stop_time <- Sys.time()
 stop_time - start_time
 
 
-save.image(file = "first_part.RData")
+# save.image(file = "first_part.RData")
 # Create dmpred: matched dm strats and spanning cat -----------------------
 
 ## Select strats -----------------------
@@ -311,13 +311,13 @@ save.image('../Data/tmp_4e_DMThemes_with_pca.RData')
 # Convenience load ----------------------------------------------
 load('../Data/tmp_4e_DMThemes_with_pca.RData')
 source('0_Environment.R')
+pca_span_dt[, spanned_pca :=  ifelse(N_pca > 30 & adj_r2 > 0.25, TRUE, FALSE)]
 
 pca_span_dt[, spanned_pca_ever_end := any(spanned_pca), by = .(sweight, dmname)]
 pca_span_dt[spanned_pca_ever_end == FALSE,
             paste(sweight, dmname) %>%
               unique() %>% length()]/pca_span_dt[,
                 paste(sweight, dmname) %>% unique() %>% length()]
-pca_span_dt[, spanned_pca :=  ifelse(N_pca > 30 & adj_r2 > 0.25, TRUE, FALSE)]
 pca_span_dt %>% setorder(dmname, sweight, sampend)
 
 pca_span_dt[, spanned_ever:= as.logical(cummax(as.integer(spanned_pca))), by = .(dmname, sweight)]
