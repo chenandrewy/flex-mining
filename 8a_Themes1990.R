@@ -256,11 +256,16 @@ cmat = make_cmat(dm_ycur
   , sampstart=sampcur$sampstart, sampend=sampcur$sampend)
 
 # Find hierarchical clusters --------------------------------
-
 hc = dist(1-cmat$id) %>% hclust(method = 'ward.D')  
 
 toc0 = Sys.time()
 print(paste0('total time = ', difftime(toc0, tic0, units = 'mins')))
+
+# Convenience save ---------------------------------------
+save.image("../Data/tmp_Themes1990.RData")
+
+# Convenience load ---------------------------------------
+load("../Data/tmp_Themes1990.RData")
 
 # read(reread) dm signal descriptions ---------------------------------------
 

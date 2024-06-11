@@ -260,6 +260,14 @@ hc = dist(1-cmat$id) %>% hclust(method = 'ward.D')
 toc0 = Sys.time()
 print(paste0('total time = ', difftime(toc0, tic0, units = 'mins')))
 
+
+# Convenience save ---------------------------------------
+save.image("../Data/tmp_Themes2012.RData")
+
+# Convenience load ---------------------------------------
+load("../Data/tmp_Themes2012.RData")
+
+
 # read(reread) dm signal descriptions ---------------------------------------
 
 # for easy editing of xlsx
