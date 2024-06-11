@@ -973,12 +973,12 @@ sumstats_for_DM_Strats <- function(
         & date <= sampcur$sampend, .(date,ret)]
       dm_rets[tempret, temppubret := i.ret, on = .(yearm = date)]
       
-      # Perform PPCA on the wide version of tempret
-      tempret_wide <- dcast(tempret, date ~ pubname, value.var = "ret")
-      pca_model <- pca(tempret_wide[,-1, with=FALSE], method = "ppca", nPcs = 5)
-      pca_scores <- scores(pca_model)
-      # Add the date back to PCA scores
-      pca_scores <- data.table(date = tempret_wide$date, pca_scores)
+      # # Perform PPCA on the wide version of tempret
+      # tempret_wide <- dcast(tempret, date ~ pubname, value.var = "ret") # this line throws an error on my system - ac
+      # pca_model <- pca(tempret_wide[,-1, with=FALSE], method = "ppca", nPcs = 5)
+      # pca_scores <- scores(pca_model)
+      # # Add the date back to PCA scores
+      # pca_scores <- data.table(date = tempret_wide$date, pca_scores)
       
       # compute correlation
       tempcor = dm_rets[yearm >= sampcur$sampstart & yearm <= sampcur$sampend
