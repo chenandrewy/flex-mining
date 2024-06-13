@@ -1,7 +1,10 @@
-# Created 2024 06: 2012 themes to have 10 years oos 
+# Created 2024 06: trying to simplify the themes by focusing
+# on 2012 sample end
+# takes about 3 min
 # Setup --------------------------------------------------------
 
 rm(list = ls())
+set.seed(123) 
 
 source("0_Environment.R")
 library(doParallel)
@@ -18,14 +21,14 @@ ncores = 4
 # name of compustat LS file
 dmcomp <- list()
 dmcomp$name <- paste0('../Data/Processed/'
-  , globalSettings$dataVersion, ' LongShort.RData')
+                      , globalSettings$dataVersion, ' LongShort.RData')
 
 # min stock in each leg
 nstock_min = 10
 
 sampcur = tibble(
-    sampstart = as.yearmon('Jul 1964')
-    , sampend = as.yearmon('Dec 2012')
+  sampstart = as.yearmon('Jul 1963')
+  , sampend = as.yearmon('Dec 2012')
 )
 
 # Data load -----------------------------------------------------
@@ -36,11 +39,11 @@ tic0 = Sys.time()
 
 # published
 czsum <- readRDS("../Data/Processed/czsum_allpredictors.RDS") %>%
-    filter(Keep) %>%
-    setDT()
+  filter(Keep) %>%
+  setDT()
 
 czcat <- fread("DataInput/SignalsTheoryChecked.csv") %>%
-    select(signalname, Year, theory)
+  select(signalname, Year, theory)
 
 czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
   left_join(czcat, by = "signalname") %>%
@@ -49,23 +52,23 @@ czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
 ## Load DM --------------------------------------------------
 # read in DM strats (only used in this section)
 DMname <- paste0(
-    "../Data/Processed/",
-    globalSettings$dataVersion,
-    " LongShort.RData"
+  "../Data/Processed/",
+  globalSettings$dataVersion,
+  " LongShort.RData"
 )
 dm_rets <- readRDS(DMname)$ret
 dm_info <- readRDS(DMname)$port_list
 
 dm_rets <- dm_rets %>%
-    left_join(
-        dm_info %>% select(portid, sweight),
-        by = c("portid")
-    ) %>%
-    transmute(
-        sweight,
-        dmname = signalid, yearm, ret, nstock_long, nstock_short
-    ) %>%
-    setDT()
+  left_join(
+    dm_info %>% select(portid, sweight),
+    by = c("portid")
+  ) %>%
+  transmute(
+    sweight,
+    dmname = signalid, yearm, ret, nstock_long, nstock_short
+  ) %>%
+  setDT()
 
 # tighten up for leaner computation
 dm_rets[, id := paste0(sweight, '|', dmname)][
@@ -81,7 +84,7 @@ import_docs = function(){
   yzdoc = readxl::read_xlsx('DataInput/Yan-Zheng-Compustat-Vars.xlsx') %>% 
     transmute(acronym = tolower(acronym), longname , shortername ) %>% 
     setDT() 
-
+  
   # merge
   dmdoc = dmdoc[ 
     , signal_form := if_else(signal_form == 'diff(v1)/lag(v2)', 'd_', '')] %>% 
@@ -89,32 +92,33 @@ import_docs = function(){
     rename(v1long = shortername) %>%
     merge(yzdoc[,.(acronym,shortername)], by.x = 'v2', by.y = 'acronym') %>%
     rename(v2long = shortername) 
-
+  
   # create link table
   dm_linktable = expand_grid(sweight = c('ew','vw'), dmname =  dmdoc$signalid) %>% 
     mutate(dmcode = paste0(sweight, '|', dmname))  %>% 
     left_join(dmdoc, by = c('dmname' = 'signalid')) %>%
     mutate(shortdesc = paste0(substr(dmcode,1,3), signal_form, v1, '/', v2)
-      , desc = if_else(signal_form=='d_'
-        , paste0('d_[', v1long, ']/lag[', v2long, ']')
-        , paste0('[', v1long, ']/[', v2long, ']')
-    )) %>% 
+           , desc = if_else(signal_form=='d_'
+                            , paste0('d_[', v1long, ']/lag[', v2long, ']')
+                            , paste0('[', v1long, ']/[', v2long, ']')
+           )) %>% 
     setDT()
-
+  
   return(dm_linktable)
-
+  
 } # end import_docs
 dm_linktable = import_docs()
 
 # Filter dm to predictors, sign, add OOS ret ------------------------
 dmpred = list()
 
-dmpred$sum = dm_rets[yearm <= sampcur$sampend & nstock_long>=nstock_min & nstock_short>=nstock_min, ] %>% 
+dmpred$sum = dm_rets[yearm <= sampcur$sampend & yearm >= sampcur$sampstart &
+                       nstock_long>=nstock_min & nstock_short>=nstock_min, ] %>% 
   .[, .(rbar=mean(ret), tstat=mean(ret)/sd(ret)*sqrt(.N)
-    , nmonth=.N), by=id] %>% 
-    arrange(-abs(tstat)) %>%
-    filter(abs(tstat)> 2, nmonth >= 120) %>% 
-    slice(1:n_dm_total)
+        , nmonth=.N), by=id] %>% 
+  arrange(-abs(tstat)) %>%
+  filter(abs(tstat)> 2, nmonth >= 120) %>% 
+  slice(1:n_dm_total)
 
 dmpred$ret = merge(dm_rets, dmpred$sum, by=c('id')) %>% 
   filter(nstock_long>=nstock_min & nstock_short>=nstock_min) %>%
@@ -123,20 +127,20 @@ dmpred$ret = merge(dm_rets, dmpred$sum, by=c('id')) %>%
 
 # add OOS ret
 dmpred$sum = dmpred$sum %>% 
-  merge(dmpred$ret[yearm >  sampcur$sampend, .(rbaroos_sign = mean(ret_signed)), by = 'id']
-    , by = 'id') %>% 
-  mutate(rbaroos = rbaroos_sign * sign(rbar)) %>%
-  select(-rbaroos_sign)
+  merge(dmpred$ret[yearm >  sampcur$sampend, .(rbaroos_sign = mean(ret_signed),
+                                               tstat_sign = mean(ret_signed)/sd(ret_signed)*sqrt(.N)), by = 'id']
+        , by = 'id') %>% 
+  mutate(rbaroos = rbaroos_sign * sign(rbar), tstatoos = tstat_sign*sign(rbar))
 
 # Functions for clustering ---------------------------------------
 
 make_cmat = function(stratlist, sampstart, sampend){
   # stratlist is a dt with columns (id ~ sweight|dmname)
   # crops and signs dm_rets using sampstart, sampend
-
+  
   # copy predictor returns
   dmpred_ret = copy(dmpred$ret)  
-
+  
   # set up cluster
   cl <- makePSOCKcluster(ncores)
   registerDoParallel(cl)
@@ -145,22 +149,22 @@ make_cmat = function(stratlist, sampstart, sampend){
   print(paste0('Computing correlations for nstrat = ', nrow(stratlist)))
   tic = Sys.time()
   dmcor = foreach(i = 1:(nrow(stratlist)-1), .combine = rbind
-    , .packages = c("data.table", "tidyverse", "zoo")
-    ) %dopar% {
-
+                  , .packages = c("data.table", "tidyverse", "zoo")
+  ) %dopar% {
+    
     if (i %% 100 == 0) {
       print(paste0("correlation for ", i, " of ", nrow(stratlist)))  
     }
-
+    
     stratcur <- stratlist[i, ]$id
-
+    
     # add current signed return to dmpred_ret
     retcur <- dmpred_ret[id == stratcur, .(yearm, ret_signed)]  
     dmpred_ret[retcur, retcur := i.ret_signed, on = .(yearm)]
-
+    
     # find list of strats that has not been examined yet
     stratneeded = stratlist[(i+1):nrow(stratlist)]
-
+    
     # compute correlation
     cor_cur = dmpred_ret[
       id %in% stratneeded$id
@@ -169,49 +173,49 @@ make_cmat = function(stratlist, sampstart, sampend){
     ] %>% 
       mutate(id2 = stratcur) %>%
       transmute(id1 = id, id2, cor)
-
+    
     return(cor_cur)
   } # end dmcor = foreach 
   stopCluster(cl)
   print(difftime(Sys.time(), tic, units = 'secs'))
-
+  
   ## Make matrix form --------------------------------------
-
+  
   # add symmetrical correlations
   symcor = dmcor[ , .(id2 = id1, id1= id2, cor)]
   dmcor = rbind(dmcor, symcor)
-
+  
   # add self correlations
   templist = dmcor$id1 %>% unique()
   selfcor = data.table(id1 = templist, id2 = templist, cor = 1)
   dmcor = rbind(dmcor, selfcor)
-
+  
   # reshape  into matrix
   cmat_id = dmcor %>% dcast(id1 ~ id2, value.var = 'cor')  
   temprowname = cmat_id$id1
   cmat_id = cmat_id[ , id1 := NULL]
   cmat_id = as.matrix(cmat_id)
   rownames(cmat_id) = temprowname
-
+  
   # make alternative cmat with more descriptive names
   cmat_desc = cmat_id
   temp = data.table(i = 1:nrow(cmat_id), name = rownames(cmat_id)) %>% 
-      left_join(dm_linktable[,.(dmcode, desc)], by = c('name' = 'dmcode')) %>% 
-      arrange(i)
+    left_join(dm_linktable[,.(dmcode, desc)], by = c('name' = 'dmcode')) %>% 
+    arrange(i)
   rownames(cmat_desc) = temp$desc
   colnames(cmat_desc) = temp$desc
-
+  
   return(list(id = cmat_id, desc = cmat_desc))
-
+  
 } # end make_cmat
 
 select_cluster = function(hc, nclustermax = 20, mean_nstrat_min = NA){
   # hc is a hclust object
-
+  
   # find height that gives < nclustermax
   heights = floor(seq(1, floor(max(hc$height)/2), length.out = 500)) %>% 
-      unique() 
-
+    unique() 
+  
   df = tibble(h = heights, ngroup = NA, meannstrat = NA)
   for (i in 1:nrow(df)){
     temp = cutree(hc, h = df$h[i])
@@ -228,13 +232,13 @@ select_cluster = function(hc, nclustermax = 20, mean_nstrat_min = NA){
     hstar = df %>% filter(meannstrat > mean_nstrat_min) %>% 
       arrange(h) %>% head(1) %>% pull(h)
   }
-
+  
   # cut tree 
   sub_grp = cutree(hc, h=hstar)
-
+  
   # create cluster data table
   clust = data.table(dmcode = names(sub_grp), cluster = sub_grp) 
-
+  
   return(clust)
 } # end make_cluster
 
@@ -249,24 +253,22 @@ dm_ycur = dmpred$sum %>%
 
 # Find correlations --------------------------------
 # 1000 strats takes 45 sec (2x1000 => 90 sec)
-
+set.seed(1234) 
 cmat = make_cmat(dm_ycur
-  , sampstart=sampcur$sampstart, sampend=sampcur$sampend)
+                 , sampstart=sampcur$sampstart, sampend=sampcur$sampend)
 
 # Find hierarchical clusters --------------------------------
-
+set.seed(12345) # In case of ties 
 hc = dist(1-cmat$id) %>% hclust(method = 'ward.D')  
 
 toc0 = Sys.time()
 print(paste0('total time = ', difftime(toc0, tic0, units = 'mins')))
-
 
 # Convenience save ---------------------------------------
 save.image("../Data/tmp_Themes2012.RData")
 
 # Convenience load ---------------------------------------
 load("../Data/tmp_Themes2012.RData")
-
 
 # read(reread) dm signal descriptions ---------------------------------------
 
@@ -282,6 +284,8 @@ clust = list()
 # select clusters
 clust$def = select_cluster(hc, nclustermax = nclustselect)
 tempret = merge(dmpred$ret, clust$def, by.x = 'id', by.y = 'dmcode')
+tempperf = merge(dmpred$sum, clust$def, by.x = 'id', by.y = 'dmcode') %>% 
+  .[, .(tstat=mean(abs(tstat)), ooststat = mean(tstat_sign)), by = c('cluster')] 
 
 # generate cluster portfolios
 clust$ret = tempret %>% 
@@ -301,27 +305,28 @@ clust$perf = clust$ret %>%
   mutate(samp=if_else(yearm >= sampcur$sampstart & yearm <= sampcur$sampend, 'insamp', 'oos')) %>%
   filter(nstrat >= 20) %>%
   .[floor(yearm)>= 1963 & nstrat >= 20 , 
-  .(nstrat = mean(nstrat), rbar=mean(ret), tstat=mean(ret)/sd(ret)*sqrt(.N)
-    , nmonth=.N), by = c('cluster', 'samp')]  %>% 
-    arrange(cluster,samp)
+    .(nstrat = mean(nstrat), rbar=mean(ret), tstat_cluster = mean(ret)/sd(ret)*sqrt(.N),
+      nmonth=.N), by = c('cluster', 'samp')]  %>% 
+  merge(tempperf) %>%
+  arrange(cluster,samp)
 
 # correlation with selected signals
 pubselect = c('BMdec','Size','Mom12m','AssetGrowth','GP')
 temppub = czret %>% 
-    filter(signalname %in% pubselect) %>%
-    transmute(pubname=signalname,yearm=date,pubret=ret) %>% 
-    dcast(yearm ~ pubname, value.var = 'pubret') 
+  filter(signalname %in% pubselect) %>%
+  transmute(pubname=signalname,yearm=date,pubret=ret) %>% 
+  dcast(yearm ~ pubname, value.var = 'pubret') 
 clust$cor = clust$ret %>% 
-    merge(temppub, by='yearm') %>% 
-    filter(yearm >= sampcur$sampstart & yearm <= sampcur$sampend)   %>% 
+  merge(temppub, by='yearm') %>% 
+  filter(yearm >= sampcur$sampstart & yearm <= sampcur$sampend)   %>% 
   group_by(cluster) %>%
   summarize(
     cor_BMdec = cor(ret, BMdec)
     , cor_Size = cor(ret, Size)
     , cor_Mom12m = cor(ret, Mom12m, use = 'pairwise')
-    , model = list(lm(ret ~ BMdec + Size + Mom12m))
+    , model = list(lm(ret ~ BMdec + Size + Mom12m + AssetGrowth + GP))
     , rsq = summary(model[[1]])$r.squared
-    ) %>%  
+  ) %>%  
   arrange(-rsq) %>% 
   setDT()
 
@@ -329,13 +334,14 @@ clust$cor = clust$ret %>%
 cdat = foreach(i = 1:max(clust$def$cluster), .combine = rbind) %do% {
   print(paste0('correlations within cluster ', i))
   tempwide = tempret[cluster==i 
-    & yearm >= sampcur$sampstart & yearm <= sampcur$sampend] %>% 
+                     & yearm >= sampcur$sampstart & yearm <= sampcur$sampend] %>% 
     dcast(yearm ~ id, value.var = 'ret_signed') %>% 
     select(-yearm) %>% 
     as.matrix() 
+  # tbc remove diagonal
   tempcor = cor(tempwide, use = 'pairwise') %>% colMeans() 
   tempdat = data.table(id = names(tempcor), meancor = tempcor
-    , cluster = i) %>% 
+                       , cluster = i) %>% 
     arrange(-meancor) 
 } # end foreach
 
@@ -348,21 +354,70 @@ rm(list = ls(pattern = 'temp'))
 
 # make tables --------------------------------------------------------
 
-tab = clust$perf[samp=='insamp', .(cluster, nstrat, tstat, rbar)] %>% 
+tab = clust$perf[samp=='insamp', .(cluster, nstrat, tstat, ooststat, rbar, tstat_cluster)] %>% 
   # add oos perf
   merge(clust$perf[samp=='oos', ] %>% 
-    transmute(cluster, rbaroos = rbar), by = 'cluster') %>% 
+          transmute(cluster, rbaroos = rbar, tstat_cluster_oos = tstat_cluster), by = 'cluster') %>% 
   mutate(rbaroos_rbar = rbaroos/rbar) %>% 
-  select(-rbaroos)  %>% 
+  # select(-rbaroos)  %>% 
   # add representatives
   merge(clust$rep %>% 
-    transmute(cluster, rep=desc, repcor=meancor), by = 'cluster') %>% 
+          transmute(cluster, rep=desc, repcor=meancor), by = 'cluster') %>% 
   # add correlations
   merge(clust$cor %>% 
-    select(cluster, starts_with('cor_'), rsq), by = 'cluster') %>% 
-    as_tibble() %>% 
-    arrange(-rsq)
+          select(cluster, starts_with('cor_'), rsq), by = 'cluster') %>% 
+  as_tibble() %>% 
+  arrange(-rsq) %>% setDT()
+tab[, nCluster := 1:.N]
+library(kableExtra)
 
-# tbc: output nice latex table
-tab %>% select(cluster, rbaroos_rbar, rep, rsq) %>% print()
-tab %>% select(-rep) %>% print()
+########################
+
+# Create the xtable
+latex_table <- xtable(
+  tab %>% select(nCluster, rep, nstrat, tstat, rsq, rbaroos_rbar),
+  caption = "Data-mined themes from 2012",
+  align = c("l",  "p{10cm}", "c", "c", "c", "c", "c"),
+  digits = c(0, 0, 0, 1, 2, 2, 2)  # Specify number of digits for each column
+)
+names(latex_table) <- c("Cluster","Representative Signal", "N", "t-stat",  "$R^2$", "OOS/IS")
+
+print.xtable(latex_table, 
+             include.rownames = FALSE, 
+             include.colnames = FALSE,
+             booktabs = TRUE, 
+             hline.after = c(-1, 0),
+             floating = TRUE,
+             table.placement = "H",
+             sanitize.colnames.function = identity,
+             caption.placement = "top",only.contents =  TRUE, comment = FALSE,
+             file = '../Results/table_2012.tex')
+# Read the .tex file
+file_path <- '../Results/table_2012.tex'
+latex_content <- readLines(file_path)
+
+# Replace "d_" with "$\\delta$"
+latex_content <- gsub("d\\\\_", "$\\\\Delta$", latex_content)
+
+# Write the modified content back to the file
+writeLines(latex_content, file_path)
+# 
+# 
+# #####################
+# # Create the other xtable
+# latex_table <- xtable(
+#   tab %>% select(nCluster, nstrat, tstat, rbar, rbaroos_rbar, repcor, cor_BMdec, cor_Size, cor_Mom12m, rsq),
+#   caption = "Data-mined themes from 2012",
+#   digits = c(0, 0, 1, 2, 2, 2, 2, 2, 2, 2, 2)  # Specify number of digits for each column
+# )
+# names(latex_table) <- c("Cluster", "N", "t-stat", "R-bar", "OOS/IS", "Rep $\\rho$", "B/M $\\rho$", "Size $\\rho$", "Mom. $\\rho$", "$R^2$")
+# 
+# print.xtable(latex_table, 
+#              include.rownames = FALSE, 
+#              booktabs = TRUE, 
+#              hline.after = c(-1, 0),
+#              floating = TRUE,
+#              table.placement = "H",
+#              caption.placement = "top",only.contents =  TRUE, comment = FALSE,
+#              sanitize.colnames.function = identity,
+#              file = 'table_thc2.tex')
