@@ -81,8 +81,8 @@ setcolorder(dm_rets, c('id', 'yearm', 'ret'))
 import_docs = function(){
   # read compustat acronyms
   dmdoc = readRDS(dmcomp$name)$signal_list %>%  setDT() 
-  yzdoc = readxl::read_xlsx('DataInput/Yan-Zheng-Compustat-Vars.xlsx') %>% 
-    transmute(acronym = tolower(acronym), longname , shortername ) %>% 
+  yzdoc = readxl::read_xlsx('DataInput/Updated_Yan-Zheng-Compustat-Vars.xlsx') %>% 
+    transmute(acronym = tolower(acronym), shortername ) %>% 
     setDT() 
 
   # merge
@@ -269,7 +269,7 @@ save.image("../Data/tmp_Themes1990.RData")
 
 # Convenience load ---------------------------------------
 load("../Data/tmp_Themes1990.RData")
-
+set.seed(123456)
 # read(reread) dm signal descriptions ---------------------------------------
 
 # for easy editing of xlsx
@@ -285,7 +285,7 @@ clust = list()
 clust$def = select_cluster(hc, nclustermax = nclustselect)
 tempret = merge(dmpred$ret, clust$def, by.x = 'id', by.y = 'dmcode')
 tempperf = merge(dmpred$sum, clust$def, by.x = 'id', by.y = 'dmcode') %>% 
-  .[, .(tstat=mean(abs(tstat)), ooststat = mean(tstat_sign)), by = c('cluster')] 
+  .[, .(tstat=mean(abs(tstat)), ooststat = mean(tstat_sign), Nunique = unique(id) %>% length()), by = c('cluster')] 
 
 # generate cluster portfolios
 clust$ret = tempret %>% 
@@ -354,7 +354,7 @@ rm(list = ls(pattern = 'temp'))
 
 # make tables --------------------------------------------------------
 
-tab = clust$perf[samp=='insamp', .(cluster, nstrat, tstat, ooststat, rbar, tstat_cluster)] %>% 
+tab = clust$perf[samp=='insamp', .(cluster, nstrat, tstat, ooststat, rbar, tstat_cluster, Nunique)] %>% 
   # add oos perf
   merge(clust$perf[samp=='oos', ] %>% 
     transmute(cluster, rbaroos = rbar, tstat_cluster_oos = tstat_cluster), by = 'cluster') %>% 
@@ -362,11 +362,13 @@ tab = clust$perf[samp=='insamp', .(cluster, nstrat, tstat, ooststat, rbar, tstat
   # select(-rbaroos)  %>% 
   # add representatives
   merge(clust$rep %>% 
-    transmute(cluster, rep=desc, repcor=meancor), by = 'cluster') %>% 
+    transmute(cluster, rep=desc, repcor=meancor, id), by = 'cluster') %>% 
   # add correlations
   merge(clust$cor %>% 
     select(cluster, starts_with('cor_'), rsq), by = 'cluster') %>% 
-    as_tibble() %>% 
+    as_tibble() %>%
+  mutate(id_extracted = str_extract(id, "^[^|]+")) %>% 
+  mutate(rep = paste0(rep, '$_{', id_extracted, '}$')) %>%
     arrange(-rsq) %>% setDT()
 tab[, nCluster := 1:.N]
 library(kableExtra)
@@ -375,10 +377,11 @@ library(kableExtra)
 
 # Create the xtable
 latex_table <- xtable(
-  tab %>% select(nCluster, rep, nstrat, tstat, rsq, rbaroos_rbar),
+  tab %>% select(nCluster, rep, Nunique , tstat, rsq, rbaroos_rbar) %>%
+    mutate(Nunique = as.integer(Nunique)),
   caption = "Data-mined themes from 1990",
   align = c("l",  "p{10cm}", "c", "c", "c", "c", "c"),
-  digits = c(0, 0, 0, 1, 2, 2, 2)  # Specify number of digits for each column
+  digits = c(0, 0, 0, 0, 2, 2, 2)  # Specify number of digits for each column
 )
 names(latex_table) <- c("Cluster","Representative Signal", "N", "t-stat",  "$R^2$", "OOS/IS")
 
@@ -390,6 +393,7 @@ print.xtable(latex_table,
              floating = TRUE,
              table.placement = "H",
              sanitize.colnames.function = identity,
+             sanitize.text.function = identity,
              caption.placement = "top",only.contents =  TRUE, comment = FALSE,
              file = '../Results/table_1990.tex')
 # Read the .tex file
@@ -397,27 +401,7 @@ file_path <- '../Results/table_1990.tex'
 latex_content <- readLines(file_path)
 
 # Replace "d_" with "$\\delta$"
-latex_content <- gsub("d\\\\_", "$\\\\Delta$", latex_content)
+latex_content <- gsub("d_", "$\\\\Delta$", latex_content)
 
 # Write the modified content back to the file
 writeLines(latex_content, file_path)
-# 
-# 
-# #####################
-# # Create the other xtable
-# latex_table <- xtable(
-#   tab %>% select(nCluster, nstrat, tstat, rbar, rbaroos_rbar, repcor, cor_BMdec, cor_Size, cor_Mom12m, rsq),
-#   caption = "Data-mined themes from 1990",
-#   digits = c(0, 0, 1, 2, 2, 2, 2, 2, 2, 2, 2)  # Specify number of digits for each column
-# )
-# names(latex_table) <- c("Cluster", "N", "t-stat", "R-bar", "OOS/IS", "Rep $\\rho$", "B/M $\\rho$", "Size $\\rho$", "Mom. $\\rho$", "$R^2$")
-# 
-# print.xtable(latex_table, 
-#              include.rownames = FALSE, 
-#              booktabs = TRUE, 
-#              hline.after = c(-1, 0),
-#              floating = TRUE,
-#              table.placement = "H",
-#              caption.placement = "top",only.contents =  TRUE, comment = FALSE,
-#              sanitize.colnames.function = identity,
-#              file = 'table_thc2.tex')
