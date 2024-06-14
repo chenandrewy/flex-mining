@@ -348,7 +348,9 @@ cdat = foreach(i = 1:max(clust$def$cluster), .combine = rbind) %do% {
 
 clust$rep = cdat %>% arrange(cluster, -meancor) %>% 
   group_by(cluster) %>% slice(1) %>% ungroup() %>% 
-  merge(dm_linktable[ , .(dmcode, desc)], by.x = 'id', by.y = 'dmcode')
+  merge(dm_linktable[ , .(dmcode, desc)], by.x = 'id', by.y = 'dmcode') %>%
+  merge(dmpred$sum[, .(sign_rbar_text = ifelse(mean(rbar) > 0, '+', '-')), by = id])
+
 
 # remove temp variables
 rm(list = ls(pattern = 'temp'))
@@ -365,13 +367,13 @@ tab = clust$perf[samp=='insamp', .(cluster, nstrat, tstat, ooststat, rbar, tstat
   # select(-rbaroos)  %>% 
   # add representatives
   merge(clust$rep %>% 
-          transmute(cluster, rep=desc, repcor=meancor, id), by = 'cluster') %>% 
+          transmute(cluster, rep=desc, repcor=meancor, id, sign_rbar_text), by = 'cluster') %>% 
   # add correlations
   merge(clust$cor %>% 
           select(cluster, starts_with('cor_'), rsq), by = 'cluster') %>% 
   as_tibble() %>%
   mutate(id_extracted = str_extract(id, "^[^|]+")) %>% 
-  mutate(rep = paste0(rep, '$_{', id_extracted, '}$')) %>%
+  mutate(rep = paste0(sign_rbar_text, rep, '$_{', id_extracted, '}$')) %>%
   arrange(-rsq) %>% setDT()
 tab[, nCluster := 1:.N]
 library(kableExtra)
