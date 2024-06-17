@@ -24,17 +24,17 @@ nmonth_min = 120
 # Stattman publishes B/M in 1980, seems like a good place to start
 insamp = tibble(
   start = as.yearmon('Jul 1963')
-  , end = as.yearmon('Dec 1990')
+  , end = as.yearmon('Dec 2010')
 )
 
 # splitting in 2004 is informative
 oos1 = tibble(
-  start = as.yearmon('Jan 1991')
-  , end = as.yearmon('Dec 2004')
+  start = as.yearmon('Jan 2011')
+  , end = as.yearmon('Dec 2015')
 )
 
 oos2 = tibble(
-  start = as.yearmon('Jan 2005')
+  start = as.yearmon('Jan 2011')
   , end = as.yearmon('Dec 2022')
 )
 
@@ -215,6 +215,19 @@ themesum = groupsum %>%
   head(20) 
 
 # check to console ------------------------------------------------
-themesum %>% select(numer, pctshort, tstat, rbar)
+themesum %>% select(numer, pctshort, tstat, rbar, rbaroos, rbaroos2)
 
 # tbc: output to tables for appendix
+
+
+# where are valuations?
+groupsum %>% select(sweight, v1, numer, pctshort, tstat, rank) %>% 
+  filter(grepl('Market', numer)) %>% print()
+
+# profitability?
+groupsum %>% select(sweight, v1, numer, pctshort, tstat, rank) %>% 
+  filter(grepl('prof', numer)) %>% print()
+
+# earnings growth?
+groupsum %>% select(sweight, v1, numer, pctshort, tstat, rank) %>% 
+  filter(grepl('profit', numer, ignore.case = T) & grepl('Delta',numer)) %>% print()

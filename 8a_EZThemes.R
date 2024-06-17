@@ -39,8 +39,10 @@ oos2 = tibble(
 )
 
 # list of anomalies for measuring spanning
-pubselect = c('BMdec','Size','Mom12m', 'AssetGrowth', 'GP')
+pubselect = c('BM', 'Beta', 'DivYieldST', 'EP', 'Price') # stuff published before 1980
+# pubselect = c('BMdec','Size','Mom12m', 'AssetGrowth', 'GP')
 # pubselect = c('BMdec','Size','Mom12m')
+
 
 # name of compustat LS file
 dmcomp <- list()
@@ -221,7 +223,7 @@ library(kableExtra)
 # import literature categories
 litinfo = tibble(
   litcat0=c('investment', 'diff investment', 'external financing', 'accruals'
-    , 'debt structure', 'diff profitability')
+    , 'diff profitability', 'debt structure')
 ) %>% mutate(order = row_number()) %>% 
   mutate(litcat = paste(order, litcat0, sep='|')) %>% 
   select(-order)
@@ -301,10 +303,10 @@ tex[6] = paste(
 tex[8] = lhead('Investment / Investment Growth (Titman, Wei, Xie 2004; Cooper, Gulen, Schill 2008)') 
 tex[15] = lhead('External Financing (Spiess and Affleck-Graves 1999; Pontiff and Woodgate 2008)')
 tex[20] = lhead('Accruals / Inventory Growth (Sloan 1996; Thomas and Zhang 2002; Belo and Lin 2012)')
-tex[26] = lhead('Debt Structure (Valta 2016)')
-tex[28] = lhead('Profitability Growth')
+tex[26] = lhead('Earnings Surprise (Foster, Olsen, Shevlin 1984; Chan, Jegadeesh, Lakonishok 1996)')
+tex[31] = lhead('Debt Structure (Valta 2016)')
 
-for (i in c(15, 20, 26, 28)) {
+for (i in c(15, 20, 26, 31)) {
   j = i-1
   n = nchar(tex[j])
   tex[j] = paste0(substr(tex[j], 1, (n-2)), ' \\bigstrut[b] \\\\ ')
@@ -317,9 +319,117 @@ if (any(grepl('ayc', Sys.info()))) {
   writeLines(tex, 'D:/Dropbox/Apps/Overleaf/PeerReviewedTheory_Paper/exhibits/theme_ez_decay.tex')
 }
 
+# Make table w/ rsq ----------------------------------------
+
+library(kableExtra)
+
+# import literature categories
+litinfo = tibble(
+  litcat0=c('investment', 'diff investment', 'external financing', 'accruals'
+    , 'diff profitability', 'debt structure')
+) %>% mutate(order = row_number()) %>% 
+  mutate(litcat = paste(order, litcat0, sep='|')) %>% 
+  select(-order)
+
+# merge diff investment (cleaner table)
+litinfo = litinfo %>% 
+  mutate(litcat = if_else(litcat=='2|diff investment', '1|investment', litcat))
+
+groupsumcat = readxl::read_xlsx('DataInput/DM-Numerator-LitCat.xlsx') %>% 
+  transmute(numer, litcat0 = LitCat) %>% 
+  left_join(litinfo, by = 'litcat0') 
+
+# sketch table
+tab1 = themesum %>% 
+  mutate(blank1 = '') %>% 
+  left_join(groupsumcat %>% select(numer, litcat)
+    , by = c('numer')) %>% 
+  transmute(litcat, numer, pctshort, tstat,  rbar, rsqlit
+    , blank1
+    , decay1=round(1*((rbaroos)/rbar), 2)
+    , decay2=round(1*((rbaroos2)/rbar), 2)) %>% 
+  arrange(litcat, -tstat) %>% 
+  print()
+
+# add blank rows for litcats
+tab2 = tab1 %>% 
+  bind_rows(
+    litinfo %>% filter(!is.na(order)) %>% distinct(litcat) %>% mutate(tstat = Inf, numer = litcat)
+  ) %>% 
+  arrange(litcat, -tstat) %>% 
+  select(-litcat) %>% 
+  print()
+
+# export to temp.tex
+tab2 %>% 
+  kable('latex', booktabs = T, linesep='', escape=F, digits=2) %>% 
+  cat(file='../results/temp.tex')
+
+# Make rsq table beautiful ----------------------------------------
+
+# setup
+tex = readLines('../results/temp.tex')
+mcol = function(x) paste0('\\multicolumn{1}{c}{', x, '}')
+strsamp = paste0(year(insamp$start), '-', year(insamp$end))
+stroos1 = paste0(year(oos1$start), '-', year(oos1$end))
+stroos2 = paste0(year(oos2$start), '-', year(oos2$end))
+lhead = function(x) paste0('\\multicolumn{', ncol(tab2), '}{l}{', x, '} \\\\ \\hline')
+
+# expand the header
+tex = tex %>% append('', after=4) %>% append('', after=5)
+
+tex[4] = paste(
+  ''
+  , paste0('\\multicolumn{4}{c}{', strsamp, ' (IS)}')
+  , '' # blank
+  , mcol(stroos1)
+  , paste0(mcol(stroos2), ' \\\\ \\cmidrule{2-5} \\cmidrule{7-8}')
+  , sep=' & ')
+
+tex[5] = paste(
+  'Numerator of Ratio'
+  , mcol('Pct'), '\\multirow{2}{*}{t-stat}', mcol('Mean'), mcol('Prev Lit')
+  , '' # blank  
+  , '\\multicolumn{2}{c}{Mean Return} \\\\  '
+  , sep = ' & '
+)
+
+tex[6] = paste(
+  ''
+  , mcol('Short'), '', mcol('Return'), mcol('$R^2$')
+  , '' # blank  
+  , '\\multicolumn{2}{c}{OOS / IS} \\\\ '
+  , sep = ' & '
+)
+
+# add litcat subheaders
+tex[8] = lhead('Investment / Investment Growth (Titman, Wei, Xie 2004; Cooper, Gulen, Schill 2008)') 
+tex[15] = lhead('External Financing (Spiess and Affleck-Graves 1999; Pontiff and Woodgate 2008)')
+tex[20] = lhead('Accruals / Inventory Growth (Sloan 1996; Thomas and Zhang 2002; Belo and Lin 2012)')
+tex[26] = lhead('Earnings Surprise (Foster, Olsen, Shevlin 1984; Chan, Jegadeesh, Lakonishok 1996)')
+tex[31] = lhead('Debt Structure (Valta 2016)')
+
+for (i in c(15, 20, 26, 31)) {
+  j = i-1
+  n = nchar(tex[j])
+  tex[j] = paste0(substr(tex[j], 1, (n-2)), ' \\bigstrut[b] \\\\ ')
+}
+
+writeLines(tex, '../results/theme_ez_decay_rsq.tex')
+
+# copy to overleaf (if on Andrew's machine)
+if (any(grepl('ayc', Sys.info()))) {
+  writeLines(tex, 'D:/Dropbox/Apps/Overleaf/PeerReviewedTheory_Paper/exhibits/theme_ez_decay_rsq.tex')
+}
+
+
+
+
+
 # Check some stuff --------------------------------------------
 
-groupsum %>% select(sweight, v1, numer, pctshort, tstat, rank) %>% 
+groupsum %>% transmute(sweight, numer, rank, tstat
+  , oosf1 = rbaroos/rbar, oosf2 = rbaroos2/rbar) %>% 
   filter(tstat > 1.9) %>% 
   print(n=Inf)
 
@@ -336,7 +446,7 @@ themesum %>%
   mutate(oosfrac = rbaroos2/rbar) %>% 
   summarize(mean(oosfrac))
 
-
+themesum$rsqlit %>% mean()
 
 
 
