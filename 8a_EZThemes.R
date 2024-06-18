@@ -180,6 +180,7 @@ stratsum = dmpred$sum %>%
   merge(dm_info %>% 
     transmute(id=dmcode
     , v1
+    , signal_form
     , numer = paste0(signal_form, v1long)
     , denom = v2long)    
   , by = 'id') %>% 
@@ -189,32 +190,27 @@ stratsum = dmpred$sum %>%
 
 # stats by sweight-numer group
 groupsum = stratsum %>% 
-  group_by(sweight, v1, numer) %>%
+  group_by(sweight, signal_form, v1, numer) %>%
   summarize(
     nstrat = n()
-    , pctshort = round(mean(sign==-1)*100, 0)
-    , pctsignif = round(mean(tstat>1.96)*100, 0)
-    , tstat = round(mean(tstat), 1)
+    , pctshort = mean(sign==-1)*100
+    , pctsignif = mean(tstat>1.96)*100
+    , tstat = mean(tstat)
     , rbar = mean(rbar)
     , rbaroos = mean(rbaroos)
     , rbaroos2 = mean(rbaroos2)
     , rbaroos_rbar = mean(rbaroos)/mean(rbar)
-    , rsqlit = round(mean(rsq_lit)*100, 0)
+    , rsqlit = mean(rsq_lit)*100
     , .groups = 'drop'
   ) %>% 
-  arrange(-tstat) %>% 
-  mutate(rank = row_number()) 
+  arrange(-tstat) %>%     
+  mutate(rank = row_number())  
 
 # save groupsum to csv for manual categorization (if needed)
 # (this gets copy-pasted into DataInput/DM-Numerator-LitCat.xlsx)
 if (FALSE) {
-  groupsum %>% distinct(v1, numer) %>%  write_csv('../results/numer_list.csv')
+  groupsum %>% distinct(signal_form, v1, numer) %>%  write_csv('../results/numer_list.csv')
 }
-
-# themes are then the top 20 groups by t-stat
-themesum = groupsum %>% 
-  arrange(-tstat) %>% 
-  head(20) 
 
 # Make table ----------------------------------------
 
@@ -233,25 +229,30 @@ litinfo = litinfo %>%
   mutate(litcat = if_else(litcat=='2|diff investment', '1|investment', litcat))
 
 groupsumcat = readxl::read_xlsx('DataInput/DM-Numerator-LitCat.xlsx') %>% 
-  transmute(numer, litcat0 = LitCat) %>% 
+  transmute(signal_form, v1, numer, litcat0 = LitCat) %>% 
   left_join(litinfo, by = 'litcat0') 
 
 # sketch table
-tab1 = themesum %>% 
+tab1 = groupsum %>% 
+  arrange(-tstat) %>%
+  head(20) %>% 
   mutate(blank1 = '') %>% 
-  left_join(groupsumcat %>% select(numer, litcat)
-    , by = c('numer')) %>% 
-  transmute(litcat, numer, pctshort, tstat,  rbar
+  left_join(groupsumcat %>% select(signal_form, v1, litcat)
+    , by = c('signal_form', 'v1')) %>% 
+  transmute(litcat
+    , group = paste0(numer, ' (', sweight, ')')
+    , pctshort = round(pctshort, 0)
+    , tstat = round(tstat, 1)
+    , rbar = round(rbar, 2)
     , blank1
     , decay1=round(1*((rbaroos)/rbar), 2)
     , decay2=round(1*((rbaroos2)/rbar), 2)) %>% 
-  arrange(litcat, -tstat) %>% 
-  print()
+  arrange(litcat, -tstat) 
 
 # add blank rows for litcats
 tab2 = tab1 %>% 
   bind_rows(
-    litinfo %>% filter(!is.na(order)) %>% distinct(litcat) %>% mutate(tstat = Inf, numer = litcat)
+    tab1 %>% distinct(litcat) %>% mutate(tstat = Inf, group = litcat)
   ) %>% 
   arrange(litcat, -tstat) %>% 
   select(-litcat) %>% 
@@ -284,7 +285,7 @@ tex[4] = paste(
   , sep=' & ')
 
 tex[5] = paste(
-  'Numerator of Ratio'
+  'Numerator (Stock Weight)'
   , mcol('Pct'), '\\multirow{2}{*}{t-stat}', mcol('Mean')
   , '' # blank  
   , '\\multicolumn{2}{c}{Mean Return} \\\\  '
@@ -300,153 +301,164 @@ tex[6] = paste(
 )
 
 # add litcat subheaders
-tex[8] = lhead('Investment / Investment Growth (Titman, Wei, Xie 2004; Cooper, Gulen, Schill 2008)') 
-tex[15] = lhead('External Financing (Spiess and Affleck-Graves 1999; Pontiff and Woodgate 2008)')
-tex[20] = lhead('Accruals / Inventory Growth (Sloan 1996; Thomas and Zhang 2002; Belo and Lin 2012)')
-tex[26] = lhead('Earnings Surprise (Foster, Olsen, Shevlin 1984; Chan, Jegadeesh, Lakonishok 1996)')
-tex[31] = lhead('Debt Structure (Valta 2016)')
+subheadstr = list(
+  'Investment / Investment Growth (Titman, Wei, Xie 2004; Cooper, Gulen, Schill 2008)'
+  , 'External Financing (Spiess and Affleck-Graves 1999; Pontiff and Woodgate 2008)'
+  , 'Accruals / Inventory Growth (Sloan 1996; Thomas and Zhang 2002; Belo and Lin 2012)'
+  , 'Earnings Surprise (Foster, Olsen, Shevlin 1984; Chan, Jegadeesh, Lakonishok 1996)'
+  , 'Debt Structure (Valta 2016)'
+)
 
-for (i in c(15, 20, 26, 31)) {
-  j = i-1
-  n = nchar(tex[j])
-  tex[j] = paste0(substr(tex[j], 1, (n-2)), ' \\bigstrut[b] \\\\ ')
+# find subhead rows
+tex1 = tex
+subheadrow = which(grepl('NA & Inf', tex1))
+for (i in 1:length(subheadrow)){
+  tex1[subheadrow[i]] = lhead(subheadstr[i])
+
+  # extra spacing
+  if (i > 1){
+    j = subheadrow[i]-1
+    n = nchar(tex1[j])
+    tex1[j] = paste0(substr(tex1[j], 1, (n-2)), ' \\bigstrut[b] \\\\ ')
+  }
 }
 
-writeLines(tex, '../results/theme_ez_decay.tex')
+
+writeLines(tex1, '../results/theme_ez_decay.tex')
 
 # copy to overleaf (if on Andrew's machine)
 if (any(grepl('ayc', Sys.info()))) {
-  writeLines(tex, 'D:/Dropbox/Apps/Overleaf/PeerReviewedTheory_Paper/exhibits/theme_ez_decay.tex')
+  writeLines(tex1, 'D:/Dropbox/Apps/Overleaf/PeerReviewedTheory_Paper/exhibits/theme_ez_decay.tex')
 }
 
-# Make table w/ rsq ----------------------------------------
+# # Make table w/ rsq ----------------------------------------
 
-library(kableExtra)
+# library(kableExtra)
 
-# import literature categories
-litinfo = tibble(
-  litcat0=c('investment', 'diff investment', 'external financing', 'accruals'
-    , 'diff profitability', 'debt structure')
-) %>% mutate(order = row_number()) %>% 
-  mutate(litcat = paste(order, litcat0, sep='|')) %>% 
-  select(-order)
+# # import literature categories
+# litinfo = tibble(
+#   litcat0=c('investment', 'diff investment', 'external financing', 'accruals'
+#     , 'diff profitability', 'debt structure')
+# ) %>% mutate(order = row_number()) %>% 
+#   mutate(litcat = paste(order, litcat0, sep='|')) %>% 
+#   select(-order)
 
-# merge diff investment (cleaner table)
-litinfo = litinfo %>% 
-  mutate(litcat = if_else(litcat=='2|diff investment', '1|investment', litcat))
+# # merge diff investment (cleaner table)
+# litinfo = litinfo %>% 
+#   mutate(litcat = if_else(litcat=='2|diff investment', '1|investment', litcat))
 
-groupsumcat = readxl::read_xlsx('DataInput/DM-Numerator-LitCat.xlsx') %>% 
-  transmute(numer, litcat0 = LitCat) %>% 
-  left_join(litinfo, by = 'litcat0') 
+# groupsumcat = readxl::read_xlsx('DataInput/DM-Numerator-LitCat.xlsx') %>% 
+#   transmute(numer, litcat0 = LitCat) %>% 
+#   left_join(litinfo, by = 'litcat0') 
 
-# sketch table
-tab1 = themesum %>% 
-  mutate(blank1 = '') %>% 
-  left_join(groupsumcat %>% select(numer, litcat)
-    , by = c('numer')) %>% 
-  transmute(litcat, numer, pctshort, tstat,  rbar, rsqlit
-    , blank1
-    , decay1=round(1*((rbaroos)/rbar), 2)
-    , decay2=round(1*((rbaroos2)/rbar), 2)) %>% 
-  arrange(litcat, -tstat) %>% 
-  print()
+# # sketch table
+# tab1 = themesum %>% 
+#   mutate(blank1 = '') %>% 
+#   left_join(groupsumcat %>% select(numer, litcat)
+#     , by = c('numer')) %>% 
+#   transmute(litcat, numer, pctshort, tstat,  rbar, rsqlit
+#     , blank1
+#     , decay1=round(1*((rbaroos)/rbar), 2)
+#     , decay2=round(1*((rbaroos2)/rbar), 2)) %>% 
+#   arrange(litcat, -tstat) %>% 
+#   print()
 
-# add blank rows for litcats
-tab2 = tab1 %>% 
-  bind_rows(
-    litinfo %>% filter(!is.na(order)) %>% distinct(litcat) %>% mutate(tstat = Inf, numer = litcat)
-  ) %>% 
-  arrange(litcat, -tstat) %>% 
-  select(-litcat) %>% 
-  print()
+# # add blank rows for litcats
+# tab2 = tab1 %>% 
+#   bind_rows(
+#     litinfo %>% filter(!is.na(order)) %>% distinct(litcat) %>% mutate(tstat = Inf, numer = litcat)
+#   ) %>% 
+#   arrange(litcat, -tstat) %>% 
+#   select(-litcat) %>% 
+#   print()
 
-# export to temp.tex
-tab2 %>% 
-  kable('latex', booktabs = T, linesep='', escape=F, digits=2) %>% 
-  cat(file='../results/temp.tex')
+# # export to temp.tex
+# tab2 %>% 
+#   kable('latex', booktabs = T, linesep='', escape=F, digits=2) %>% 
+#   cat(file='../results/temp.tex')
 
-# Make rsq table beautiful ----------------------------------------
+# # Make rsq table beautiful ----------------------------------------
 
-# setup
-tex = readLines('../results/temp.tex')
-mcol = function(x) paste0('\\multicolumn{1}{c}{', x, '}')
-strsamp = paste0(year(insamp$start), '-', year(insamp$end))
-stroos1 = paste0(year(oos1$start), '-', year(oos1$end))
-stroos2 = paste0(year(oos2$start), '-', year(oos2$end))
-lhead = function(x) paste0('\\multicolumn{', ncol(tab2), '}{l}{', x, '} \\\\ \\hline')
+# # setup
+# tex = readLines('../results/temp.tex')
+# mcol = function(x) paste0('\\multicolumn{1}{c}{', x, '}')
+# strsamp = paste0(year(insamp$start), '-', year(insamp$end))
+# stroos1 = paste0(year(oos1$start), '-', year(oos1$end))
+# stroos2 = paste0(year(oos2$start), '-', year(oos2$end))
+# lhead = function(x) paste0('\\multicolumn{', ncol(tab2), '}{l}{', x, '} \\\\ \\hline')
 
-# expand the header
-tex = tex %>% append('', after=4) %>% append('', after=5)
+# # expand the header
+# tex = tex %>% append('', after=4) %>% append('', after=5)
 
-tex[4] = paste(
-  ''
-  , paste0('\\multicolumn{4}{c}{', strsamp, ' (IS)}')
-  , '' # blank
-  , mcol(stroos1)
-  , paste0(mcol(stroos2), ' \\\\ \\cmidrule{2-5} \\cmidrule{7-8}')
-  , sep=' & ')
+# tex[4] = paste(
+#   ''
+#   , paste0('\\multicolumn{4}{c}{', strsamp, ' (IS)}')
+#   , '' # blank
+#   , mcol(stroos1)
+#   , paste0(mcol(stroos2), ' \\\\ \\cmidrule{2-5} \\cmidrule{7-8}')
+#   , sep=' & ')
 
-tex[5] = paste(
-  'Numerator of Ratio'
-  , mcol('Pct'), '\\multirow{2}{*}{t-stat}', mcol('Mean'), mcol('Prev Lit')
-  , '' # blank  
-  , '\\multicolumn{2}{c}{Mean Return} \\\\  '
-  , sep = ' & '
-)
+# tex[5] = paste(
+#   'Numerator of Ratio'
+#   , mcol('Pct'), '\\multirow{2}{*}{t-stat}', mcol('Mean'), mcol('Prev Lit')
+#   , '' # blank  
+#   , '\\multicolumn{2}{c}{Mean Return} \\\\  '
+#   , sep = ' & '
+# )
 
-tex[6] = paste(
-  ''
-  , mcol('Short'), '', mcol('Return'), mcol('$R^2$')
-  , '' # blank  
-  , '\\multicolumn{2}{c}{OOS / IS} \\\\ '
-  , sep = ' & '
-)
+# tex[6] = paste(
+#   ''
+#   , mcol('Short'), '', mcol('Return'), mcol('$R^2$')
+#   , '' # blank  
+#   , '\\multicolumn{2}{c}{OOS / IS} \\\\ '
+#   , sep = ' & '
+# )
 
-# add litcat subheaders
-tex[8] = lhead('Investment / Investment Growth (Titman, Wei, Xie 2004; Cooper, Gulen, Schill 2008)') 
-tex[15] = lhead('External Financing (Spiess and Affleck-Graves 1999; Pontiff and Woodgate 2008)')
-tex[20] = lhead('Accruals / Inventory Growth (Sloan 1996; Thomas and Zhang 2002; Belo and Lin 2012)')
-tex[26] = lhead('Earnings Surprise (Foster, Olsen, Shevlin 1984; Chan, Jegadeesh, Lakonishok 1996)')
-tex[31] = lhead('Debt Structure (Valta 2016)')
+# # add litcat subheaders
+# tex[8] = lhead('Investment / Investment Growth (Titman, Wei, Xie 2004; Cooper, Gulen, Schill 2008)') 
+# tex[15] = lhead('External Financing (Spiess and Affleck-Graves 1999; Pontiff and Woodgate 2008)')
+# tex[20] = lhead('Accruals / Inventory Growth (Sloan 1996; Thomas and Zhang 2002; Belo and Lin 2012)')
+# tex[26] = lhead('Earnings Surprise (Foster, Olsen, Shevlin 1984; Chan, Jegadeesh, Lakonishok 1996)')
+# tex[31] = lhead('Debt Structure (Valta 2016)')
 
-for (i in c(15, 20, 26, 31)) {
-  j = i-1
-  n = nchar(tex[j])
-  tex[j] = paste0(substr(tex[j], 1, (n-2)), ' \\bigstrut[b] \\\\ ')
-}
+# for (i in c(15, 20, 26, 31)) {
+#   j = i-1
+#   n = nchar(tex[j])
+#   tex[j] = paste0(substr(tex[j], 1, (n-2)), ' \\bigstrut[b] \\\\ ')
+# }
 
-writeLines(tex, '../results/theme_ez_decay_rsq.tex')
+# writeLines(tex, '../results/theme_ez_decay_rsq.tex')
 
-# copy to overleaf (if on Andrew's machine)
-if (any(grepl('ayc', Sys.info()))) {
-  writeLines(tex, 'D:/Dropbox/Apps/Overleaf/PeerReviewedTheory_Paper/exhibits/theme_ez_decay_rsq.tex')
-}
-
-
+# # copy to overleaf (if on Andrew's machine)
+# if (any(grepl('ayc', Sys.info()))) {
+#   writeLines(tex, 'D:/Dropbox/Apps/Overleaf/PeerReviewedTheory_Paper/exhibits/theme_ez_decay_rsq.tex')
+# }
 
 
 
-# Check some stuff --------------------------------------------
 
-groupsum %>% transmute(sweight, numer, rank, tstat
-  , oosf1 = rbaroos/rbar, oosf2 = rbaroos2/rbar) %>% 
-  filter(tstat > 1.9) %>% 
-  print(n=Inf)
 
-# where are valuations?
-groupsum %>% select(sweight, v1, numer, pctshort, tstat, rank) %>% 
-  filter(grepl('Market', numer)) %>% print()
+# # Check some stuff --------------------------------------------
 
-# profitability?
-groupsum %>% select(sweight, v1, numer, pctshort, tstat, rank) %>% 
-  filter(grepl('prof', numer)) %>% print()
+# groupsum %>% transmute(sweight, numer, rank, tstat
+#   , oosf1 = rbaroos/rbar, oosf2 = rbaroos2/rbar) %>% 
+#   filter(tstat > 1.9) %>% 
+#   print(n=Inf)
 
-# post-2004 decay
-themesum %>% 
-  mutate(oosfrac = rbaroos2/rbar) %>% 
-  summarize(mean(oosfrac))
+# # where are valuations?
+# groupsum %>% select(sweight, v1, numer, pctshort, tstat, rank) %>% 
+#   filter(grepl('Market', numer)) %>% print()
 
-themesum$rsqlit %>% mean()
+# # profitability?
+# groupsum %>% select(sweight, v1, numer, pctshort, tstat, rank) %>% 
+#   filter(grepl('prof', numer)) %>% print()
+
+# # post-2004 decay
+# themesum %>% 
+#   mutate(oosfrac = rbaroos2/rbar) %>% 
+#   summarize(mean(oosfrac))
+
+# themesum$rsqlit %>% mean()
 
 
 
