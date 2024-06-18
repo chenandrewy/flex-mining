@@ -1343,9 +1343,10 @@ ReturnPlotsWithDM4series <- function(dt, suffix = '', rollmonths = 60, colors = 
     theme_light(base_size = fontsize) +
     theme(
       legend.position = legendpos,
-      legend.spacing.y = unit(0.1, units = 'cm'),
+      legend.spacing.y = unit(0.15, units = 'cm'),
       legend.background = element_rect(fill = 'transparent'),
-      legend.key.width = unit(1.5, units = 'cm')
+      legend.key.width = unit(2.5, units = 'cm'),
+      legend.key.height = unit(1.5,"cm")
     )
   
   if (labelmatch == TRUE) {
