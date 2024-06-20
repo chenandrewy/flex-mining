@@ -263,3 +263,62 @@ for (jj in unique(czret$theory)) {
   
 }
 
+
+# Plot for published accounting variables only ----------------------------
+signaldoc =  data.table::fread('../Data/Raw/SignalDoc.csv') %>% 
+  filter(Cat.Data == 'Accounting')
+
+plotdat$name <- "t_min_2AccountingOnly"
+
+ret_for_plottingAnnualAccounting = ret_for_plotting %>% 
+  select(-matchRetAlt) %>% 
+  filter(pubname %in% unique(signaldoc$Acronym)) %>% 
+  # Remove quarterly Compustat and a few others not constructed via annual CS
+  filter(!(pubname %in% c("Cash", "ChTax", "EarningsSurprise", 
+                          "NumEarnIncrease", "RevenueSurprise", "roaq",
+                          'EarnSupBig',
+                          'EarningsStreak',
+                          'ShareIss1Y',
+                          'ShareIss5Y')))
+
+printme = ReturnPlotsWithDM(
+  dt = ret_for_plottingAnnualAccounting,
+  basepath = "../Results/Fig_DM",
+  suffix = plotdat$name,
+  rollmonths = 60,
+  colors = colors,
+  labelmatch = FALSE,
+  yl = -0,
+  yh = 125,
+  legendlabels =
+    c(
+      paste0("Published (and Peer Reviewed)"),
+      paste0("Data-Mined for |t|>2.0 in Original Sample"),
+      paste0(plotdat$legprefix, " Mining Tickers")
+    ),
+  legendpos = c(35,20)/100,
+  fontsize = fontsizeall,
+  yaxislab = ylaball,
+  linesize = linesizeall
+)
+
+# custom edits 
+printme2 = printme + theme(
+  legend.background = element_rect(fill = "white", color = "black"
+                                   , size = 0.3)
+  # remove space where legend would be
+  , legend.margin = margin(-0.7, 0.5, 0.5, 0.5, "cm")
+  , legend.position  = c(44,15)/100
+  # add space between legend items
+  , legend.spacing.y = unit(0.2, "cm")
+) +
+  guides(color = guide_legend(byrow = TRUE))
+
+# save (again)
+ggsave(paste0("../Results/Fig_DM_", plotdat$name, '.pdf'), width = 10, height = 8)
+
+ret_for_plottingAnnualAccounting[eventDate>0 & eventDate <= Inf & pubname %in% unique(signaldoc$Acronym), .(mean(ret), mean(matchRet))]
+
+ret_for_plottingAnnualAccounting %>% filter(pubname %in% unique(signaldoc$Acronym)) %>% 
+  distinct(pubname) %>% view()
+
