@@ -196,9 +196,10 @@ for (cc in exclCorrelations) {
     filter(rho <= cc/100) %>% 
     select(-rho) %>%
     left_join(czsum %>% transmute(actSignal = signalname, rbar_op = rbar))
-  
+  original_number <- unique(candidateReturns$actSignal)
+  cor_filter_number <- unique(corCandidateReturns$actSignal)
   print('The following actual signals are dropped by the correlation restriction')
-  print(setdiff(unique(candidateReturns$actSignal), unique(corCandidateReturns$actSignal)))
+  print(setdiff(original_number, cor_filter_number))
   
   # Normalize candidate returns
   # In-sample means
@@ -213,6 +214,10 @@ for (cc in exclCorrelations) {
     summarise(rbar_insampMatched = mean(ret)) %>% 
     ungroup()
   
+  cor_filter_number_after_mean <- unique(tempsumCand$actSignal)
+  print('The following actual signals are dropped by the correlation restriction and the 10%')
+  print(setdiff(original_number, cor_filter_number_after_mean) %>% length())
+  print(setdiff(original_number, cor_filter_number_after_mean))
   # Rescale and average over all matched signals for each predictor and event date
   tempCand = corCandidateReturns %>% 
     left_join(tempsumCand) %>% 
