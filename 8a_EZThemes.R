@@ -38,6 +38,12 @@ oos2 = tibble(
   , end = as.yearmon('Dec 2022')
 )
 
+# full post sample
+oos3 = tibble(
+  start = as.yearmon('Jan 1981')
+  , end = as.yearmon('Dec 2022')
+)
+
 # list of anomalies for measuring spanning
 pubselect = c('BM', 'Beta', 'DivYieldST', 'EP', 'Price') # stuff published before 1980
 # pubselect = c('BMdec','Size','Mom12m', 'AssetGrowth', 'GP')
@@ -156,6 +162,11 @@ dmpred$sum = dmpred$sum %>%
       , .(rbaroos2 = mean(ret_signed)), by = 'id']
     , by = 'id')     
 
+dmpred$sum = dmpred$sum %>% 
+  merge(dmpred$ret[yearm >= oos3$start & yearm <= oos3$end
+      , .(rbaroos3 = mean(ret_signed)), by = 'id']
+    , by = 'id')
+
 # add spanning by lit
 temppub = czret %>% 
     filter(signalname %in% pubselect) %>%
@@ -199,6 +210,7 @@ groupsum = stratsum %>%
     , rbar = mean(rbar)
     , rbaroos = mean(rbaroos)
     , rbaroos2 = mean(rbaroos2)
+    , rbaroos3 = mean(rbaroos3)
     , rbaroos_rbar = mean(rbaroos)/mean(rbar)
     , rsqlit = mean(rsq_lit)*100
     , .groups = 'drop'
@@ -256,7 +268,7 @@ tab2 = tab1 %>%
   ) %>% 
   arrange(litcat, -tstat) %>% 
   select(-litcat) %>% 
-  print()
+  print(n=Inf)
 
 # export to temp.tex
 tab2 %>% 
@@ -331,136 +343,106 @@ if (any(grepl('ayc', Sys.info()))) {
   writeLines(tex1, 'D:/Dropbox/Apps/Overleaf/PeerReviewedTheory_Paper/exhibits/theme_ez_decay.tex')
 }
 
-# # Make table w/ rsq ----------------------------------------
+# Make table for slides ----------------------------------------
 
-# library(kableExtra)
+# sketch table
+tab1 = groupsum %>% 
+  arrange(-tstat) %>%
+  head(20) %>% 
+  mutate(blank1 = '') %>% 
+  left_join(groupsumcat %>% select(signal_form, v1, litcat)
+    , by = c('signal_form', 'v1')) %>% 
+  transmute(litcat
+    , group = paste0(numer, ' (', sweight, ')')
+    , pctshort = round(pctshort, 0)
+    , tstat = round(tstat, 1))%>% 
+  arrange(litcat, -tstat) %>% 
+  print(n=Inf)
 
-# # import literature categories
-# litinfo = tibble(
-#   litcat0=c('investment', 'diff investment', 'external financing', 'accruals'
-#     , 'diff profitability', 'debt structure')
-# ) %>% mutate(order = row_number()) %>% 
-#   mutate(litcat = paste(order, litcat0, sep='|')) %>% 
-#   select(-order)
+# add blank rows for litcats
+tab2 = tab1 %>% 
+  bind_rows(
+    tab1 %>% distinct(litcat) %>% mutate(tstat = Inf, group = litcat)
+  ) %>% 
+  arrange(litcat, -tstat) %>% 
+  select(-litcat) %>% 
+  print(n=Inf)  
 
-# # merge diff investment (cleaner table)
-# litinfo = litinfo %>% 
-#   mutate(litcat = if_else(litcat=='2|diff investment', '1|investment', litcat))
+# export to temp.tex
+tab2 %>% 
+  kable('latex', booktabs = T, linesep='', escape=F, digits=2) %>% 
+  cat(file='../results/temp.tex')
 
-# groupsumcat = readxl::read_xlsx('DataInput/DM-Numerator-LitCat.xlsx') %>% 
-#   transmute(numer, litcat0 = LitCat) %>% 
-#   left_join(litinfo, by = 'litcat0') 
+# Make it beautiful ----------------------------------------
 
-# # sketch table
-# tab1 = themesum %>% 
-#   mutate(blank1 = '') %>% 
-#   left_join(groupsumcat %>% select(numer, litcat)
-#     , by = c('numer')) %>% 
-#   transmute(litcat, numer, pctshort, tstat,  rbar, rsqlit
-#     , blank1
-#     , decay1=round(1*((rbaroos)/rbar), 2)
-#     , decay2=round(1*((rbaroos2)/rbar), 2)) %>% 
-#   arrange(litcat, -tstat) %>% 
-#   print()
+# setup
+tex = readLines('../results/temp.tex')
+mcol = function(x) paste0('\\multicolumn{1}{c}{', x, '}')
+strsamp = paste0(year(insamp$start), '-', year(insamp$end))
+stroos1 = paste0(year(oos1$start), '-', year(oos1$end))
+stroos2 = paste0(year(oos2$start), '-', year(oos2$end))
+lhead = function(x) paste0('\\multicolumn{', ncol(tab2), '}{l}{', x, '} \\\\ \\hline')
 
-# # add blank rows for litcats
-# tab2 = tab1 %>% 
-#   bind_rows(
-#     litinfo %>% filter(!is.na(order)) %>% distinct(litcat) %>% mutate(tstat = Inf, numer = litcat)
-#   ) %>% 
-#   arrange(litcat, -tstat) %>% 
-#   select(-litcat) %>% 
-#   print()
+# expand the header
+tex = tex %>% append('', after=4) 
 
-# # export to temp.tex
-# tab2 %>% 
-#   kable('latex', booktabs = T, linesep='', escape=F, digits=2) %>% 
-#   cat(file='../results/temp.tex')
+tex[4] = paste(
+  '\\multirow{2}{*}{Numerator (Stock Weight)}'
+  , mcol('Pct'), '\\multirow{2}{*}{t-stat} \\\\ '
+  , sep = ' & '
+)
 
-# # Make rsq table beautiful ----------------------------------------
+tex[6] = paste(
+  ''
+  , mcol('Short'), '  \\\\ \\midrule '
+  , sep = ' & '
+)
 
-# # setup
-# tex = readLines('../results/temp.tex')
-# mcol = function(x) paste0('\\multicolumn{1}{c}{', x, '}')
-# strsamp = paste0(year(insamp$start), '-', year(insamp$end))
-# stroos1 = paste0(year(oos1$start), '-', year(oos1$end))
-# stroos2 = paste0(year(oos2$start), '-', year(oos2$end))
-# lhead = function(x) paste0('\\multicolumn{', ncol(tab2), '}{l}{', x, '} \\\\ \\hline')
+# create second header (will be second column)
+tex = tex %>% append('', after=19) %>% append('', after=19) %>% 
+  append('', after=19) 
 
-# # expand the header
-# tex = tex %>% append('', after=4) %>% append('', after=5)
+tex[20] = ' \\bottomrule \\\\ \\toprule '
+tex[21] = paste(
+  '\\multirow{2}{*}{Numerator (Stock Weight)}'
+  , mcol('Pct'), '\\multirow{2}{*}{t-stat} \\\\ '
+  , sep = ' & '
+)
 
-# tex[4] = paste(
-#   ''
-#   , paste0('\\multicolumn{4}{c}{', strsamp, ' (IS)}')
-#   , '' # blank
-#   , mcol(stroos1)
-#   , paste0(mcol(stroos2), ' \\\\ \\cmidrule{2-5} \\cmidrule{7-8}')
-#   , sep=' & ')
-
-# tex[5] = paste(
-#   'Numerator of Ratio'
-#   , mcol('Pct'), '\\multirow{2}{*}{t-stat}', mcol('Mean'), mcol('Prev Lit')
-#   , '' # blank  
-#   , '\\multicolumn{2}{c}{Mean Return} \\\\  '
-#   , sep = ' & '
-# )
-
-# tex[6] = paste(
-#   ''
-#   , mcol('Short'), '', mcol('Return'), mcol('$R^2$')
-#   , '' # blank  
-#   , '\\multicolumn{2}{c}{OOS / IS} \\\\ '
-#   , sep = ' & '
-# )
-
-# # add litcat subheaders
-# tex[8] = lhead('Investment / Investment Growth (Titman, Wei, Xie 2004; Cooper, Gulen, Schill 2008)') 
-# tex[15] = lhead('External Financing (Spiess and Affleck-Graves 1999; Pontiff and Woodgate 2008)')
-# tex[20] = lhead('Accruals / Inventory Growth (Sloan 1996; Thomas and Zhang 2002; Belo and Lin 2012)')
-# tex[26] = lhead('Earnings Surprise (Foster, Olsen, Shevlin 1984; Chan, Jegadeesh, Lakonishok 1996)')
-# tex[31] = lhead('Debt Structure (Valta 2016)')
-
-# for (i in c(15, 20, 26, 31)) {
-#   j = i-1
-#   n = nchar(tex[j])
-#   tex[j] = paste0(substr(tex[j], 1, (n-2)), ' \\bigstrut[b] \\\\ ')
-# }
-
-# writeLines(tex, '../results/theme_ez_decay_rsq.tex')
-
-# # copy to overleaf (if on Andrew's machine)
-# if (any(grepl('ayc', Sys.info()))) {
-#   writeLines(tex, 'D:/Dropbox/Apps/Overleaf/PeerReviewedTheory_Paper/exhibits/theme_ez_decay_rsq.tex')
-# }
+tex[22] = paste(
+  ''
+  , mcol('Short'), '  \\\\ \\midrule '
+  , sep = ' & '
+)
 
 
+# add litcat subheaders
+subheadstr = list(
+  'Investment (Titman, Wei, Xie 2004)'
+  , 'Ext Financing (Spiess/Affleck-Graves 1999)'
+  , 'Accruals (Sloan 1996; Thomas-Zhang 2002)'
+  , 'Earnings Surprise (Foster et. al 1984)'
+  , 'Debt Structure (Valta 2016)'
+)
+
+# find subhead rows
+tex1 = tex
+subheadrow = which(grepl('NA & Inf', tex1))
+for (i in 1:length(subheadrow)){
+  tex1[subheadrow[i]] = lhead(subheadstr[i])
+
+  # extra spacing
+  if (i > 1 & i != 3){
+    j = subheadrow[i]-1
+    n = nchar(tex1[j])
+    tex1[j] = paste0(substr(tex1[j], 1, (n-2)), ' \\bigstrut[b] \\\\ ')
+  }
+}
 
 
+writeLines(tex1, '../results/theme_ez_slides.tex')
 
-# # Check some stuff --------------------------------------------
-
-# groupsum %>% transmute(sweight, numer, rank, tstat
-#   , oosf1 = rbaroos/rbar, oosf2 = rbaroos2/rbar) %>% 
-#   filter(tstat > 1.9) %>% 
-#   print(n=Inf)
-
-# # where are valuations?
-# groupsum %>% select(sweight, v1, numer, pctshort, tstat, rank) %>% 
-#   filter(grepl('Market', numer)) %>% print()
-
-# # profitability?
-# groupsum %>% select(sweight, v1, numer, pctshort, tstat, rank) %>% 
-#   filter(grepl('prof', numer)) %>% print()
-
-# # post-2004 decay
-# themesum %>% 
-#   mutate(oosfrac = rbaroos2/rbar) %>% 
-#   summarize(mean(oosfrac))
-
-# themesum$rsqlit %>% mean()
-
-
-
-
-
+# copy to overleaf (if on Andrew's machine)
+if (any(grepl('ayc', Sys.info()))) {
+  writeLines(tex1, 'D:/Dropbox/Risk-vs-ac/paper-risk-vs-temp/exhibits/theme_ez_slides.tex')
+}
