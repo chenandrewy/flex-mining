@@ -112,7 +112,9 @@ ggsave('../Results/Fig_DecayVsModel_Names.pdf', width = 10, height = 8)
 
 
 # Calculate means
-
+means <- plotme %>%
+  group_by(modeltype) %>%
+  summarise(mean_diff_ret = mean(diff_ret, na.rm = TRUE))
 ######################
 # Use ggplot to create the plot
 pos <- position_jitter(width = 0.2, seed = 1)
