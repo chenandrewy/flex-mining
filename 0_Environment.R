@@ -534,7 +534,7 @@ read_fst_yearm = function(filename, yearm_names = c('yearm')){
 # Create a plot by category without data-mining benchmark
 ReturnPlotsNoDM = function(dt, suffix = '', rollmonths = 60, filetype = '.pdf',
                            xl = -360, xh = 240, yl = -10, yh = 130, 
-                           basepath = NA_character_) {
+                           basepath = NA_character_, ylab_plot = 'Trailing 5-Year Mean Return (bps p.m.)') {
   
   #' @param dt Table with four columns (signalname, ret, eventDate, catID)
   #' @param suffix String to attach to saved pdf figure 
@@ -578,7 +578,7 @@ ReturnPlotsNoDM = function(dt, suffix = '', rollmonths = 60, filetype = '.pdf',
            #          family = "Palatino Linotype", color = 'dimgrey'
            # )  +
            geom_hline(yintercept = 0) +
-           ylab('Trailing 5-Year Mean Return (bps p.m.)') +
+           ylab(ylab_plot) +
            xlab('Months Since Original Sample Ended') +
            labs(color = '', linetype = '') +
            theme_light(base_size = 18) +
