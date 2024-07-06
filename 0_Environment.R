@@ -534,7 +534,9 @@ read_fst_yearm = function(filename, yearm_names = c('yearm')){
 # Create a plot by category without data-mining benchmark
 ReturnPlotsNoDM = function(dt, suffix = '', rollmonths = 60, filetype = '.pdf',
                            xl = -360, xh = 240, yl = -10, yh = 130, 
-                           basepath = NA_character_, ylab_plot = 'Trailing 5-Year Mean Return (bps p.m.)') {
+                           basepath = NA_character_,
+                           fontsize = 18,
+                           legpos = c(85,85)/100) {
   
   #' @param dt Table with four columns (signalname, ret, eventDate, catID)
   #' @param suffix String to attach to saved pdf figure 
@@ -578,12 +580,12 @@ ReturnPlotsNoDM = function(dt, suffix = '', rollmonths = 60, filetype = '.pdf',
            #          family = "Palatino Linotype", color = 'dimgrey'
            # )  +
            geom_hline(yintercept = 0) +
-           ylab(ylab_plot) +
+           ylab('Trailing 5-Year Return (bps p.m.)') +
            xlab('Months Since Original Sample Ended') +
            labs(color = '', linetype = '') +
-           theme_light(base_size = 18) +
+           theme_light(base_size = fontsize) +
            theme(
-             legend.position = c(85,85)/100
+             legend.position = legpos
              , legend.spacing.y = unit(0, units = 'cm')
              #    , legend.box.background = element_rect(fill='transparent')
              ,legend.background = element_rect(fill='transparent')
@@ -616,8 +618,10 @@ ReturnPlotsWithDM = function(dt, suffix = '', rollmonths = 60, colors = NA,
   # check if you have matchRetAlt and adjust accordingly
   if (any(names(dt)=='matchRetAlt')){
     select_cols = c('eventDate','ret','matchRet','matchRetAlt')
-  } else{
+  } else if (any(names(dt)=='matchRet')){
     select_cols = c('eventDate','ret','matchRet')
+  } else {
+    select_cols = c('eventDate','ret')
   }
     
   dt = dt %>% 

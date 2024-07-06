@@ -46,6 +46,9 @@ ReturnPlotsNoDM(dt = temp,
 )
 
 # Animations for Slides ---------------------------------------------------
+# also: larger font size
+fontsizeall = 28
+legposall = c(30,20)/100
 
 ReturnPlotsNoDM(dt = czret %>% 
                   mutate(
@@ -58,7 +61,9 @@ ReturnPlotsNoDM(dt = czret %>%
                 basepath = '../Results/Extra/Anim-Pub-1',
                 suffix = 'AllSignals',
                 filetype = '.png',
-                yl = -90, yh = 180
+                yl = -90, yh = 180,
+                fontsize = fontsizeall,
+                legpos = legposall
 )
 
 ReturnPlotsNoDM(dt = czret %>% 
@@ -72,7 +77,9 @@ ReturnPlotsNoDM(dt = czret %>%
                 basepath = '../Results/Extra/Anim-Pub-2',
                 suffix = 'AllSignals',
                 filetype = '.png',
-                yl = -90, yh = 180
+                yl = -90, yh = 180,
+                fontsize = fontsizeall,
+                legpos = legposall
 )
 
 ReturnPlotsNoDM(dt = czret %>% 
@@ -86,7 +93,9 @@ ReturnPlotsNoDM(dt = czret %>%
                 basepath = '../Results/Extra/Anim-Pub-3',
                 suffix = 'AllSignals',
                 filetype = '.png',
-                yl = -90, yh = 180
+                yl = -90, yh = 180,
+                fontsize = fontsizeall,
+                legpos = legposall
 )
 
 ReturnPlotsNoDM(dt = czret %>% 
@@ -97,7 +106,9 @@ ReturnPlotsNoDM(dt = czret %>%
                 basepath = '../Results/Extra/Anim-Pub-4',
                 suffix = 'AllSignals',
                 filetype = '.png',
-                yl = -90, yh = 180
+                yl = -90, yh = 180,
+                fontsize = fontsizeall,
+                legpos = legposall
 )
 
 

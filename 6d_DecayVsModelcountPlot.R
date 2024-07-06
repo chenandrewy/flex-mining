@@ -12,7 +12,6 @@ czcat[, modeltype := factor(modeltype, levels = c('No Model', 'Stylized', 'Dynam
 
 czret = readRDS('../Data/Processed/czret_keeponly.RDS') %>% 
   left_join(czcat, by = 'signalname') 
-# Plot oos return vs risk to misprice -----------------------------------------------------------------
 
 # calc decay
 czdecay = czret %>% 
@@ -34,6 +33,8 @@ plotme = czdecay  %>%
   mutate(rank = row_number()) %>%
   ungroup()
 
+# Plot with regression line ------------------------------------
+
 # regression 
 reg = lm(diff_ret ~ modeltype, plotme) %>% 
   summary()
@@ -49,7 +50,6 @@ sestr = paste0(
   , '  (', format(round(reg$coefficients[2,2], 2), nsmall = 2), ')'
   , '  '
 )
-
 
 repelsize = 5
 repelcolor = 'royalblue4'
@@ -110,15 +110,17 @@ ggplot(plotme, aes(x = modeltype, y = diff_ret))+
 ggsave('../Results/Fig_DecayVsModel_Names.pdf', width = 10, height = 8)
 
 
+# Plot with group means ------------------------------------
 
 # Calculate means
 means <- plotme %>%
   group_by(modeltype) %>%
   summarise(mean_diff_ret = mean(diff_ret, na.rm = TRUE))
+
 ######################
 # Use ggplot to create the plot
 pos <- position_jitter(width = 0.2, seed = 1)
-ggplot(plotme, aes(x = modeltype, y = diff_ret)) + 
+plt = ggplot(plotme, aes(x = modeltype, y = diff_ret)) + 
   geom_jitter(size = 2.5,alpha = 0.5,
               position = pos) +
   stat_summary(fun = mean, geom = "point", aes(group = 1),
@@ -169,10 +171,42 @@ ggplot(plotme, aes(x = modeltype, y = diff_ret)) +
     box.padding = 1.5,
     color = repelcolor, size = repelsize
     , xlim = c(3.2, 4.2)
-  ) + coord_cartesian(xlim = c(0.5,4))
+  ) + 
+  coord_cartesian(xlim = c(0.5,4), ylim = c(-1.75,+2.6))
 
 ggsave('../Results/Fig_DecayVsModel_NamesMeans.pdf', width = 10, height = 8)
 
+# save png for ppt
+ggsave('../Results/Fig_DecayVsModel_NamesMeans.png', width = 10, height = 8)
+
+# Plot blank axis for slides ------------------------------------
 
 
-#####################
+# Calculate means
+means <- plotme %>%
+  group_by(modeltype) %>%
+  summarise(mean_diff_ret = mean(diff_ret, na.rm = TRUE))
+
+######################
+# Use ggplot to create the plot
+pos <- position_jitter(width = 0.2, seed = 1)
+plt = ggplot(plotme %>% mutate(diff_ret = 0.1), aes(x = modeltype, y = diff_ret)) + 
+  geom_jitter(size = 0.01,alpha = 0.5,position = pos, color='white') +
+  geom_hline(yintercept = 0, color = 'gray', size = 1) +
+  geom_hline(yintercept = 1, color = 'gray', size = 1) +  
+  labs(y = expression('[Post-Sample] / [In-Sample]')
+       , x = '') +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  theme_light(base_size = 26) +
+  theme(
+    legend.position = c(80,85)/100
+    , legend.spacing.y = unit(0, units = 'cm')
+    , legend.background = element_rect(fill='transparent')) +
+  scale_y_continuous(breaks = seq(-5,5,1)) + 
+  coord_cartesian(xlim = c(0.5,4), ylim = c(-1.75,+2.6))
+
+ggsave('../Results/Fig_DecayVsModel_NamesMeans_0.pdf', width = 10, height = 8)
+
+# save png for ppt
+ggsave('../Results/Fig_DecayVsModel_NamesMeans_0.png', width = 10, height = 8)

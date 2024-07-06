@@ -13,8 +13,8 @@ library("magrittr")
 library(doParallel)
 
 # settings
-ncores <- round(detectCores() / 2)
-# ncores = 4
+# ncores <- round(detectCores() / 2)
+ncores = 4
 
 dmcomp <- list()
 dmtic <- list()
@@ -225,11 +225,53 @@ printme2 = printme + theme(
 # save (again)
 ggsave(paste0("../Results/Fig_DM_", plotdat$name, '.pdf'), width = 10, height = 8)
 
+# save for slides
+ggsave(paste0("../Results/Fig_DM_", plotdat$name, '.png'), width = 10, height = 8)
+
 # numbers for intro
 ret_for_plotting[eventDate>0 & eventDate <= Inf, .(mean(ret), mean(matchRet))]
 
 ret_for_plotting %>% distinct(pubname)
 czret %>% distinct(signalname)
+
+## Plot for slide animation --------------------------------------------------
+
+printme = ReturnPlotsWithDM(
+  dt = ret_for_plotting %>% select(-matchRetAlt, -matchRet),
+  basepath = "../Results/Fig_DM",
+  suffix = plotdat$name,
+  rollmonths = 60,
+  colors = colors,
+  labelmatch = FALSE,
+  yl = -0,
+  yh = 125,
+  legendlabels =
+    c(
+      paste0("Published (and Peer Reviewed)"),
+      paste0("Data-Mined for |t|>2.0 in Original Sample"),
+      paste0(plotdat$legprefix, " Mining Tickers")
+    ),
+  legendpos = c(35,20)/100,
+  fontsize = fontsizeall,
+  yaxislab = ylaball,
+  linesize = linesizeall
+)
+
+# custom edits 
+printme2 = printme + theme(
+  legend.background = element_rect(fill = "white", color = "black"
+    , size = 0.3)
+  # remove space where legend would be
+  , legend.margin = margin(-0.7, 0.5, 0.5, 0.5, "cm")
+  , legend.position  = c(44,15)/100
+  # add space between legend items
+  , legend.spacing.y = unit(0.2, "cm")
+  ) +
+  guides(color = guide_legend(byrow = TRUE))
+
+# save for slides
+ggsave(paste0("../Results/Fig_DM_", plotdat$name, '_0.png'), width = 10, height = 8)
+
 
 # Plot by Theory Category -------------------------------------
 
@@ -262,6 +304,35 @@ for (jj in unique(czret$theory)) {
   )  
   
 }
+
+## Plot with legend label for slides ------------------------------------
+jj = 'risk'
+
+plotdat$name <- paste0("t_min_2_cat_", jj, "_slides")
+ret_for_plotting = make_ret_for_plotting(plotdat, theory_filter = jj)
+
+# Plot
+plt = ReturnPlotsWithDM(
+  dt = ret_for_plotting,
+  basepath = "../Results/Fig_DM",
+  suffix = plotdat$name,
+  rollmonths = 60,
+  colors = colors,
+  labelmatch = FALSE,
+  yl =-100, yh = 175,
+  fig.width = 18,
+  fontsize = 38,
+  legendlabels =
+    c(
+      paste0("Published with Risk Explanation"),
+      paste0(plotdat$legprefix, " Mining Accounting"), 
+      paste0(plotdat$legprefix, " Mining Tickers")
+    ),
+  yaxislab = 'Trailing 5-Year Return',
+  legendpos = c(25,20)/100,
+  filetype = '.png'
+)  
+
 
 
 # Plot for published accounting variables only ----------------------------
