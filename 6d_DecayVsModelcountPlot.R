@@ -109,7 +109,6 @@ ggplot(plotme, aes(x = modeltype, y = diff_ret))+
 
 ggsave('../Results/Fig_DecayVsModel_Names.pdf', width = 10, height = 8)
 
-
 # Plot with group means ------------------------------------
 
 # Calculate means
@@ -181,7 +180,6 @@ ggsave('../Results/Fig_DecayVsModel_NamesMeans.png', width = 10, height = 8)
 
 # Plot blank axis for slides ------------------------------------
 
-
 # Calculate means
 means <- plotme %>%
   group_by(modeltype) %>%
@@ -210,3 +208,54 @@ ggsave('../Results/Fig_DecayVsModel_NamesMeans_0.pdf', width = 10, height = 8)
 
 # save png for ppt
 ggsave('../Results/Fig_DecayVsModel_NamesMeans_0.png', width = 10, height = 8)
+
+# Plot without signalnames for slides ------------------------------------
+
+# Calculate means
+means <- plotme %>%
+  group_by(modeltype) %>%
+  summarise(mean_diff_ret = mean(diff_ret, na.rm = TRUE)) %>% 
+  mutate(type = 'Model Type Mean')
+
+######################
+# Use ggplot to create the plot
+pos <- position_jitter(width = 0.2, seed = 1)
+plt0 = ggplot(plotme, aes(x = modeltype, y = diff_ret)) + 
+  # jitter
+  geom_jitter(size = 2.5,alpha = 0.0,
+              position = pos) +
+  # make nice
+  geom_hline(yintercept = 0, color = 'gray', size = 1) +
+  geom_hline(yintercept = 1, color = 'gray', size = 1) +  
+  labs(y = expression('[Post-Sample Return] / [In-Sample]')
+       , x = '') +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  theme_light(base_size = 26) +
+  theme(
+    legend.position = c(68,15)/100
+    , legend.title = element_blank()
+    , legend.spacing.y = unit(0, units = 'cm')
+    , legend.background = element_rect(fill='transparent')) +
+  scale_y_continuous(breaks = seq(-5,5,1)) +  
+  coord_cartesian(xlim = c(1,3.8), ylim = c(-1.75,+2.6)) 
+
+# save png for ppt
+ggsave('../Results/Extra/Fig_DecayVsModel_NoNames0.png', width = 10, height = 8)
+
+plt1 = plt +
+  # jitter
+  geom_jitter(size = 2.5,alpha = 0.5,
+              position = pos) +
+  # add means
+  geom_point(data = means, aes(x = modeltype,y = mean_diff_ret, 
+              color=type, shape=type),
+              size = 4.5) +
+  geom_line(data = means, aes(x = modeltype, y = mean_diff_ret, group = 1),
+            color = colors[1], size = 1) +  
+  scale_color_manual(values = c('Model Type Mean' = colors[1]))  +
+  scale_shape_manual(values = c('Model Type Mean' = 17)) +  
+  coord_cartesian(xlim = c(1,3.8), ylim = c(-1.75,+2.6)) 
+
+# save png for ppt
+ggsave('../Results/Extra/Fig_DecayVsModel_NoNames1.png', width = 10, height = 8)
