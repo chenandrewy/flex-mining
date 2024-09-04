@@ -1,18 +1,20 @@
 # Setup -------------------------------------------------------------------
-rm(list = ls())
 source('0_Environment.R')
 library(googledrive)
 
-user <- getPass('wrds username: ')
-pass <- getPass('wrds password: ')
-
-wrds <- dbConnect(Postgres(), 
-                  host='wrds-pgdata.wharton.upenn.edu',
-                  port=9737,
-                  sslmode='require',
-                  dbname='wrds',
-                  user=user,
-                  password= pass)
+# Check whether wrds connection already exists, if not, create a new one
+if (!dbIsValid(wrds)) {
+  user <- getPass('wrds username: ')
+  pass <- getPass('wrds password: ')
+  
+  wrds <- dbConnect(Postgres(), 
+                    host='wrds-pgdata.wharton.upenn.edu',
+                    port=9737,
+                    sslmode='require',
+                    dbname='wrds',
+                    user=user,
+                    password= pass)
+}
 
 numRowsToPull <- -1 # Set to -1 for all rows and to some positive value for testing
 
@@ -165,6 +167,7 @@ crspm_raw <- dbSendQuery(conn = wrds, statement =
   # Pull data
   dbFetch(n = numRowsToPull) %>%
   as_tibble()
+
 crspm = crspm_raw %>% mutate(
   ret = 100*ret
   , dlret = 100*dlret
@@ -318,11 +321,13 @@ fobs_list %>%
   filter(name == 'me_datadate')
 
 fobs_list %>% 
-  filter(freq_obs_1963 > 0.25)
+  filter(freq_obs_1963 > globalSettings$denom_min_fobs)
 
-namecheck = fobs_list %>% filter(freq_obs_1963 > 0.25) %>% pull(name) 
+namecheck = fobs_list %>% 
+  filter(freq_obs_1963 > globalSettings$denom_min_fobs) %>% 
+  pull(name) 
 
-setdiff(namecheck, compnames$pos_in_1963)
-setdiff(compnames$pos_in_1963, namecheck)
+# setdiff(namecheck, compnames$pos_in_1963)
+# setdiff(compnames$pos_in_1963, namecheck)
 
 

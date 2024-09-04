@@ -1,12 +1,9 @@
 tic = Sys.time()
 
-rm(list = ls())
-
 # takes about 3 hours using 14 cores
 # check Data/make_many_ls.log for progress
 
 # Setup  ----------------------------------------------------------------
-source('0_Environment.R')
 library(doParallel)
 env <- foreach:::.foreachGlobals # https://stackoverflow.com/questions/64519640/error-in-summary-connectionconnection-invalid-connection
 rm(list=ls(name=env), pos=env)
@@ -24,37 +21,34 @@ user$name = globalSettings$dataVersion
 
 # signal choices
 user$signal = list(
-  signalnum   = Inf # number of signals to sample or Inf for all
-  , form = c('v1/v2', 'diff(v1)/lag(v2)') # 'pdiff(v1/v2)', 'pdiff(v1)', 'diff(v1/v2)', 'pdiff(v1)-pdiff(v2)')
-  , denom_min_fobs = 0.25
-  , seednumber  = 1235 # seed sampling
+  signalnum = globalSettings$signalnum
+  , form    = globalSettings$form
+  , denom_min_fobs = globalSettings$denom_min_fobs
 )
 
 # portfolio choices
 user$port = list(
-  longshort_form = 'ls_extremes'
-  , portnum        = c(10)
-  , sweight        = c('ew','vw') 
-  , trim           = NA_real_  # NA or some quantile e.g. .005
-  
+  longshort_form = globalSettings$longshort_form
+  , portnum = globalSettings$portnum
+  , sweight = globalSettings$sweight 
+  , trim    = globalSettings$trim
 )
 
 # data basic choices
 user$data = list(
-  backfill_dropyears = 0 # number of years to drop for backfill bias adj
-  , reup_months    = 6 # stocks are traded using new data at end of these months
-  , data_avail_lag = 6 # months
-  , toostale_months = 18 # months after datadate to keep signal for  
-  , delist_adj = 'ghz' # 'none' or 'ghz'
-  , crsp_filter = NA_character_ # use NA_character_ for no filter
+  backfill_dropyears = globalSettings$backfill_dropyears
+  , reup_months     = globalSettings$reup_months
+  , data_avail_lag  = globalSettings$data_avail_lag
+  , toostale_months = globalSettings$toostale_months   
+  , delist_adj      = globalSettings$delist_adj
+  , crsp_filter     = globalSettings$crsp_filter 
 )
 
 # debugging
 debugset = list(
-  prep_data = T
-  , num_cores = round(.4*detectCores())  # Adjust number of cores used as you see fit
-  # , num_cores = 1 # use num_cores = 1 for serial
-  , shortlist = F
+  prep_data   = globalSettings$prep_data
+  , num_cores = globalSettings$num_cores
+  , shortlist = globalSettings$shortlist
 )
 
 ## prep varlist ------------------------------------------------------------

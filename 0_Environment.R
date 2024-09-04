@@ -50,8 +50,28 @@ dir.create('../Results/Extra/', showWarnings = F)
 options(stringsAsFactors = FALSE)
 
 globalSettings = list(
-  dataVersion = 'CZ-style-v7',
-  minNumStocks = 20 # Minimum number of stocks in any month over the in-sample period to include a DM strategy for matching to published strategies (ie minNumStocks/2 in each leg)
+  dataVersion  = 'CZ-style-v7',
+  # signal choices
+  minNumStocks = 20, # Minimum number of stocks in any month over the in-sample period to include a DM strategy for matching to published strategies (ie minNumStocks/2 in each leg)
+  signalnum    = Inf, # number of signals to sample or Inf for all
+  form         = c('v1/v2', 'diff(v1)/lag(v2)'), # 'pdiff(v1/v2)', 'pdiff(v1)', 'diff(v1/v2)', 'pdiff(v1)-pdiff(v2)')
+  denom_min_fobs = 0.25, # minimum fraction of non-missing observations in 1963
+  # portfolio choices
+  longshort_form = 'ls_extremes',
+  portnum        = c(10),
+  sweight        = c('ew','vw'), 
+  trim           = NA_real_,  # NA or some quantile e.g. .005
+  # data basic choices
+  backfill_dropyears = 0, # number of years to drop for backfill bias adj
+  reup_months      = 6, # stocks are traded using new data at end of these months
+  data_avail_lag   = 6, # months
+  toostale_months  = 18, # months after datadate to keep signal for  
+  delist_adj       = 'ghz', # 'none' or 'ghz'
+  crsp_filter      = NA_character_, # use NA_character_ for no filter
+  # debugging
+  prep_data = T,
+  num_cores = round(.4*parallel::detectCores()),  # Adjust number of cores used as you see fit (use num_cores = 1 for serial)
+  shortlist = F
 )
 
 # Set seed for random sampling
@@ -81,22 +101,21 @@ compnames$yz.numer = c("acchg", "aco", "acox", "act", "am", "ao", "aoloch", "aox
                        "wcap", "wcapc", "wcapch", "xacc", "xad", "xdepl", "xi", "xido", "xidoc", "xint", "xopr", "xpp", "xpr", "xrd", "xrent",
                        "xsga")
 
-
 compnames$yz.denom <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
                         "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp", 'me_datadate')
 
 
-compnames$yz.denom_alt <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
-                            "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp", 'me')
+# compnames$yz.denom_alt <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
+#                             "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp", 'me')
 
 # 63 denominators with at least 25% non-missing observations in 1963
-compnames$pos_in_1963 <- c("aco", "acox","act","ao","aox","at","caps","capx","capxv","ceq","ceql","ceqt","che","cogs",
-                          "cstk","dlc","dltt","dp","dpact","dvc","dvp","dvt","ebit","ebitda","gp","ib","ibadj","ibcom",
-                          "icapt","intan","invt","itci","ivaeq","ivao","lct","lo","lt","ni","nopi","nopio","np",
-                          "oiadp","pi","ppegt","ppent","pstkl","pstkrv","re","recco","rect","sale","seq","txdb",
-                          "txditc","txt","wcap","xint","xopr","xpr","xrent","xsga","emp", "me_datadate")
+# compnames$pos_in_1963 <- c("aco", "acox","act","ao","aox","at","caps","capx","capxv","ceq","ceql","ceqt","che","cogs",
+#                           "cstk","dlc","dltt","dp","dpact","dvc","dvp","dvt","ebit","ebitda","gp","ib","ibadj","ibcom",
+#                           "icapt","intan","invt","itci","ivaeq","ivao","lct","lo","lt","ni","nopi","nopio","np",
+#                           "oiadp","pi","ppegt","ppent","pstkl","pstkrv","re","recco","rect","sale","seq","txdb",
+#                           "txditc","txt","wcap","xint","xopr","xpr","xrent","xsga","emp", "me_datadate")
 
-compnames$all = unique(Reduce(c, compnames))
+# compnames$all = unique(Reduce(c, compnames))
 
 # nice colors
 colors = c(rgb(0,0.4470,0.7410), # MATBLUE
