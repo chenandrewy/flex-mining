@@ -52,9 +52,9 @@ options(stringsAsFactors = FALSE)
 globalSettings = list(
   dataVersion  = 'CZ-style-v7',
   # signal choices
-  minNumStocks = 20, # Minimum number of stocks in any month over the in-sample period to include a DM strategy for matching to published strategies (ie minNumStocks/2 in each leg)
-  signalnum    = Inf, # number of signals to sample or Inf for all
-  form         = c('v1/v2', 'diff(v1)/lag(v2)'), # 'pdiff(v1/v2)', 'pdiff(v1)', 'diff(v1/v2)', 'pdiff(v1)-pdiff(v2)')
+  minNumStocks   = 20, # Minimum number of stocks in any month over the in-sample period to include a DM strategy for matching to published strategies (ie minNumStocks/2 in each leg)
+  signalnum      = Inf, # number of signals to sample or Inf for all
+  form           = c('v1/v2', 'diff(v1)/lag(v2)'), # 'pdiff(v1/v2)', 'pdiff(v1)', 'diff(v1/v2)', 'pdiff(v1)-pdiff(v2)')
   denom_min_fobs = 0.25, # minimum fraction of non-missing observations in 1963
   # portfolio choices
   longshort_form = 'ls_extremes',
@@ -63,15 +63,20 @@ globalSettings = list(
   trim           = NA_real_,  # NA or some quantile e.g. .005
   # data basic choices
   backfill_dropyears = 0, # number of years to drop for backfill bias adj
-  reup_months      = 6, # stocks are traded using new data at end of these months
-  data_avail_lag   = 6, # months
-  toostale_months  = 18, # months after datadate to keep signal for  
-  delist_adj       = 'ghz', # 'none' or 'ghz'
-  crsp_filter      = NA_character_, # use NA_character_ for no filter
+  reup_months        = 6, # stocks are traded using new data at end of these months
+  data_avail_lag     = 6, # months
+  toostale_months    = 18, # months after datadate to keep signal for  
+  delist_adj         = 'ghz', # 'none' or 'ghz'
+  crsp_filter        = NA_character_, # use NA_character_ for no filter
   # debugging
   prep_data = T,
   num_cores = round(.4*parallel::detectCores()),  # Adjust number of cores used as you see fit (use num_cores = 1 for serial)
-  shortlist = F
+  shortlist = F,
+  # DM vs OP matching requirements
+  t_tol    = .1*Inf, # tolerance in t-statistics (DM vs OP) for matching
+  r_tol    = .3*Inf, # tolerance in mean return (DM vs OP) for matching
+  t_reltol = .1, # relative (to OP) tolerance in t-statistics (DM vs OP) for matching
+  r_reltol = .3 # relative (to OP) tolerance in mean return (DM vs OP) for matching
 )
 
 # Set seed for random sampling
@@ -1402,3 +1407,102 @@ process_event_time_returns <- function(dm_name, match_strats, npubmax, czsum, us
   
   return(event_time)
 }
+
+# Function that takes a signal and computes the long-short portfolio returns
+make_many_ls = function(){
+  ### make one portdat ===
+  
+  # extract current settings 
+  signal_cur = signal_list[signali,]
+  
+  # import small dataset with return, me, xusedcurr, and add signal
+  if (is.na(signal_cur$v2) | signal_cur$v1 == signal_cur$v2) { # If only one variable needed to construct signal
+    smalldat = fst::read_fst('../Data/tmpAllDat.fst', 
+                             columns = c('permno', 'ret_yearm', 'ret', 'me_monthly',
+                                         signal_cur$v1)) %>%
+      as_tibble()
+  } else {
+    smalldat = fst::read_fst('../Data/tmpAllDat.fst', 
+                             columns = c('permno', 'ret_yearm', 'ret', 'me_monthly',
+                                         signal_cur$v1, signal_cur$v2)) %>%
+      as_tibble()
+  }
+  
+  smalldat = smalldat %>% mutate(ret_yearm = as.yearmon(ret_yearm))
+  
+  # Unify column names for processing
+  if (is.na(signal_cur$v2)) {
+    colnames(smalldat) = c('permno', 'ret_yearm', 'ret', 'me_monthly', 'v1')
+  } else if (signal_cur$v1 == signal_cur$v2) {
+    colnames(smalldat) = c('permno', 'ret_yearm', 'ret', 'me_monthly', 'v1')
+    smalldat = smalldat %>% mutate(v2 = v1)
+  } else {
+    colnames(smalldat) = c('permno', 'ret_yearm', 'ret', 'me_monthly', 'v1', 'v2')
+  }
+  
+  tic = Sys.time() #
+  smalldat$signal = dataset_to_signal(form = signal_cur$signal_form, 
+                                      dt = smalldat) # makes a signal
+  toc = Sys.time() #
+  print('signal done')
+  print(toc - tic) #
+  
+  
+  tic = Sys.time() #
+  # assign to portfolios
+  portdat = tibble()
+  for (porti in 1:dim(port_list)[1]){
+    tempport = signal_to_ports(dt0 = smalldat, 
+                               form = port_list[porti,]$longshort_form, 
+                               portnum = port_list[porti,]$portnum, 
+                               sweight = port_list[porti,]$sweight,
+                               trim = port_list[porti,]$trim)
+    tempport = tempport %>% mutate(portid = porti)
+    portdat = rbind(portdat, tempport)
+  }
+  
+  toc = Sys.time() #
+  print('ports done')
+  print(toc - tic)  #
+  
+  # Clean up and save
+  ls_dat = portdat %>% mutate(signalid = signali) 
+  
+  # feedback
+  print(paste0(
+    'signali = ', signali, ' of ', nrow(signal_list)
+    , ' | signalform = ', signal_cur$signal_form
+    , ' | v1 = ', signal_cur$v1
+    , ' | v2 = ', signal_cur$v2
+    #      , ' | Var(tstat) = ', round(var_tstat,2)
+  ))
+  
+  ## end make one portdat ===
+  
+  return(ls_dat)
+  
+} # make_many_ls
+
+
+# "form portfolios based on the first, second, and third letters of the ticker symbol"
+tic_kth_letter_port <- function(k) {
+  # create portfolio assignments
+  crsp2 <- copy(crsp)
+  crsp2[!is.na(lag_tic), `:=`(port = paste0("tic", k, substr(lag_tic, k, k)))]
+  
+  # find EW and VW returns
+  port <- crsp2[!is.na(ret) & !is.na(port) & !is.na(lag_me),
+                .(
+                  ret_ew = mean(ret), ret_vw = weighted.mean(ret, lag_me),
+                  nstock = .N
+                ),
+                by = c("yearm", "port")
+  ] %>%
+    pivot_longer(
+      cols = c("ret_ew", "ret_vw"), names_to = "sweight", values_to = "ret",
+      names_prefix = "ret_"
+    ) %>%
+    setDT()
+  
+  return(port)
+} # end tic_kth_letter_port

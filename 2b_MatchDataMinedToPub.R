@@ -19,15 +19,15 @@ DMname = paste0('../Data/Processed/',
 # tolerance in levels  
 #   use Inf to turn off
 #   seems like reltol might be cleaner
-t_tol = .1*Inf
-r_tol = .3*Inf
+t_tol = globalSettings$t_tol
+r_tol = globalSettings$r_tol
 
 # tolerance relative to op stat
-t_reltol = 0.1
-r_reltol = 0.3
+t_reltol = globalSettings$t_reltol
+r_reltol = globalSettings$r_reltol
 
 minNumStocks = globalSettings$minNumStocks
-ncores = round(0.25*detectCores())
+ncores = globalSettings$num_cores
 
 # Load data ---------------------------------------------------------------
 

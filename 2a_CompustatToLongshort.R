@@ -72,6 +72,7 @@ if (debugset$shortlist == F){
     , x2 = c('at')
   )  
 }
+
 varlist$xall = unique(c(varlist$x1, varlist$x2))
 
 ## prep lists of signals and ports ------------------------------------------
@@ -250,85 +251,6 @@ toc - tic
 
 # Sample Strategies -------------------------------------------------------
 
-
-
-## Internal Function ---------------------------------------------------------------
-
-make_many_ls = function(){
-  ### make one portdat ===
-  
-  # extract current settings 
-  signal_cur = signal_list[signali,]
-  
-  # import small dataset with return, me, xusedcurr, and add signal
-  if (is.na(signal_cur$v2) | signal_cur$v1 == signal_cur$v2) { # If only one variable needed to construct signal
-    smalldat = fst::read_fst('../Data/tmpAllDat.fst', 
-                             columns = c('permno', 'ret_yearm', 'ret', 'me_monthly',
-                                         signal_cur$v1)) %>%
-      as_tibble()
-  } else {
-    smalldat = fst::read_fst('../Data/tmpAllDat.fst', 
-                             columns = c('permno', 'ret_yearm', 'ret', 'me_monthly',
-                                         signal_cur$v1, signal_cur$v2)) %>%
-      as_tibble()
-  }
-  
-  smalldat = smalldat %>% mutate(ret_yearm = as.yearmon(ret_yearm))
-
-  # Unify column names for processing
-  if (is.na(signal_cur$v2)) {
-    colnames(smalldat) = c('permno', 'ret_yearm', 'ret', 'me_monthly', 'v1')
-  } else if (signal_cur$v1 == signal_cur$v2) {
-    colnames(smalldat) = c('permno', 'ret_yearm', 'ret', 'me_monthly', 'v1')
-    smalldat = smalldat %>% mutate(v2 = v1)
-  } else {
-    colnames(smalldat) = c('permno', 'ret_yearm', 'ret', 'me_monthly', 'v1', 'v2')
-  }
-
-  tic = Sys.time() #
-  smalldat$signal = dataset_to_signal(form = signal_cur$signal_form, 
-                                      dt = smalldat) # makes a signal
-  toc = Sys.time() #
-  print('signal done')
-  print(toc - tic) #
-  
-  
-  tic = Sys.time() #
-  # assign to portfolios
-  portdat = tibble()
-  for (porti in 1:dim(port_list)[1]){
-    tempport = signal_to_ports(dt0 = smalldat, 
-                               form = port_list[porti,]$longshort_form, 
-                               portnum = port_list[porti,]$portnum, 
-                               sweight = port_list[porti,]$sweight,
-                               trim = port_list[porti,]$trim)
-    tempport = tempport %>% mutate(portid = porti)
-    portdat = rbind(portdat, tempport)
-  }
-  
-  toc = Sys.time() #
-  print('ports done')
-  print(toc - tic)  #
-  
-  # Clean up and save
-  ls_dat = portdat %>% mutate(signalid = signali) 
-  
-  # feedback
-  print(paste0(
-    'signali = ', signali, ' of ', nrow(signal_list)
-    , ' | signalform = ', signal_cur$signal_form
-    , ' | v1 = ', signal_cur$v1
-    , ' | v2 = ', signal_cur$v2
-    #      , ' | Var(tstat) = ', round(var_tstat,2)
-  ))
-  
-  ## end make one portdat ===
-  
-  return(ls_dat)
-  
-} # make_many_ls
-
-
 ## Loop over signals -------------------------------------------------------
 # call make_many_ls (this is where the action is) 
 
@@ -337,6 +259,7 @@ tic_loop = Sys.time()
 if (debugset$num_cores > 1){
   setDTthreads(1)
   cl <- makePSOCKcluster(debugset$num_cores)
+
   registerDoParallel(cl)
   file.remove('../Data/make_many_ls.log')
   ls_dat_all = foreach(signali=1:nrow(signal_list), 
