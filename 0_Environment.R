@@ -15,6 +15,10 @@ library(stringr)
 library(ggplot2)
 library(gridExtra)
 library(xtable)
+library(lmtest)
+library(sandwich)
+library(huxtable)
+
 if("lme4" %in% (.packages())){
   detach("package:lme4", unload=TRUE) 
 }
@@ -1506,3 +1510,25 @@ tic_kth_letter_port <- function(k) {
   
   return(port)
 } # end tic_kth_letter_port
+
+# Convenience function for round numbers in strings
+round_numbers_in_strings <- function(strings_with_numbers) {
+  regex_pattern <- "\\d+\\.?\\d*" # matches any number with or without decimal point
+  rounded_strings <- c() # create an empty vector to store the results
+  
+  for (string_with_number in strings_with_numbers) {
+    # Use regular expressions to extract the number from the string
+    number_in_string <- as.numeric(gsub("[^[:digit:].]", "", regmatches(string_with_number, regexpr(regex_pattern, string_with_number))))
+    
+    # Round the number to two decimal places
+    rounded_number <- sprintf("%.1f",number_in_string)  %>% as.character()
+    
+    # Replace the original number in the string with the rounded number
+    string_with_rounded_number <- gsub(regex_pattern, toString(rounded_number), string_with_number)
+    
+    # Add the result to the output vector
+    rounded_strings <- c(rounded_strings, string_with_rounded_number)
+  }
+  
+  return(rounded_strings)
+}

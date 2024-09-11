@@ -1,71 +1,11 @@
-############################### #
-# Setup ====
-############################### #
-
-cat("\f")  
-rm(list=ls())
-gc()
-library(MASS)
-library(tidyverse)
-library(data.table)
-library(haven)
-library(xtable)
-require(RcppRoll)
-library(glue)
-library(janitor)
-library(lubridate)
-library(stringr)
-library(lubridate)
-library(zoo)
-library(latex2exp)
-library(extrafont)
-library(lmtest)
-library(sandwich)
-library(broom)
-library(huxtable)
-library(multcomp)
+# Setup -------------------------------------------------------------------
+rm(list = ls())
+source('0_Environment.R')
+library(multcomp) # for glht. Not loaded by default in environment because of conflicts (?)
 
 
 
-############################### #
-# Functions ====
-############################### #
-
-
-MATBLUE = rgb(0,0.4470,0.7410)
-MATRED = rgb(0.8500, 0.3250, 0.0980)
-MATYELLOW = rgb(0.9290, 0.6940, 0.1250)
-
-NICEBLUE = "#619CFF"
-NICEGREEN = "#00BA38"
-NICERED = "#F8766D"
-
-chen_theme =   theme_minimal() +
-  theme(
-    text = element_text(family = "Palatino Linotype")
-    , panel.border = element_rect(colour = "black", fill=NA, size=1)
-    
-    # Font sizes
-    , axis.title.x = element_text(size = 26),
-    axis.title.y = element_text(size = 26),
-    axis.text.x = element_text(size = 22),
-    axis.text.y = element_text(size = 22),
-    legend.text = element_text(size = 18),
-    
-    # Tweaking legend
-    legend.position = c(0.7, 0.8),
-    legend.text.align = 0,
-    legend.background = element_rect(fill = "white", color = "black"),
-    legend.margin = margin(t = 5, r = 20, b = 5, l = 5), 
-    legend.key.size = unit(1.5, "cm")
-    , legend.title = element_blank()    
-  ) 
-
-
-
-# Do stuff ----------------------------------------------------------------
-
-
+# Load and prep data ------------------------------------------------------
 
 signalcat = fread('DataInput/SignalsTheoryChecked.csv') 
 
@@ -121,6 +61,10 @@ tempret = czret %>%
 
 tempret[, mean(ret), by = risk_theory]
 
+
+
+# Regressions -------------------------------------------------------------
+
 a1_model <- tempret %>%
   lm(ret_n ~ post_samp +  I(I(post_samp == TRUE)*I(theory == 'risk')) , data = .)
 
@@ -132,9 +76,10 @@ colnames(coefeq_a1) <- names(a1_model$coefficients)
 coefeq_a1[1,-1] <- 1
 coefeq_a1[1,-1] <- 1
 coefeq_a1
-ametest_1<- glht(model=a1_model, linfct=coefeq_a1, rhs=0, alternative="less",
+
+ametest_1 <- glht(model=a1_model, linfct=coefeq_a1, rhs=0, alternative="less",
                  vcov = vcovCL(a1_model, cluster = ~ date))
-sum_a1 <- summary(ametest_1)
+sum_a1   <- summary(ametest_1)
 p_val_a1 <- sum_a1$test$pvalues[1]
 
 a1_5_model <- tempret %>%
@@ -150,6 +95,7 @@ a1_5_model <- tempret %>%
 # a1_5_model <- tempret %>%
 #      lm(ret_n ~ post_samp +I(I(post_samp == TRUE)*I(post_2004 == TRUE)) +  I(I(post_samp == TRUE)*I(theory == 'risk')*I(post_2004 == FALSE)) 
 #                +  I(I(post_samp == TRUE)*I(post_2004 == TRUE)*I(theory == 'risk'))  , data = .)
+
 a1_5 <- a1_5_model %>%
   coeftest(., vcov = vcovCL, cluster = ~ date) %>% round(10)
 a1_5
@@ -157,9 +103,10 @@ coefeq_a1_5 <- matrix(data=0, nrow=1, ncol=length(a1_5_model$coefficients))
 colnames(coefeq_a1_5) <- names(a1_5_model$coefficients)
 coefeq_a1_5[1,-1] <- 1
 coefeq_a1_5
+
 ametest_1_5<- glht(model=a1_5_model, linfct=coefeq_a1_5, rhs=0, alternative="less",
-                 vcov = vcovCL(a1_5_model, cluster = ~ date))
-sum_a1_5 <- summary(ametest_1_5)
+                   vcov = vcovCL(a1_5_model, cluster = ~ date))
+sum_a1_5   <- summary(ametest_1_5)
 p_val_a1_5 <- sum_a1_5$test$pvalues[1]
 
 a2_model <- tempret %>%
@@ -222,9 +169,9 @@ colnames(coefeq_4) <- names(a4_model$coefficients)
 coefeq_4[1,-c(1,6, 7)] <- 1
 coefeq_4
 ametest_4_risk <- glht(model=a4_model,
-                  linfct=coefeq_4, rhs=0,
-                  alternative="less",
-                  vcov = vcovCL(a4_model,  cluster = ~ date))
+                       linfct=coefeq_4, rhs=0,
+                       alternative="less",
+                       vcov = vcovCL(a4_model,  cluster = ~ date))
 sum_a4 <- summary(ametest_4_risk)
 p_val_a4_risk <- sum_a4$test$pvalues[1]
 p_table_1 <- ifelse(p_val_a1 < 0.001, '< 0.1%', p_val_a1)
@@ -261,27 +208,6 @@ reg_save <- huxreg(a1, a2, a3, a4, a1_5, coefs = c(
              , after = 17)
 
 reg_save
-round_numbers_in_strings <- function(strings_with_numbers) {
-  regex_pattern <- "\\d+\\.?\\d*" # matches any number with or without decimal point
-  rounded_strings <- c() # create an empty vector to store the results
-  
-  for (string_with_number in strings_with_numbers) {
-    # Use regular expressions to extract the number from the string
-    number_in_string <- as.numeric(gsub("[^[:digit:].]", "", regmatches(string_with_number, regexpr(regex_pattern, string_with_number))))
-    
-    # Round the number to two decimal places
-    rounded_number <- sprintf("%.1f",number_in_string)  %>% as.character()
-    
-    # Replace the original number in the string with the rounded number
-    string_with_rounded_number <- gsub(regex_pattern, toString(rounded_number), string_with_number)
-    
-    # Add the result to the output vector
-    rounded_strings <- c(rounded_strings, string_with_rounded_number)
-  }
-  
-  return(rounded_strings)
-}
-
 
 data_new1 <- reg_save[reg_save$names != 'nobs',] %>% as.data.frame()
 rownames(data_new1) <- NULL
@@ -293,4 +219,5 @@ print.xtable(xt, digits = 2,
              include.rownames=FALSE,
              include.colnames = FALSE,
              hline.after = c(0,1, 17))
+
 fwrite(reg_save, '../Results/RegressionMultiColumns.csv', sep = ',')

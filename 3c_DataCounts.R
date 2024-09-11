@@ -30,7 +30,7 @@ czsum %>%
 
 czsum %>% 
   filter(SampleEndYear <= 2012) 
-204/207
+208/211
 
 czsum %>% 
   filter(Keep) %>% 
