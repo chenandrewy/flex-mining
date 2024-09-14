@@ -4,7 +4,7 @@
 
 # DM OOS Sumstats to CSV  ----------------------------
 var_types <- c('vw', 'ew')
-var_type <- var_types[1]
+#var_type <- var_types[1]
 
 
 bm_rets = readRDS(DMname)$ret

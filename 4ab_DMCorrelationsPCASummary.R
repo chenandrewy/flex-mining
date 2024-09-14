@@ -5,12 +5,9 @@ source('0_Environment.R')
 library(doParallel)
 
 # settings
-ncores <- round(detectCores() / 2)
-minShareTG2 = .1  # Include strategies with t-stat >2 in at least X % of matches
-TG2Set = '1994-2020' # 'Matches' 
-# 1994-2020: DM strategies evaluated over 1994-2020
-# Matches: all sample matching periods
-# Rolling1994-2020: DM strategies evaluated on rolling t-stats in 1994-2020
+ncores <- globalSettings$num_cores
+minShareTG2 = globalSettings$minShareTG2
+TG2Set = globalSettings$TG2Set
 
 DMname = paste0('../Data/Processed/',
                 globalSettings$dataVersion, 
@@ -21,10 +18,8 @@ dmcomp$name <- paste0('../Data/Processed/',
                       globalSettings$dataVersion, 
                       ' LongShort.RData')
 
-# these are treated as globals (don't modify pls)
 czsum <- readRDS("../Data/Processed/czsum_allpredictors.RDS") %>%
   filter(Keep)
-
 
 # read in DM strats
 dm_rets <- readRDS(DMname)$ret
@@ -44,144 +39,6 @@ dm_rets <- dm_rets %>%
     nstock_short
   ) %>%
   setDT()
-
-# settings and functions ------------------------
-
-## function for computing DM strat sumstats in pub samples
-sumstats_for_DM_Strats <- function(
-    DMname = DMname,
-    nsampmax = Inf) {
-  
-  # read in DM strats
-  dm_rets <- readRDS(DMname)$ret
-  dm_info <- readRDS(DMname)$port_list
-  
-  dm_rets <- dm_rets %>%
-    left_join(
-      dm_info %>% select(portid, sweight),
-      by = c("portid")
-    ) %>%
-    transmute(
-      sweight,
-      dmname = signalid,
-      yearm,
-      ret,
-      nstock_long,
-      nstock_short
-    ) %>%
-    setDT()
-  
-  # Finds sum stats for dm in each pub sample
-  # the output for this can be used for all dm selection methods
-  samplist <- czsum %>%
-    distinct(sampstart, sampend) %>%
-    arrange(sampstart, sampend)
-  
-  # set up for parallel
-  cl <- makePSOCKcluster(ncores)
-  registerDoParallel(cl)
-  
-  # loop setup
-  nsamp <- dim(samplist)[1]
-  nsamp <- min(nsamp, nsampmax)
-  dm_insamp <- list()
-  
-  # dopar in a function needs some special setup
-  # https://stackoverflow.com/questions/6689937/r-problem-with-foreach-dopar-inside-function-called-by-optim
-  dm_insamp <- foreach(
-    sampi = 1:nsamp,
-    .combine = rbind,
-    .packages = c("data.table", "tidyverse", "zoo"),
-    .export = ls(envir = globalenv())
-  ) %dopar% {
-    # feedback
-    print(paste0("DM sample stats for sample ", sampi, " of ", nsamp))
-    
-    # find sum stats for the current sample
-    sampcur <- samplist[sampi, ]
-    sumcur <- dm_rets[
-      yearm >= sampcur$sampstart &
-        yearm <= sampcur$sampend &
-        !is.na(ret),
-      .(
-        rbar = mean(ret), tstat = mean(ret) / sd(ret) * sqrt(.N),
-        min_nstock_long = min(nstock_long),
-        min_nstock_short = min(nstock_short),
-        nmonth = sum(!is.na(ret))
-      ),
-      by = c("sweight", "dmname")
-    ]
-    # find number of obs in the last year of the sample
-    filtcur <- dm_rets[
-      floor(yearm) == year(sampcur$sampend) &
-        !is.na(ret),
-      .(nlastyear = .N),
-      by = c("sweight", "dmname")
-    ]
-    
-    # combine and save
-    sumcur <- sumcur %>%
-      left_join(filtcur, by = c("sweight", "dmname")) %>%
-      mutate(
-        sampstart = sampcur$sampstart, sampend = sampcur$sampend
-      )
-    
-    return(sumcur)
-  } # end dm_insamp loop
-  stopCluster(cl)
-  
-  # Merge with czsum
-  # insampsum key is c(pubname,dmname). Each row is a dm strat that matches a pub
-  insampsum <- czsum %>%
-    transmute(
-      pubname = signalname, rbar_op = rbar, tstat_op = tstat, sampstart, sampend,
-      sweight = tolower(sweight)
-    ) %>%
-    left_join(
-      dm_insamp,
-      by = c("sampstart", "sampend", "sweight"),
-      relationship = "many-to-many" # required to suppress warning
-    ) %>%
-    arrange(pubname, desc(tstat))
-  
-  setDT(insampsum)
-  
-  return(insampsum)
-} # end Sumstats function
-
-
-compute_pca = function(ret1){
-  
-  # make wide matrix
-  temp = dcast(ret1, yearm ~ dmname, value.var = 'ret') 
-  retmat0 = as.matrix(temp[ , -1])
-  rownames(retmat0) = temp$yearm
-  
-  # drop signals with missing values
-  nmonthmissmax = 0
-  signalmiss = colSums(is.na(retmat0))
-  retmat = retmat0[ , signalmiss <= nmonthmissmax] 
-  
-  # drop months with missing values (redundant right now)
-  # nstratmissmax = 0.1*nstrat
-  # monthmiss = rowSums(is.na(retmat)) 
-  # retmat = retmat[monthmiss <= nstratmissmax , ]
-  
-  # PCA
-  A = (retmat - colMeans(retmat))/ sqrt(nrow(retmat))
-  Asvd = svd(A)
-  pcadat = tibble(n_pc = 1:length(Asvd$d) , eval = Asvd$d^2)  %>% 
-    mutate(cum_pct_exp = cumsum(eval)/sum(eval)*100) %>% 
-    mutate(nstrat = dim(retmat)[2])
-  
-  # # sanity check (this requires a lot more compute)
-  # coveig = eigen(cov(retmat))
-  # temp = cumsum(coveig$values)/sum(coveig$values)*100
-  # temp %>% head()
-  # pcadat$cum_pct_exp %>% head()
-  
-  return(pcadat)
-} # end compute_pca 
 
 
 # Find relevant TG2 set  -----------------------------------------------------

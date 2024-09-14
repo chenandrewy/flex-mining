@@ -76,11 +76,21 @@ globalSettings = list(
   prep_data = T,
   num_cores = round(.4*parallel::detectCores()),  # Adjust number of cores used as you see fit (use num_cores = 1 for serial)
   shortlist = F,
+
   # DM vs OP matching requirements
   t_tol    = .1*Inf, # tolerance in t-statistics (DM vs OP) for matching
   r_tol    = .3*Inf, # tolerance in mean return (DM vs OP) for matching
-  t_reltol = .1, # relative (to OP) tolerance in t-statistics (DM vs OP) for matching
-  r_reltol = .3 # relative (to OP) tolerance in mean return (DM vs OP) for matching
+  t_reltol = .1*Inf, # relative (to OP) tolerance in t-statistics (DM vs OP) for matching
+  r_reltol = .3*Inf, # relative (to OP) tolerance in mean return (DM vs OP) for matching
+  t_min    = 2,  # minimum screened t-stat
+  t_max    = Inf, # maximum screened t-stat
+  t_rankpct_min = 100, # top x% of data mined t-stats, 100% for off
+  
+  # DM requirements
+  minShareTG2 = .1,  # Include strategies with t-stat > 2 in at least X % of published time periods
+  TG2Set = '1994-2020' # 1994-2020: DM strategies evaluated over 1994-2020
+                       # Matches:   all sample matching periods
+                       # Rolling1994-2020: DM strategies evaluated on rolling t-stats in 1994-2020
 )
 
 # Set seed for random sampling
@@ -915,7 +925,7 @@ sumstats_for_DM_Strats <- function(
                     globalSettings$dataVersion, 
                     ' LongShort.RData'),
     nsampmax = Inf) {
-
+  
   # convert czsum to data.table (this should be done more globally)
   setDT(czsum)
   
@@ -955,7 +965,7 @@ sumstats_for_DM_Strats <- function(
     .packages = c("data.table", "tidyverse", "zoo"),
     .export = ls(envir = globalenv())
   ) %dopar% {
-  # ) %do% {
+    # ) %do% {
     # feedback
     print(paste0("DM sample stats for sample ", sampi, " of ", nsamp))
     
@@ -986,11 +996,11 @@ sumstats_for_DM_Strats <- function(
       mutate(
         sampstart = sampcur$sampstart, sampend = sampcur$sampend
       )
-
+    
     # expand with published signalnames and reorg
     pubnamelist = czsum[sampstart == sampcur$sampstart
-        & sampend == sampcur$sampend, .(signalname)] %>% 
-        rename(pubname = signalname)
+                        & sampend == sampcur$sampend, .(signalname)] %>% 
+      rename(pubname = signalname)
     pubsumcur = expand_grid(pubnamelist, sumcur) %>% 
       select(pubname, sampstart, sampend, everything()) %>% 
       setDT()
@@ -999,10 +1009,10 @@ sumstats_for_DM_Strats <- function(
     # with data.table takes only 2 sec per pubname
     for (pubi in 1:nrow(pubnamelist)) {      
       pubname = pubnamelist[pubi, ]$pubname
-
+      
       # merge pub returns onto dm returns, temporarily
       tempret = czret[signalname == pubname & date >= sampcur$sampstart
-        & date <= sampcur$sampend, .(date,ret)]
+                      & date <= sampcur$sampend, .(date,ret)]
       dm_rets[tempret, temppubret := i.ret, on = .(yearm = date)]
       
       # # Perform PPCA on the wide version of tempret
@@ -1014,16 +1024,16 @@ sumstats_for_DM_Strats <- function(
       
       # compute correlation
       tempcor = dm_rets[yearm >= sampcur$sampstart & yearm <= sampcur$sampend
-        , .(cor = cor(ret, temppubret, use = "pairwise")), by = c("dmname", "sweight")]
+                        , .(cor = cor(ret, temppubret, use = "pairwise")), by = c("dmname", "sweight")]
       tempcor$pubname = pubname
-
+      
       # merge back onto sumcur
       pubsumcur[tempcor, cor := i.cor, on = c("pubname", "sweight", "dmname")]
-
+      
       # clean up
       dm_rets[ , temppubret := NULL]
     } # end for pubi
-
+    
     return(pubsumcur)
   } # end dm_insamp loop
   stopCluster(cl)
@@ -1045,6 +1055,7 @@ sumstats_for_DM_Strats <- function(
   
   return(insampsum)
 } # end Sumstats function
+
 
 
 
@@ -1532,3 +1543,211 @@ round_numbers_in_strings <- function(strings_with_numbers) {
   
   return(rounded_strings)
 }
+
+
+
+# Function to compute principal components given returns
+compute_pca = function(ret1){
+  
+  # make wide matrix
+  temp = dcast(ret1, yearm ~ dmname, value.var = 'ret') 
+  retmat0 = as.matrix(temp[ , -1])
+  rownames(retmat0) = temp$yearm
+  
+  # drop signals with missing values
+  nmonthmissmax = 0
+  signalmiss = colSums(is.na(retmat0))
+  retmat = retmat0[ , signalmiss <= nmonthmissmax] 
+  
+  # drop months with missing values (redundant right now)
+  # nstratmissmax = 0.1*nstrat
+  # monthmiss = rowSums(is.na(retmat)) 
+  # retmat = retmat[monthmiss <= nstratmissmax , ]
+  
+  # PCA
+  A = (retmat - colMeans(retmat))/ sqrt(nrow(retmat))
+  Asvd = svd(A)
+  pcadat = tibble(n_pc = 1:length(Asvd$d) , eval = Asvd$d^2)  %>% 
+    mutate(cum_pct_exp = cumsum(eval)/sum(eval)*100) %>% 
+    mutate(nstrat = dim(retmat)[2])
+  
+  # # sanity check (this requires a lot more compute)
+  # coveig = eigen(cov(retmat))
+  # temp = cumsum(coveig$values)/sum(coveig$values)*100
+  # temp %>% head()
+  # pcadat$cum_pct_exp %>% head()
+  
+  return(pcadat)
+} # end compute_pca 
+
+
+
+# Function for outputting tables (Table of DM predictors that performed similarly to published signal "name")
+inspect_one_pub = function(name){
+  
+  # make small dat with doc for dm signals
+  smallsum = allret[
+    actSignal == name & !is.na(samptype) & !is.na(ret)
+    , .(rbar = mean(ret), n = .N, t = mean(ret)/sd(ret)*sqrt(.N), sign = mean(sign))
+    , by = c('source','actSignal','candSignalname','samptype')
+  ] %>% 
+    pivot_wider(names_from = samptype, values_from = c(rbar,n,t)) %>% 
+    left_join(
+      stratdat$signal_list %>% rename(candSignalname = signalid)
+      , by = 'candSignalname'    
+    ) %>% 
+    arrange(desc(source)) %>% 
+    select(actSignal, source, v1, v2, signal_form, everything()) %>% 
+    select(-c(candSignalname, t_oos)) %>% 
+    setDT() 
+  
+  # add mean
+  smallsum = smallsum %>% 
+    bind_rows(
+      smallsum %>% 
+        filter(source == '2_dm') %>% 
+        summarize(across(where(is.numeric), mean)) %>% 
+        mutate(source = '3_dm_mean')
+    )
+  
+  # plug in and format
+  smallsum2 = smallsum %>%
+    # change format of formulas
+    mutate(
+      signal_form = if_else(signal_form == 'v1/v2','(v1)/(v2)', signal_form)
+      , signal_form = str_replace_all(signal_form, '\\(', '\\[')
+      , signal_form = str_replace_all(signal_form, '\\)', '\\]')    
+      , signal_form = str_replace_all(signal_form, 'pdiff', '%$\\\\Delta$')    
+      , signal_form = str_replace_all(signal_form, 'diff', '$\\\\Delta$')    
+    ) %>% 
+    left_join(
+      compdoc %>% transmute(v1 = acronym, v1long = substr(shortername,1,24))
+    ) %>% 
+    left_join(
+      compdoc %>% transmute(v2 = acronym, v2long = substr(shortername,1,24))
+    ) %>%   
+    mutate(
+      signal = str_replace(signal_form, 'v1', v1long)
+      , signal = str_replace(signal, 'v2', v2long)
+    ) %>% 
+    # select(-c(actSignal, ends_with('long'))) %>%
+    select(-c(actSignal)) %>%     
+    select(source, signal, everything()) 
+  
+  # clean up for output
+  #   compute sample periods
+  tempsamp = paste(
+    year(czsum2[signalname == name, ]$sampstart) 
+    , year(czsum2[signalname == name, ]$sampend)
+    , sep = '-'
+  )
+  tempoos = paste(
+    year(czsum2[signalname == name, ]$sampend) +1
+    , min(as.numeric(floor(max(stratdat$ret$yearm)))
+          , max(year(czret2[signalname == name]$date)))
+    , sep = '-'
+  )  
+  
+  # make table
+  tabout  = smallsum2 %>% 
+    as_tibble() %>% 
+    mutate(dist = abs(rbar_insamp - smallsum2[source == '1_pub']$rbar_insamp)) %>% 
+    select(
+      source,signal,sign,starts_with('rbar_')
+      , dist, v1, v2, signal_form
+      , t_insamp
+      , v1long, v2long
+    ) %>% 
+    mutate(across(where(is.numeric), round, 2)) %>% 
+    rename(setNames('rbar_oos', tempoos)) %>% 
+    rename(setNames('rbar_insamp', tempsamp)) %>% 
+    arrange(source, dist) %>% 
+    group_by(source) %>% 
+    mutate(id = if_else(source == '2_dm', row_number(), NA_integer_)) %>% 
+    ungroup() %>% 
+    select(source, id, everything())
+  
+} # end inspect_one_pub
+
+
+# Prep returns for main plots
+make_ret_for_plotting <- function(plotdat, theory_filter = NULL){
+  # takes in acct dm and ticker dm data and returns
+  # data for an event time plot
+  
+  # make event time returns for Compustat DM
+  temp = list()
+  temp$matched <- SelectDMStrats(dmcomp$insampsum, plotdat$matchset)
+  
+  print("Making accounting event time returns")
+  print("Can take a few minutes...")
+  start_time <- Sys.time()
+  temp$event_time <- make_DM_event_returns(
+    DMname = dmcomp$name, match_strats = temp$matched, npubmax = plotdat$npubmax, 
+    czsum = czsum, use_sign_info = plotdat$use_sign_info
+  )
+  stop_time <- Sys.time()
+  print(stop_time - start_time)
+  
+  plotdat$comp_matched <- temp$matched
+  plotdat$comp_event_time <- temp$event_time
+  
+  # make event time returns for ticker DM
+  temp = list()
+  temp$matched <- SelectDMStrats(dmtic$insampsum, plotdat$matchset)
+  
+  print("Making ticker event time returns")
+  start_time <- Sys.time()
+  temp$event_time <- make_DM_event_returns(
+    DMname = dmtic$name, match_strats = temp$matched, npubmax = plotdat$npubmax, 
+    czsum = czsum, use_sign_info = plotdat$use_sign_info
+  )
+  stop_time <- Sys.time()
+  print(stop_time - start_time)
+  
+  plotdat$tic_matched <- temp$matched
+  plotdat$tic_event_time <- temp$event_time 
+  
+  # join and reformat for plotting function
+  # it wants columns:  (eventDate, ret, matchRet, matchRetAlt)
+  # dm_mean returns are already scaled (see above)
+  if(is.null(theory_filter)){
+    ret_for_plotting <- czret %>%
+      transmute(pubname = signalname, eventDate, ret = ret_scaled) %>%
+      left_join(
+        plotdat$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
+      ) %>%
+      left_join(
+        plotdat$tic_event_time %>% transmute(pubname, eventDate, matchRetAlt = dm_mean)
+      ) %>%
+      select(eventDate, ret, matchRet, matchRetAlt, pubname) %>%
+      # keep only rows where both matchrets are observed
+      filter(!is.na(matchRet) & !is.na(matchRetAlt))
+  }else{
+    if(theory_filter == 'all'){
+      ret_for_plotting <- czret %>%
+        transmute(pubname = signalname, eventDate, ret = ret_scaled) %>%
+        left_join(
+          plotdat$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
+        ) %>%
+        select(eventDate, ret, matchRet, pubname) %>%
+        # keep only rows where DM matchrets are observed
+        filter(!is.na(matchRet) )
+    }else{    
+      ret_for_plotting <- czret %>%
+        filter(theory == theory_filter) %>%
+        transmute(pubname = signalname, eventDate, ret = ret_scaled) %>%
+        left_join(
+          plotdat$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
+        ) %>%
+        select(eventDate, ret, matchRet, pubname) %>%
+        # keep only rows where DM matchrets are observed
+        filter(!is.na(matchRet) )}
+    
+  }
+  
+  return(ret_for_plotting)
+  
+} # end make_ret_for_plotting
+
+
