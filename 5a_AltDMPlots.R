@@ -4,14 +4,10 @@ rm(list = ls())
 
 source("0_Environment.R")
 
-library("dplyr")
-library("tidyverse")
-library("magrittr")
 library(doParallel)
 
 # settings
-# ncores <- round(detectCores() / 2)
-ncores = 2 # really, ram is the limiting factor...
+ncores = globalSettings$num_cores
 
 dmcomp <- list()
 dmtic <- list()
