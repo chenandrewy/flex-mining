@@ -60,10 +60,10 @@ print("end DM summary stats")
 stop_time <- Sys.time()
 stop_time - start_time
 
-# Convenience Save ---------------------------------------------
+# Convenience Save 
 save.image("../Data/tmpTG2Plots.RData")
 
-# Convenience Load --------------------------------------------
+# Convenience Load 
 load("../Data/tmpTG2Plots.RData")
 
 
@@ -248,7 +248,7 @@ plt = ReturnPlotsWithDM(
 
 
 
-# Plot for published accounting variables only ----------------------------
+# Accounting variables only plot  ----------------------------
 
 signaldoc =  data.table::fread('../Data/Raw/SignalDoc.csv') %>% 
   filter(Cat.Data == 'Accounting')
@@ -305,5 +305,92 @@ ggsave(paste0("../Results/Fig_DM_", plotdat$name, '.pdf'), width = 10, height = 
 ret_for_plottingAnnualAccounting[eventDate>0 & eventDate <= Inf & pubname %in% unique(signaldoc$Acronym), .(mean(ret), mean(matchRet))]
 
 ret_for_plottingAnnualAccounting %>% filter(pubname %in% unique(signaldoc$Acronym)) %>% 
-  distinct(pubname) %>% view()
+  distinct(pubname)
+
+# t_min plots ---------------------------------------------------------------
+
+## Plot abs(t) > 0.5 ----------------------------------------------------------
+plotdat$name <- "t_min_0.5"
+plotdat$legprefix = "|t|>0.5"
+
+plotdat$matchset$t_min = 0.5
+
+plot_one_setting(plotdat)
+
+plotdat$matchset$t_min = globalSettings$t_min # back to default
+
+## Plot abs(t) > 1 ----------------------------------------------------------
+
+plotdat$name <- "t_min_1"
+plotdat$legprefix = "|t|>1.0"
+
+plotdat$matchset$t_min = 1
+
+plot_one_setting(plotdat)
+
+plotdat$matchset$t_min = globalSettings$t_min # back to default
+
+## Plot abs(t) > 3 ----------------------------------------------------------
+plotdat$name <- "t_min_3"
+plotdat$legprefix = "|t|>3.0"
+
+plotdat$matchset$t_min = 3
+
+plot_one_setting(plotdat)
+
+plotdat$matchset$t_min = globalSettings$t_min # back to default
+
+# t_rankpct_min plots ---------------------------------------------------------------
+
+## Plot top 90% of abs(t) ----------------------------------------------------------
+plotdat$name <- "t_rankpct_min_90"
+plotdat$legprefix = "top 90% |t|"
+
+plotdat$matchset$t_rankpct_min = 90
+
+plot_one_setting(plotdat)
+
+plotdat$matchset$t_rankpct_min = globalSettings$t_rankpct_min # back to default
+
+## Plot top 75% of abs(t) ----------------------------------------------------------
+plotdat$name <- "t_rankpct_min_75"
+plotdat$legprefix = "top 75% |t|"
+
+plotdat$matchset$t_rankpct_min = 75
+
+plot_one_setting(plotdat)
+
+plotdat$matchset$t_rankpct_min = globalSettings$t_rankpct_min # back to default
+
+## Plot top 50% of abs(t) ----------------------------------------------------------
+plotdat$name <- "t_rankpct_min_50"
+plotdat$legprefix = "top 50% |t|"
+
+plotdat$matchset$t_rankpct_min = 50
+
+plot_one_setting(plotdat)
+
+plotdat$matchset$t_rankpct_min = globalSettings$t_rankpct_min # back to default
+
+## Plot top 5% of abs(t) ----------------------------------------------------------
+plotdat$name <- "t_rankpct_min_5"
+plotdat$legprefix = "top 5% |t|"
+
+plotdat$matchset$t_rankpct_min = 5 
+
+plot_one_setting(plotdat)
+
+plotdat$matchset$t_rankpct_min = globalSettings$t_rankpct_min # back to default
+
+## Plot top 0.5% of abs(t) ----------------------------------------------------------
+plotdat$name <- "t_rankpct_min_0.5"
+plotdat$legprefix = "top 0.5% |t|"
+
+plotdat$matchset$t_rankpct_min = 0.5 #Typo in previous version? Was 5?
+
+plot_one_setting(plotdat)
+
+plotdat$matchset$t_rankpct_min = globalSettings$t_rankpct_min # back to default
+
+
 
