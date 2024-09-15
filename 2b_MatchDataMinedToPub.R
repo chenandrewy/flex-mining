@@ -1,8 +1,5 @@
-# Alternative script for matching
-# this one is much faster 
-# and executes the scripts that make exhibits at the end
-
-# takes about 2 min using 4 cores (which is fastest)
+# Alternative script for matching (for robustness figures that match on t-stats and mean returns)
+# Output is used in 4e_ResearchVsDMRobustnessCorrelationsEtc.R
 
 rm(list = ls())
 tic0 = Sys.time()
@@ -15,16 +12,12 @@ DMname = paste0('../Data/Processed/',
                 globalSettings$dataVersion, 
                 ' LongShort.RData')
 
-
-# tolerance in levels  
-#   use Inf to turn off
-#   seems like reltol might be cleaner
 t_tol = globalSettings$t_tol
 r_tol = globalSettings$r_tol
 
 # tolerance relative to op stat
-t_reltol = globalSettings$t_reltol
-r_reltol = globalSettings$r_reltol
+t_reltol = 0.1
+r_reltol = 0.3
 
 minNumStocks = globalSettings$minNumStocks
 ncores = globalSettings$num_cores
@@ -180,8 +173,6 @@ candidateReturns =  foreach(pubi = 1:dim(czsum)[1],
 stopCluster(cl)
 toc = Sys.time()
 toc - tic
-
-
 
 
 # Save --------------------------------------------------------------------

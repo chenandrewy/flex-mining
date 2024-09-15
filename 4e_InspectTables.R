@@ -6,6 +6,10 @@ library(writexl)
 #   clean me up pls
 matchdat = candidateReturns # loaded earlier
 
+DMname = paste0('../Data/Processed/',
+                globalSettings$dataVersion, 
+                ' LongShort.RData')
+
 stratdat = readRDS(DMname) # only really need the signal_list from here
 
 # load pub stuff, add author info

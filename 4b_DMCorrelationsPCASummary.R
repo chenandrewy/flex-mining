@@ -18,10 +18,8 @@ dmcomp$name <- paste0('../Data/Processed/',
                       globalSettings$dataVersion, 
                       ' LongShort.RData')
 
-czsum <- readRDS("../Data/Processed/czsum_allpredictors.RDS") %>%
-  filter(Keep)
 
-# read in DM strats
+# Load data ---------------------------------------------------------------
 dm_rets <- readRDS(DMname)$ret
 dm_info <- readRDS(DMname)$port_list
 
