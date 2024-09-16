@@ -2,32 +2,23 @@
 # Setup --------------------------------------------------------
 
 rm(list = ls())
-set.seed(123) 
-
 source("0_Environment.R")
-library(doParallel)
 library(kableExtra)
 
 ## User Settings ------------------------------------------------
 
 # define predictor
-pred_min_tabs = 2 # min abs(tstat)
-pred_top_n = Inf # min t-stat rank
-
-# number of cores
-ncores = 4
+pred_min_tabs = globalSettings$t_min # min abs(tstat)
+pred_top_n = globalSettings$t_rankpct_min  # min t-stat rank
 
 # min data requirements
-nstock_min = 10
-nmonth_min = 120
+nstock_min = globalSettings$minNumStocks/2
+nmonth_min = globalSettings$nmonth_min
 
 # sample periods
 samplePeriods = tibble(insampEnd = c(1990, 2000, 2010),
                        oos1End   = c(2004, 2004, 2014)
 )
-# list of anomalies for measuring spanning
-#pubselect = c('BMdec','Size','Mom12m', 'AssetGrowth', 'GP')
-# pubselect = c('BMdec','Size','Mom12m')
 
 # name of compustat LS file
 dmcomp <- list()
@@ -163,21 +154,6 @@ for (j in 1:nrow(samplePeriods)) {
     merge(dmpred$ret[yearm >= oos2$start & yearm <= oos2$end
                      , .(rbaroos2 = mean(ret_signed)), by = 'id']
           , by = 'id')     
-  
-  # add spanning by lit
-  # temppub = czret %>% 
-  #     filter(signalname %in% pubselect) %>%
-  #     transmute(pubname=signalname,yearm=date,pubret=ret) %>% 
-  #     dcast(yearm ~ pubname, value.var = 'pubret') 
-  # 
-  # modelname = paste0('ret_signed ~ ', paste(pubselect, collapse = ' + ')) 
-  # temprsq = dmpred$ret %>% 
-  #   merge(temppub, by='yearm') %>% 
-  #   .[yearm >= insamp$start & yearm <= insamp$end
-  #   , .(rsq_lit = summary(lm(as.formula(modelname), data=.SD))$r.squared)
-  #   , by = 'id']
-  # 
-  # dmpred$sum = dmpred$sum %>% merge(temprsq, by = 'id')
   
   # Define themes ---------------------------------------------------
   

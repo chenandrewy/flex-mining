@@ -72,6 +72,8 @@ globalSettings = list(
   toostale_months    = 18, # months after datadate to keep signal for  
   delist_adj         = 'ghz', # 'none' or 'ghz'
   crsp_filter        = NA_character_, # use NA_character_ for no filter
+  nmonth_min         = 120, # minimum number of months to keep DM signal in EZ themes code
+  
   # debugging
   prep_data = T,
   num_cores = round(.4*parallel::detectCores()),  # Adjust number of cores used as you see fit (use num_cores = 1 for serial)
@@ -1981,3 +1983,33 @@ plot_one_setting = function(plotdat){
   
 } # end plot_one_setting
 
+# wrap in function for easy editing of xlsx
+import_docs = function(){
+  # read compustat acronyms
+  dmdoc = readRDS(dmcomp$name)$signal_list %>%  setDT() 
+  yzdoc = readxl::read_xlsx('DataInput/Updated_Yan-Zheng-Compustat-Vars.xlsx') %>% 
+    transmute(acronym = tolower(acronym), shortername ) %>% 
+    setDT() 
+  
+  # merge
+  dmdoc = dmdoc[ 
+    , signal_form := if_else(signal_form == 'diff(v1)/lag(v2)', 'd_', '')] %>% 
+    merge(yzdoc[,.(acronym,shortername)], by.x = 'v1', by.y = 'acronym') %>%
+    rename(v1long = shortername) %>%
+    merge(yzdoc[,.(acronym,shortername)], by.x = 'v2', by.y = 'acronym') %>%
+    rename(v2long = shortername) 
+  
+  # create link table
+  dm_linktable = expand_grid(sweight = c('ew','vw'), dmname =  dmdoc$signalid) %>% 
+    mutate(dmcode = paste0(sweight, '|', dmname))  %>% 
+    left_join(dmdoc, by = c('dmname' = 'signalid')) %>%
+    mutate(shortdesc = paste0(substr(dmcode,1,3), signal_form, v1, '/', v2)
+           , desc = if_else(signal_form=='d_'
+                            , paste0('d_[', v1long, ']/lag[', v2long, ']')
+                            , paste0('[', v1long, ']/[', v2long, ']')
+           )) %>% 
+    setDT()
+  
+  return(dm_linktable)
+  
+} # end import_docs
