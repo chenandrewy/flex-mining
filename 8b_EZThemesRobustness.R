@@ -71,38 +71,7 @@ setcolorder(dm_rets, c('id', 'yearm', 'ret'))
 
 ## Load signal docs --------------------------------------------
 
-# wrap in function for easy editing of xlsx
-import_docs = function(){
-  # read compustat acronyms
-  dmdoc = readRDS(dmcomp$name)$signal_list %>%  setDT() 
-  yzdoc = readxl::read_xlsx('DataInput/Updated_Yan-Zheng-Compustat-Vars.xlsx') %>% 
-    transmute(acronym = tolower(acronym), shortername ) %>% 
-    setDT() 
-  
-  # merge
-  dmdoc = dmdoc[ 
-    , signal_form := if_else(signal_form == 'diff(v1)/lag(v2)', 'd_', '')] %>% 
-    merge(yzdoc[,.(acronym,shortername)], by.x = 'v1', by.y = 'acronym') %>%
-    rename(v1long = shortername) %>%
-    merge(yzdoc[,.(acronym,shortername)], by.x = 'v2', by.y = 'acronym') %>%
-    rename(v2long = shortername) 
-  
-  # create link table
-  dm_linktable = expand_grid(sweight = c('ew','vw'), dmname =  dmdoc$signalid) %>% 
-    mutate(dmcode = paste0(sweight, '|', dmname))  %>% 
-    left_join(dmdoc, by = c('dmname' = 'signalid')) %>%
-    mutate(shortdesc = paste0(substr(dmcode,1,3), signal_form, v1, '/', v2)
-           , desc = if_else(signal_form=='d_'
-                            , paste0('d_[', v1long, ']/lag[', v2long, ']')
-                            , paste0('[', v1long, ']/[', v2long, ']')
-           )) %>% 
-    setDT()
-  
-  return(dm_linktable)
-  
-} # end import_docs
 dm_linktable = import_docs()
-
 
 # Loop over in-sample periods ---------------------------------------------
 for (j in 1:nrow(samplePeriods)) {
