@@ -2,15 +2,14 @@ cat("\f")
 rm(list = ls())
 gc()
 
+# Setup -------------------------------------------------------------------
+source('0_Environment.R')
+
 library(haven)
-library(dplyr)
-library(data.table)
-library(stringr)
 library(quanteda)
 library(lexicon)
 library(stm)  
 library(stopwords)
-
 library("quanteda.textstats")
 library("spacyr")
 

@@ -1,6 +1,6 @@
 # script for attempting to replicate Harvey 2017 JF, when he says:
 
-# "Here are the instructions that I gave my research assistant: (1) form ortfo-
+# "Here are the instructions that I gave my research assistant: (1) form portfo-
 # lios based on the first, second, and third letters of the ticker symbol ..."
 # "There are 3,160 possible long-short portfolios based on the first three let-
 # ters of the tickers."
@@ -41,30 +41,8 @@ by = .(permno)
 
 
 # Make long portfolios --------------------------------
-# "form portfolios based on the first, second, and third letters of the ticker symbol"
-tic_kth_letter_port <- function(k) {
-    # create portfolio assignments
-    crsp2 <- copy(crsp)
-    crsp2[!is.na(lag_tic), `:=`(port = paste0("tic", k, substr(lag_tic, k, k)))]
 
-    # find EW and VW returns
-    port <- crsp2[!is.na(ret) & !is.na(port) & !is.na(lag_me),
-        .(
-            ret_ew = mean(ret), ret_vw = weighted.mean(ret, lag_me),
-            nstock = .N
-        ),
-        by = c("yearm", "port")
-    ] %>%
-        pivot_longer(
-            cols = c("ret_ew", "ret_vw"), names_to = "sweight", values_to = "ret",
-            names_prefix = "ret_"
-        ) %>%
-        setDT()
-
-    return(port)
-} # end tic_kth_letter_port
-
-# apply function to k = 1,2,3
+# apply tic_kth_letter_port function to k = 1,2,3
 longport <- rbindlist(lapply(1:3, tic_kth_letter_port))
 
 
@@ -98,7 +76,7 @@ port_list <- data.table(
     portid = 1:2, sweight = c("ew", "vw")
 )
 
-# make list of all compinations of signals and port_list
+# make list of all combinations of signals and port_list
 # this nomenclature sucks, sorry
 ls_distinct <- expand_grid(
     signalid = signal_list$signalid, portid = port_list$portid
@@ -139,6 +117,7 @@ for (i in 1:n_ls) {
         mutate(signalid = setcur$signalid, portid = setcur$portid) %>%
         select(signalid, portid, yearm, ret, nstock_long, nstock_short)
 } # end for i
+
 lsret <- rbindlist(tempret) %>% setDT()
 
 # save to disk -------------------------------------------------
@@ -151,5 +130,3 @@ ticdat = list(
 )
 
 saveRDS(ticdat, '../Data/Processed/ticker_Harvey2017JF.RDS')
-
-# check -------------------------------------------------

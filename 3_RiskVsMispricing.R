@@ -1,8 +1,5 @@
 # wrapper for risk vs mispricing section
 
-source('0_Environment.R')
-
-
 # Run Stuff ---------------------------------------------------------------
 
 source('3a_RiskVsMispricingPlots.R')

@@ -15,6 +15,10 @@ library(stringr)
 library(ggplot2)
 library(gridExtra)
 library(xtable)
+library(lmtest)
+library(sandwich)
+library(huxtable)
+
 if("lme4" %in% (.packages())){
   detach("package:lme4", unload=TRUE) 
 }
@@ -50,8 +54,45 @@ dir.create('../Results/Extra/', showWarnings = F)
 options(stringsAsFactors = FALSE)
 
 globalSettings = list(
-  dataVersion = 'CZ-style-v7',
-  minNumStocks = 20 # Minimum number of stocks in any month over the in-sample period to include a DM strategy for matching to published strategies (ie minNumStocks/2 in each leg)
+  dataVersion  = 'CZ-style-v7',
+  # signal choices
+  minNumStocks   = 20, # Minimum number of stocks in any month over the in-sample period to include a DM strategy for matching to published strategies (ie minNumStocks/2 in each leg)
+  signalnum      = Inf, # number of signals to sample or Inf for all
+  form           = c('v1/v2', 'diff(v1)/lag(v2)'), # 'pdiff(v1/v2)', 'pdiff(v1)', 'diff(v1/v2)', 'pdiff(v1)-pdiff(v2)')
+  denom_min_fobs = 0.25, # minimum fraction of non-missing observations in 1963
+  # portfolio choices
+  longshort_form = 'ls_extremes',
+  portnum        = c(10),
+  sweight        = c('ew','vw'), 
+  trim           = NA_real_,  # NA or some quantile e.g. .005
+  # data basic choices
+  backfill_dropyears = 0, # number of years to drop for backfill bias adj
+  reup_months        = 6, # stocks are traded using new data at end of these months
+  data_avail_lag     = 6, # months
+  toostale_months    = 18, # months after datadate to keep signal for  
+  delist_adj         = 'ghz', # 'none' or 'ghz'
+  crsp_filter        = NA_character_, # use NA_character_ for no filter
+  nmonth_min         = 120, # minimum number of months to keep DM signal in EZ themes code
+  
+  # debugging
+  prep_data = T,
+  num_cores = round(.4*parallel::detectCores()),  # Adjust number of cores used as you see fit (use num_cores = 1 for serial)
+  shortlist = F,
+
+  # DM vs OP matching requirements
+  t_tol    = .1*Inf, # tolerance in t-statistics (DM vs OP) for matching
+  r_tol    = .3*Inf, # tolerance in mean return (DM vs OP) for matching
+  t_reltol = .1*Inf, # relative (to OP) tolerance in t-statistics (DM vs OP) for matching
+  r_reltol = .3*Inf, # relative (to OP) tolerance in mean return (DM vs OP) for matching
+  t_min    = 2,  # minimum screened t-stat
+  t_max    = Inf, # maximum screened t-stat
+  t_rankpct_min = 100, # top x% of data mined t-stats, 100% for off
+  
+  # DM requirements
+  minShareTG2 = .1,  # Include strategies with t-stat > 2 in at least X % of published time periods
+  TG2Set = '1994-2020' # 1994-2020: DM strategies evaluated over 1994-2020
+                       # Matches:   all sample matching periods
+                       # Rolling1994-2020: DM strategies evaluated on rolling t-stats in 1994-2020
 )
 
 # Set seed for random sampling
@@ -81,22 +122,21 @@ compnames$yz.numer = c("acchg", "aco", "acox", "act", "am", "ao", "aoloch", "aox
                        "wcap", "wcapc", "wcapch", "xacc", "xad", "xdepl", "xi", "xido", "xidoc", "xint", "xopr", "xpp", "xpr", "xrd", "xrent",
                        "xsga")
 
-
 compnames$yz.denom <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
                         "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp", 'me_datadate')
 
 
-compnames$yz.denom_alt <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
-                            "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp", 'me')
+# compnames$yz.denom_alt <- c("at", "act",  "invt", "ppent", "lt", "lct", "dltt",
+#                             "ceq", "seq", "icapt", "sale", "cogs", "xsga", "emp", 'me')
 
 # 63 denominators with at least 25% non-missing observations in 1963
-compnames$pos_in_1963 <- c("aco", "acox","act","ao","aox","at","caps","capx","capxv","ceq","ceql","ceqt","che","cogs",
-                          "cstk","dlc","dltt","dp","dpact","dvc","dvp","dvt","ebit","ebitda","gp","ib","ibadj","ibcom",
-                          "icapt","intan","invt","itci","ivaeq","ivao","lct","lo","lt","ni","nopi","nopio","np",
-                          "oiadp","pi","ppegt","ppent","pstkl","pstkrv","re","recco","rect","sale","seq","txdb",
-                          "txditc","txt","wcap","xint","xopr","xpr","xrent","xsga","emp", "me_datadate")
+# compnames$pos_in_1963 <- c("aco", "acox","act","ao","aox","at","caps","capx","capxv","ceq","ceql","ceqt","che","cogs",
+#                           "cstk","dlc","dltt","dp","dpact","dvc","dvp","dvt","ebit","ebitda","gp","ib","ibadj","ibcom",
+#                           "icapt","intan","invt","itci","ivaeq","ivao","lct","lo","lt","ni","nopi","nopio","np",
+#                           "oiadp","pi","ppegt","ppent","pstkl","pstkrv","re","recco","rect","sale","seq","txdb",
+#                           "txditc","txt","wcap","xint","xopr","xpr","xrent","xsga","emp", "me_datadate")
 
-compnames$all = unique(Reduce(c, compnames))
+# compnames$all = unique(Reduce(c, compnames))
 
 # nice colors
 colors = c(rgb(0,0.4470,0.7410), # MATBLUE
@@ -597,6 +637,69 @@ ReturnPlotsNoDM = function(dt, suffix = '', rollmonths = 60, filetype = '.pdf',
 }
 
 
+# Create a plot by category without data-mining benchmark for CAPM returns
+ReturnPlotsNoDMAlpha = function(dt, suffix = '', rollmonths = 60, filetype = '.pdf',
+                                xl = -360, xh = 240, yl = -10, yh = 130, 
+                                basepath = NA_character_) {
+  
+  #' @param dt Table with four columns (signalname, ret, eventDate, catID)
+  #' @param suffix String to attach to saved pdf figure 
+  #' @param rollmonths Number of months over which moving average is computed
+  
+  # Prep legend
+  prepLegend = dt %>% 
+    group_by(catID) %>% 
+    summarise(nSignals = n_distinct(signalname))
+  
+  # Plot    
+  plotme = dt %>%
+    group_by(catID, eventDate) %>% 
+    summarise(abar = mean(alpha, na.rm = TRUE)) %>% 
+    arrange(catID, eventDate) %>% 
+    mutate(
+      roll_abar = zoo::rollmean(abar, k = rollmonths, fill = NA, align = 'right')
+    ) %>% 
+    mutate(catID = factor(catID, levels = c('risk', 'mispricing', 'agnostic'), 
+                          labels = c(paste0('Risk (', prepLegend$nSignals[prepLegend$catID == 'risk'], ' signals)'),
+                                     paste0('Mispricing (', prepLegend$nSignals[prepLegend$catID == 'mispricing'], ' signals)'), 
+                                     paste0('Agnostic (', prepLegend$nSignals[prepLegend$catID == 'agnostic'], ' signals)')))) 
+  
+  catfac = plotme$catID %>% unique() %>% sort()
+  
+  print( plotme %>% 
+           ggplot(aes(x = eventDate, y = roll_abar, color = catID, linetype = catID)) +
+           geom_line(size = 1.1) +
+           # scale_color_brewer(palette = 'Dark2') + 
+           scale_color_manual(values = colors, breaks = catfac) +
+           scale_linetype_manual(values = c('solid','longdash','dashed'), breaks = catfac) +
+           geom_vline(xintercept = 0) +
+           coord_cartesian(
+             xlim = c(xl, xh), ylim = c(yl, yh)
+           ) +
+           scale_y_continuous(breaks = seq(-200,180,25)) +
+           scale_x_continuous(breaks = seq(-360,360,60)) +  
+           geom_hline(yintercept = 100, color = 'dimgrey') +
+           # annotate(geom="text",
+           #          label='In-Sample Mean', x=16, y=95, vjust=-1,
+           #          family = "Palatino Linotype", color = 'dimgrey'
+           # )  +
+           geom_hline(yintercept = 0) +
+           ylab('Trailing 5-Year Abnormal Return (bps p.m.)') +
+           xlab('Months Since Original Sample Ended') +
+           labs(color = '', linetype = '') +
+           theme_light(base_size = 18) +
+           theme(
+             legend.position = c(85,85)/100
+             , legend.spacing.y = unit(0, units = 'cm')
+             #    , legend.box.background = element_rect(fill='transparent')
+             ,legend.background = element_rect(fill='transparent')
+           ) 
+  )
+  
+  ggsave(paste0(basepath, '_', suffix, filetype), width = 10, height = 8)
+  
+}
+
 
 # Create a plot that compares the average predictor return with the average data-mined return
 ReturnPlotsWithDM = function(dt, suffix = '', rollmonths = 60, colors = NA,
@@ -887,7 +990,7 @@ sumstats_for_DM_Strats <- function(
                     globalSettings$dataVersion, 
                     ' LongShort.RData'),
     nsampmax = Inf) {
-
+  
   # convert czsum to data.table (this should be done more globally)
   setDT(czsum)
   
@@ -927,7 +1030,7 @@ sumstats_for_DM_Strats <- function(
     .packages = c("data.table", "tidyverse", "zoo"),
     .export = ls(envir = globalenv())
   ) %dopar% {
-  # ) %do% {
+    # ) %do% {
     # feedback
     print(paste0("DM sample stats for sample ", sampi, " of ", nsamp))
     
@@ -958,11 +1061,11 @@ sumstats_for_DM_Strats <- function(
       mutate(
         sampstart = sampcur$sampstart, sampend = sampcur$sampend
       )
-
+    
     # expand with published signalnames and reorg
     pubnamelist = czsum[sampstart == sampcur$sampstart
-        & sampend == sampcur$sampend, .(signalname)] %>% 
-        rename(pubname = signalname)
+                        & sampend == sampcur$sampend, .(signalname)] %>% 
+      rename(pubname = signalname)
     pubsumcur = expand_grid(pubnamelist, sumcur) %>% 
       select(pubname, sampstart, sampend, everything()) %>% 
       setDT()
@@ -971,10 +1074,10 @@ sumstats_for_DM_Strats <- function(
     # with data.table takes only 2 sec per pubname
     for (pubi in 1:nrow(pubnamelist)) {      
       pubname = pubnamelist[pubi, ]$pubname
-
+      
       # merge pub returns onto dm returns, temporarily
       tempret = czret[signalname == pubname & date >= sampcur$sampstart
-        & date <= sampcur$sampend, .(date,ret)]
+                      & date <= sampcur$sampend, .(date,ret)]
       dm_rets[tempret, temppubret := i.ret, on = .(yearm = date)]
       
       # # Perform PPCA on the wide version of tempret
@@ -986,16 +1089,16 @@ sumstats_for_DM_Strats <- function(
       
       # compute correlation
       tempcor = dm_rets[yearm >= sampcur$sampstart & yearm <= sampcur$sampend
-        , .(cor = cor(ret, temppubret, use = "pairwise")), by = c("dmname", "sweight")]
+                        , .(cor = cor(ret, temppubret, use = "pairwise")), by = c("dmname", "sweight")]
       tempcor$pubname = pubname
-
+      
       # merge back onto sumcur
       pubsumcur[tempcor, cor := i.cor, on = c("pubname", "sweight", "dmname")]
-
+      
       # clean up
       dm_rets[ , temppubret := NULL]
     } # end for pubi
-
+    
     return(pubsumcur)
   } # end dm_insamp loop
   stopCluster(cl)
@@ -1017,6 +1120,7 @@ sumstats_for_DM_Strats <- function(
   
   return(insampsum)
 } # end Sumstats function
+
 
 
 
@@ -1383,3 +1487,529 @@ process_event_time_returns <- function(dm_name, match_strats, npubmax, czsum, us
   
   return(event_time)
 }
+
+# Function that takes a signal and computes the long-short portfolio returns
+make_many_ls = function(){
+  ### make one portdat ===
+  
+  # extract current settings 
+  signal_cur = signal_list[signali,]
+  
+  # import small dataset with return, me, xusedcurr, and add signal
+  if (is.na(signal_cur$v2) | signal_cur$v1 == signal_cur$v2) { # If only one variable needed to construct signal
+    smalldat = fst::read_fst('../Data/tmpAllDat.fst', 
+                             columns = c('permno', 'ret_yearm', 'ret', 'me_monthly',
+                                         signal_cur$v1)) %>%
+      as_tibble()
+  } else {
+    smalldat = fst::read_fst('../Data/tmpAllDat.fst', 
+                             columns = c('permno', 'ret_yearm', 'ret', 'me_monthly',
+                                         signal_cur$v1, signal_cur$v2)) %>%
+      as_tibble()
+  }
+  
+  smalldat = smalldat %>% mutate(ret_yearm = as.yearmon(ret_yearm))
+  
+  # Unify column names for processing
+  if (is.na(signal_cur$v2)) {
+    colnames(smalldat) = c('permno', 'ret_yearm', 'ret', 'me_monthly', 'v1')
+  } else if (signal_cur$v1 == signal_cur$v2) {
+    colnames(smalldat) = c('permno', 'ret_yearm', 'ret', 'me_monthly', 'v1')
+    smalldat = smalldat %>% mutate(v2 = v1)
+  } else {
+    colnames(smalldat) = c('permno', 'ret_yearm', 'ret', 'me_monthly', 'v1', 'v2')
+  }
+  
+  tic = Sys.time() #
+  smalldat$signal = dataset_to_signal(form = signal_cur$signal_form, 
+                                      dt = smalldat) # makes a signal
+  toc = Sys.time() #
+  print('signal done')
+  print(toc - tic) #
+  
+  
+  tic = Sys.time() #
+  # assign to portfolios
+  portdat = tibble()
+  for (porti in 1:dim(port_list)[1]){
+    tempport = signal_to_ports(dt0 = smalldat, 
+                               form = port_list[porti,]$longshort_form, 
+                               portnum = port_list[porti,]$portnum, 
+                               sweight = port_list[porti,]$sweight,
+                               trim = port_list[porti,]$trim)
+    tempport = tempport %>% mutate(portid = porti)
+    portdat = rbind(portdat, tempport)
+  }
+  
+  toc = Sys.time() #
+  print('ports done')
+  print(toc - tic)  #
+  
+  # Clean up and save
+  ls_dat = portdat %>% mutate(signalid = signali) 
+  
+  # feedback
+  print(paste0(
+    'signali = ', signali, ' of ', nrow(signal_list)
+    , ' | signalform = ', signal_cur$signal_form
+    , ' | v1 = ', signal_cur$v1
+    , ' | v2 = ', signal_cur$v2
+    #      , ' | Var(tstat) = ', round(var_tstat,2)
+  ))
+  
+  ## end make one portdat ===
+  
+  return(ls_dat)
+  
+} # make_many_ls
+
+
+# "form portfolios based on the first, second, and third letters of the ticker symbol"
+tic_kth_letter_port <- function(k) {
+  # create portfolio assignments
+  crsp2 <- copy(crsp)
+  crsp2[!is.na(lag_tic), `:=`(port = paste0("tic", k, substr(lag_tic, k, k)))]
+  
+  # find EW and VW returns
+  port <- crsp2[!is.na(ret) & !is.na(port) & !is.na(lag_me),
+                .(
+                  ret_ew = mean(ret), ret_vw = weighted.mean(ret, lag_me),
+                  nstock = .N
+                ),
+                by = c("yearm", "port")
+  ] %>%
+    pivot_longer(
+      cols = c("ret_ew", "ret_vw"), names_to = "sweight", values_to = "ret",
+      names_prefix = "ret_"
+    ) %>%
+    setDT()
+  
+  return(port)
+} # end tic_kth_letter_port
+
+# Convenience function for round numbers in strings
+round_numbers_in_strings <- function(strings_with_numbers) {
+  regex_pattern <- "\\d+\\.?\\d*" # matches any number with or without decimal point
+  rounded_strings <- c() # create an empty vector to store the results
+  
+  for (string_with_number in strings_with_numbers) {
+    # Use regular expressions to extract the number from the string
+    number_in_string <- as.numeric(gsub("[^[:digit:].]", "", regmatches(string_with_number, regexpr(regex_pattern, string_with_number))))
+    
+    # Round the number to two decimal places
+    rounded_number <- sprintf("%.1f",number_in_string)  %>% as.character()
+    
+    # Replace the original number in the string with the rounded number
+    string_with_rounded_number <- gsub(regex_pattern, toString(rounded_number), string_with_number)
+    
+    # Add the result to the output vector
+    rounded_strings <- c(rounded_strings, string_with_rounded_number)
+  }
+  
+  return(rounded_strings)
+}
+
+
+
+# Function to compute principal components given returns
+compute_pca = function(ret1){
+  
+  # make wide matrix
+  temp = dcast(ret1, yearm ~ dmname, value.var = 'ret') 
+  retmat0 = as.matrix(temp[ , -1])
+  rownames(retmat0) = temp$yearm
+  
+  # drop signals with missing values
+  nmonthmissmax = 0
+  signalmiss = colSums(is.na(retmat0))
+  retmat = retmat0[ , signalmiss <= nmonthmissmax] 
+  
+  # drop months with missing values (redundant right now)
+  # nstratmissmax = 0.1*nstrat
+  # monthmiss = rowSums(is.na(retmat)) 
+  # retmat = retmat[monthmiss <= nstratmissmax , ]
+  
+  # PCA
+  A = (retmat - colMeans(retmat))/ sqrt(nrow(retmat))
+  Asvd = svd(A)
+  pcadat = tibble(n_pc = 1:length(Asvd$d) , eval = Asvd$d^2)  %>% 
+    mutate(cum_pct_exp = cumsum(eval)/sum(eval)*100) %>% 
+    mutate(nstrat = dim(retmat)[2])
+  
+  # # sanity check (this requires a lot more compute)
+  # coveig = eigen(cov(retmat))
+  # temp = cumsum(coveig$values)/sum(coveig$values)*100
+  # temp %>% head()
+  # pcadat$cum_pct_exp %>% head()
+  
+  return(pcadat)
+} # end compute_pca 
+
+
+
+# Function for outputting tables (Table of DM predictors that performed similarly to published signal "name")
+inspect_one_pub = function(name){
+  
+  # make small dat with doc for dm signals
+  smallsum = allret[
+    actSignal == name & !is.na(samptype) & !is.na(ret)
+    , .(rbar = mean(ret), n = .N, t = mean(ret)/sd(ret)*sqrt(.N), sign = mean(sign))
+    , by = c('source','actSignal','candSignalname','samptype')
+  ] %>% 
+    pivot_wider(names_from = samptype, values_from = c(rbar,n,t)) %>% 
+    left_join(
+      stratdat$signal_list %>% rename(candSignalname = signalid)
+      , by = 'candSignalname'    
+    ) %>% 
+    arrange(desc(source)) %>% 
+    select(actSignal, source, v1, v2, signal_form, everything()) %>% 
+    select(-c(candSignalname, t_oos)) %>% 
+    setDT() 
+  
+  # add mean
+  smallsum = smallsum %>% 
+    bind_rows(
+      smallsum %>% 
+        filter(source == '2_dm') %>% 
+        summarize(across(where(is.numeric), mean)) %>% 
+        mutate(source = '3_dm_mean')
+    )
+  
+  # plug in and format
+  smallsum2 = smallsum %>%
+    # change format of formulas
+    mutate(
+      signal_form = if_else(signal_form == 'v1/v2','(v1)/(v2)', signal_form)
+      , signal_form = str_replace_all(signal_form, '\\(', '\\[')
+      , signal_form = str_replace_all(signal_form, '\\)', '\\]')    
+      , signal_form = str_replace_all(signal_form, 'pdiff', '%$\\\\Delta$')    
+      , signal_form = str_replace_all(signal_form, 'diff', '$\\\\Delta$')    
+    ) %>% 
+    left_join(
+      compdoc %>% transmute(v1 = acronym, v1long = substr(shortername,1,24))
+    ) %>% 
+    left_join(
+      compdoc %>% transmute(v2 = acronym, v2long = substr(shortername,1,24))
+    ) %>%   
+    mutate(
+      signal = str_replace(signal_form, 'v1', v1long)
+      , signal = str_replace(signal, 'v2', v2long)
+    ) %>% 
+    # select(-c(actSignal, ends_with('long'))) %>%
+    select(-c(actSignal)) %>%     
+    select(source, signal, everything()) 
+  
+  # clean up for output
+  #   compute sample periods
+  tempsamp = paste(
+    year(czsum2[signalname == name, ]$sampstart) 
+    , year(czsum2[signalname == name, ]$sampend)
+    , sep = '-'
+  )
+  tempoos = paste(
+    year(czsum2[signalname == name, ]$sampend) +1
+    , min(as.numeric(floor(max(stratdat$ret$yearm)))
+          , max(year(czret2[signalname == name]$date)))
+    , sep = '-'
+  )  
+  
+  # make table
+  tabout  = smallsum2 %>% 
+    as_tibble() %>% 
+    mutate(dist = abs(rbar_insamp - smallsum2[source == '1_pub']$rbar_insamp)) %>% 
+    select(
+      source,signal,sign,starts_with('rbar_')
+      , dist, v1, v2, signal_form
+      , t_insamp
+      , v1long, v2long
+    ) %>% 
+    mutate(across(where(is.numeric), round, 2)) %>% 
+    rename(setNames('rbar_oos', tempoos)) %>% 
+    rename(setNames('rbar_insamp', tempsamp)) %>% 
+    arrange(source, dist) %>% 
+    group_by(source) %>% 
+    mutate(id = if_else(source == '2_dm', row_number(), NA_integer_)) %>% 
+    ungroup() %>% 
+    select(source, id, everything())
+  
+} # end inspect_one_pub
+
+
+# Prep returns for main plots
+make_ret_for_plotting <- function(plotdat, theory_filter = NULL){
+  # takes in acct dm and ticker dm data and returns
+  # data for an event time plot
+  
+  # make event time returns for Compustat DM
+  temp = list()
+  temp$matched <- SelectDMStrats(dmcomp$insampsum, plotdat$matchset)
+  
+  print("Making accounting event time returns")
+  print("Can take a few minutes...")
+  start_time <- Sys.time()
+  temp$event_time <- make_DM_event_returns(
+    DMname = dmcomp$name, match_strats = temp$matched, npubmax = plotdat$npubmax, 
+    czsum = czsum, use_sign_info = plotdat$use_sign_info
+  )
+  stop_time <- Sys.time()
+  print(stop_time - start_time)
+  
+  plotdat$comp_matched <- temp$matched
+  plotdat$comp_event_time <- temp$event_time
+  
+  # make event time returns for ticker DM
+  temp = list()
+  temp$matched <- SelectDMStrats(dmtic$insampsum, plotdat$matchset)
+  
+  print("Making ticker event time returns")
+  start_time <- Sys.time()
+  temp$event_time <- make_DM_event_returns(
+    DMname = dmtic$name, match_strats = temp$matched, npubmax = plotdat$npubmax, 
+    czsum = czsum, use_sign_info = plotdat$use_sign_info
+  )
+  stop_time <- Sys.time()
+  print(stop_time - start_time)
+  
+  plotdat$tic_matched <- temp$matched
+  plotdat$tic_event_time <- temp$event_time 
+  
+  # join and reformat for plotting function
+  # it wants columns:  (eventDate, ret, matchRet, matchRetAlt)
+  # dm_mean returns are already scaled (see above)
+  if(is.null(theory_filter)){
+    ret_for_plotting <- czret %>%
+      transmute(pubname = signalname, eventDate, ret = ret_scaled) %>%
+      left_join(
+        plotdat$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
+      ) %>%
+      left_join(
+        plotdat$tic_event_time %>% transmute(pubname, eventDate, matchRetAlt = dm_mean)
+      ) %>%
+      select(eventDate, ret, matchRet, matchRetAlt, pubname) %>%
+      # keep only rows where both matchrets are observed
+      filter(!is.na(matchRet) & !is.na(matchRetAlt))
+  }else{
+    if(theory_filter == 'all'){
+      ret_for_plotting <- czret %>%
+        transmute(pubname = signalname, eventDate, ret = ret_scaled) %>%
+        left_join(
+          plotdat$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
+        ) %>%
+        select(eventDate, ret, matchRet, pubname) %>%
+        # keep only rows where DM matchrets are observed
+        filter(!is.na(matchRet) )
+    }else{    
+      ret_for_plotting <- czret %>%
+        filter(theory == theory_filter) %>%
+        transmute(pubname = signalname, eventDate, ret = ret_scaled) %>%
+        left_join(
+          plotdat$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
+        ) %>%
+        select(eventDate, ret, matchRet, pubname) %>%
+        # keep only rows where DM matchrets are observed
+        filter(!is.na(matchRet) )}
+    
+  }
+  
+  return(ret_for_plotting)
+  
+} # end make_ret_for_plotting
+
+# Function to compute CAPM adjustment
+mkt_implied_category <- function(data, notused){
+  # print(data)
+  data_reg <- data[date >= sampstart & date <= sampend & !is.na(retOrig), ]
+  mean_ret <- mean(data_reg$retOrig, na.rm = TRUE)
+  linear_fit <- lm(retOrig ~ mktrf, data = data_reg)
+  mean_mkt <-  mean(data_reg$mktrf, na.rm = TRUE)
+  coeffs <- linear_fit$coefficients
+  expected_returns <-  coeffs[2] * mean_mkt
+  # print(mean_mkt)
+  return(expected_returns/mean_ret)
+}
+
+# Function to compute FF3 adjustment
+ff3_implied_category <- function(data, sampstart, sampend){
+  # Filter the data
+  data_reg <- data[data$date >= sampstart &
+                     data$date <= sampend & !is.na(retOrig), ]
+  
+  # Calculate mean return
+  mean_ret <- mean(data_reg$retOrig, na.rm = TRUE)
+  
+  # Fit a linear regression model with additional features
+  linear_fit <- lm(retOrig ~ mktrf + smb + hml, data = data_reg)
+  
+  # Calculate mean market return
+  mean_mkt <- mean(data_reg$mktrf, na.rm = TRUE)
+  
+  # Calculate means of additional features
+  mean_feature1 <- mean(data_reg$smb, na.rm = TRUE)
+  mean_feature2 <- mean(data_reg$hml, na.rm = TRUE)
+  
+  # Return the modified calculation accounting for additional features
+  coeffs <- linear_fit$coefficients
+  expected_returns <- (coeffs[2] * mean_mkt +
+                         coeffs[3] * mean_feature1 +
+                         coeffs[4] * mean_feature2)
+  return(( expected_returns/ mean_ret))
+}
+
+# Function to compute FF5 adjustment
+ff5_implied_category <- function(data, sampstart, sampend){
+  # Filter the data
+  data_reg <- data[data$date >= sampstart &
+                     data$date <= sampend & !is.na(data$retOrig), ]
+  
+  # Calculate mean return
+  mean_ret <- mean(data_reg$retOrig, na.rm = TRUE)
+  
+  # Fit a linear regression model with additional features
+  linear_fit <- lm(retOrig ~ mktrf + smb + hml + cma + rmw, data = data_reg)
+  
+  # Calculate mean market return
+  mean_mkt <- mean(data_reg$mktrf, na.rm = TRUE)
+  
+  # Calculate means of additional features
+  mean_feature1 <- mean(data_reg$smb, na.rm = TRUE)
+  mean_feature2 <- mean(data_reg$hml, na.rm = TRUE)
+  mean_feature3 <- mean(data_reg$cma, na.rm = TRUE)
+  mean_feature4 <- mean(data_reg$rmw, na.rm = TRUE)
+  
+  # Return the modified calculation accounting for additional features
+  coeffs <- linear_fit$coefficients
+  expected_returns <- (coeffs[2] * mean_mkt +
+                         coeffs[3] * mean_feature1 +
+                         coeffs[4] * mean_feature2 +
+                         coeffs[5] * mean_feature3 +
+                         coeffs[6] * mean_feature4)
+  return((expected_returns / mean_ret))
+}
+
+
+add_catID <- function(df, risk_measure, n_tiles = 3) {
+  # Create quantile breaks
+  breaks <- quantile(df[!is.na(get(risk_measure)),
+                        median(get(risk_measure)),
+                        by = signalname][, V1],
+                     probs = -0:3/3,  
+                     include.lowest = TRUE, 
+                     type = 2)
+  breaks <- c(-Inf, -1.5, -1, -.5, 0,  0.5, 1, 1.5, Inf)
+  breaks[1] <- breaks[1] - .Machine$double.eps^0.5
+  print(breaks)
+  # Apply cut to create new column and convert to factor with sequential labels
+  df[!is.na(get(risk_measure)), (paste("catID", risk_measure, sep="_")) :=
+       factor(cut(get(risk_measure),
+                  breaks = breaks)
+              # ,labels = c('low or negative', 'good', 'too high')
+              , ordered = TRUE)]
+  
+}
+
+
+# Wrapper for construction of main and robustness figures
+plot_one_setting = function(plotdat){
+  
+  # make event time returns for Compustat DM
+  temp = list()
+  temp$matched <- SelectDMStrats(dmcomp$insampsum, plotdat$matchset)
+  
+  print("Making accounting event time returns")
+  print("Can take a few minutes...")
+  start_time <- Sys.time()
+  temp$event_time <- make_DM_event_returns(
+    DMname = dmcomp$name, match_strats = temp$matched, npubmax = plotdat$npubmax, 
+    czsum = czsum, use_sign_info = plotdat$use_sign_info
+  )
+  stop_time <- Sys.time()
+  stop_time - start_time
+  
+  plotdat$comp_matched <- temp$matched
+  plotdat$comp_event_time <- temp$event_time
+  
+  # make event time returns for ticker DM
+  temp = list()
+  temp$matched <- SelectDMStrats(dmtic$insampsum, plotdat$matchset)
+  
+  print("Making ticker event time returns")
+  start_time <- Sys.time()
+  temp$event_time <- make_DM_event_returns(
+    DMname = dmtic$name, match_strats = temp$matched, npubmax = plotdat$npubmax, 
+    czsum = czsum, use_sign_info = plotdat$use_sign_info
+  )
+  stop_time <- Sys.time()
+  stop_time - start_time
+  
+  plotdat$tic_matched <- temp$matched
+  plotdat$tic_event_time <- temp$event_time
+  
+  # join and reformat for plotting function
+  # it wants columns:  (eventDate, ret, matchRet, matchRetAlt)
+  # dm_mean returns are already scaled (see above)
+  ret_for_plotting <- czret %>%
+    transmute(pubname = signalname, eventDate, ret = ret_scaled) %>%
+    left_join(
+      plotdat$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
+    ) %>%
+    left_join(
+      plotdat$tic_event_time %>% transmute(pubname, eventDate, matchRetAlt = dm_mean)
+    ) %>%
+    select(eventDate, ret, matchRet, matchRetAlt, pubname) %>%
+    # keep only rows where both matchrets are observed
+    filter(!is.na(matchRet) & !is.na(matchRetAlt))
+  
+  # plot
+  ReturnPlotsWithDM(
+    dt = ret_for_plotting,
+    basepath = "../Results/Fig_AltDM",
+    suffix = plotdat$name,
+    rollmonths = 60,
+    colors = colors,
+    labelmatch = FALSE,
+    yl = -50,
+    yh = 140,
+    legendlabels =
+      c(
+        paste0("Published"),
+        paste0(plotdat$legprefix, " Mining Accounting"), 
+        paste0(plotdat$legprefix, " Mining Tickers")
+      ),
+    legendpos = legposall,
+    fontsize = fontsizeall,
+    yaxislab = ylaball,
+    linesize = linesizeall
+  )
+  
+} # end plot_one_setting
+
+# wrap in function for easy editing of xlsx
+import_docs = function(){
+  # read compustat acronyms
+  dmdoc = readRDS(dmcomp$name)$signal_list %>%  setDT() 
+  yzdoc = readxl::read_xlsx('DataInput/Updated_Yan-Zheng-Compustat-Vars.xlsx') %>% 
+    transmute(acronym = tolower(acronym), shortername ) %>% 
+    setDT() 
+  
+  # merge
+  dmdoc = dmdoc[ 
+    , signal_form := if_else(signal_form == 'diff(v1)/lag(v2)', 'd_', '')] %>% 
+    merge(yzdoc[,.(acronym,shortername)], by.x = 'v1', by.y = 'acronym') %>%
+    rename(v1long = shortername) %>%
+    merge(yzdoc[,.(acronym,shortername)], by.x = 'v2', by.y = 'acronym') %>%
+    rename(v2long = shortername) 
+  
+  # create link table
+  dm_linktable = expand_grid(sweight = c('ew','vw'), dmname =  dmdoc$signalid) %>% 
+    mutate(dmcode = paste0(sweight, '|', dmname))  %>% 
+    left_join(dmdoc, by = c('dmname' = 'signalid')) %>%
+    mutate(shortdesc = paste0(substr(dmcode,1,3), signal_form, v1, '/', v2)
+           , desc = if_else(signal_form=='d_'
+                            , paste0('d_[', v1long, ']/lag[', v2long, ']')
+                            , paste0('[', v1long, ']/[', v2long, ']')
+           )) %>% 
+    setDT()
+  
+  return(dm_linktable)
+  
+} # end import_docs

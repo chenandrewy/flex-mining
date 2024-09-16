@@ -5,12 +5,7 @@
 # Setup --------------------------------------------------------
 
 rm(list = ls())
-
 source("0_Environment.R")
-
-library("dplyr")
-library("tidyverse")
-library("magrittr")
 library(doParallel)
 
 # hierarchical clustering
@@ -23,12 +18,8 @@ library(dendextend)
 # with 4 cores, 1500 strats in 20 sec, 30000 strats in 2.5 hours
 # for 6000 strats, minutes  = 6000^2/1500^2 * 20/60 = 5
 
-# for now, limit to n_dm_for_cor strats sorted by number of sample pub matches
-# (drops signals that are t>2 only transiently)
-n_dm_for_cor = 300 
-
 # number of cores
-ncores = 4
+ncores = globalSettings$num_cores
 
 # name of compustat LS file
 dmcomp <- list()
@@ -57,15 +48,15 @@ plotdat$use_sign_info = TRUE
 
 plotdat$matchset <- list(
   # tolerance in levels
-  t_tol = .1 * Inf,
-  r_tol = .3 * Inf,
+  t_tol = globalSettings$t_tol,
+  r_tol = globalSettings$r_tol,
   # tolerance relative to op stat
-  t_reltol = 0.1 * Inf,
-  r_reltol = 0.3 * Inf,
+  t_reltol = globalSettings$t_reltol,
+  r_reltol = globalSettings$r_reltol,
   # alternative filtering
-  t_min = 1*2, # Default = 0, minimum screened t-stat
-  t_max = Inf, # maximum screened t-stat
-  t_rankpct_min = 100, # top x% of data mined t-stats, 100% for off
+  t_min = globalSettings$t_min, # Default = 0, minimum screened t-stat
+  t_max = globalSettings$t_max, # maximum screened t-stat
+  t_rankpct_min = globalSettings$t_rankpct_min, # top x% of data mined t-stats, 100% for off
   minNumStocks = globalSettings$minNumStocks
 )
 
@@ -217,28 +208,30 @@ stratlist = dmcomp$insampsum[
   arrange(-mean_tabs) %>% 
   head(n_dm_for_cor) %>% 
   arrange(id)
+
 dm_rets = dm_rets[id %in% stratlist$id]
 
 # Convenience save ----------------------------------------------
-save.image('../Data/tmp_4e_DMThemes.RData')
+save.image('../Data/9a_DMThemes.RData')
 
 # Convenience load ----------------------------------------------
 
-load('../Data/tmp_4e_DMThemes.RData')
+load('../Data/9a_DMThemes.RData')
 
 library(pcaMethods)
 
 source('0_Environment.R')
+
 print("Running span against PCA")
 print("Takes about 2 hours using 4 cores")
 print("It can probably be way faster")
 pca_span_dt <- adj_R2_with_PPCA(  DMname = dmcomp$name,
                                   nsampmax = Inf)
 # Convenience save ----------------------------------------------
-save.image('../Data/tmp_4e_DMThemes_with_pca.RData')
+save.image('../Data/9a_DMThemes_with_pca.RData')
 
 # Convenience load ----------------------------------------------
-load('../Data/tmp_4e_DMThemes_with_pca.RData')
+load('../Data/9a_DMThemes_with_pca.RData')
 source('0_Environment.R')
 pca_span_dt[, spanned_pca :=  ifelse(N_pca > 30 & adj_r2 > 0.25, TRUE, FALSE)]
 
@@ -256,6 +249,7 @@ dt_with_spanned_ever <- pca_span_dt[
   , .(sweight, dmname, sampstart, sampend, adj_r2,
       npcs, N_pca, spanned_pca, spanned_ever)][
     dmpred$matched, on = c('dmname', 'sampstart', 'sampend', 'sweight'  )]
+
 #####################################
 # PCA
 #####################################

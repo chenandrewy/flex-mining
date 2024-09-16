@@ -2,32 +2,23 @@
 # Setup --------------------------------------------------------
 
 rm(list = ls())
-set.seed(123) 
-
 source("0_Environment.R")
-library(doParallel)
 library(kableExtra)
 
 ## User Settings ------------------------------------------------
 
 # define predictor
-pred_min_tabs = 2 # min abs(tstat)
-pred_top_n = Inf # min t-stat rank
-
-# number of cores
-ncores = 4
+pred_min_tabs = globalSettings$t_min # min abs(tstat)
+pred_top_n = globalSettings$t_rankpct_min  # min t-stat rank
 
 # min data requirements
-nstock_min = 10
-nmonth_min = 120
+nstock_min = globalSettings$minNumStocks/2
+nmonth_min = globalSettings$nmonth_min
 
 # sample periods
 samplePeriods = tibble(insampEnd = c(1990, 2000, 2010),
                        oos1End   = c(2004, 2004, 2014)
 )
-# list of anomalies for measuring spanning
-#pubselect = c('BMdec','Size','Mom12m', 'AssetGrowth', 'GP')
-# pubselect = c('BMdec','Size','Mom12m')
 
 # name of compustat LS file
 dmcomp <- list()
@@ -80,38 +71,7 @@ setcolorder(dm_rets, c('id', 'yearm', 'ret'))
 
 ## Load signal docs --------------------------------------------
 
-# wrap in function for easy editing of xlsx
-import_docs = function(){
-  # read compustat acronyms
-  dmdoc = readRDS(dmcomp$name)$signal_list %>%  setDT() 
-  yzdoc = readxl::read_xlsx('DataInput/Updated_Yan-Zheng-Compustat-Vars.xlsx') %>% 
-    transmute(acronym = tolower(acronym), shortername ) %>% 
-    setDT() 
-  
-  # merge
-  dmdoc = dmdoc[ 
-    , signal_form := if_else(signal_form == 'diff(v1)/lag(v2)', 'd_', '')] %>% 
-    merge(yzdoc[,.(acronym,shortername)], by.x = 'v1', by.y = 'acronym') %>%
-    rename(v1long = shortername) %>%
-    merge(yzdoc[,.(acronym,shortername)], by.x = 'v2', by.y = 'acronym') %>%
-    rename(v2long = shortername) 
-  
-  # create link table
-  dm_linktable = expand_grid(sweight = c('ew','vw'), dmname =  dmdoc$signalid) %>% 
-    mutate(dmcode = paste0(sweight, '|', dmname))  %>% 
-    left_join(dmdoc, by = c('dmname' = 'signalid')) %>%
-    mutate(shortdesc = paste0(substr(dmcode,1,3), signal_form, v1, '/', v2)
-           , desc = if_else(signal_form=='d_'
-                            , paste0('d_[', v1long, ']/lag[', v2long, ']')
-                            , paste0('[', v1long, ']/[', v2long, ']')
-           )) %>% 
-    setDT()
-  
-  return(dm_linktable)
-  
-} # end import_docs
 dm_linktable = import_docs()
-
 
 # Loop over in-sample periods ---------------------------------------------
 for (j in 1:nrow(samplePeriods)) {
@@ -163,21 +123,6 @@ for (j in 1:nrow(samplePeriods)) {
     merge(dmpred$ret[yearm >= oos2$start & yearm <= oos2$end
                      , .(rbaroos2 = mean(ret_signed)), by = 'id']
           , by = 'id')     
-  
-  # add spanning by lit
-  # temppub = czret %>% 
-  #     filter(signalname %in% pubselect) %>%
-  #     transmute(pubname=signalname,yearm=date,pubret=ret) %>% 
-  #     dcast(yearm ~ pubname, value.var = 'pubret') 
-  # 
-  # modelname = paste0('ret_signed ~ ', paste(pubselect, collapse = ' + ')) 
-  # temprsq = dmpred$ret %>% 
-  #   merge(temppub, by='yearm') %>% 
-  #   .[yearm >= insamp$start & yearm <= insamp$end
-  #   , .(rsq_lit = summary(lm(as.formula(modelname), data=.SD))$r.squared)
-  #   , by = 'id']
-  # 
-  # dmpred$sum = dmpred$sum %>% merge(temprsq, by = 'id')
   
   # Define themes ---------------------------------------------------
   

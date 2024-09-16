@@ -1,44 +1,51 @@
-# The OOS Sumstats can take several minutes
+# Calculate DM OOS summary stats (can take several minutes)
 
-
-
-# DM OOS Sumstats to CSV  ----------------------------
+# Settings ---------------------------------------------------------------------
 var_types <- c('vw', 'ew')
-var_type <- var_types[1]
+
+DMname = paste0('../Data/Processed/',
+                globalSettings$dataVersion, 
+                ' LongShort.RData')
+
+dmcomp <- list()
+dmcomp$name <- paste0('../Data/Processed/',
+                      globalSettings$dataVersion, 
+                      ' LongShort.RData')
 
 
-bm_rets = readRDS(DMname)$ret
-bm_info = readRDS(DMname)$port_list
+# Load data ---------------------------------------------------------------
+dm_rets <- readRDS(DMname)$ret
+dm_info <- readRDS(DMname)$port_list
 
-bm_rets = bm_rets %>% 
+dm_rets <- dm_rets %>%
   left_join(
-    bm_info %>% select(portid, sweight), by = c('portid')
-  )  %>%
+    dm_info %>% select(portid, sweight),
+    by = c("portid")
+  ) %>%
   transmute(
-    sweight
-    , signalname = signalid
-    , yearm
-    , ret
-    , nstock_long
-    , nstock_short)
+    sweight,
+    dmname = signalid,
+    yearm,
+    ret,
+    nstock_long,
+    nstock_short
+  ) %>%
+  setDT()
 
 
+# Compute summary stats ---------------------------------------------------
 for (var_type in var_types) {
   
   str_to_add  <- var_type
   
-  yz = bm_rets %>%
+  yz = dm_rets %>%
     filter(sweight == var_type) %>% 
-    # ac: do we need as.Date here?
-    # transmute(
-    #   signalname, date = as.Date(yearm), ret
-    # )
-  transmute(
-    signalname, date = yearm, ret
+    transmute(
+    dmname, date = yearm, ret
   )
   
   sumsignal_all = yz %>% 
-    group_by(signalname) %>% 
+    group_by(dmname) %>% 
     summarize(rbar = mean(ret), nmonth = n(), stdev = sd(ret),
               sharpe = f.sharp(ret),
               tstat = rbar/sd(ret)*sqrt(nmonth)) %>% 
@@ -76,11 +83,11 @@ for (var_type in var_types) {
   # Returns based on past returns
   # Basically creating a portfolio
   
-  yz_dt <- yz %>% as.data.table() %>% setkey(signalname, date)
+  yz_dt <- yz %>% as.data.table() %>% setkey(dmname, date)
   
-  yz_dt[, ret_30y_l := data.table::shift(frollmean(ret, 12*30, NA)), by = signalname]
+  yz_dt[, ret_30y_l := data.table::shift(frollmean(ret, 12*30, NA)), by = dmname]
   
-  yz_dt[, t_30y_l   := data.table::shift(frollapply(ret, 12*30, f.custom.t, fill = NA)), by = signalname]
+  yz_dt[, t_30y_l   := data.table::shift(frollapply(ret, 12*30, f.custom.t, fill = NA)), by = dmname]
   
   yz_dt[, head(month(date))]
   
@@ -105,8 +112,7 @@ for (var_type in var_types) {
 }
 
 
-# DM OOS Sumstats to LaTeX ----------------------------------------------------
-
+# To LaTeX ----------------------------------------------------
 
 # to TeX
 fs_ew = read_csv('../Results/sumsignal_oos_30y_ew_unit_level.csv')
