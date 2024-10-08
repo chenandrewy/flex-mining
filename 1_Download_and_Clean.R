@@ -3,7 +3,7 @@ source('0_Environment.R')
 library(googledrive)
 
 # Check whether wrds connection already exists, if not, create a new one
-if (!dbIsValid(wrds)) {
+if (!exists('wrds') || !dbIsValid(wrds)) {
   user <- getPass('wrds username: ')
   pass <- getPass('wrds password: ')
   

@@ -16,8 +16,10 @@ library(ggplot2)
 library(gridExtra)
 library(xtable)
 library(lmtest)
+library(roll)
 library(sandwich)
 library(huxtable)
+library(janitor)
 
 if("lme4" %in% (.packages())){
   detach("package:lme4", unload=TRUE) 

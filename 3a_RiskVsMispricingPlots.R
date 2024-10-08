@@ -1,6 +1,11 @@
 # Setup -------------------------------------------------------------------
 rm(list = ls())
 source('0_Environment.R')
+extract_beta <- function(x, y) {
+  model <- lm(y ~ x)
+  bet <- coef(model)[2]
+  return(bet)
+}
 
 czsum = readRDS('../Data/Processed/czsum_allpredictors.RDS')
 
