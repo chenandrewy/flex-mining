@@ -961,7 +961,7 @@ f.ls.past.returns <- function(n_tiles, name_var){
   
   yz_dt[ ,
          var_sort :=  zoo::na.locf(var_sort,na.rm =  FALSE),
-         by = signalname]
+         by = dmname]
   
   yz_dt[!is.na(var_sort), bin := var_sort]
   

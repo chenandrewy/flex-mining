@@ -259,3 +259,27 @@ plt1 = plt +
 
 # save png for ppt
 ggsave('../Results/Extra/Fig_DecayVsModel_NoNames1.png', width = 10, height = 8)
+
+
+############################
+# In-sample t vs model
+############################
+
+# calc decay
+czt = czret %>% 
+  mutate(
+    samptype2 = samptype
+    , samptype2 = if_else(samptype %in% c('oos','postpub'), 'postsamp', samptype2)
+  ) %>% 
+  group_by(signalname, samptype2) %>% 
+  summarize(t_bar = f.custom.t(ret)) %>% 
+  pivot_wider(names_from = samptype2, values_from = t_bar)
+
+# data to plot
+plotme_t = czt  %>% 
+  left_join(czcat[, .(signalname, modeltype, theory)]) %>% 
+  setDT()
+
+plotme_t[, median(insamp), by = modeltype]
+plotme_t[, median(insamp), by = theory]
+a <- plotme_t[, median(insamp), by = .(modeltype, theory)]
