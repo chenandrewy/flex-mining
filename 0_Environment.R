@@ -20,6 +20,10 @@ library(roll)
 library(sandwich)
 library(huxtable)
 library(janitor)
+library(kableExtra)
+library(strucchange) 
+library(foreach)
+library(latex2exp)
 
 if("lme4" %in% (.packages())){
   detach("package:lme4", unload=TRUE) 
