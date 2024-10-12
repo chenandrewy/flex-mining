@@ -31,24 +31,23 @@ dmtic <- readRDS("../Data/Processed/dmtic_sumstats.RDS")
 make_ret_for_plotting <- function(plotdat, theory_filter = NULL){
   # takes dm selection criteria and returns data for an event time plot
   
-  # make event time returns for Compustat DM
-  temp = list()
-  temp$matched <- SelectDMStrats(dmcomp$insampsum, plotdat$matchset)
+  # # make event time returns for Compustat DM
+  # temp = list()
+  # temp$matched <- SelectDMStrats(dmcomp$insampsum, plotdat$matchset)
   
-  # tbc: see if make_DM_event_returns should called just once 
-  # tbc: see if this function makes any sense at all now
-  print("Making accounting event time returns")
-  print("Can take a few minutes...")
-  start_time <- Sys.time()
-  temp$event_time <- make_DM_event_returns(
-    DMname = dmcomp$name, match_strats = temp$matched, npubmax = plotdat$npubmax, 
-    czsum = czsum, use_sign_info = plotdat$use_sign_info
-  )
-  stop_time <- Sys.time()
-  print(stop_time - start_time)
+  # # tbc: see if make_DM_event_returns should called just once 
+  # print("Making accounting event time returns")
+  # print("Can take a few minutes...")
+  # start_time <- Sys.time()
+  # temp$event_time <- make_DM_event_returns(
+  #   DMname = dmcomp$name, match_strats = temp$matched, npubmax = plotdat$npubmax, 
+  #   czsum = czsum, use_sign_info = plotdat$use_sign_info
+  # )
+  # stop_time <- Sys.time()
+  # print(stop_time - start_time)
   
-  plotdat$comp_matched <- temp$matched
-  plotdat$comp_event_time <- temp$event_time
+  # plotdat$comp_matched <- temp$matched
+  # plotdat$comp_event_time <- temp$event_time
   
   # join and reformat for plotting function
   # it wants columns:  (eventDate, ret, matchRet, matchRetAlt)
@@ -89,16 +88,15 @@ make_ret_for_plotting <- function(plotdat, theory_filter = NULL){
   
 } # end make_ret_for_plotting
 
-
 # Shared Settings --------------------------------------------------
-plotdat <- list()
+plotdat0 <- list()
 
-plotdat$name <- "t_min_2"
-plotdat$legprefix = "|t|>2.0"
-plotdat$npubmax = Inf
-plotdat$use_sign_info = TRUE
+plotdat0$name <- "t_min_2"
+plotdat0$legprefix = "|t|>2.0"
+plotdat0$npubmax = Inf
+plotdat0$use_sign_info = TRUE
 
-plotdat$matchset <- list(
+plotdat0$matchset <- list(
   # tolerance in levels
   t_tol = globalSettings$t_tol,
   r_tol = globalSettings$r_tol,
@@ -118,17 +116,44 @@ legposall = c(30,15)/100
 ylaball = 'Trailing 5-Year Return (bps pm)'
 linesizeall = 1.5
 
-# Intro Plot --------------------------------------------------
+# Shared data prep --------------------------------------------------
 
-## Make data --------------------------------------------------
-ret_for_plotting = make_ret_for_plotting(plotdat)
+# make event time returns for Compustat DM
+temp = list()
+temp$matched <- SelectDMStrats(dmcomp$insampsum, plotdat0$matchset)
+
+print("Making accounting event time returns")
+print("Can take a few minutes...")
+start_time <- Sys.time()
+temp$event_time <- make_DM_event_returns(
+  DMname = dmcomp$name, match_strats = temp$matched, npubmax = plotdat0$npubmax, 
+  czsum = czsum, use_sign_info = plotdat0$use_sign_info
+)
+stop_time <- Sys.time()
+print(stop_time - start_time)
+
+plotdat0$comp_matched <- temp$matched
+plotdat0$comp_event_time <- temp$event_time
+rm(temp)
+
+ret_for_plot0 = czret %>%
+  transmute(pubname = signalname, eventDate, ret = ret_scaled, theory) %>%
+      left_join(
+        plotdat0$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean),
+        by = c("pubname", "eventDate")
+      ) %>%
+      select(eventDate, ret, matchRet, pubname, theory) 
+
+# Intro Plot --------------------------------------------------
 
 ## plot --------------------------------------------------
 
+tempsuffix = "t_min_2"
+
 printme = ReturnPlotsWithDM(
-  dt = ret_for_plotting,
-  basepath = "../Results/Fig_DM",
-  suffix = plotdat$name,
+  dt = ret_for_plot0 %>% filter(!is.na(matchRet)),
+  basepath = "../Results/temp_",
+  suffix = tempsuffix,
   rollmonths = 60,
   colors = colors,
   labelmatch = FALSE,
@@ -159,22 +184,24 @@ printme = ReturnPlotsWithDM(
   ) +
   guides(color = guide_legend(byrow = TRUE))
 ) %>% 
-  ggsave(filename = paste0("../Results/Fig_DM_", plotdat$name, '.pdf'), width = 10, height = 8)
+  ggsave(filename = paste0("../Results/Fig_DM_", tempsuffix, '.pdf'), width = 10, height = 8)
+
+file.remove("../Results/temp_Fig_DM_t_min_2.pdf")
 
 # numbers for intro
-ret_for_plotting[eventDate>0 & eventDate <= Inf, .(mean(ret), mean(matchRet))]
+ret_for_plot0[eventDate>0 & eventDate <= Inf, .(mean(ret), mean(matchRet))]
 
-ret_for_plotting %>% distinct(pubname)
+ret_for_plot0 %>% distinct(pubname)
 czret %>% distinct(signalname)
 
 ## Plot for slide animation --------------------------------------------------
 
-plotdat$name <- "t_min_2_0"
+tempname = "t_min_2_0"
 
 printme = ReturnPlotsWithDM(
-  dt = ret_for_plotting %>% select(-matchRet),
-  basepath = "../Results/Fig_DM",
-  suffix = plotdat$name,
+  dt = ret_for_plot0 %>% filter(!is.na(matchRet)) %>% select(-matchRet),
+  basepath = "../Results/temp_Fig_DM",
+  suffix = tempname,
   rollmonths = 60,
   colors = colors,
   labelmatch = FALSE,
@@ -205,8 +232,9 @@ printme = ReturnPlotsWithDM(
   ) +
   guides(color = guide_legend(byrow = TRUE))
 ) %>% 
-  ggsave(filename = paste0("../Results/Fig_DM_", plotdat$name, '.pdf'), width = 10, height = 8)
+  ggsave(filename = paste0("../Results/Fig_DM_", tempname, '.pdf'), width = 10, height = 8)
 
+file.remove("../Results/temp_Fig_DM_t_min_2_0.pdf")
 
 
 # Plot by Theory Category -------------------------------------
@@ -214,15 +242,17 @@ printme = ReturnPlotsWithDM(
 # loop over theory categories
 for (jj in unique(czret$theory)) {
   print(jj)
-  plotdat$name <- paste0("t_min_2_cat_", jj)
+  tempname <- paste0("t_min_2_cat_", jj)
 
-  ret_for_plotting = make_ret_for_plotting(plotdat, theory_filter = jj)
+  # ret_for_plotting = make_ret_for_plotting(plotdat, theory_filter = jj)
+  tempret = ret_for_plot0 %>% filter(theory == jj) %>% 
+    filter(!is.na(matchRet))
   
   # Plot
   plt = ReturnPlotsWithDM(
-    dt = ret_for_plotting,
+    dt = tempret,  
     basepath = "../Results/Fig_DM",
-    suffix = plotdat$name,
+    suffix = tempname,
     rollmonths = 60,
     colors = colors,
     labelmatch = FALSE,
@@ -242,16 +272,12 @@ for (jj in unique(czret$theory)) {
 }
 
 ## Plot with legend label for slides ------------------------------------
-jj = 'risk'
-
-plotdat$name <- paste0("t_min_2_cat_", jj, "_slides")
-ret_for_plotting = make_ret_for_plotting(plotdat, theory_filter = jj)
 
 # Plot
 plt = ReturnPlotsWithDM(
-  dt = ret_for_plotting,
+  dt = ret_for_plot0 %>% filter(theory == "risk") %>% filter(!is.na(matchRet)),
   basepath = "../Results/Fig_DM",
-  suffix = plotdat$name,
+  suffix = "t_min_2_cat_risk_slides",
   rollmonths = 60,
   colors = colors,
   labelmatch = FALSE,
@@ -266,7 +292,7 @@ plt = ReturnPlotsWithDM(
     ),
   yaxislab = 'Trailing 5-Year Return',
   legendpos = c(25,20)/100,
-  filetype = '.png'
+  filetype = '.pdf'
 )  
 
 
@@ -276,10 +302,9 @@ plt = ReturnPlotsWithDM(
 signaldoc =  data.table::fread('../Data/Raw/SignalDoc.csv') %>% 
   filter(Cat.Data == 'Accounting')
 
-plotdat$name <- "t_min_2AccountingOnly"
+tempname <- "t_min_2AccountingOnly"
 
-ret_for_plottingAnnualAccounting = ret_for_plotting %>% 
-  select(-matchRetAlt) %>% 
+ret_for_plottingAnnualAccounting = ret_for_plot0 %>% 
   filter(pubname %in% unique(signaldoc$Acronym)) %>% 
   # Remove quarterly Compustat and a few others not constructed via annual CS
   filter(!(pubname %in% c("Cash", "ChTax", "EarningsSurprise", 
@@ -287,12 +312,13 @@ ret_for_plottingAnnualAccounting = ret_for_plotting %>%
                           'EarnSupBig',
                           'EarningsStreak',
                           'ShareIss1Y',
-                          'ShareIss5Y')))
+                          'ShareIss5Y'))) %>% 
+  filter(!is.na(matchRet))
 
 printme = ReturnPlotsWithDM(
   dt = ret_for_plottingAnnualAccounting,
-  basepath = "../Results/Fig_DM",
-  suffix = plotdat$name,
+  basepath = "../Results/temp_Fig_DM",
+  suffix = tempname,
   rollmonths = 60,
   colors = colors,
   labelmatch = FALSE,
@@ -323,7 +349,7 @@ printme2 = printme + theme(
   guides(color = guide_legend(byrow = TRUE))
 
 # save (again)
-ggsave(paste0("../Results/Fig_DM_", plotdat$name, '.pdf'), width = 10, height = 8)
+ggsave(paste0("../Results/Fig_DM_", tempname, '.pdf'), width = 10, height = 8)
 
 ret_for_plottingAnnualAccounting[eventDate>0 & eventDate <= Inf & pubname %in% unique(signaldoc$Acronym), .(mean(ret), mean(matchRet))]
 
