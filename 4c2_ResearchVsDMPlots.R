@@ -359,3 +359,77 @@ ret_for_plottingAnnualAccounting %>% filter(pubname %in% unique(signaldoc$Acrony
 # tbc: Trailing N-year return plots --------------------------------------
 
 
+## Prep top 5% ret data ====
+# the rest of this file uses only t > 2 filter
+
+tempplotdat = plotdat0
+tempplotdat$matchset$t_min = 0 # turn off t_min filter
+tempplotdat$matchset$t_rankpct_min = 5 # add top 5% t filter
+
+# make event time returns for Compustat DM
+temp = list()
+temp$matched <- SelectDMStrats(dmcomp$insampsum, tempplotdat$matchset)
+
+print("Making accounting event time returns")
+print("Can take a few minutes...")
+start_time <- Sys.time()
+temp$event_time <- make_DM_event_returns(
+  DMname = dmcomp$name, match_strats = temp$matched, npubmax = tempplotdat$npubmax, 
+  czsum = czsum, use_sign_info = tempplotdat$use_sign_info
+)
+stop_time <- Sys.time()
+print(stop_time - start_time)
+
+tempplotdat$comp_matched <- temp$matched
+tempplotdat$comp_event_time <- temp$event_time
+rm(temp)
+
+ret_for_plot1 = ret_for_plot0 %>%
+      left_join(
+        tempplotdat$comp_event_time %>% transmute(pubname, eventDate, matchRetAlt = dm_mean),
+        by = c("pubname", "eventDate")
+      ) %>% 
+      select(eventDate, ret, matchRet, matchRetAlt, pubname, theory)
+
+
+## Plot ====
+
+
+# loop over n_year_roll
+n_year_list = c(1, 3, 5, 10)
+
+for (n_year_roll in n_year_list) {
+  vlabel = if (n_year_roll == 1){
+    "1 year post-samp"
+  }else{
+    paste0(n_year_roll, " years post-samp")
+  }
+    (ReturnPlotsWithDM(
+      dt = ret_for_plot1 %>% filter(!is.na(matchRet)),
+      basepath = "../Results/temp_Fig_DM",
+      suffix = "temp",
+      rollmonths = n_year_roll * 12,
+      colors = colors,
+      labelmatch = FALSE,
+      xl = -360, xh = 240,
+      yl = -0, yh = 150,
+      legendlabels =
+        c(
+          paste0("Published"),
+          paste0("|t|>2.0 Mining Accounting"),
+          paste0("Top 5% |t| Mining Accounting")
+        ),
+      legendpos = c(30,20)/100,
+      fontsize = fontsizeall,
+      yaxislab = paste0("Trailing ", n_year_roll, "-Year Return (bps pm)"),
+      linesize = linesizeall
+    ) +
+      geom_vline(xintercept = n_year_roll * 12, linetype = "dashed") +
+      annotate("text", x = n_year_roll * 12 + 6, y = 140, 
+               label = vlabel,
+               vjust = 1.5, hjust = 0)
+    ) %>% 
+      ggsave(filename = paste0("../Results/Fig_DM_Roll", n_year_roll, ".pdf"),
+      width = 10, height = 8)
+}
+
