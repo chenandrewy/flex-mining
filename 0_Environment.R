@@ -1181,7 +1181,8 @@ make_DM_event_returns <- function(
                     ' LongShort.RData'),
     npubmax = Inf,
     czsum,
-    use_sign_info = TRUE
+    use_sign_info = TRUE,
+    ncores = globalSettings$num_cores
 ) {
   # input: match_strats = summary stats for each selected pubname, dmname pair
   #     outname = name of RDS output
@@ -1740,87 +1741,6 @@ inspect_one_pub = function(name){
   
 } # end inspect_one_pub
 
-
-# Prep returns for main plots
-make_ret_for_plotting <- function(plotdat, theory_filter = NULL){
-  # takes in acct dm and ticker dm data and returns
-  # data for an event time plot
-  
-  # make event time returns for Compustat DM
-  temp = list()
-  temp$matched <- SelectDMStrats(dmcomp$insampsum, plotdat$matchset)
-  
-  print("Making accounting event time returns")
-  print("Can take a few minutes...")
-  start_time <- Sys.time()
-  temp$event_time <- make_DM_event_returns(
-    DMname = dmcomp$name, match_strats = temp$matched, npubmax = plotdat$npubmax, 
-    czsum = czsum, use_sign_info = plotdat$use_sign_info
-  )
-  stop_time <- Sys.time()
-  print(stop_time - start_time)
-  
-  plotdat$comp_matched <- temp$matched
-  plotdat$comp_event_time <- temp$event_time
-  
-  # make event time returns for ticker DM
-  temp = list()
-  temp$matched <- SelectDMStrats(dmtic$insampsum, plotdat$matchset)
-  
-  print("Making ticker event time returns")
-  start_time <- Sys.time()
-  temp$event_time <- make_DM_event_returns(
-    DMname = dmtic$name, match_strats = temp$matched, npubmax = plotdat$npubmax, 
-    czsum = czsum, use_sign_info = plotdat$use_sign_info
-  )
-  stop_time <- Sys.time()
-  print(stop_time - start_time)
-  
-  plotdat$tic_matched <- temp$matched
-  plotdat$tic_event_time <- temp$event_time 
-  
-  # join and reformat for plotting function
-  # it wants columns:  (eventDate, ret, matchRet, matchRetAlt)
-  # dm_mean returns are already scaled (see above)
-  if(is.null(theory_filter)){
-    ret_for_plotting <- czret %>%
-      transmute(pubname = signalname, eventDate, ret = ret_scaled) %>%
-      left_join(
-        plotdat$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
-      ) %>%
-      left_join(
-        plotdat$tic_event_time %>% transmute(pubname, eventDate, matchRetAlt = dm_mean)
-      ) %>%
-      select(eventDate, ret, matchRet, matchRetAlt, pubname) %>%
-      # keep only rows where both matchrets are observed
-      filter(!is.na(matchRet) & !is.na(matchRetAlt))
-  }else{
-    if(theory_filter == 'all'){
-      ret_for_plotting <- czret %>%
-        transmute(pubname = signalname, eventDate, ret = ret_scaled) %>%
-        left_join(
-          plotdat$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
-        ) %>%
-        select(eventDate, ret, matchRet, pubname) %>%
-        # keep only rows where DM matchrets are observed
-        filter(!is.na(matchRet) )
-    }else{    
-      ret_for_plotting <- czret %>%
-        filter(theory == theory_filter) %>%
-        transmute(pubname = signalname, eventDate, ret = ret_scaled) %>%
-        left_join(
-          plotdat$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
-        ) %>%
-        select(eventDate, ret, matchRet, pubname) %>%
-        # keep only rows where DM matchrets are observed
-        filter(!is.na(matchRet) )}
-    
-  }
-  
-  return(ret_for_plotting)
-  
-} # end make_ret_for_plotting
-
 # Function to compute CAPM adjustment
 mkt_implied_category <- function(data, notused){
   # print(data)
@@ -1912,82 +1832,6 @@ add_catID <- function(df, risk_measure, n_tiles = 3) {
               , ordered = TRUE)]
   
 }
-
-
-# Wrapper for construction of main and robustness figures
-plot_one_setting = function(plotdat){
-  
-  # make event time returns for Compustat DM
-  temp = list()
-  temp$matched <- SelectDMStrats(dmcomp$insampsum, plotdat$matchset)
-  
-  print("Making accounting event time returns")
-  print("Can take a few minutes...")
-  start_time <- Sys.time()
-  temp$event_time <- make_DM_event_returns(
-    DMname = dmcomp$name, match_strats = temp$matched, npubmax = plotdat$npubmax, 
-    czsum = czsum, use_sign_info = plotdat$use_sign_info
-  )
-  stop_time <- Sys.time()
-  stop_time - start_time
-  
-  plotdat$comp_matched <- temp$matched
-  plotdat$comp_event_time <- temp$event_time
-  
-  # make event time returns for ticker DM
-  temp = list()
-  temp$matched <- SelectDMStrats(dmtic$insampsum, plotdat$matchset)
-  
-  print("Making ticker event time returns")
-  start_time <- Sys.time()
-  temp$event_time <- make_DM_event_returns(
-    DMname = dmtic$name, match_strats = temp$matched, npubmax = plotdat$npubmax, 
-    czsum = czsum, use_sign_info = plotdat$use_sign_info
-  )
-  stop_time <- Sys.time()
-  stop_time - start_time
-  
-  plotdat$tic_matched <- temp$matched
-  plotdat$tic_event_time <- temp$event_time
-  
-  # join and reformat for plotting function
-  # it wants columns:  (eventDate, ret, matchRet, matchRetAlt)
-  # dm_mean returns are already scaled (see above)
-  ret_for_plotting <- czret %>%
-    transmute(pubname = signalname, eventDate, ret = ret_scaled) %>%
-    left_join(
-      plotdat$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
-    ) %>%
-    left_join(
-      plotdat$tic_event_time %>% transmute(pubname, eventDate, matchRetAlt = dm_mean)
-    ) %>%
-    select(eventDate, ret, matchRet, matchRetAlt, pubname) %>%
-    # keep only rows where both matchrets are observed
-    filter(!is.na(matchRet) & !is.na(matchRetAlt))
-  
-  # plot
-  ReturnPlotsWithDM(
-    dt = ret_for_plotting,
-    basepath = "../Results/Fig_AltDM",
-    suffix = plotdat$name,
-    rollmonths = 60,
-    colors = colors,
-    labelmatch = FALSE,
-    yl = -50,
-    yh = 140,
-    legendlabels =
-      c(
-        paste0("Published"),
-        paste0(plotdat$legprefix, " Mining Accounting"), 
-        paste0(plotdat$legprefix, " Mining Tickers")
-      ),
-    legendpos = legposall,
-    fontsize = fontsizeall,
-    yaxislab = ylaball,
-    linesize = linesizeall
-  )
-  
-} # end plot_one_setting
 
 # wrap in function for easy editing of xlsx
 import_docs = function(){

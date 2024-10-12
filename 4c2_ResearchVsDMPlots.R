@@ -8,16 +8,6 @@ rm(list = ls())
 source("0_Environment.R")
 library(doParallel)
 
-# settings
-ncores = globalSettings$num_cores
-
-dmcomp <- list()
-dmtic <- list()
-dmcomp$name <- paste0('../Data/Processed/',
-                      globalSettings$dataVersion, 
-                      ' LongShort.RData')
-dmtic$name <- "../Data/Processed/ticker_Harvey2017JF.RDS"
-
 ## Load Global Data -------------------------------------------
 
 # these are treated as globals (don't modify pls)
@@ -32,39 +22,72 @@ czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
   left_join(czcat, by = "signalname") %>%
   mutate(ret_scaled = ret / rbar * 100)
 
-# In-samp Sumstats (about 4 min on 4 cores) -------------------
+# Load pre-computed dm sumstats
+dmcomp <- readRDS("../Data/Processed/dmcomp_sumstats.RDS")
+dmtic <- readRDS("../Data/Processed/dmtic_sumstats.RDS")
 
-## Run Function on Compustat DM --------------------------------
+# Specialized data prep function -------------------------------
 
-print("creating Compustat mining in-sample sumstats")
-print("Takes about 4 minutes using 4 cores")
-start_time <- Sys.time()
-dmcomp$insampsum <- sumstats_for_DM_Strats(
-  DMname = dmcomp$name,
-  nsampmax = Inf
-)
-print("finished")
-stop_time <- Sys.time()
-stop_time - start_time
-
-## Run Function on Ticker DM ----------------------------------------
-
-print("creating ticker mining in-sample sumstats")
-print("Takes about 20 sec using 9 cores")
-start_time <- Sys.time()
-dmtic$insampsum <- sumstats_for_DM_Strats(
-  DMname = dmtic$name,
-  nsampmax = Inf
-)
-print("end DM summary stats")
-stop_time <- Sys.time()
-stop_time - start_time
-
-# Convenience Save 
-save.image("../Data/tmpTG2Plots.RData")
-
-# Convenience Load 
-load("../Data/tmpTG2Plots.RData")
+make_ret_for_plotting <- function(plotdat, theory_filter = NULL){
+  # takes dm selection criteria and returns data for an event time plot
+  
+  # make event time returns for Compustat DM
+  temp = list()
+  temp$matched <- SelectDMStrats(dmcomp$insampsum, plotdat$matchset)
+  
+  # tbc: see if make_DM_event_returns should called just once 
+  # tbc: see if this function makes any sense at all now
+  print("Making accounting event time returns")
+  print("Can take a few minutes...")
+  start_time <- Sys.time()
+  temp$event_time <- make_DM_event_returns(
+    DMname = dmcomp$name, match_strats = temp$matched, npubmax = plotdat$npubmax, 
+    czsum = czsum, use_sign_info = plotdat$use_sign_info
+  )
+  stop_time <- Sys.time()
+  print(stop_time - start_time)
+  
+  plotdat$comp_matched <- temp$matched
+  plotdat$comp_event_time <- temp$event_time
+  
+  # join and reformat for plotting function
+  # it wants columns:  (eventDate, ret, matchRet, matchRetAlt)
+  # dm_mean returns are already scaled (see above)
+  if(is.null(theory_filter)){
+    ret_for_plotting <- czret %>%
+      transmute(pubname = signalname, eventDate, ret = ret_scaled) %>%
+      left_join(
+        plotdat$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
+      ) %>%
+      select(eventDate, ret, matchRet, pubname) %>%
+      # keep only rows where DM matchrets are observed
+      filter(!is.na(matchRet) )
+  }else{
+    if(theory_filter == 'all'){
+      ret_for_plotting <- czret %>%
+        transmute(pubname = signalname, eventDate, ret = ret_scaled) %>%
+        left_join(
+          plotdat$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
+        ) %>%
+        select(eventDate, ret, matchRet, pubname) %>%
+        # keep only rows where DM matchrets are observed
+        filter(!is.na(matchRet) )
+    }else{    
+      ret_for_plotting <- czret %>%
+        filter(theory == theory_filter) %>%
+        transmute(pubname = signalname, eventDate, ret = ret_scaled) %>%
+        left_join(
+          plotdat$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
+        ) %>%
+        select(eventDate, ret, matchRet, pubname) %>%
+        # keep only rows where DM matchrets are observed
+        filter(!is.na(matchRet) )}
+    
+  }
+  
+  return(ret_for_plotting)
+  
+} # end make_ret_for_plotting
 
 
 # Shared Settings --------------------------------------------------
@@ -103,7 +126,7 @@ ret_for_plotting = make_ret_for_plotting(plotdat)
 ## plot --------------------------------------------------
 
 printme = ReturnPlotsWithDM(
-  dt = ret_for_plotting %>% select(-matchRetAlt),
+  dt = ret_for_plotting,
   basepath = "../Results/Fig_DM",
   suffix = plotdat$name,
   rollmonths = 60,
@@ -124,22 +147,19 @@ printme = ReturnPlotsWithDM(
 )
 
 # custom edits 
-printme2 = printme + theme(
+(
+  printme + theme(
   legend.background = element_rect(fill = "white", color = "black"
     , size = 0.3)
   # remove space where legend would be
-  , legend.margin = margin(-0.7, 0.5, 0.5, 0.5, "cm")
+  , legend.margin = margin(-1.0, 0.5, 0.5, 0.5, "cm")
   , legend.position  = c(44,15)/100
   # add space between legend items
   , legend.spacing.y = unit(0.2, "cm")
   ) +
   guides(color = guide_legend(byrow = TRUE))
-
-# save (again)
-ggsave(paste0("../Results/Fig_DM_", plotdat$name, '.pdf'), width = 10, height = 8)
-
-# save for slides
-ggsave(paste0("../Results/Fig_DM_", plotdat$name, '.png'), width = 10, height = 8)
+) %>% 
+  ggsave(filename = paste0("../Results/Fig_DM_", plotdat$name, '.pdf'), width = 10, height = 8)
 
 # numbers for intro
 ret_for_plotting[eventDate>0 & eventDate <= Inf, .(mean(ret), mean(matchRet))]
@@ -149,8 +169,10 @@ czret %>% distinct(signalname)
 
 ## Plot for slide animation --------------------------------------------------
 
+plotdat$name <- "t_min_2_0"
+
 printme = ReturnPlotsWithDM(
-  dt = ret_for_plotting %>% select(-matchRetAlt, -matchRet),
+  dt = ret_for_plotting %>% select(-matchRet),
   basepath = "../Results/Fig_DM",
   suffix = plotdat$name,
   rollmonths = 60,
@@ -171,19 +193,20 @@ printme = ReturnPlotsWithDM(
 )
 
 # custom edits 
-printme2 = printme + theme(
+(
+  printme + theme(
   legend.background = element_rect(fill = "white", color = "black"
     , size = 0.3)
   # remove space where legend would be
-  , legend.margin = margin(-0.7, 0.5, 0.5, 0.5, "cm")
+  , legend.margin = margin(-1.0, 0.5, 0.5, 0.5, "cm")
   , legend.position  = c(44,15)/100
   # add space between legend items
   , legend.spacing.y = unit(0.2, "cm")
   ) +
   guides(color = guide_legend(byrow = TRUE))
+) %>% 
+  ggsave(filename = paste0("../Results/Fig_DM_", plotdat$name, '.pdf'), width = 10, height = 8)
 
-# save for slides
-ggsave(paste0("../Results/Fig_DM_", plotdat$name, '_0.png'), width = 10, height = 8)
 
 
 # Plot by Theory Category -------------------------------------
@@ -307,90 +330,6 @@ ret_for_plottingAnnualAccounting[eventDate>0 & eventDate <= Inf & pubname %in% u
 ret_for_plottingAnnualAccounting %>% filter(pubname %in% unique(signaldoc$Acronym)) %>% 
   distinct(pubname)
 
-# t_min plots ---------------------------------------------------------------
-
-## Plot abs(t) > 0.5 ----------------------------------------------------------
-plotdat$name <- "t_min_0.5"
-plotdat$legprefix = "|t|>0.5"
-
-plotdat$matchset$t_min = 0.5
-
-plot_one_setting(plotdat)
-
-plotdat$matchset$t_min = globalSettings$t_min # back to default
-
-## Plot abs(t) > 1 ----------------------------------------------------------
-
-plotdat$name <- "t_min_1"
-plotdat$legprefix = "|t|>1.0"
-
-plotdat$matchset$t_min = 1
-
-plot_one_setting(plotdat)
-
-plotdat$matchset$t_min = globalSettings$t_min # back to default
-
-## Plot abs(t) > 3 ----------------------------------------------------------
-plotdat$name <- "t_min_3"
-plotdat$legprefix = "|t|>3.0"
-
-plotdat$matchset$t_min = 3
-
-plot_one_setting(plotdat)
-
-plotdat$matchset$t_min = globalSettings$t_min # back to default
-
-# t_rankpct_min plots ---------------------------------------------------------------
-
-## Plot top 90% of abs(t) ----------------------------------------------------------
-plotdat$name <- "t_rankpct_min_90"
-plotdat$legprefix = "top 90% |t|"
-
-plotdat$matchset$t_rankpct_min = 90
-
-plot_one_setting(plotdat)
-
-plotdat$matchset$t_rankpct_min = globalSettings$t_rankpct_min # back to default
-
-## Plot top 75% of abs(t) ----------------------------------------------------------
-plotdat$name <- "t_rankpct_min_75"
-plotdat$legprefix = "top 75% |t|"
-
-plotdat$matchset$t_rankpct_min = 75
-
-plot_one_setting(plotdat)
-
-plotdat$matchset$t_rankpct_min = globalSettings$t_rankpct_min # back to default
-
-## Plot top 50% of abs(t) ----------------------------------------------------------
-plotdat$name <- "t_rankpct_min_50"
-plotdat$legprefix = "top 50% |t|"
-
-plotdat$matchset$t_rankpct_min = 50
-
-plot_one_setting(plotdat)
-
-plotdat$matchset$t_rankpct_min = globalSettings$t_rankpct_min # back to default
-
-## Plot top 5% of abs(t) ----------------------------------------------------------
-plotdat$name <- "t_rankpct_min_5"
-plotdat$legprefix = "top 5% |t|"
-
-plotdat$matchset$t_rankpct_min = 5 
-
-plot_one_setting(plotdat)
-
-plotdat$matchset$t_rankpct_min = globalSettings$t_rankpct_min # back to default
-
-## Plot top 0.5% of abs(t) ----------------------------------------------------------
-plotdat$name <- "t_rankpct_min_0.5"
-plotdat$legprefix = "top 0.5% |t|"
-
-plotdat$matchset$t_rankpct_min = 0.5 #Typo in previous version? Was 5?
-
-plot_one_setting(plotdat)
-
-plotdat$matchset$t_rankpct_min = globalSettings$t_rankpct_min # back to default
-
+# tbc: Trailing N-year return plots --------------------------------------
 
 
