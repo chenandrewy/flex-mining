@@ -92,7 +92,6 @@ make_ret_for_plotting <- function(plotdat, theory_filter = NULL){
 plotdat0 <- list()
 
 plotdat0$name <- "t_min_2"
-plotdat0$legprefix = "|t|>2.0"
 plotdat0$npubmax = Inf
 plotdat0$use_sign_info = TRUE
 
@@ -163,7 +162,7 @@ printme = ReturnPlotsWithDM(
     c(
       paste0("Published (and Peer Reviewed)"),
       paste0("Data-Mined for |t|>2.0 in Original Sample"),
-      paste0(plotdat$legprefix, " Mining Tickers")
+      'N/A'
     ),
   legendpos = c(35,20)/100,
   fontsize = fontsizeall,
@@ -211,7 +210,7 @@ printme = ReturnPlotsWithDM(
     c(
       paste0("Published (and Peer Reviewed)"),
       paste0("Data-Mined for |t|>2.0 in Original Sample"),
-      paste0(plotdat$legprefix, " Mining Tickers")
+      'N/A'
     ),
   legendpos = c(35,20)/100,
   fontsize = fontsizeall,
@@ -262,8 +261,8 @@ for (jj in unique(czret$theory)) {
     legendlabels =
       c(
         paste0("Published"),
-        paste0(plotdat$legprefix, " Mining Accounting"), 
-        paste0(plotdat$legprefix, " Mining Tickers")
+        paste0("|t|>2.0 Mining Accounting"),
+        'N/A'
       ),
     yaxislab = 'Trailing 5-Year Return',
     legendpos = c(25,20)/100,
@@ -287,8 +286,8 @@ plt = ReturnPlotsWithDM(
   legendlabels =
     c(
       paste0("Published with Risk Explanation"),
-      paste0(plotdat$legprefix, " Mining Accounting"), 
-      paste0(plotdat$legprefix, " Mining Tickers")
+      paste0("|t|>2.0 Mining Accounting"),
+      'N/A'
     ),
   yaxislab = 'Trailing 5-Year Return',
   legendpos = c(25,20)/100,
@@ -328,7 +327,7 @@ printme = ReturnPlotsWithDM(
     c(
       paste0("Published (and Peer Reviewed)"),
       paste0("Data-Mined for |t|>2.0 in Original Sample"),
-      paste0(plotdat$legprefix, " Mining Tickers")
+      'N/A'
     ),
   legendpos = c(35,20)/100,
   fontsize = fontsizeall,
@@ -356,9 +355,7 @@ ret_for_plottingAnnualAccounting[eventDate>0 & eventDate <= Inf & pubname %in% u
 ret_for_plottingAnnualAccounting %>% filter(pubname %in% unique(signaldoc$Acronym)) %>% 
   distinct(pubname)
 
-# tbc: Trailing N-year return plots --------------------------------------
-
-
+# Trailing N-year return plots --------------------------------------
 ## Prep top 5% ret data ====
 # the rest of this file uses only t > 2 filter
 
@@ -390,7 +387,6 @@ ret_for_plot1 = ret_for_plot0 %>%
         by = c("pubname", "eventDate")
       ) %>% 
       select(eventDate, ret, matchRet, matchRetAlt, pubname, theory)
-
 
 ## Plot ====
 
@@ -424,12 +420,13 @@ for (n_year_roll in n_year_list) {
       yaxislab = paste0("Trailing ", n_year_roll, "-Year Return (bps pm)"),
       linesize = linesizeall
     ) +
-      geom_vline(xintercept = n_year_roll * 12, linetype = "dashed") +
+      geom_vline(xintercept = n_year_roll * 12, linetype = "dashed",
+                 color = "magenta") +
       annotate("text", x = n_year_roll * 12 + 6, y = 140, 
                label = vlabel,
-               vjust = 1.5, hjust = 0)
+               vjust = 1.5, hjust = 0, size = 6, color = "magenta")
     ) %>% 
       ggsave(filename = paste0("../Results/Fig_DM_Roll", n_year_roll, ".pdf"),
       width = 10, height = 8)
-}
+} # end loop over n_year_roll
 
