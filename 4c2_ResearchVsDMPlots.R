@@ -185,7 +185,7 @@ printme = ReturnPlotsWithDM(
 ) %>% 
   ggsave(filename = paste0("../Results/Fig_DM_", tempsuffix, '.pdf'), width = 10, height = 8)
 
-file.remove("../Results/temp_Fig_DM_t_min_2.pdf")
+file.remove("../Results/temp__t_min_2.pdf")
 
 # numbers for intro
 ret_for_plot0[eventDate>0 & eventDate <= Inf, .(mean(ret), mean(matchRet))]
@@ -296,65 +296,6 @@ plt = ReturnPlotsWithDM(
 
 
 
-# Accounting variables only plot  ----------------------------
-
-signaldoc =  data.table::fread('../Data/Raw/SignalDoc.csv') %>% 
-  filter(Cat.Data == 'Accounting')
-
-tempname <- "t_min_2AccountingOnly"
-
-ret_for_plottingAnnualAccounting = ret_for_plot0 %>% 
-  filter(pubname %in% unique(signaldoc$Acronym)) %>% 
-  # Remove quarterly Compustat and a few others not constructed via annual CS
-  filter(!(pubname %in% c("Cash", "ChTax", "EarningsSurprise", 
-                          "NumEarnIncrease", "RevenueSurprise", "roaq",
-                          'EarnSupBig',
-                          'EarningsStreak',
-                          'ShareIss1Y',
-                          'ShareIss5Y'))) %>% 
-  filter(!is.na(matchRet))
-
-printme = ReturnPlotsWithDM(
-  dt = ret_for_plottingAnnualAccounting,
-  basepath = "../Results/temp_Fig_DM",
-  suffix = tempname,
-  rollmonths = 60,
-  colors = colors,
-  labelmatch = FALSE,
-  yl = -0,
-  yh = 125,
-  legendlabels =
-    c(
-      paste0("Published (and Peer Reviewed)"),
-      paste0("Data-Mined for |t|>2.0 in Original Sample"),
-      'N/A'
-    ),
-  legendpos = c(35,20)/100,
-  fontsize = fontsizeall,
-  yaxislab = ylaball,
-  linesize = linesizeall
-)
-
-# custom edits 
-printme2 = printme + theme(
-  legend.background = element_rect(fill = "white", color = "black"
-                                   , size = 0.3)
-  # remove space where legend would be
-  , legend.margin = margin(-0.7, 0.5, 0.5, 0.5, "cm")
-  , legend.position  = c(44,15)/100
-  # add space between legend items
-  , legend.spacing.y = unit(0.2, "cm")
-) +
-  guides(color = guide_legend(byrow = TRUE))
-
-# save (again)
-ggsave(paste0("../Results/Fig_DM_", tempname, '.pdf'), width = 10, height = 8)
-
-ret_for_plottingAnnualAccounting[eventDate>0 & eventDate <= Inf & pubname %in% unique(signaldoc$Acronym), .(mean(ret), mean(matchRet))]
-
-ret_for_plottingAnnualAccounting %>% filter(pubname %in% unique(signaldoc$Acronym)) %>% 
-  distinct(pubname)
-
 # Trailing N-year return plots --------------------------------------
 ## Prep top 5% ret data ====
 # the rest of this file uses only t > 2 filter
@@ -429,4 +370,71 @@ for (n_year_roll in n_year_list) {
       ggsave(filename = paste0("../Results/Fig_DM_Roll", n_year_roll, ".pdf"),
       width = 10, height = 8)
 } # end loop over n_year_roll
+
+
+
+# Accounting variables only plot  ----------------------------
+
+# Compare to top 5% of t-stats (computed in previous chunk)
+
+# Load info on accounting variables and filter
+signaldoc =  data.table::fread('../Data/Raw/SignalDoc.csv') %>% 
+  filter(Cat.Data == 'Accounting')
+
+
+ret_for_plottingAnnualAccounting = ret_for_plot1 %>% 
+  filter(pubname %in% unique(signaldoc$Acronym)) %>% 
+  # Remove quarterly Compustat and a few others not constructed via annual CS
+  filter(!(pubname %in% c("Cash", "ChTax", "EarningsSurprise", 
+                          "NumEarnIncrease", "RevenueSurprise", "roaq",
+                          'EarnSupBig',
+                          'EarningsStreak',
+                          'ShareIss1Y',
+                          'ShareIss5Y'))) %>% 
+  select(-matchRet) %>% 
+  rename(matchRet = matchRetAlt) %>%
+  filter(!is.na(matchRet))
+
+
+printme = ReturnPlotsWithDM(
+  dt = ret_for_plottingAnnualAccounting,
+  basepath = "../Results/temp_Fig_DM",
+  suffix = "t_top5Pct_AccountingOnly",
+  rollmonths = 60,
+  colors = colors,
+  labelmatch = FALSE,
+  yl = -0,
+  yh = 125,
+  legendlabels =
+    c(
+      paste0("Published (and Peer Reviewed)"),
+      paste0("Data-Mined for Top 5% |t| in Original Sample"),
+      'N/A'
+    ),
+  legendpos = c(35,20)/100,
+  fontsize = fontsizeall,
+  yaxislab = ylaball,
+  linesize = linesizeall
+)
+
+# custom edits 
+printme2 = printme + theme(
+  legend.background = element_rect(fill = "white", color = "black"
+                                   , size = 0.3)
+  # remove space where legend would be
+  , legend.margin = margin(-0.7, 0.5, 0.5, 0.5, "cm")
+  , legend.position  = c(44,15)/100
+  # add space between legend items
+  , legend.spacing.y = unit(0.2, "cm")
+) +
+  guides(color = guide_legend(byrow = TRUE))
+
+# save
+ggsave(paste0("../Results/Fig_DM_t_top5Pct_AccountingOnly.pdf"), width = 10, height = 8)
+
+ret_for_plottingAnnualAccounting[eventDate>0 & eventDate <= Inf & pubname %in% unique(signaldoc$Acronym), .(mean(ret), mean(matchRet))]
+
+ret_for_plottingAnnualAccounting %>% filter(pubname %in% unique(signaldoc$Acronym)) %>% 
+  distinct(pubname)
+
 
