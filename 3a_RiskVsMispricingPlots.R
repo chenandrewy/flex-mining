@@ -116,6 +116,40 @@ ReturnPlotsNoDM(dt = czret %>%
                 legpos = legposall
 )
 
+# Restricting the number of signals extracted from each paper ------------------
+
+# There are a bunch of papers that contain a lot of signals
+# 1 Heston and Sadka             2008 JFE        10
+# 2 Richardson et al.            2005 JAE         7
+# 3 Daniel and Titman            2006 JF          6
+# 4 Nagel                        2005 JFE         4
+# 5 An, Ang, Bali, Cakici        2014 JF          3
+# 6 Ang et al.                   2006 JF          3
+# 7 Barber et al.                2001 JF          3
+# 8 Bradshaw, Richardson, Sloan  2006 JAE         3
+
+# To mitigate the effect of those papers on the agnostic and mispricing, 
+# we pick at most 3 signals from each paper 
+# For now, we consider the 3 signals with the highest t-stats per paper
+
+inclSignals = czsum %>% 
+  group_by(Authors, Year, Journal) %>%
+  arrange(desc(abs(tstat))) %>% 
+  filter(row_number() <= 2)
+
+ReturnPlotsNoDM(dt = czret %>% 
+                  filter(signalname %in% inclSignals$signalname) %>%
+                  transmute(eventDate,
+                            signalname,
+                            ret,
+                            catID = theory),
+                basepath = '../Results/Fig_PublicationsOverTime',
+                suffix = 'Top2Signals',
+                yl = -90, yh = 180
+)
+
+
+
 
 
 # CAPM versions of plots --------------------------------------------------
