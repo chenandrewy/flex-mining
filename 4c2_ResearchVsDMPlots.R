@@ -137,11 +137,11 @@ rm(temp)
 
 ret_for_plot0 = czret %>%
   transmute(pubname = signalname, eventDate, ret = ret_scaled, theory) %>%
-      left_join(
-        plotdat0$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean),
-        by = c("pubname", "eventDate")
-      ) %>%
-      select(eventDate, ret, matchRet, pubname, theory) 
+  left_join(
+    plotdat0$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean),
+    by = c("pubname", "eventDate")
+  ) %>%
+  select(eventDate, ret, matchRet, pubname, theory) 
 
 # Intro Plot --------------------------------------------------
 
@@ -173,15 +173,15 @@ printme = ReturnPlotsWithDM(
 # custom edits 
 (
   printme + theme(
-  legend.background = element_rect(fill = "white", color = "black"
-    , size = 0.3)
-  # remove space where legend would be
-  , legend.margin = margin(-1.0, 0.5, 0.5, 0.5, "cm")
-  , legend.position  = c(44,15)/100
-  # add space between legend items
-  , legend.spacing.y = unit(0.2, "cm")
+    legend.background = element_rect(fill = "white", color = "black"
+                                     , size = 0.3)
+    # remove space where legend would be
+    , legend.margin = margin(-1.0, 0.5, 0.5, 0.5, "cm")
+    , legend.position  = c(44,15)/100
+    # add space between legend items
+    , legend.spacing.y = unit(0.2, "cm")
   ) +
-  guides(color = guide_legend(byrow = TRUE))
+    guides(color = guide_legend(byrow = TRUE))
 ) %>% 
   ggsave(filename = paste0("../Results/Fig_DM_", tempsuffix, '.pdf'), width = 10, height = 8)
 
@@ -221,15 +221,15 @@ printme = ReturnPlotsWithDM(
 # custom edits 
 (
   printme + theme(
-  legend.background = element_rect(fill = "white", color = "black"
-    , size = 0.3)
-  # remove space where legend would be
-  , legend.margin = margin(-1.0, 0.5, 0.5, 0.5, "cm")
-  , legend.position  = c(44,15)/100
-  # add space between legend items
-  , legend.spacing.y = unit(0.2, "cm")
+    legend.background = element_rect(fill = "white", color = "black"
+                                     , size = 0.3)
+    # remove space where legend would be
+    , legend.margin = margin(-1.0, 0.5, 0.5, 0.5, "cm")
+    , legend.position  = c(44,15)/100
+    # add space between legend items
+    , legend.spacing.y = unit(0.2, "cm")
   ) +
-  guides(color = guide_legend(byrow = TRUE))
+    guides(color = guide_legend(byrow = TRUE))
 ) %>% 
   ggsave(filename = paste0("../Results/Fig_DM_", tempname, '.pdf'), width = 10, height = 8)
 
@@ -242,7 +242,7 @@ file.remove("../Results/temp_Fig_DM_t_min_2_0.pdf")
 for (jj in unique(czret$theory)) {
   print(jj)
   tempname <- paste0("t_min_2_cat_", jj)
-
+  
   # ret_for_plotting = make_ret_for_plotting(plotdat, theory_filter = jj)
   tempret = ret_for_plot0 %>% filter(theory == jj) %>% 
     filter(!is.na(matchRet))
@@ -323,11 +323,11 @@ tempplotdat$comp_event_time <- temp$event_time
 rm(temp)
 
 ret_for_plot1 = ret_for_plot0 %>%
-      left_join(
-        tempplotdat$comp_event_time %>% transmute(pubname, eventDate, matchRetAlt = dm_mean),
-        by = c("pubname", "eventDate")
-      ) %>% 
-      select(eventDate, ret, matchRet, matchRetAlt, pubname, theory)
+  left_join(
+    tempplotdat$comp_event_time %>% transmute(pubname, eventDate, matchRetAlt = dm_mean),
+    by = c("pubname", "eventDate")
+  ) %>% 
+  select(eventDate, ret, matchRet, matchRetAlt, pubname, theory)
 
 ## Plot ====
 
@@ -341,34 +341,34 @@ for (n_year_roll in n_year_list) {
   }else{
     paste0(n_year_roll, " years post-samp")
   }
-    (ReturnPlotsWithDM(
-      dt = ret_for_plot1 %>% filter(!is.na(matchRet)),
-      basepath = "../Results/temp_Fig_DM",
-      suffix = "temp",
-      rollmonths = n_year_roll * 12,
-      colors = colors,
-      labelmatch = FALSE,
-      xl = -360, xh = 240,
-      yl = -0, yh = 150,
-      legendlabels =
-        c(
-          paste0("Published"),
-          paste0("|t|>2.0 Mining Accounting"),
-          paste0("Top 5% |t| Mining Accounting")
-        ),
-      legendpos = c(30,20)/100,
-      fontsize = fontsizeall,
-      yaxislab = paste0("Trailing ", n_year_roll, "-Year Return (bps pm)"),
-      linesize = linesizeall
-    ) +
+  (ReturnPlotsWithDM(
+    dt = ret_for_plot1 %>% filter(!is.na(matchRet)),
+    basepath = "../Results/temp_Fig_DM",
+    suffix = "temp",
+    rollmonths = n_year_roll * 12,
+    colors = colors,
+    labelmatch = FALSE,
+    xl = -360, xh = 240,
+    yl = -0, yh = 150,
+    legendlabels =
+      c(
+        paste0("Published"),
+        paste0("|t|>2.0 Mining Accounting"),
+        paste0("Top 5% |t| Mining Accounting")
+      ),
+    legendpos = c(30,20)/100,
+    fontsize = fontsizeall,
+    yaxislab = paste0("Trailing ", n_year_roll, "-Year Return (bps pm)"),
+    linesize = linesizeall
+  ) +
       geom_vline(xintercept = n_year_roll * 12, linetype = "dashed",
                  color = "magenta") +
       annotate("text", x = n_year_roll * 12 + 6, y = 140, 
                label = vlabel,
                vjust = 1.5, hjust = 0, size = 6, color = "magenta")
-    ) %>% 
-      ggsave(filename = paste0("../Results/Fig_DM_Roll", n_year_roll, ".pdf"),
-      width = 10, height = 8)
+  ) %>% 
+    ggsave(filename = paste0("../Results/Fig_DM_Roll", n_year_roll, ".pdf"),
+           width = 10, height = 8)
 } # end loop over n_year_roll
 
 
@@ -398,7 +398,7 @@ ret_for_plottingAnnualAccounting = ret_for_plot1 %>%
 
 printme = ReturnPlotsWithDM(
   dt = ret_for_plottingAnnualAccounting,
-  basepath = "../Results/temp_Fig_DM",
+  basepath = "../Results/Fig_DM",
   suffix = "t_top5Pct_AccountingOnly",
   rollmonths = 60,
   colors = colors,
@@ -437,4 +437,71 @@ ret_for_plottingAnnualAccounting[eventDate>0 & eventDate <= Inf & pubname %in% u
 ret_for_plottingAnnualAccounting %>% filter(pubname %in% unique(signaldoc$Acronym)) %>% 
   distinct(pubname)
 
+
+# Restricting the number of DM predictors per paper -----------------------
+
+# max number of DM predictors per paper
+maxDMpredictors = c(100, 1000)
+
+ret_for_plot_MaxPredictors = tibble()
+for (rr in 1:length(maxDMpredictors)) {
+  
+  print(paste0("Making accounting event time returns with Max DM predictors: ", maxDMpredictors[rr]))
+  
+  tempMatched <- plotdat0$comp_matched %>% 
+    filter(rank_tstat <= maxDMpredictors[rr] + 1) 
+  
+  print("Can take a few minutes...")
+  start_time <- Sys.time()
+  tempEvent_time <- make_DM_event_returns(
+    DMname = dmcomp$name, match_strats = tempMatched, npubmax = plotdat0$npubmax, 
+    czsum = czsum, use_sign_info = plotdat0$use_sign_info
+  )
+  stop_time <- Sys.time()
+  print(stop_time - start_time)
+  
+  ret_for_plot_MaxPredictors = czret %>%
+    transmute(pubname = signalname, eventDate, ret = ret_scaled, theory) %>%
+    left_join(
+      tempEvent_time %>% transmute(pubname, eventDate, matchRet = dm_mean),
+      by = c("pubname", "eventDate")
+    ) %>%
+    select(eventDate, ret, matchRet, pubname, theory) %>% 
+    mutate(maxDMpredictors = maxDMpredictors[rr]) %>% 
+    bind_rows(ret_for_plot_MaxPredictors)
+  
+}
+
+
+# Prep for plotting
+ret_for_plot_MaxPredictors1 = ret_for_plot_MaxPredictors %>%
+  filter(!is.na(matchRet), maxDMpredictors == 100) %>%
+  left_join(
+    ret_for_plot_MaxPredictors %>% 
+      filter(!is.na(matchRet), maxDMpredictors == 1000) %>%
+      transmute(eventDate, pubname, matchRetAlt = matchRet),
+    by = c("pubname", "eventDate")
+  )
+
+# Plot
+printme = ReturnPlotsWithDM(
+  dt = ret_for_plot_MaxPredictors1 %>% filter(!is.na(matchRet)),
+  basepath = "../Results/Fig_DM",
+  suffix = "MaxDMpredsPerPublished",
+  rollmonths = 60,
+  colors = colors,
+  labelmatch = FALSE,
+  yl = -0,
+  yh = 125,
+  legendlabels =
+    c(
+      paste0("Published (and Peer Reviewed)"),
+      paste0("Data-Mined for Top 100 |t| in Original Sample"),
+      paste0("Data-Mined for Top 1000 |t| in Original Sample")
+    ),
+  legendpos = c(35,20)/100,
+  fontsize = fontsizeall,
+  yaxislab = ylaball,
+  linesize = linesizeall
+)
 
