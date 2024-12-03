@@ -301,7 +301,7 @@ fobs_list = comp0 %>%
   group_by(gvkey) %>% 
   filter(row_number() == 1) %>% 
   ungroup() %>% 
-  summarise(across(everything(), function(x) sum(!is.na(x) & x>0)/length(x)) ) %>% 
+  summarise(across(everything(), function(x) sum(!is.na(x) & x!=0)/length(x)) ) %>% 
   pivot_longer(cols = everything()) %>% 
   transmute(
     name, freq_obs_1963 = value
