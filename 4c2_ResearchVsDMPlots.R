@@ -384,6 +384,10 @@ signaldoc =  data.table::fread('../Data/Raw/SignalDoc.csv') %>%
 
 ret_for_plottingAnnualAccounting = ret_for_plot1 %>% 
   filter(pubname %in% unique(signaldoc$Acronym)) %>% 
+  # Remove some papers with non-standard construction procedures or unusual signal timing
+  # left_join(signaldoc, by = c('pubname' = 'Acronym')) %>%
+  # filter(!(Authors %in% c('Xie', 'Mohanram', 'Piotroski', 'Lyandres, Sun and Zhang',
+  #                         'Haugen and Baker', 'Frankel and Lee'))) %>%
   # Remove quarterly Compustat and a few others not constructed via annual CS
   filter(!(pubname %in% c("Cash", "ChTax", "EarningsSurprise", 
                           "NumEarnIncrease", "RevenueSurprise", "roaq",
