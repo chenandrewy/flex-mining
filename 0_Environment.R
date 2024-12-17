@@ -60,7 +60,7 @@ dir.create('../Results/Extra/', showWarnings = F)
 options(stringsAsFactors = FALSE)
 
 globalSettings = list(
-  dataVersion  = 'CZ-style-v7',
+  dataVersion  = 'CZ-style-v8',
   # signal choices
   minNumStocks   = 20, # Minimum number of stocks in any month over the in-sample period to include a DM strategy for matching to published strategies (ie minNumStocks/2 in each leg)
   signalnum      = Inf, # number of signals to sample or Inf for all
@@ -267,10 +267,11 @@ lsos <- function(..., n=10) {
 
 
 # function for creating a list of possible variable combinations used in strategies
-make_signal_list = function(signal_form, xvars, scale_vars) {
+make_signal_list = function(signal_form, xvars, scale_vars, validDenoms = NULL) {
   
   #' @param xvars Unique names of variables used for creating strategies
   #' @param scale_vars Scaling variables used in ratios (or NULL for unrestricted)
+  #' @param validDenoms Dataset of valid denominator for each combination of signals (created in 1_Download_and_Clean.R)
   
   # make list of all possible xused combinations
   tmp = expand.grid(signal_form = signal_form, 
@@ -280,15 +281,36 @@ make_signal_list = function(signal_form, xvars, scale_vars) {
   
   # Remove v1=v2 for functions where this does not make sense
   # and remove inverse  (e.g. keep only v1/v2 not v2/v1)
-  tmp = tmp %>%
-    mutate(keep = case_when(
-      signal_form  %in% c('diff(v1)/lag(v2)') ~ 1,
-      # For ratio signals
-      v1 %in% scale_vars & v1<= v2 ~ 0,
-      TRUE ~ 1)
-    ) %>% 
-    filter(keep == 1) %>% 
-    select(-keep)
+  if (!is.null(validDenoms)) {  # new version that removes based on non-zero freq in denominator
+    
+    tmp = tmp %>% 
+      # paste name alphabetically
+      mutate(combName = ifelse(v1 < v2, paste(v1, v2, sep='|'), 
+                               paste(v2, v1, sep='|')) %>% as.character()) %>% 
+      left_join(validDenoms)  %>% 
+      mutate(keep = case_when(
+        # Keep all growth rate signals
+        signal_form  %in% c('diff(v1)/lag(v2)') ~ 1,
+        # For ratio signals, keep version with more non-zeros in denominator
+        !(v1 %in% scale_vars) ~ 1,
+        v1 %in% scale_vars & v2 == denom ~ 1,
+        TRUE ~ 0
+      )) %>% 
+      filter(keep == 1) %>% 
+      select(signal_form, v1, v2)
+    
+  } else {  # old version that just removes alphabetically
+    
+    tmp = tmp %>%
+      mutate(keep = case_when(
+        signal_form  %in% c('diff(v1)/lag(v2)') ~ 1,
+        # For ratio signals
+        v1 %in% scale_vars & v1<= v2 ~ 0,
+        TRUE ~ 1)
+      ) %>% 
+      filter(keep == 1) %>% 
+      select(-keep)
+  }
   
   # remove v2 for signal_forms that use only 1 variable
   tmp = tmp %>% 

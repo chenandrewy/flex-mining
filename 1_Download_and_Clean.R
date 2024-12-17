@@ -315,6 +315,68 @@ fobs_list = fobs_list %>%
 
 fwrite(fobs_list, 'DataIntermediate/freq_obs_1963.csv')
 
+
+
+# Save data for valid denominators in bivariate comparisons ---------------
+
+# count non-missing observations for each variable in each year
+for (yy in 1963:max(year(comp0$datadate))) {
+  
+  print(yy)  
+  temp = comp0 %>% 
+    filter(year(datadate)==yy, !is.na(permno)) %>% 
+    arrange(gvkey, datadate) %>% 
+    group_by(gvkey) %>% 
+    filter(row_number() == 1) %>% 
+    ungroup() %>% 
+    summarise(across(everything(), function(x) sum(!is.na(x) & x!=0)/length(x)) ) %>% 
+    pivot_longer(cols = everything()) %>% 
+    transmute(
+      name, freq_obs_1963 = value
+    )
+  
+  colnames(temp) = c('name', paste0('freq_obs_', yy))
+  
+  if (yy==1963) {
+    fobs_list_annual = temp
+  } else {
+    fobs_list_annual = full_join(fobs_list_annual, temp, by='name')
+  }
+  
+}
+
+# Reshape longer
+fobs_list_annual = fobs_list_annual %>% 
+  pivot_longer(cols = -name, names_to = 'year', values_to = 'freq_obs') %>% 
+  mutate(year = as.numeric(str_remove(year, 'freq_obs_'))) %>% 
+  # Reduce
+  filter(name %in% tempnames)
+
+# For each pair of variables, figure out which one has more non-missing obs 
+# in the first year in which they both appear
+validDenoms = fobs_list_annual %>% 
+  # Cross
+  full_join(fobs_list_annual, by = 'year', relationship = 'many-to-many') %>% 
+  # Remove self-join
+  filter(name.x != name.y) %>%
+  # Keep first year in which both are non-zero
+  filter(freq_obs.x >0, freq_obs.y >0) %>% 
+  group_by(name.x, name.y) %>%
+  filter(row_number() == 1) %>% 
+  ungroup() %>% 
+  # paste names alphabetically
+  mutate(combName = ifelse(name.x < name.y, paste(name.x, name.y, sep='|'), 
+                           paste(name.y, name.x, sep='|')) %>% as.character()) %>% 
+  # Denominator: Variable with more non-missing obs (break ties alphabetically)
+  mutate(denom = ifelse(freq_obs.x > freq_obs.y | (freq_obs.x == freq_obs.y & name.x < name.y), 
+                        name.x, 
+                        name.y)) %>% 
+  select(combName, year, denom) %>% 
+  distinct()
+
+fwrite(validDenoms, 'DataIntermediate/validDenomsCombinations.csv')
+
+
 # manual checks -----------------------------------------------------------
 
 fobs_list %>% 
