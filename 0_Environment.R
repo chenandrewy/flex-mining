@@ -61,6 +61,11 @@ options(stringsAsFactors = FALSE)
 
 globalSettings = list(
   dataVersion  = 'CZ-style-v8',
+  
+  # published signal choices
+  restrictType = 'topT', # 'topT' or NULL for all signals
+  topT         = 2, # number of top t-stat signals to keep from each paper
+  
   # signal choices
   minNumStocks   = 20, # Minimum number of stocks in any month over the in-sample period to include a DM strategy for matching to published strategies (ie minNumStocks/2 in each leg)
   signalnum      = Inf, # number of signals to sample or Inf for all
@@ -330,6 +335,55 @@ make_signal_list = function(signal_form, xvars, scale_vars, validDenoms = NULL) 
   
   return(tmp)
 }
+
+
+# function for restricting included published signals
+restrictInclSignals = function(restrictType = NULL, topT = 2) {
+  
+  dt = readRDS('../Data/Processed/czsum_allpredictors.RDS')
+  
+  if (is.null(restrictType)) {
+    
+    signals = dt %>% 
+      pull(signalname)
+    message('Using all ', nrow(dt), ' signals')
+    
+  } else if (restrictType == 'topT') {
+    
+    # There are a bunch of papers that contain a lot of signals
+    # 1 Heston and Sadka             2008 JFE        10
+    # 2 Richardson et al.            2005 JAE         7
+    # 3 Daniel and Titman            2006 JF          6
+    # 4 Nagel                        2005 JFE         4
+    # 5 An, Ang, Bali, Cakici        2014 JF          3
+    # 6 Ang et al.                   2006 JF          3
+    # 7 Barber et al.                2001 JF          3
+    # 8 Bradshaw, Richardson, Sloan  2006 JAE         3
+    
+    # To mitigate the effect of those papers on the agnostic and mispricing cats, 
+    # we pick at most topT signals from each paper 
+    # We consider the topT signals with the highest t-stats per paper
+    # For Ang et al (2006), we keep the betaVIX signal because it is one of the relatively few risk signals
+    
+    signals = dt %>% 
+      group_by(Authors, Year, Journal) %>%
+      arrange(desc(abs(tstat))) %>% 
+      mutate(tmp = row_number()) %>% 
+      filter(tmp <= topT | signalname == 'betaVIX') %>%
+      pull(signalname)
+    
+    message('Using ', length(signals), ' out of ', nrow(dt), ' signals')
+  } else {
+    stop('Invalid restrictType')
+  }
+  
+  return(signals)
+}
+
+
+
+
+
 
 # function for creating Yan-Zheng's 18,113 signal list
 make_signal_list_yz = function(signal_form, x1list, x2list, signalnum, seed){

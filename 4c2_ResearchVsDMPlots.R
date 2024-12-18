@@ -11,16 +11,22 @@ library(doParallel)
 ## Load Global Data -------------------------------------------
 
 # these are treated as globals (don't modify pls)
+inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType, 
+                                  topT = globalSettings$topT)
+
 czsum <- readRDS("../Data/Processed/czsum_allpredictors.RDS") %>%
   filter(Keep) %>% 
+  filter(signalname %in% inclSignals) %>% 
   setDT()
 
 czcat <- fread("DataInput/SignalsTheoryChecked.csv") %>%
-  select(signalname, Year, theory)
+  select(signalname, Year, theory) %>% 
+  filter(signalname %in% inclSignals)
 
 czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
   left_join(czcat, by = "signalname") %>%
-  mutate(ret_scaled = ret / rbar * 100)
+  mutate(ret_scaled = ret / rbar * 100) %>% 
+  filter(signalname %in% inclSignals)
 
 # Load pre-computed dm sumstats
 dmcomp <- readRDS("../Data/Processed/dmcomp_sumstats.RDS")
@@ -379,7 +385,7 @@ for (n_year_roll in n_year_list) {
 
 # Load info on accounting variables and filter
 signaldoc =  data.table::fread('../Data/Raw/SignalDoc.csv') %>% 
-  filter(Cat.Data == 'Accounting')
+  filter(Cat.Data == 'Accounting') 
 
 
 ret_for_plottingAnnualAccounting = ret_for_plot1 %>% 

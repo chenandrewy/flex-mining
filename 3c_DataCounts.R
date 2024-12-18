@@ -5,12 +5,16 @@
 
 source('0_Environment.R')
 
+inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType, 
+                                  topT = globalSettings$topT)
+
 czsum = readRDS('../Data/Processed/czsum_allpredictors.RDS') %>% 
   select(signalname,rbar,nobs_postsamp,rbar_ok,n_ok,Keep) %>% 
   left_join(
   fread('../Data/Raw/SignalDoc.csv')[, 1:15] %>% 
   transmute(signalname = Acronym, Journal, Authors, Year, SampleStartYear, SampleEndYear)
-  )
+  )  %>% 
+  filter(signalname %in% inclSignals)
 
 
 # pre-filtering counts

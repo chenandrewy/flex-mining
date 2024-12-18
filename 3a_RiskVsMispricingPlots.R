@@ -9,15 +9,20 @@ extract_beta <- function(x, y) {
 
 czsum = readRDS('../Data/Processed/czsum_allpredictors.RDS')
 
+inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType, 
+                                  topT = globalSettings$topT)
+
 czcat = fread('DataInput/SignalsTheoryChecked.csv') %>% 
-  select(signalname, Year, theory)
+  select(signalname, Year, theory) %>% 
+  filter(signalname %in% inclSignals)
 
 czret = readRDS('../Data/Processed/czret_keeponly.RDS') %>% 
   left_join(czcat, by = 'signalname') %>% 
   mutate(
     retOrig = ret
     , ret = ret/rbar*100
-  )
+  ) %>% 
+  filter(signalname %in% inclSignals)
 
 # Main Figure  ----------------------------------
 
@@ -115,42 +120,6 @@ ReturnPlotsNoDM(dt = czret %>%
                 fontsize = fontsizeall,
                 legpos = legposall
 )
-
-# Restricting the number of signals extracted from each paper ------------------
-
-# There are a bunch of papers that contain a lot of signals
-# 1 Heston and Sadka             2008 JFE        10
-# 2 Richardson et al.            2005 JAE         7
-# 3 Daniel and Titman            2006 JF          6
-# 4 Nagel                        2005 JFE         4
-# 5 An, Ang, Bali, Cakici        2014 JF          3
-# 6 Ang et al.                   2006 JF          3
-# 7 Barber et al.                2001 JF          3
-# 8 Bradshaw, Richardson, Sloan  2006 JAE         3
-
-# To mitigate the effect of those papers on the agnostic and mispricing, 
-# we pick at most 3 signals from each paper 
-# For now, we consider the 3 signals with the highest t-stats per paper
-
-inclSignals = czsum %>% 
-  group_by(Authors, Year, Journal) %>%
-  arrange(desc(abs(tstat))) %>% 
-  filter(row_number() <= 2)
-
-ReturnPlotsNoDM(dt = czret %>% 
-                  filter(signalname %in% inclSignals$signalname) %>%
-                  transmute(eventDate,
-                            signalname,
-                            ret,
-                            catID = theory),
-                basepath = '../Results/Fig_PublicationsOverTime',
-                suffix = 'Top2Signals',
-                yl = -90, yh = 180
-)
-
-
-
-
 
 # CAPM versions of plots --------------------------------------------------
 
@@ -300,14 +269,18 @@ ReturnPlotsNoDMAlpha(dt = czret[abar_all_not_norm_t >= 3, ] %>%
 ## Load and process data ---------------------------------------------------
 
 czcat = fread('DataInput/SignalsTheoryChecked.csv') %>% 
-  select(signalname, Year, theory)
+  select(signalname, Year, theory) %>% 
+  filter(signalname %in% inclSignals)
+
 
 czret = readRDS('../Data/Processed/czret_keeponly.RDS') %>% 
   left_join(czcat, by = 'signalname') %>% 
   mutate(
     retOrig = ret
     , ret = ret/rbar*100
-  )
+  ) %>% 
+  filter(signalname %in% inclSignals)
+
 
 czret <- czret %>% left_join(FamaFrenchFactors, by  = c('date'))
 

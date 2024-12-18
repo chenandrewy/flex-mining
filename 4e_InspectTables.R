@@ -13,11 +13,15 @@ DMname = paste0('../Data/Processed/',
 stratdat = readRDS(DMname) # only really need the signal_list from here
 
 # load pub stuff, add author info
+inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType, 
+                                  topT = globalSettings$topT)
+
 czsum2 = czsum %>% left_join(
   fread('../Data/Raw/SignalDoc.csv') %>% 
     select(1:20) %>% 
     transmute(signalname = Acronym, Authors, Year, Journal, LongDescription, sign = Sign)  
 ) %>% 
+  filter(signalname %in% inclSignals) %>% 
   setDT()
 
 czret2 = czret %>% 
@@ -25,6 +29,7 @@ czret2 = czret %>%
   left_join(
     czsum2 %>% select(signalname,sign) 
   ) %>% 
+  filter(signalname %in% inclSignals) %>% 
   setDT()
 
 # Merge dm and pub --------------------------------------------------------
