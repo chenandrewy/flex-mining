@@ -144,8 +144,8 @@ ProbInformedTrading,"Easley, Hvidkjaer and O'Hara",2002,JF,Probability of Inform
 SurpriseRD,"Eberhart, Maxwell and Siddique",2004,JF,Unexpected R&D increase,mispricing,"We find consistent evidence of a mis-reaction, as manifested in the significantly positive abnormal stock returns that our sample firms' shareholders experience following these increases.",0,,,TRUE,Eberhart Maxwell Siddique,1,0,0,0,
 OrgCap,Eisfeldt and Papanikolaou,2013,JF,Organizational capital,risk,"We refer
 to this type of intangible capital as organization capital and develop a structural model
-to analyze its effect on asset prices. We argue that shareholders consider rms with high
-levels of organization capital to be riskier than rms with more physical capital, and provide
+to analyze its effect on asset prices. We argue that shareholders consider firms with high
+levels of organization capital to be riskier than firms with more physical capital, and provide
 empirical evidence supporting this claim.",0,,,TRUE,Eisfeldt Papanikolaou,0,0,0,1,
 sfe,"Elgers, Lo and Pfeiffer",2001,AR,Earnings Forecast to price,mispricing,"This delayed price response is more pronounced for firms with relatively low analyst coverage, consistent with the premise that low financial analyst coverage is associated with a variety of factors that impede the information efficiency of the security market.",0,,,FALSE,Elgers Lo Pfeiffer,1,0,0,0,
 GrLTNOA,"Fairfield, Whisenant and Yohn",2003,AR,Growth in long term operating assets,mispricing,"Thus, the results suggest that the accrual anomaly documented in Sloan (1996) is a subset of a larger anomaly with respect to a general market mispricing of growth in net operating assets",0,,,FALSE,Fairfield Whisenant Yohn,1,0,0,0,
@@ -153,7 +153,7 @@ AM,Fama and French,1992,JF,Total assets to market,agnostic,"Our main result is t
 Prescriptions for using this evidence depend on (a) whether it will persist, and (b) whether it results from rational or irrational asset-pricing.",0,,,FALSE,Fama French,1,0,0,0,
 BookLeverage,Fama and French,1992,JF,Book leverage (annual),agnostic,"Our main result is that two easily measured variables, size and book-to-market equity, seem to describe the cross-section of average stock returns.
 Prescriptions for using this evidence depend on (a) whether it will persist, and (b) whether it results from rational or irrational asset-pricing.",0,,,FALSE,Fama French,1,0,0,0,
-BMdec,Fama and French,1992,JPM,Book to market using December ME,agnostic,"Our main result is that two easily measured variables, size and book-to-market equity, seem to describe the cross-section of average stock returns.
+BMdec,Fama and French,1992,JF,Book to market using December ME,agnostic,"Our main result is that two easily measured variables, size and book-to-market equity, seem to describe the cross-section of average stock returns.
 Prescriptions for using this evidence depend on (a) whether it will persist, and (b) whether it results from rational or irrational asset-pricing.",0,,,FALSE,Fama French,1,0,0,0,
 OperProf,Fama and French,2006,JFE,operating profits / book equity,agnostic,We take no stance on whether the patterns in average returns observed here are rational or irrational.,0,,,TRUE,Fama French,1,0,0,0,
 Beta,Fama and MacBeth,1973,JPE,CAPM beta,risk,"the pricing of common stocks reflects the attempts of risk-averse investors to hold portfolios that are """"""""""""""""efficient"""""""""""""""" in terms of expected value and dispersion of return.",0,,,FALSE,Fama MacBeth,0,1,0,0,
