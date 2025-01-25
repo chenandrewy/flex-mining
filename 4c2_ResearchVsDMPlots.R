@@ -136,12 +136,12 @@ plotdat0$comp_event_time <- temp$event_time
 rm(temp)
 
 ret_for_plot0 = czret %>%
-  transmute(pubname = signalname, eventDate, ret = ret_scaled, theory) %>%
+  transmute(pubname = signalname, eventDate, calendarDate = date, ret = ret_scaled, theory) %>%
       left_join(
         plotdat0$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean),
         by = c("pubname", "eventDate")
       ) %>%
-      select(eventDate, ret, matchRet, pubname, theory) 
+      select(eventDate, calendarDate, ret, matchRet, pubname, theory) 
 
 # Intro Plot --------------------------------------------------
 
@@ -237,7 +237,7 @@ file.remove(paste0("../Results/temp__", tempsuffix, ".pdf"))
 
 ## plot --------------------------------------------------
 
-tempsuffix = "t_min_2_se_indicators"
+tempsuffix = "t_min_2_se_indicators_calendar"
 
 printme = ReturnPlotsWithDM_std_errors_indicators(
   dt = ret_for_plot0 %>% filter(!is.na(matchRet)),

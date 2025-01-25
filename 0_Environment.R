@@ -1496,23 +1496,22 @@ process_event_time_returns <- function(dm_name, match_strats, npubmax, czsum, us
 }
 
 ReturnPlotsWithDM_std_errors_indicators = function(dt, suffix = '', rollmonths = 60, colors = NA,
-                            xl = -360, xh = 240, yl = -10, yh = 130, fig.width = 10,
-                            fig.height = 8, fontsize = 18, basepath = NA_character_,
-                            labelmatch = FALSE, hideoos = FALSE,
-                            legendlabels = c('Published','Matched data-mined','Alt data-mined'),
-                            legendpos = c(80,85)/100,
-                            yaxislab = 'Trailing 5-Year Mean Return (bps p.m.)',
-                            filetype = '.pdf',
-                            linesize = 1.1
+                             xl = -360, xh = 240, yl = -10, yh = 130, fig.width = 10,
+                             fig.height = 8, fontsize = 18, basepath = NA_character_,
+                             labelmatch = FALSE, hideoos = FALSE,
+                             legendlabels = c('Published','Matched data-mined','Alt data-mined'),
+                             legendpos = c(80,85)/100,
+                             yaxislab = 'Trailing 5-Year Mean Return (bps p.m.)',
+                             filetype = '.pdf',
+                             linesize = 1.1
 ) {
-  
-  # Check available columns
+  # Check available columns and ensure calendarDate is included
   if (any(names(dt)=='matchRetAlt')){
-    select_cols = c('eventDate','ret','matchRet','matchRetAlt','pubname')
+    select_cols = c('eventDate','calendarDate','ret','matchRet','matchRetAlt','pubname')
   } else if (any(names(dt)=='matchRet')){
-    select_cols = c('eventDate','ret','matchRet','pubname')
+    select_cols = c('eventDate','calendarDate','ret','matchRet','pubname')
   } else {
-    select_cols = c('eventDate','ret','pubname')
+    select_cols = c('eventDate','calendarDate','ret','pubname')
   }
   
   # Just add window indicators to original data
@@ -1536,8 +1535,8 @@ ReturnPlotsWithDM_std_errors_indicators = function(dt, suffix = '', rollmonths =
           warning("Empty data received")
           return(NA_real_)
       }
-      if (length(unique(data$eventDate)) < 2) {
-          warning("Less than 2 unique eventDates")
+      if (length(unique(data$calendarDate)) < 2) {
+          warning("Less than 2 unique calendarDates")
           return(NA_real_)
       }
       if (length(unique(data$pubname)) < 2) {
@@ -1545,10 +1544,10 @@ ReturnPlotsWithDM_std_errors_indicators = function(dt, suffix = '', rollmonths =
           print(c("only one pubname: ", unique(data$pubname), "nrow: ", nrow(data)))
           return(NA_real_)
       } else {
-          # If multiple pubnames, use double clustering
+          # If multiple pubnames, use double clustering by calendar month instead of event date
           mod = lm(return ~ 1, data = data)
           se = tryCatch({
-              sqrt(vcovCL(mod, cluster = ~eventDate + pubname))[1,1]
+              sqrt(vcovCL(mod, cluster = ~calendarDate + pubname))[1,1]
           }, error = function(e) {
               warning("Error in vcovCL: ", e$message)
               return(NA_real_)
@@ -1558,7 +1557,7 @@ ReturnPlotsWithDM_std_errors_indicators = function(dt, suffix = '', rollmonths =
       if (is.nan(se)) {
           warning(sprintf("NaN SE produced: nobs=%d, n_dates=%d, n_pubnames=%d", 
                       nrow(data %>% filter(!is.na(return))), 
-                      length(unique(data$eventDate)), 
+                      length(unique(data$calendarDate)), 
                       length(unique(data$pubname))))
           return(NA_real_)
       }
