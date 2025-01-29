@@ -363,7 +363,9 @@ restrictInclSignals = function(restrictType = NULL, topT = 2) {
     # To mitigate the effect of those papers on the agnostic and mispricing cats, 
     # we pick at most topT signals from each paper 
     # We consider the topT signals with the highest t-stats per paper
-    # For Ang et al (2006), we keep the betaVIX signal because it is one of the relatively few risk signals
+    # For Ang et al (2006), we keep the betaVIX signal because it is one of the 
+    # relatively few risk signals (it is also the signal with the highest IS 
+    # t-stat from that paper, so the filter below does not do anything)
     
     signals = dt %>% 
       group_by(Authors, Year, Journal) %>%
