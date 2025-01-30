@@ -384,9 +384,9 @@ for (n_year_roll in n_year_list) {
 # Compare to top 5% of t-stats (computed in previous chunk)
 
 # Load info on accounting variables and filter
-signaldoc =  data.table::fread('../Data/Raw/SignalDoc.csv') %>% 
-  filter(Cat.Data == 'Accounting') 
-
+signaldoc = data.table::fread('../Data/Raw/SignalDoc.csv') %>% 
+  filter(Cat.Data == 'Accounting') %>% 
+  filter(Acronym %in% inclSignals)
 
 ret_for_plottingAnnualAccounting = ret_for_plot1 %>% 
   filter(pubname %in% unique(signaldoc$Acronym)) %>% 

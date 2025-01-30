@@ -2,7 +2,7 @@
 rm(list = ls())
 source('0_Environment.R')
 
-matchname = paste0('../Data/Processed/', name, ' MatchPub.RData')
+matchname = paste0('../Data/Processed/', globalSettings$dataVersion, ' MatchPub.RData')
 
 # Import and Clean Matched Data ------------------------------------------------------
 
