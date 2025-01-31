@@ -16,7 +16,7 @@ czsum <- readRDS("../Data/Processed/czsum_allpredictors.RDS") %>%
   setDT()
 
 czcat <- fread("DataInput/SignalsTheoryChecked.csv") %>%
-  select(signalname, Year, theory)
+  select(signalname, Year, theory, Journal)
 
 czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
   left_join(czcat, by = "signalname") %>%
@@ -513,4 +513,58 @@ for (n_year_roll in n_year_list) {
       ggsave(filename = paste0("../Results/Fig_DM_Roll", n_year_roll, ".pdf"),
       width = 10, height = 8)
 } # end loop over n_year_roll
+
+# Define journal categories before the plotting section
+top_finance = c('JF', 'JFE', 'RFS')
+top_accounting = c('JAR', 'JAE', 'AR')  # Top 3 Acct journals
+
+# Add journal classifications to ret_for_plot0
+ret_for_plot0 <- ret_for_plot0 %>%
+  left_join(
+    czcat %>% 
+      mutate(journaltype = case_when(
+        Journal %in% top_finance ~ 'Top 3 Finance',
+        Journal %in% top_accounting ~ 'Top 3 Accounting',
+        TRUE ~ 'Other'
+      )) %>%
+      mutate(journaltype = factor(journaltype, 
+        levels = c('Top 3 Finance', 'Top 3 Accounting', 'Other')
+      )) %>%
+      select(signalname, journaltype),
+    by = c("pubname" = "signalname")
+  )
+
+# Plot by Journal Category
+for (jj in levels(ret_for_plot0$journaltype)) {
+  print(jj)
+  tempname <- paste0("t_min_2_journal_", gsub(" ", "", jj))
+
+  tempret = ret_for_plot0 %>% 
+    filter(journaltype == jj) %>% 
+    filter(!is.na(matchRet))
+  
+  # Count unique signals in this category
+  n_signals = length(unique(tempret$pubname))
+  
+  # Plot
+  plt = ReturnPlotsWithDM(
+    dt = tempret,  
+    basepath = "../Results/Fig_DM",
+    suffix = tempname,
+    rollmonths = 60,
+    colors = colors,
+    labelmatch = FALSE,
+    yl = -100, yh = 175,
+    fig.width = 18,
+    fontsize = 38,
+    legendlabels =
+      c(
+        paste0("Published in ", jj, " (N=", n_signals, ")"),
+        paste0("|t|>2.0 Mining Accounting"),
+        'N/A'
+      ),
+    yaxislab = 'Trailing 5-Year Return',
+    legendpos = c(25,20)/100,
+  )  
+}
 
