@@ -165,6 +165,17 @@ plot_one_setting(plotdat)
 
 plotdat$matchset$t_min = globalSettings$t_min # back to default
 
+## Plot abs(t) > 2 ----------------------------------------------------------
+
+plotdat$name <- "t_min_2"
+plotdat$legprefix = "|t|>2.0"
+
+plotdat$matchset$t_min = 2
+
+plot_one_setting(plotdat)
+
+plotdat$matchset$t_min = globalSettings$t_min # back to default
+
 ## Plot abs(t) > 3 ----------------------------------------------------------
 plotdat$name <- "t_min_3"
 plotdat$legprefix = "|t|>3.0"
