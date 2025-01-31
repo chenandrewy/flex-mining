@@ -519,9 +519,11 @@ top_finance = c('JF', 'JFE', 'RFS')
 top_accounting = c('JAR', 'JAE', 'AR')  # Top 3 Acct journals
 
 # Add journal classifications to ret_for_plot0
-ret_for_plot0 <- ret_for_plot0 %>%
+ret_for_plot_journal <- ret_for_plot0 %>%
   left_join(
     czcat %>% 
+      # Exclude top econ journals from the analysis entirely # Note: AER, Econometrica, REStud not in data
+      filter(!Journal %in% c('QJE', 'JPE')) %>%
       mutate(journaltype = case_when(
         Journal %in% top_finance ~ 'Top 3 Finance',
         Journal %in% top_accounting ~ 'Top 3 Accounting',
@@ -535,11 +537,11 @@ ret_for_plot0 <- ret_for_plot0 %>%
   )
 
 # Plot by Journal Category
-for (jj in levels(ret_for_plot0$journaltype)) {
+for (jj in levels(ret_for_plot_journal$journaltype)) {
   print(jj)
   tempname <- paste0("t_min_2_journal_", gsub(" ", "", jj))
 
-  tempret = ret_for_plot0 %>% 
+  tempret = ret_for_plot_journal %>% 
     filter(journaltype == jj) %>% 
     filter(!is.na(matchRet))
   
@@ -554,7 +556,7 @@ for (jj in levels(ret_for_plot0$journaltype)) {
     rollmonths = 60,
     colors = colors,
     labelmatch = FALSE,
-    yl = -100, yh = 175,
+    yl = -0, yh = 125,  # Adjusted y-axis range to match other plots
     fig.width = 18,
     fontsize = 38,
     legendlabels =
