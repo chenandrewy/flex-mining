@@ -1633,8 +1633,8 @@ ReturnPlotsWithDM_std_errors_indicators = function(dt, suffix = '', rollmonths =
       ) %>%
       # Add confidence intervals
       mutate(
-          upper = roll_rbar + 1.96 * se,
-          lower = roll_rbar - 1.96 * se
+          upper = roll_rbar + 1 * se,
+          lower = roll_rbar - 1 * se
       )
 
   # dt_plot %>% filter(!is.na(se) & !is.na(roll_rbar) & SignalType == 'ret') %>% head()
