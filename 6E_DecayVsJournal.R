@@ -1,8 +1,11 @@
 # Setup -------------------------------------------------------------------
 source('0_Environment.R')
 
+inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType, 
+                                  topT = globalSettings$topT)
+
 czcat = fread('DataInput/SignalsTheoryChecked.csv') %>% 
-  select(signalname, Year, Journal, theory, NoModel, Stylized, Dynamic, Quantitative)
+  select(signalname, Year, Journal, theory, NoModel, Stylized, Dynamic, Quantitative) 
 
 czcat %>% select(Journal) %>% distinct()
 
@@ -22,7 +25,8 @@ czcat[, journaltype := factor(journaltype,
                              levels = c('Top 5 Econ', 'Top 3 Fin', 'Top 3 Acct', 'Other'))]
 
 czret = readRDS('../Data/Processed/czret_keeponly.RDS') %>% 
-  left_join(czcat, by = 'signalname') 
+  left_join(czcat, by = 'signalname') %>% 
+  filter(signalname %in% inclSignals) 
 
 # calc decay
 czdecay = czret %>% 
