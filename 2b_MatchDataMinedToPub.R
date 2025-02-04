@@ -23,14 +23,19 @@ minNumStocks = globalSettings$minNumStocks
 ncores = globalSettings$num_cores
 
 # Load data ---------------------------------------------------------------
+inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType, 
+                                  topT = globalSettings$topT)
 
-czsum = readRDS('../Data/Processed/czsum_allpredictors.RDS')
+czsum = readRDS('../Data/Processed/czsum_allpredictors.RDS') %>% 
+  filter(signalname %in% inclSignals) 
 
 czcat = fread('DataInput/SignalsTheoryChecked.csv') %>% 
-  select(signalname, Year, theory)
+  select(signalname, Year, theory) %>% 
+  filter(signalname %in% inclSignals) 
 
 czret = readRDS('../Data/Processed/czret_keeponly.RDS') %>% 
-  left_join(czcat, by = 'signalname') 
+  left_join(czcat, by = 'signalname') %>% 
+  filter(signalname %in% inclSignals) 
 
 # Data mining strategies
 bm_rets = readRDS(DMname)$ret

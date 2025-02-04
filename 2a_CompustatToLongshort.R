@@ -61,6 +61,8 @@ numer_ok = readxl::read_excel('DataInput/Yan-Zheng-Compustat-Vars.xlsx') %>%
 denom_ok = fread('DataIntermediate/freq_obs_1963.csv') %>% 
   filter(freq_obs_1963 > user$signal$denom_min_fobs) 
 
+validDenoms = read_csv('DataIntermediate/validDenomsCombinations.csv')
+
 if (debugset$shortlist == F){
   varlist = list(
     x1 = numer_ok$name
@@ -79,7 +81,8 @@ varlist$xall = unique(c(varlist$x1, varlist$x2))
 
 signal_list = make_signal_list(signal_form = user$signal$form,
                                xvars       = varlist$x1,
-                               scale_vars  = varlist$x2)
+                               scale_vars  = varlist$x2,
+                               validDenoms = validDenoms)
 
 # port list
 port_list = expand.grid(longshort_form = user$port$longshort_form, 

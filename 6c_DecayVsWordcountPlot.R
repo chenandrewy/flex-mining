@@ -4,6 +4,9 @@
 wordcount = fread('DataIntermediate/TextClassification.csv') %>% 
   select(signalname, theory, misprice_risk_ratio)
 
+inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType, 
+                                  topT = globalSettings$topT)
+
 # calc decay
 czdecay = czret %>% 
   mutate(
@@ -12,6 +15,7 @@ czdecay = czret %>%
   ) %>% 
   group_by(signalname, samptype2) %>% 
   summarize(rbar = mean(ret)) %>% 
+  filter(signalname %in% inclSignals) %>%  
   pivot_wider(names_from = samptype2, values_from = rbar)
 
 # data to plot
@@ -84,6 +88,7 @@ czdecay = czret %>%
   ) %>% 
   group_by(signalname, samptype2) %>% 
   summarize(rbar = mean(ret)) %>% 
+  filter(signalname %in% inclSignals) %>%  
   pivot_wider(names_from = samptype2, values_from = rbar)
 
 # data to plot

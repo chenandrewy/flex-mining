@@ -60,7 +60,12 @@ dir.create('../Results/Extra/', showWarnings = F)
 options(stringsAsFactors = FALSE)
 
 globalSettings = list(
-  dataVersion  = 'CZ-style-v7',
+  dataVersion  = 'CZ-style-v8',
+  
+  # published signal choices
+  restrictType = 'topT', # 'topT' or NULL for all signals
+  topT         = 2, # number of top t-stat signals to keep from each paper
+  
   # signal choices
   minNumStocks   = 20, # Minimum number of stocks in any month over the in-sample period to include a DM strategy for matching to published strategies (ie minNumStocks/2 in each leg)
   signalnum      = Inf, # number of signals to sample or Inf for all
@@ -267,10 +272,11 @@ lsos <- function(..., n=10) {
 
 
 # function for creating a list of possible variable combinations used in strategies
-make_signal_list = function(signal_form, xvars, scale_vars) {
+make_signal_list = function(signal_form, xvars, scale_vars, validDenoms = NULL) {
   
   #' @param xvars Unique names of variables used for creating strategies
   #' @param scale_vars Scaling variables used in ratios (or NULL for unrestricted)
+  #' @param validDenoms Dataset of valid denominator for each combination of signals (created in 1_Download_and_Clean.R)
   
   # make list of all possible xused combinations
   tmp = expand.grid(signal_form = signal_form, 
@@ -280,15 +286,36 @@ make_signal_list = function(signal_form, xvars, scale_vars) {
   
   # Remove v1=v2 for functions where this does not make sense
   # and remove inverse  (e.g. keep only v1/v2 not v2/v1)
-  tmp = tmp %>%
-    mutate(keep = case_when(
-      signal_form  %in% c('diff(v1)/lag(v2)') ~ 1,
-      # For ratio signals
-      v1 %in% scale_vars & v1<= v2 ~ 0,
-      TRUE ~ 1)
-    ) %>% 
-    filter(keep == 1) %>% 
-    select(-keep)
+  if (!is.null(validDenoms)) {  # new version that removes based on non-zero freq in denominator
+    
+    tmp = tmp %>% 
+      # paste name alphabetically
+      mutate(combName = ifelse(v1 < v2, paste(v1, v2, sep='|'), 
+                               paste(v2, v1, sep='|')) %>% as.character()) %>% 
+      left_join(validDenoms)  %>% 
+      mutate(keep = case_when(
+        # Keep all growth rate signals
+        signal_form  %in% c('diff(v1)/lag(v2)') ~ 1,
+        # For ratio signals, keep version with more non-zeros in denominator
+        !(v1 %in% scale_vars) ~ 1,
+        v1 %in% scale_vars & v2 == denom ~ 1,
+        TRUE ~ 0
+      )) %>% 
+      filter(keep == 1) %>% 
+      select(signal_form, v1, v2)
+    
+  } else {  # old version that just removes alphabetically
+    
+    tmp = tmp %>%
+      mutate(keep = case_when(
+        signal_form  %in% c('diff(v1)/lag(v2)') ~ 1,
+        # For ratio signals
+        v1 %in% scale_vars & v1<= v2 ~ 0,
+        TRUE ~ 1)
+      ) %>% 
+      filter(keep == 1) %>% 
+      select(-keep)
+  }
   
   # remove v2 for signal_forms that use only 1 variable
   tmp = tmp %>% 
@@ -308,6 +335,57 @@ make_signal_list = function(signal_form, xvars, scale_vars) {
   
   return(tmp)
 }
+
+
+# function for restricting included published signals
+restrictInclSignals = function(restrictType = NULL, topT = 2) {
+  
+  dt = readRDS('../Data/Processed/czsum_allpredictors.RDS')
+  
+  if (is.null(restrictType)) {
+    
+    signals = dt %>% 
+      pull(signalname)
+    message('Using all ', nrow(dt), ' signals')
+    
+  } else if (restrictType == 'topT') {
+    
+    # There are a bunch of papers that contain a lot of signals
+    # 1 Heston and Sadka             2008 JFE        10
+    # 2 Richardson et al.            2005 JAE         7
+    # 3 Daniel and Titman            2006 JF          6
+    # 4 Nagel                        2005 JFE         4
+    # 5 An, Ang, Bali, Cakici        2014 JF          3
+    # 6 Ang et al.                   2006 JF          3
+    # 7 Barber et al.                2001 JF          3
+    # 8 Bradshaw, Richardson, Sloan  2006 JAE         3
+    
+    # To mitigate the effect of those papers on the agnostic and mispricing cats, 
+    # we pick at most topT signals from each paper 
+    # We consider the topT signals with the highest t-stats per paper
+    # For Ang et al (2006), we keep the betaVIX signal because it is one of the 
+    # relatively few risk signals (it is also the signal with the highest IS 
+    # t-stat from that paper, so the filter below does not do anything)
+    
+    signals = dt %>% 
+      group_by(Authors, Year, Journal) %>%
+      arrange(desc(abs(tstat))) %>% 
+      mutate(tmp = row_number()) %>% 
+      filter(tmp <= topT | signalname == 'betaVIX') %>%
+      pull(signalname)
+    
+    message('Using ', length(signals), ' out of ', nrow(dt), ' signals')
+  } else {
+    stop('Invalid restrictType')
+  }
+  
+  return(signals)
+}
+
+
+
+
+
 
 # function for creating Yan-Zheng's 18,113 signal list
 make_signal_list_yz = function(signal_form, x1list, x2list, signalnum, seed){

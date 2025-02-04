@@ -5,9 +5,15 @@ library(multcomp) # for glht. Not loaded by default in environment because of co
 
 # Load and prep data ------------------------------------------------------
 
-signalcat = fread('DataInput/SignalsTheoryChecked.csv') 
+inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType, 
+                                  topT = globalSettings$topT)
 
-czret_1 = readRDS('../Data/Processed/czsum_allpredictors.RDS') %>% setDT()
+signalcat = fread('DataInput/SignalsTheoryChecked.csv') %>% 
+  filter(signalname %in% inclSignals) 
+
+czret_1 = readRDS('../Data/Processed/czsum_allpredictors.RDS') %>% 
+  filter(signalname %in% inclSignals) %>% 
+  setDT()
 
 setkey(czret_1, signalname)
 setkey(signalcat, signalname)
@@ -19,6 +25,7 @@ signalcat <- signalcat[Keep == TRUE,]
 
 # redundant, but fix me carefully later
 czret = readRDS('../Data/Processed/czret_keeponly.RDS') %>% 
+  filter(signalname %in% inclSignals) %>% 
   filter(!is.na(samptype)) %>% 
   mutate(in_samp = samptype == 'insamp') %>%
   mutate(post_samp = samptype %in% c('oos','postpub')) %>% 

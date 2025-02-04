@@ -55,16 +55,21 @@ dmcomp$name <- paste0('../Data/Processed/'
 tic0 = Sys.time()
 
 ## Load CZ ----------------------------------------------------
+inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType, 
+                                  topT = globalSettings$topT)
 
 # published
 czsum <- readRDS("../Data/Processed/czsum_allpredictors.RDS") %>%
-    filter(Keep) %>%
+    filter(Keep) %>% 
+    filter(signalname %in% inclSignals) %>% 
     setDT()
 
 czcat <- fread("DataInput/SignalsTheoryChecked.csv") %>%
-    select(signalname, Year, theory)
+    select(signalname, Year, theory) %>% 
+   filter(signalname %in% inclSignals)
 
 czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
+  filter(signalname %in% inclSignals) %>% 
   left_join(czcat, by = "signalname") %>%
   mutate(ret_scaled = ret / rbar * 100)
 

@@ -9,15 +9,20 @@ extract_beta <- function(x, y) {
 
 czsum = readRDS('../Data/Processed/czsum_allpredictors.RDS')
 
+inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType, 
+                                  topT = globalSettings$topT)
+
 czcat = fread('DataInput/SignalsTheoryChecked.csv') %>% 
-  select(signalname, Year, theory)
+  select(signalname, Year, theory) %>% 
+  filter(signalname %in% inclSignals)
 
 czret = readRDS('../Data/Processed/czret_keeponly.RDS') %>% 
   left_join(czcat, by = 'signalname') %>% 
   mutate(
     retOrig = ret
     , ret = ret/rbar*100
-  )
+  ) %>% 
+  filter(signalname %in% inclSignals)
 
 # Main Figure  ----------------------------------
 
@@ -115,8 +120,6 @@ ReturnPlotsNoDM(dt = czret %>%
                 fontsize = fontsizeall,
                 legpos = legposall
 )
-
-
 
 # CAPM versions of plots --------------------------------------------------
 
@@ -266,14 +269,18 @@ ReturnPlotsNoDMAlpha(dt = czret[abar_all_not_norm_t >= 3, ] %>%
 ## Load and process data ---------------------------------------------------
 
 czcat = fread('DataInput/SignalsTheoryChecked.csv') %>% 
-  select(signalname, Year, theory)
+  select(signalname, Year, theory) %>% 
+  filter(signalname %in% inclSignals)
+
 
 czret = readRDS('../Data/Processed/czret_keeponly.RDS') %>% 
   left_join(czcat, by = 'signalname') %>% 
   mutate(
     retOrig = ret
     , ret = ret/rbar*100
-  )
+  ) %>% 
+  filter(signalname %in% inclSignals)
+
 
 czret <- czret %>% left_join(FamaFrenchFactors, by  = c('date'))
 

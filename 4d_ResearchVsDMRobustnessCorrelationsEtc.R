@@ -2,24 +2,30 @@
 rm(list = ls())
 source('0_Environment.R')
 
-matchname = paste0('../Data/Processed/', name, ' MatchPub.RData')
+matchname = paste0('../Data/Processed/', globalSettings$dataVersion, ' MatchPub.RData')
 
 # Import and Clean Matched Data ------------------------------------------------------
 
 # CZ data
+inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType, 
+                                  topT = globalSettings$topT)
+
 czcat = fread('DataInput/SignalsTheoryChecked.csv') %>% 
-  select(signalname, theory)
+  select(signalname, theory) %>% 
+  filter(signalname %in% inclSignals)
 
 czsum = readRDS('../Data/Processed/czsum_allpredictors.RDS') %>% 
   filter(Keep) %>% 
-  left_join(czcat, by = 'signalname') 
+  left_join(czcat, by = 'signalname') %>% 
+  filter(signalname %in% inclSignals)
 
 czret = readRDS('../Data/Processed/czret_keeponly.RDS') %>% 
   left_join(czcat, by = 'signalname') %>% 
   mutate(
     retOrig = ret
     , ret = ret/rbar*100
-  )
+  ) %>% 
+  filter(signalname %in% inclSignals)
 
 
 # matched DM data

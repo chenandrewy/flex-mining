@@ -1,8 +1,16 @@
 # Setup -------------------------------------------------------------------
 source('0_Environment.R')
 
+inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType, 
+                                  topT = globalSettings$topT)
+
+czsum <- readRDS("../Data/Processed/czsum_allpredictors.RDS") %>% 
+  filter(Keep) %>% 
+  select(signalname) 
+
 czcat = fread('DataInput/SignalsTheoryChecked.csv') %>% 
-  select(signalname, Year, theory, NoModel, Stylized, Dynamic, Quantitative)
+  select(signalname, Year, theory, NoModel, Stylized, Dynamic, Quantitative) %>% 
+  filter(signalname %in% inclSignals, signalname %in% czsum$signalname) 
 
 czcat[, modeltype := case_when(NoModel == 1 ~ 'No Model',
                                Stylized == 1 ~ 'Stylized',
@@ -11,7 +19,8 @@ czcat[, modeltype := case_when(NoModel == 1 ~ 'No Model',
 czcat[, modeltype := factor(modeltype, levels = c('No Model', 'Stylized', 'Dynamic', 'Quantitative'))]
 
 czret = readRDS('../Data/Processed/czret_keeponly.RDS') %>% 
-  left_join(czcat, by = 'signalname') 
+  left_join(czcat, by = 'signalname') %>% 
+  filter(signalname %in% inclSignals) 
 
 # calc decay
 czdecay = czret %>% 

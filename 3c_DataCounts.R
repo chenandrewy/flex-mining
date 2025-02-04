@@ -5,13 +5,20 @@
 
 source('0_Environment.R')
 
+inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType, 
+                                  topT = globalSettings$topT)
+
 czsum = readRDS('../Data/Processed/czsum_allpredictors.RDS') %>% 
   select(signalname,rbar,nobs_postsamp,rbar_ok,n_ok,Keep) %>% 
   left_join(
   fread('../Data/Raw/SignalDoc.csv')[, 1:15] %>% 
   transmute(signalname = Acronym, Journal, Authors, Year, SampleStartYear, SampleEndYear)
-  )
+  )  %>% 
+  filter(signalname %in% inclSignals)
 
+czcat = fread('DataInput/SignalsTheoryChecked.csv') %>% 
+  select(signalname, theory) %>% 
+  filter(signalname %in% inclSignals)
 
 # pre-filtering counts
 czsum  %>% 
@@ -30,7 +37,6 @@ czsum %>%
 
 czsum %>% 
   filter(SampleEndYear <= 2012) 
-208/211
 
 czsum %>% 
   filter(Keep) %>% 
@@ -39,8 +45,36 @@ czsum %>%
     , quantile(nobs_postsamp, c(0.25, 0.5))/12
   )
 
+# Count signals by journal and theory for appendix
+czsum %>% 
+  filter(rbar_ok, n_ok) %>% 
+  left_join(czcat, by = 'signalname') %>% 
+  group_by(Journal, theory) %>% 
+  count() %>% 
+  pivot_wider(names_from = theory, values_from = n, values_fill = 0) %>% 
+  xtable() %>% 
+  print.xtable(include.rownames=FALSE, 
+               include.colnames = FALSE,
+               only.contents = TRUE,
+               hline.after = NULL,
+               file = '../Results/SignalsByTheoryAndJournal.tex', sep = ',')
 
-# journal counts
+
+# Journal counts -------------------------------------------------------------------
+
+# for main paper (difficult to include automatically, copy and paste values please)
+finlist = c('JF','RFS','JFE')
+czsum %>% 
+  filter(rbar_ok, n_ok) %>% 
+  left_join(czcat, by = 'signalname') %>% 
+  mutate(Top3 = ifelse(Journal %in% finlist, 'Top3', 'Other')) %>%
+  group_by(Top3, theory) %>%
+  count() %>% 
+  pivot_wider(names_from = Top3, values_from = n, values_fill = 0) %>% 
+  mutate(Any = Other + Top3)
+  
+
+# additional journal counts for appendix or else
 finlist = c('JF','RFS','JFE','JFQA','MS')
 acctlist = c('AR','RAS','JAR','JAE')
 
