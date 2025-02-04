@@ -20,7 +20,7 @@ czsum <- readRDS("../Data/Processed/czsum_allpredictors.RDS") %>%
   setDT()
 
 czcat <- fread("DataInput/SignalsTheoryChecked.csv") %>%
-    select(signalname, Year, theory, Journal)
+    select(signalname, Year, theory, Journal) %>% 
     filter(signalname %in% inclSignals)
 
 czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
