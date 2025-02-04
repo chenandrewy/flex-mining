@@ -68,16 +68,23 @@ linesizeall = 1.5
 
 ## Load data ----------------------------------------------------
 
+inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType, 
+                                  topT = globalSettings$topT)
+
+
 # published
 czsum <- readRDS("../Data/Processed/czsum_allpredictors.RDS") %>%
-    filter(Keep) %>%
+    filter(Keep) %>% 
+    filter(signalname %in% inclSignals) %>% 
     setDT()
 
 czcat <- fread("DataInput/SignalsTheoryChecked.csv") %>%
-    select(signalname, Year, theory)
+    select(signalname, Year, theory) %>% 
+    filter(signalname %in% inclSignals) 
 
 czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
-  left_join(czcat, by = "signalname") %>%
+  left_join(czcat, by = "signalname") %>% 
+  filter(signalname %in% inclSignals) %>% 
   mutate(ret_scaled = ret / rbar * 100)
 
 ## dm signal descriptions ---------------------------------------
