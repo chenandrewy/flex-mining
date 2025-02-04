@@ -73,55 +73,6 @@ breakdat <- breakdat0 %>%
     merge(czcat %>% transmute(signalname, theory)) %>% 
     mutate(break_vs_sampend = date_break - sampend)
 
-# Check some basic stuff to console ========================
-
-# check stats by number of breaks
-#   Overall pretty similar
-#   But opt_nbreak=1 => more decay and 100\% actually decay
-
-breakdat %>% 
-    group_by(opt_nbreak) %>%
-    summarize(nsignal = n(),
-              date_break = mean(date_break),
-              BIC_1v0 = mean(BIC_1 - BIC_0),
-              RSS_1v0 = mean(RSS_1 - RSS_0),
-              ret_pre = mean(ret_pre),
-              ret_post = mean(ret_post),
-              pct_decay = mean(diff_ret < 0),
-              pct_BIC1 = mean(BIC_1 < BIC_0))
-
-breakdat %>% 
-    group_by(opt_nbreak) %>%
-    summarize(nsignal = n(),
-              pct_decay = mean(diff_ret < 0)*100,
-              pct_BIC1 = mean(BIC_1 < BIC_0)*100)
-
-# check stats by theory
-#   risk breaks are later and line up closely with sampend
-#   but they decay much more (as we know already)
-#   overall, break dates and sampends line up at this level of aggregation
-breakdat %>% 
-    group_by(theory) %>%
-    summarize(nsignal = n(),
-              date_break = mean(date_break),
-              diff_date = mean(break_vs_sampend),
-              BIC_1v0 = mean(BIC_1 - BIC_0),
-              ret_pre = mean(ret_pre),
-              ret_post = mean(ret_post),
-              pct_decay = mean(diff_ret < 0)) %>% 
-              as_tibble() 
-
-# who has a positive diff_ret?
-#   there are 4 risk predictors here, 
-#   but 3 have date_break << pubyear
-#   the exception is Beta!, which breaks in 2002!
-breakdat %>%
-    filter(diff_ret > 0) %>%
-    arrange(-diff_ret) %>% 
-    select(signalname, theory, opt_nbreak, date_break, sampend, diff_ret) %>% 
-    arrange(date_break) %>% 
-    as_tibble()  %>% print(n=100)
-
 # Table: description of split dates and returns ========================
 
 # set up
@@ -129,11 +80,17 @@ breakdat %>%
 # Using this split date means no pre-split data for DelDRC (Prakash and Sinha, CAR)
 # which, incidentally, is explicitly about the effects of SEC rule SAB 101 (from year 2000)
 # about governing software firms. 
+
+# But NASDAQ decimation does not line up with other exhibits, which have been
+# using 2004-12 as the "post-IT" date, following Chen and Velikov 2023.
+
+tech_date_user = as.yearmon('2004-12')
+
 tempret = czret %>%
     filter(date >= sampstart) %>%
     select(signalname, date, ret, sampend) %>% 
     merge(breakdat %>% select(signalname, date_break)) %>% 
-    mutate(it_date = as.yearmon('2001-04') ) 
+    mutate(it_date = tech_date_user ) 
 
 # compute summary for each split type
 tabdat <- foreach(split_type = c('sampend', 'date_break', 'it_date'), .combine = rbind) %do% {
@@ -165,7 +122,7 @@ tabdat <- foreach(split_type = c('sampend', 'date_break', 'it_date'), .combine =
         split_type,
         levels = c('sampend', 'it_date', 'date_break'),
         labels = c('1. Paper\'s Sample Ends',
-                   '2. NASDAQ Decimalization',
+                   '2. High Speed Internet',
                    '3. Data-Driven Break')
     )) %>% 
     arrange(split_type) %>% 
@@ -195,9 +152,6 @@ tex[4] = paste0(
 tex %>% print()
 writeLines(tex, '../Results/samp_split_summary.tex')
 
-breakdat %>% mutate(diff_BIC = BIC_1 - BIC_0) %>% pull(diff_BIC) %>% hist()
-
-cor(breakdat$date_break %>% as.numeric(), breakdat$sampend %>% as.numeric())
 
 # Scatterplot ========================
 
@@ -205,9 +159,6 @@ cor(breakdat$date_break %>% as.numeric(), breakdat$sampend %>% as.numeric())
 
 # set up (optional for filtering, grouping)
 breakdat2 = breakdat
-
-# NASDAQ decimalization as an alternative break date
-ref_date = as.yearmon('2001-04') 
 
 # plot and save to pdf
 set.seed(123)
@@ -219,11 +170,12 @@ tempnoise = rnorm(nrow(breakdat2), 0, 0.5) # noise makes it easier to see the ov
     ggplot(aes(x = sampend, y = date_break)) +
     geom_point(size = 2, color = 'gray30') +
     # Horizontal Dec 2004 line
-    geom_hline(yintercept = ref_date, linetype = 'dashed') +
-    annotate("text", x = 1960, y = ref_date + 1.5, 
+    geom_hline(yintercept = tech_date_user, linetype = 'dashed') +
+    annotate("text", x = 1960, y = tech_date_user + 1.5, 
              hjust = 0,
-             label = '2. NASDAQ Decimalization',
+             label = '2. High Speed Internet',
              size = 5) +
+
     theme_light(base_size = 18) +
     theme(
           legend.title = element_blank(),

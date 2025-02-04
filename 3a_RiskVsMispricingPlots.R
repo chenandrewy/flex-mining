@@ -397,3 +397,29 @@ p3
 
 ggsave('../Results/Fig_Risk_via_FF5.pdf', p3, width = 10, height = 8)
 
+
+# Plot signal counts in event time -----------------------------------------
+
+# plot by theory category
+pcount = czret %>% 
+  filter(Keep) %>% 
+  mutate(eventMonth = eventDate/12) %>% 
+  group_by(eventDate, theory) %>% 
+  summarize(nsignal = n(), .groups = 'drop') %>%
+  ggplot(aes(x = eventDate, y = nsignal, color = theory)) +
+    geom_line(size = 1.5) +
+  theme_light(base_size = 26) +
+  theme(
+    legend.position = c(20,10)/100
+    , legend.spacing.y = unit(0, units = 'cm')
+    , legend.background = element_rect(fill='transparent')
+    , legend.title = element_blank()
+    , panel.grid.minor = element_blank()
+    ) +    
+    labs(x = "Months Since Original Sample Ended", y = "Number of Signals", color = "Theory Category") +
+    coord_cartesian(xlim = c(-360,+240), ylim = c(0,50)) +    
+    scale_x_continuous(breaks = seq(-360, 240, by = 60)) +
+    scale_y_continuous(breaks = seq(0,50,10))
+    
+ggsave('../Results/Fig_NSignalEventTime.pdf', pcount, width = 10, height = 8)    
+

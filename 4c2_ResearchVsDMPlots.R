@@ -20,8 +20,8 @@ czsum <- readRDS("../Data/Processed/czsum_allpredictors.RDS") %>%
   setDT()
 
 czcat <- fread("DataInput/SignalsTheoryChecked.csv") %>%
-  select(signalname, Year, theory) %>% 
-  filter(signalname %in% inclSignals)
+    select(signalname, Year, theory, Journal)
+    filter(signalname %in% inclSignals)
 
 czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
   left_join(czcat, by = "signalname") %>%
@@ -142,12 +142,12 @@ plotdat0$comp_event_time <- temp$event_time
 rm(temp)
 
 ret_for_plot0 = czret %>%
-  transmute(pubname = signalname, eventDate, ret = ret_scaled, theory) %>%
-  left_join(
-    plotdat0$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean),
-    by = c("pubname", "eventDate")
-  ) %>%
-  select(eventDate, ret, matchRet, pubname, theory) 
+    transmute(pubname = signalname, eventDate, calendarDate = date, ret = ret_scaled, theory) %>%
+    left_join(
+        plotdat0$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean),
+        by = c("pubname", "eventDate")
+    ) %>%
+    select(eventDate, calendarDate, ret, matchRet, pubname, theory) 
 
 # Intro Plot --------------------------------------------------
 
@@ -191,13 +191,97 @@ printme = ReturnPlotsWithDM(
 ) %>% 
   ggsave(filename = paste0("../Results/Fig_DM_", tempsuffix, '.pdf'), width = 10, height = 8)
 
-file.remove("../Results/temp__t_min_2.pdf")
+file.remove(paste0("../Results/temp__", tempsuffix, ".pdf"))
 
 # numbers for intro
 ret_for_plot0[eventDate>0 & eventDate <= Inf, .(mean(ret), mean(matchRet))]
 
 ret_for_plot0 %>% distinct(pubname)
 czret %>% distinct(signalname)
+
+## plot with SE --------------------------------------------------
+
+tempsuffix = "t_min_2_se_rolling"
+
+printme = ReturnPlotsWithDM_std_errors(
+  dt = ret_for_plot0 %>% filter(!is.na(matchRet)),
+  basepath = "../Results/temp_",
+  suffix = tempsuffix,
+  rollmonths = 60,
+  colors = colors,
+  labelmatch = FALSE,
+  yl = -0,
+  yh = 125,
+  legendlabels =
+    c(
+      paste0("Published (and Peer Reviewed)"),
+      paste0("Data-Mined for |t|>2.0 in Original Sample"),
+      'N/A'
+    ),
+  legendpos = c(35,20)/100,
+  fontsize = fontsizeall,
+  yaxislab = ylaball,
+  linesize = linesizeall
+)
+
+# custom edits 
+(
+  printme + theme(
+    legend.background = element_rect(fill = "white", color = "black", size = 0.3),
+    # remove space where legend would be
+    legend.margin = margin(-1.0, 0.5, 0.5, 0.5, "cm"),
+    legend.position = c(44,15)/100,
+    # add space between legend items
+    legend.spacing.y = unit(0.2, "cm")
+  ) +
+  guides(color = guide_legend(byrow = TRUE))
+) %>% 
+  ggsave(filename = paste0("../Results/Fig_DM_", tempsuffix, '.pdf'), width = 10, height = 8)
+
+file.remove(paste0("../Results/temp__", tempsuffix, ".pdf"))
+
+
+## plot --------------------------------------------------
+
+tempsuffix = "t_min_2_se_indicators_calendar"
+
+printme = ReturnPlotsWithDM_std_errors_indicators(
+  dt = ret_for_plot0 %>% filter(!is.na(matchRet)),
+  basepath = "../Results/temp_",
+  suffix = tempsuffix,
+  rollmonths = 60,
+  colors = colors,
+  labelmatch = FALSE,
+  yl = -0,
+  yh = 125,
+  legendlabels =
+    c(
+      paste0("Published (and Peer Reviewed)"),
+      paste0("Data-Mined for |t|>2.0 in Original Sample"),
+      'N/A'
+    ),
+  legendpos = c(35,20)/100,
+  fontsize = fontsizeall,
+  yaxislab = ylaball,
+  linesize = linesizeall
+)
+
+# custom edits 
+(
+  printme + theme(
+  legend.background = element_rect(fill = "white", color = "black"
+    , size = 0.3)
+  # remove space where legend would be
+  , legend.margin = margin(-1.0, 0.5, 0.5, 0.5, "cm")
+  , legend.position  = c(44,15)/100
+  # add space between legend items
+  , legend.spacing.y = unit(0.2, "cm")
+  ) +
+  guides(color = guide_legend(byrow = TRUE))
+) %>% 
+  ggsave(filename = paste0("../Results/Fig_DM_", tempsuffix, '.pdf'), width = 10, height = 8)
+
+file.remove(paste0("../Results/temp__", tempsuffix, ".pdf"))
 
 ## Plot for slide animation --------------------------------------------------
 
@@ -377,8 +461,6 @@ for (n_year_roll in n_year_list) {
            width = 10, height = 8)
 } # end loop over n_year_roll
 
-
-
 # Accounting variables only plot  ----------------------------
 
 # Compare to top 5% of t-stats (computed in previous chunk)
@@ -514,3 +596,60 @@ printme = ReturnPlotsWithDM(
   yaxislab = ylaball,
   linesize = linesizeall
 )
+
+
+# Define journal categories before the plotting section ------------------------
+top_finance = c('JF', 'JFE', 'RFS')
+top_accounting = c('JAR', 'JAE', 'AR')  # Top 3 Acct journals
+
+# Add journal classifications to ret_for_plot0
+ret_for_plot_journal <- ret_for_plot0 %>%
+  left_join(
+    czcat %>% 
+      # Exclude top econ journals from the analysis entirely # Note: AER, Econometrica, REStud not in data
+      filter(!Journal %in% c('QJE', 'JPE')) %>%
+      mutate(journaltype = case_when(
+        Journal %in% top_finance ~ 'Top 3 Finance',
+        Journal %in% top_accounting ~ 'Top 3 Accounting',
+        TRUE ~ 'Other'
+      )) %>%
+      mutate(journaltype = factor(journaltype, 
+        levels = c('Top 3 Finance', 'Top 3 Accounting', 'Other')
+      )) %>%
+      select(signalname, journaltype),
+    by = c("pubname" = "signalname")
+  )
+
+# Plot by Journal Category
+for (jj in levels(ret_for_plot_journal$journaltype)) {
+  print(jj)
+  tempname <- paste0("t_min_2_journal_", gsub(" ", "", jj))
+
+  tempret = ret_for_plot_journal %>% 
+    filter(journaltype == jj) %>% 
+    filter(!is.na(matchRet))
+  
+  # Count unique signals in this category
+  n_signals = length(unique(tempret$pubname))
+  
+  # Plot
+  plt = ReturnPlotsWithDM(
+    dt = tempret,  
+    basepath = "../Results/Fig_DM",
+    suffix = tempname,
+    rollmonths = 60,
+    colors = colors,
+    labelmatch = FALSE,
+    yl = -0, yh = 125,  # Adjusted y-axis range to match other plots
+    fig.width = 18,
+    fontsize = 38,
+    legendlabels =
+      c(
+        paste0("Published in ", jj, " (N=", n_signals, ")"),
+        paste0("|t|>2.0 Mining Accounting"),
+        'N/A'
+      ),
+    yaxislab = 'Trailing 5-Year Return',
+    legendpos = c(25,20)/100,
+  )  
+}

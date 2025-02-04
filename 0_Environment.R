@@ -1573,6 +1573,305 @@ process_event_time_returns <- function(dm_name, match_strats, npubmax, czsum, us
   return(event_time)
 }
 
+ReturnPlotsWithDM_std_errors_indicators = function(dt, suffix = '', rollmonths = 60, colors = NA,
+                             xl = -360, xh = 240, yl = -10, yh = 130, fig.width = 10,
+                             fig.height = 8, fontsize = 18, basepath = NA_character_,
+                             labelmatch = FALSE, hideoos = FALSE,
+                             legendlabels = c('Published','Matched data-mined','Alt data-mined'),
+                             legendpos = c(80,85)/100,
+                             yaxislab = 'Trailing 5-Year Mean Return (bps p.m.)',
+                             filetype = '.pdf',
+                             linesize = 1.1
+) {
+  # Check available columns and ensure calendarDate is included
+  if (any(names(dt)=='matchRetAlt')){
+    select_cols = c('eventDate','calendarDate','ret','matchRet','matchRetAlt','pubname')
+  } else if (any(names(dt)=='matchRet')){
+    select_cols = c('eventDate','calendarDate','ret','matchRet','pubname')
+  } else {
+    select_cols = c('eventDate','calendarDate','ret','pubname')
+  }
+  
+  # Just add window indicators to original data
+  dt = dt %>% 
+    select(all_of(select_cols)) %>%
+    mutate(
+      nonoverlap_window = floor(eventDate/rollmonths)  # same for all pubnames at each eventDate
+    )
+
+  # First gather the returns into long format
+  dt_long = dt %>%
+    pivot_longer(
+      cols = c("ret", "matchRet", if("matchRetAlt" %in% names(.)) "matchRetAlt"),
+      names_to = "SignalType",
+      values_to = "return"
+    )
+  
+  get_clustered_se = function(data) {
+      # Add checks with informative messages
+      if (nrow(data) == 0) {
+          warning("Empty data received")
+          return(NA_real_)
+      }
+      if (length(unique(data$calendarDate)) < 2) {
+          warning("Less than 2 unique calendarDates")
+          return(NA_real_)
+      }
+      if (length(unique(data$pubname)) < 2) {
+          # If only one pubname, use regular time series clustering
+          print(c("only one pubname: ", unique(data$pubname), "nrow: ", nrow(data)))
+          return(NA_real_)
+      } else {
+          # If multiple pubnames, use double clustering by calendar month instead of event date
+          mod = lm(return ~ 1, data = data)
+          se = tryCatch({
+              sqrt(vcovCL(mod, cluster = ~calendarDate + pubname))[1,1]
+          }, error = function(e) {
+              warning("Error in vcovCL: ", e$message)
+              return(NA_real_)
+          })
+      }
+      
+      if (is.nan(se)) {
+          warning(sprintf("NaN SE produced: nobs=%d, n_dates=%d, n_pubnames=%d", 
+                      nrow(data %>% filter(!is.na(return))), 
+                      length(unique(data$calendarDate)), 
+                      length(unique(data$pubname))))
+          return(NA_real_)
+      }
+      
+      return(se)
+  }
+  
+  dt_plot = dt_long %>% 
+      # First get mean return for each period
+      group_by(SignalType, eventDate) %>% 
+      summarise(
+          period_mean = mean(return, na.rm=TRUE),
+          .groups = 'drop'
+      ) %>% 
+      # Now get rolling means and compute SEs for non-overlapping windows
+      group_by(SignalType) %>%
+      arrange(eventDate) %>%
+      mutate(
+          roll_rbar = zoo::rollmean(period_mean, k = rollmonths, fill = NA, align = 'right'),
+          window_end = eventDate,
+          window_start = eventDate - rollmonths + 1,
+          nonoverlap_window = floor(eventDate/rollmonths)  # window indicator
+      ) %>%
+      # Now compute SEs only for non-overlapping windows
+      group_by(SignalType, nonoverlap_window) %>%
+      summarise(
+          roll_rbar = last(roll_rbar),  # take end of window value
+          window_end = last(eventDate),
+          window_start = window_end - rollmonths + 1,
+          se = {
+              window_data = dt_long %>% 
+                  filter(!is.na(return),
+                        SignalType == first(SignalType),
+                        eventDate > window_start,
+                        eventDate <= window_end) 
+              get_clustered_se(window_data)
+          },
+          unique_pubnames = {dt_long %>% 
+                  filter(!is.na(return),
+                        SignalType == first(SignalType),
+                        eventDate > window_start,
+                        eventDate <= window_end) %>% 
+                  select(pubname) %>% 
+                  distinct() %>% 
+                  nrow()
+          },
+          unique_eventdates = {dt_long %>% 
+                  filter(!is.na(return),
+                        SignalType == first(SignalType),
+                        eventDate > window_start,
+                        eventDate <= window_end) %>% 
+                  select(eventDate) %>% 
+                  distinct() %>% 
+                  nrow()
+          },
+          .groups = 'drop') %>%      
+      # Now join back to get SE for each event date
+      select(SignalType, nonoverlap_window, se, unique_pubnames, unique_eventdates) %>%
+      right_join(
+          dt_long %>% 
+              group_by(SignalType, eventDate) %>% 
+              summarise(
+                  period_mean = mean(return, na.rm=TRUE),
+                  .groups = 'drop'
+              ) %>% 
+              group_by(SignalType) %>%
+              arrange(eventDate) %>%
+              mutate(
+                  roll_rbar = zoo::rollmean(period_mean, k = rollmonths, fill = NA, align = 'right'),
+                  nonoverlap_window = floor(eventDate/rollmonths)
+              ),
+          by = c("SignalType", "nonoverlap_window")
+      ) %>%
+      # Add confidence intervals
+      mutate(
+          upper = roll_rbar + 1 * se,
+          lower = roll_rbar - 1 * se
+      )
+
+  # dt_plot %>% filter(!is.na(se) & !is.na(roll_rbar) & SignalType == 'ret') %>% head()
+  # dt_plot %>% filter(!is.na(se) & !is.na(roll_rbar) & SignalType == 'ret') %>% tail()
+  # Create plot
+  printme = dt_plot %>% 
+    mutate(SignalType = factor(SignalType, 
+                              levels = c('ret', 'matchRet','matchRetAlt'),
+                              labels = legendlabels)) %>% 
+    ggplot(aes(x = eventDate, y = roll_rbar, color = SignalType, linetype = SignalType)) +
+    # Add CI only for published signals
+    geom_ribbon(
+      data = . %>% filter(SignalType == legendlabels[1]),
+      aes(ymin = lower, ymax = upper), 
+      fill = colors[1],
+      alpha = 0.1, 
+      color = NA
+    ) +
+    geom_line(size = linesize) +
+    scale_color_manual(values = colors) + 
+    scale_fill_manual(values = colors) +
+    scale_linetype_manual(values = c('solid', 'longdash','dashed')) +
+    geom_vline(xintercept = 0) +
+    coord_cartesian(xlim = c(xl, xh), ylim = c(yl, yh)) +
+    scale_y_continuous(breaks = seq(-200,180,25)) +
+    scale_x_continuous(breaks = seq(-360,360,60)) +  
+    geom_hline(yintercept = c(0, 100), color = c('black', 'dimgrey')) +
+    labs(x = 'Months Since Original Sample Ended',
+         y = yaxislab,
+         color = '', 
+         linetype = '') +
+    theme_light(base_size = fontsize) +
+    theme(
+      legend.position = legendpos,
+      legend.spacing.y = unit(0.1, units = 'cm'),
+      legend.background = element_rect(fill='transparent'),
+      legend.key.width = unit(1.5, units = 'cm')
+    ) +
+    guides(fill = "none")
+  
+  if (labelmatch == TRUE){
+    printme = printme +
+      annotate('text', x = -90, y = 12, fontface = 'italic',
+               label = '<- matching region',
+               color = 'grey40' , size = 5) +
+      annotate('text', x = 70, y = 12, fontface = 'italic',
+               label = 'unmatched ->',
+               color = 'grey40' , size = 5)
+  }
+  
+  ggsave(paste0(basepath, '_', suffix, filetype), width = fig.width, height = fig.height)
+  
+  return(printme = printme)
+}
+
+ReturnPlotsWithDM_std_errors = function(dt, suffix = '', rollmonths = 60, colors = NA,
+                            xl = -360, xh = 240, yl = -10, yh = 130, fig.width = 10,
+                            fig.height = 8, fontsize = 18, basepath = NA_character_,
+                            labelmatch = FALSE, hideoos = FALSE,
+                            legendlabels = c('Published','Matched data-mined','Alt data-mined'),
+                            legendpos = c(80,85)/100,
+                            yaxislab = 'Trailing 5-Year Mean Return (bps p.m.)',
+                            filetype = '.pdf',
+                            linesize = 1.1,
+                            show_se = TRUE
+) {
+  
+  # check if you have matchRetAlt and adjust accordingly
+  if (any(names(dt)=='matchRetAlt')){
+    select_cols = c('eventDate','ret','matchRet','matchRetAlt')
+  } else if (any(names(dt)=='matchRet')){
+    select_cols = c('eventDate','ret','matchRet')
+  } else {
+    select_cols = c('eventDate','ret')
+  }
+  
+  dt = dt %>% 
+    select(all_of(select_cols)) %>% 
+    gather(key = 'SignalType', value = 'return', -eventDate) %>% 
+    # First get mean return for each period
+    group_by(SignalType, eventDate) %>% 
+    summarise(
+      period_mean = mean(return, na.rm=TRUE),
+      .groups = 'drop'
+    ) %>% 
+    # Now for each SignalType, get rolling calculations
+    group_by(SignalType) %>%
+    arrange(eventDate) %>%
+    mutate(
+      # Rolling mean of the period means
+      roll_rbar = zoo::rollmean(period_mean, k = rollmonths, fill = NA, align = 'right'),
+      # Standard error of this rolling mean
+      roll_se = zoo::rollapply(
+        period_mean,
+        width = rollmonths,
+        FUN = function(x) sd(x, na.rm = TRUE)/sqrt(rollmonths),
+        align = 'right',
+        fill = NA
+      ),
+      upper = roll_rbar + 1.96 * roll_se,
+      lower = roll_rbar - 1.96 * roll_se
+    )
+  
+  if (hideoos==TRUE){
+    dt = dt %>% 
+      filter(!(SignalType == 'matchRet' & eventDate > 0))
+  }
+  
+  printme = dt %>% 
+    mutate(SignalType = factor(SignalType, 
+                              levels = c('ret', 'matchRet','matchRetAlt'),
+                              labels = legendlabels)) %>% 
+    ggplot(aes(x = eventDate, y = roll_rbar, color = SignalType, linetype = SignalType)) +
+    {if(show_se) geom_ribbon(
+      data = . %>% filter(SignalType == legendlabels[1]), # Only for published
+      aes(ymin = lower, ymax = upper), 
+      fill = colors[1],  # Use the first color for published
+      alpha = 0.1, 
+      color = NA
+    )} +
+    geom_line(size = linesize) +
+    scale_color_manual(values = colors) + 
+    scale_fill_manual(values = colors) +
+    scale_linetype_manual(values = c('solid', 'longdash','dashed')) +
+    geom_vline(xintercept = 0) +
+    coord_cartesian(
+      xlim = c(xl, xh), ylim = c(yl, yh)
+    ) +
+    scale_y_continuous(breaks = seq(-200,180,25)) +
+    scale_x_continuous(breaks = seq(-360,360,60)) +  
+    geom_hline(yintercept = 100, color = 'dimgrey') +
+    geom_hline(yintercept = 0) +
+    ylab(yaxislab) +
+    xlab('Months Since Original Sample Ended') +
+    labs(color = '', linetype = '') +
+    theme_light(base_size = fontsize) +
+    theme(
+      legend.position = legendpos,
+      legend.spacing.y = unit(0.1, units = 'cm'),
+      legend.background = element_rect(fill='transparent'),
+      legend.key.width = unit(1.5, units = 'cm')
+    ) +
+    guides(fill = "none")
+  
+  if (labelmatch == TRUE){
+    printme = printme +
+      annotate('text', x = -90, y = 12, fontface = 'italic',
+               label = '<- matching region',
+               color = 'grey40' , size = 5) +
+      annotate('text', x = 70, y = 12, fontface = 'italic',
+               label = 'unmatched ->',
+               color = 'grey40' , size = 5)
+  }
+  
+  ggsave(paste0(basepath, '_', suffix, filetype), width = fig.width, height = fig.height)
+  
+  return(printme)
+}
+
 # Function that takes a signal and computes the long-short portfolio returns
 make_many_ls = function(){
   ### make one portdat ===
