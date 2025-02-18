@@ -188,6 +188,9 @@ plotdat$matchset$t_min = globalSettings$t_min # back to default
 
 # t_rankpct_min plots ---------------------------------------------------------------
 
+# make sure we reset the t_min filter!
+plotdat$matchset$t_min = 0
+
 ## Plot top 90% of abs(t) ----------------------------------------------------------
 plotdat$name <- "t_rankpct_min_90"
 plotdat$legprefix = "top 90% |t|"
