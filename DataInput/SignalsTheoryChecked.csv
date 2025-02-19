@@ -255,11 +255,11 @@ MomVol,Lee and Swaminathan,2000,JF,Momentum in high volume stocks,mispricing,"ou
 Tax,Lev and Nissim,2004,AR,Taxable income to income,mispricing,"It appears, therefore, that during the 1990s investors became increasingly adept at using the forward-looking information in taxable income (or correlated information) in securities valuation",0,,,TRUE,Lev Nissim,1,0,0,0,
 RDcap,Li,2011,RFS,R&D capital-to-assets,risk,", R&D-intensive firmsâ€™ risk increases with their financial constraints",0,,,TRUE,Li,0,0,1,0,
 DivYieldST,Litzenberger and Ramaswamy,1979,JF,Predicted div yield next month,risk,The equilibrium relationship indicates that before-tax expected rates of return are linearly related to systematic risk and to dividend yield.,0,,,FALSE,Litzenberger Ramaswamy,0,1,0,0,
-zerotrade,Liu,2006,JFE,Days with zero trades,risk,"The success of the liquidity-augmented two-factor model suggests that liquidity
+zerotrade1M,Liu,2006,JFE,Days with zero trades,risk,"The success of the liquidity-augmented two-factor model suggests that liquidity
 risk is an especially promising direction in this continued search.",1,Exposure to liquidity risk,,TRUE,Liu,1,0,0,0,
-zerotradeAlt1,Liu,2006,JFE,Days with zero trades,risk,"The success of the liquidity-augmented two-factor model suggests that liquidity
+zerotrade6M,Liu,2006,JFE,Days with zero trades,risk,"The success of the liquidity-augmented two-factor model suggests that liquidity
 risk is an especially promising direction in this continued search.",1,Exposure to liquidity risk,,TRUE,Liu,1,0,0,0,
-zerotradeAlt12,Liu,2006,JFE,Days with zero trades,risk,"The success of the liquidity-augmented two-factor model suggests that liquidity
+zerotrade12M,Liu,2006,JFE,Days with zero trades,risk,"The success of the liquidity-augmented two-factor model suggests that liquidity
 risk is an especially promising direction in this continued search.",1,Exposure to liquidity risk,,TRUE,Liu,1,0,0,0,
 ChEQ,Lockwood and Prombutr,2010,JFR,Growth in book equity,risk,Additional tests indicate that the sustainable growth effect is attributable to risk and not to mispricing,0,,,TRUE,Lockwood Prombutr,1,0,0,0,
 EarningsStreak,Loh and Warachka,2012,MS,Earnings surprise streak,mispricing,"Overall,

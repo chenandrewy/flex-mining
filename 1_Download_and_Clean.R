@@ -19,7 +19,10 @@ if (!exists('wrds') || !dbIsValid(wrds)) {
 numRowsToPull <- -1 # Set to -1 for all rows and to some positive value for testing
 
 # August 2023 CZ Data
-url <- "https://drive.google.com/drive/folders/1EP6oEabyZRamveGNyzYU0u6qJ-N43Qfq" 
+# url <- "https://drive.google.com/drive/folders/1EP6oEabyZRamveGNyzYU0u6qJ-N43Qfq"
+
+# October 2024 CZ Data
+url = "https://drive.google.com/drive/folders/1SSoHGbwgyhRwUCzLE0YWvUlS0DjLCd4k"
 
 # trigger login
 url %>% drive_ls()
