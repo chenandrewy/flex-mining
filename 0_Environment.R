@@ -60,7 +60,7 @@ dir.create('../Results/Extra/', showWarnings = F)
 options(stringsAsFactors = FALSE)
 
 globalSettings = list(
-  dataVersion  = 'CZ-style-v8',
+  dataVersion  = 'CZ-style-v8b',
   
   # published signal choices
   restrictType = 'topT', # 'topT' or NULL for all signals
@@ -77,7 +77,7 @@ globalSettings = list(
   sweight        = c('ew','vw'), 
   trim           = NA_real_,  # NA or some quantile e.g. .005
   # data basic choices
-  backfill_dropyears = 0, # number of years to drop for backfill bias adj
+  backfill_dropyears = 0, # number of years to drop for backfill bias adj (the CZ repo lacks this adjustment)
   reup_months        = 6, # stocks are traded using new data at end of these months
   data_avail_lag     = 6, # months
   toostale_months    = 18, # months after datadate to keep signal for  
