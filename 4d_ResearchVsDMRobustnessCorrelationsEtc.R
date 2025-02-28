@@ -1,6 +1,12 @@
 # Data-mining comparisons --------------------------------------
+# this used to be the main figures, back in the day
+
 rm(list = ls())
 source('0_Environment.R')
+
+# x-axis range for all plots
+global_xl = -360  # x-axis lower bound
+global_xh = 300   # x-axis upper bound
 
 matchname = paste0('../Data/Processed/', globalSettings$dataVersion, ' MatchPub.RData')
 
@@ -26,7 +32,6 @@ czret = readRDS('../Data/Processed/czret_keeponly.RDS') %>%
     , ret = ret/rbar*100
   ) %>% 
   filter(signalname %in% inclSignals)
-
 
 # matched DM data
 tmp = readRDS(matchname)
@@ -66,7 +71,6 @@ allRets = czret %>%
 
 rm(tempsumCand, tempCand)
 
-
 # Plot re-scaled returns over time ----------------------------------------
 ReturnPlotsWithDM(dt = allRets %>% 
                     filter(!is.na(matchRet), Keep == 1) %>% # To exclude unmatched signals
@@ -74,10 +78,11 @@ ReturnPlotsWithDM(dt = allRets %>%
                   basepath = '../Results/Fig_PublicationsVsDataMining',
                   suffix = 'All_DM',
                   rollmonths = 60,
-                  colors = colors
-                  , labelmatch = TRUE
+                  colors = colors,
+                  xl = global_xl,
+                  xh = global_xh,
+                  labelmatch = TRUE
 )
-
 
 # Plot re-scaled returns over time by category
 for (jj in unique(allRets$theory)) {
@@ -89,43 +94,13 @@ for (jj in unique(allRets$theory)) {
                     basepath = '../Results/Fig_PublicationsVsDataMining',
                     suffix = paste0(jj, '_DM'),
                     colors = colors,
+                    xl = global_xl,
+                    xh = global_xh,
                     yl = -90, yh = 170, fig.width = 18, fontsize = 28) 
   
 }
 
 
-
-# Animations --------------------------------------------------------------
-
-ReturnPlotsWithDM(dt = allRets %>% 
-                    filter(!is.na(matchRet), Keep == 1) %>% # To exclude unmatched signals
-                    transmute(eventDate, ret, matchRet),
-                  basepath = '../Results/Extra/Fig_PublicationsVsDataMining',
-                  suffix = 'All_DM',
-                  rollmonths = 60,
-                  colors = colors
-                  , labelmatch = TRUE
-                  , hideoos = FALSE
-                  , filetype = '.png'
-)
-
-
-ReturnPlotsWithDM(dt = allRets %>% 
-                    filter(!is.na(matchRet), Keep == 1) %>% # To exclude unmatched signals
-                    transmute(eventDate, ret, matchRet),
-                  basepath = '../Results/Extra/Fig_PublicationsVsDataMining',
-                  suffix = 'All_DM_hide',
-                  rollmonths = 60,
-                  colors = colors
-                  , labelmatch = TRUE
-                  , hideoos = TRUE
-                  , filetype = '.png'
-)
-
-
-
-
-# More Animations -------------------------------------------------------------------------
 
 source('0_Environment.R')
 # Plot re-scaled returns over time by category, hide
@@ -138,6 +113,8 @@ for (jj in unique(allRets$theory)) {
                     basepath = '../Results/Extra/Fig_PublicationsVsDataMining',
                     suffix = paste0(jj, '_DM_hide'),
                     colors = colors,
+                    xl = global_xl,
+                    xh = global_xh,
                     yl = -60, yh = 170, fig.width = 18, fontsize = 28
                     , hideoos = TRUE
                     , filetype = '.png') 
@@ -154,6 +131,8 @@ for (jj in unique(allRets$theory)) {
                     basepath = '../Results/Extra/Fig_PublicationsVsDataMining',
                     suffix = paste0(jj, '_DM'),
                     colors = colors,
+                    xl = global_xl,
+                    xh = global_xh,
                     yl = -60, yh = 170, fig.width = 18, fontsize = 28
                     , hideoos = FALSE
                     , filetype = '.png') 
@@ -216,6 +195,8 @@ for (cc in exclCorrelations) {
                     suffix = paste0('All_DM_Correlation', cc),
                     rollmonths = 60,
                     colors = colors,
+                    xl = global_xl,
+                    xh = global_xh,
                     legendlabels = c('Published','Matched data-mined (excl correlated)','Matched data-mined (all)'),
                     legendpos = c(35,45)/100,
                     fontsize = 24,
@@ -232,6 +213,8 @@ for (cc in exclCorrelations) {
                       basepath = '../Results/Fig_PublicationsVsDataMining',
                       suffix = paste0(jj, '_DM_Correlation', cc),
                       colors = colors,
+                      xl = global_xl,
+                      xh = global_xh,
                       legendlabels = c('Published','Matched data-mined (excl correlated)','Matched data-mined (all)'),
                       legendpos = c(35,45)/100,
                       fontsize = 24,
@@ -311,6 +294,8 @@ for (cc in exclCorrelations) {
                     suffix = paste0('All_DM_Correlation_', cc, '_d_mean_', r_tol_cor),
                     rollmonths = 60,
                     colors = colors,
+                    xl = global_xl,
+                    xh = global_xh,
                     legendlabels = c('Published','Matched data-mined (excl correlated)','Matched data-mined (all)'),
                     legendpos = c(35,45)/100,
                     fontsize = 24,
@@ -327,6 +312,8 @@ for (cc in exclCorrelations) {
                       basepath = '../Results/Fig_PublicationsVsDataMining',
                       suffix = paste0(jj, '_DM_Correlation', cc, '_d_mean_', r_tol_cor),
                       colors = colors,
+                      xl = global_xl,
+                      xh = global_xh,
                       legendlabels = c('Published','Matched data-mined (excl correlated)','Matched data-mined (all)'),
                       legendpos = c(35,45)/100,
                       fontsize = 24,
