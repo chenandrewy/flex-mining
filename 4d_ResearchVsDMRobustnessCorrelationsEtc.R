@@ -127,7 +127,7 @@ for (cc in exclCorrelations) {
     summarise(rbar_insampMatched = mean(ret)) %>% 
     ungroup()
   
-  # Rescale and average over all matched signals for each predictor and event date
+  # Rescale and average over all matched signals for each predictor and event date, define matchRetAlt
   tempCand = corCandidateReturns %>% 
     left_join(tempsumCand) %>% 
     mutate(retOrig = ret,
@@ -135,7 +135,7 @@ for (cc in exclCorrelations) {
     # mutate(retOrig = ret,
     #        ret = 100*ret) %>%   
     group_by(actSignal, eventDate) %>% 
-    summarise(matchRet = mean(ret, na.rm = TRUE),
+    summarise(matchRetAlt = mean(ret, na.rm = TRUE),
               matchRetOrig = mean(retOrig, na.rm = TRUE),
               nSignals = n()) %>% 
     ungroup()
@@ -144,14 +144,13 @@ for (cc in exclCorrelations) {
   CorAllRets = czret %>% 
     left_join(tempCand, by = c('signalname' = 'actSignal', 'eventDate' = 'eventDate')) %>% 
   # Add matched returns without excluding correlations
-    left_join(allRets %>% transmute(signalname, date, 
-                                    matchRetAlt = matchRet))
+    left_join(allRets %>% transmute(signalname, date, matchRet))
   
   rm(tempsumCand, tempCand, corCandidateReturns)
   
   # Plot returns over time over all categories
   ReturnPlotsWithDM(dt = CorAllRets %>% 
-                      filter(!is.na(matchRet), Keep == 1) %>% # To exclude unmatched signals
+                      filter(!is.na(matchRetAlt), Keep == 1) %>% # To exclude unmatched signals
                       transmute(eventDate, ret, matchRet, matchRetAlt),
                     basepath = '../Results/Fig_PublicationsVsDataMining',
                     suffix = paste0('All_DM_Correlation', cc),
@@ -159,7 +158,10 @@ for (cc in exclCorrelations) {
                     colors = colors,
                     xl = global_xl,
                     xh = global_xh,
-                    legendlabels = c('Published','Matched data-mined (excl correlated)','Matched data-mined (all)'),
+                    legendlabels = c('Published'
+                    ,'Matched on t-stat and mean return'
+                    ,'Matched and excluding correlated'
+                    ),
                     legendpos = c(35,45)/100,
                     fontsize = 24,
                     yl = -90, yh = 170
@@ -170,14 +172,17 @@ for (cc in exclCorrelations) {
     print(jj)
     
     ReturnPlotsWithDM(dt = CorAllRets %>% 
-                        filter(!is.na(matchRet), theory == jj, Keep == 1) %>% # To exclude unmatched signals
+                        filter(!is.na(matchRetAlt), theory == jj, Keep == 1) %>% # To exclude unmatched signals
                         dplyr::select(eventDate, ret, matchRet, matchRetAlt),
                       basepath = '../Results/Fig_PublicationsVsDataMining',
                       suffix = paste0(jj, '_DM_Correlation', cc),
                       colors = colors,
                       xl = global_xl,
                       xh = global_xh,
-                      legendlabels = c('Published','Matched data-mined (excl correlated)','Matched data-mined (all)'),
+                      legendlabels = c('Published'
+                      ,'Matched on t-stat and mean return'
+                      ,'Matched and excluding correlated'
+                      ),
                       legendpos = c(35,45)/100,
                       fontsize = 24,
                       yl = -90, yh = 170
@@ -186,7 +191,7 @@ for (cc in exclCorrelations) {
     
   }
   
-}
+} # end of loop over correlation restrictions
 
 
 # Excluding high correlations and tighter returns --------------------------------------------------
