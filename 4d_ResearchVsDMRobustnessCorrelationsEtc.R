@@ -69,12 +69,16 @@ tempCand = candidateReturns %>%
 allRets = czret %>% 
   left_join(tempCand, by = c('signalname' = 'actSignal', 'eventDate' = 'eventDate'))
 
+# Prepare data for the plotting function (which expects 'pubname' not 'signalname')
+allRetsForPlot = allRets %>%
+  rename(pubname = signalname, calendarDate = date)
+
 rm(tempsumCand, tempCand)
 
 # Plot re-scaled returns over time ----------------------------------------
-ReturnPlotsWithDM(dt = allRets %>% 
+ReturnPlotsWithDM_std_errors_indicators(dt = allRetsForPlot %>% 
                     filter(!is.na(matchRet), Keep == 1) %>% # To exclude unmatched signals
-                    transmute(eventDate, ret, matchRet),
+                    transmute(pubname, eventDate, ret, matchRet, calendarDate),
                   basepath = '../Results/Fig_PublicationsVsDataMining',
                   suffix = 'All_DM',
                   rollmonths = 60,
@@ -85,12 +89,12 @@ ReturnPlotsWithDM(dt = allRets %>%
 )
 
 # Plot re-scaled returns over time by category
-for (jj in unique(allRets$theory)) {
+for (jj in unique(allRetsForPlot$theory)) {
   print(jj)
   
-  ReturnPlotsWithDM(dt = allRets %>% 
+  ReturnPlotsWithDM_std_errors_indicators(dt = allRetsForPlot %>% 
                       filter(!is.na(matchRet), theory == jj, Keep == 1) %>% # To exclude unmatched signals
-                      dplyr::select(eventDate, ret, matchRet),
+                      select(pubname, eventDate, ret, matchRet, calendarDate),
                     basepath = '../Results/Fig_PublicationsVsDataMining',
                     suffix = paste0(jj, '_DM'),
                     colors = colors,
@@ -143,15 +147,17 @@ for (cc in exclCorrelations) {
   # Combine with matched signals
   CorAllRets = czret %>% 
     left_join(tempCand, by = c('signalname' = 'actSignal', 'eventDate' = 'eventDate')) %>% 
-  # Add matched returns without excluding correlations
-    left_join(allRets %>% transmute(signalname, date, matchRet))
+    # Add matched returns without excluding correlations
+    left_join(allRets %>% transmute(signalname, date, matchRet)) %>%
+    # Rename columns for plotting function
+    rename(pubname = signalname, calendarDate = date)  
   
   rm(tempsumCand, tempCand, corCandidateReturns)
   
   # Plot returns over time over all categories
-  ReturnPlotsWithDM(dt = CorAllRets %>% 
+  ReturnPlotsWithDM_std_errors_indicators(dt = CorAllRets %>% 
                       filter(!is.na(matchRetAlt), Keep == 1) %>% # To exclude unmatched signals
-                      transmute(eventDate, ret, matchRet, matchRetAlt),
+                      transmute(pubname, eventDate, ret, matchRet, matchRetAlt, calendarDate),
                     basepath = '../Results/Fig_PublicationsVsDataMining',
                     suffix = paste0('All_DM_Correlation', cc),
                     rollmonths = 60,
@@ -171,16 +177,16 @@ for (cc in exclCorrelations) {
   for (jj in unique(CorAllRets$theory)) {
     print(jj)
     
-    ReturnPlotsWithDM(dt = CorAllRets %>% 
+    ReturnPlotsWithDM_std_errors_indicators(dt = CorAllRets %>% 
                         filter(!is.na(matchRetAlt), theory == jj, Keep == 1) %>% # To exclude unmatched signals
-                        dplyr::select(eventDate, ret, matchRet, matchRetAlt),
+                        select(pubname, eventDate, ret, matchRet, matchRetAlt, calendarDate),
                       basepath = '../Results/Fig_PublicationsVsDataMining',
                       suffix = paste0(jj, '_DM_Correlation', cc),
                       colors = colors,
                       xl = global_xl,
                       xh = global_xh,
                       legendlabels = c('Published'
-                      ,'Matched on t-stat and mean return'
+                      ,'Matched on in-sample t-stat and mean return'
                       ,'Matched and excluding correlated'
                       ),
                       legendpos = c(35,45)/100,
@@ -248,15 +254,16 @@ for (cc in exclCorrelations) {
   CorAllRets = czret %>% 
     left_join(tempCand, by = c('signalname' = 'actSignal', 'eventDate' = 'eventDate')) %>% 
     # Add matched returns without excluding correlations
-    left_join(allRets %>% transmute(signalname, date, 
-                                    matchRetAlt = matchRet))
+    left_join(allRets %>% transmute(signalname, date, matchRetAlt = matchRet)) %>%
+    # Rename columns for plotting function
+    rename(pubname = signalname, calendarDate = date)
   
   rm(tempsumCand, tempCand, corCandidateReturns)
   
   # Plot returns over time over all categories
-  ReturnPlotsWithDM(dt = CorAllRets %>% 
+  ReturnPlotsWithDM_std_errors_indicators(dt = CorAllRets %>% 
                       filter(!is.na(matchRet), Keep == 1) %>% # To exclude unmatched signals
-                      transmute(eventDate, ret, matchRet, matchRetAlt),
+                      transmute(pubname, eventDate, ret, matchRet, matchRetAlt, calendarDate),
                     basepath = '../Results/Fig_PublicationsVsDataMining',
                     suffix = paste0('All_DM_Correlation_', cc, '_d_mean_', r_tol_cor),
                     rollmonths = 60,
@@ -273,9 +280,9 @@ for (cc in exclCorrelations) {
   for (jj in unique(CorAllRets$theory)) {
     print(jj)
     
-    ReturnPlotsWithDM(dt = CorAllRets %>% 
+    ReturnPlotsWithDM_std_errors_indicators(dt = CorAllRets %>% 
                         filter(!is.na(matchRet), theory == jj, Keep == 1) %>% # To exclude unmatched signals
-                        dplyr::select(eventDate, ret, matchRet, matchRetAlt),
+                        select(pubname, eventDate, ret, matchRet, matchRetAlt, calendarDate),
                       basepath = '../Results/Fig_PublicationsVsDataMining',
                       suffix = paste0(jj, '_DM_Correlation', cc, '_d_mean_', r_tol_cor),
                       colors = colors,
