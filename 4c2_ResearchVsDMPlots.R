@@ -101,48 +101,6 @@ ret_for_plot0[eventDate>0 & eventDate <= Inf, .(mean(ret), mean(matchRet))]
 ret_for_plot0 %>% distinct(pubname)
 czret %>% distinct(signalname)
 
-## plot with SE --------------------------------------------------
-
-tempsuffix = "t_min_2_se_rolling"
-
-printme = ReturnPlotsWithDM_std_errors(
-  dt = ret_for_plot0 %>% filter(!is.na(matchRet)),
-  basepath = "../Results/temp_",
-  suffix = tempsuffix,
-  rollmonths = 60,
-  colors = colors,
-  labelmatch = FALSE,
-  yl = -0,
-  yh = 125,
-  xl = global_xl,
-  xh = global_xh,
-  legendlabels =
-    c(
-      paste0("Published (and Peer Reviewed)"),
-      paste0("Data-Mined for |t|>2.0 in Original Sample"),
-      'N/A'
-    ),
-  legendpos = c(35,20)/100,
-  fontsize = fontsizeall,
-  yaxislab = ylaball,
-  linesize = linesizeall
-)
-
-# custom edits 
-(
-  printme + theme(
-    legend.background = element_rect(fill = "white", color = "black", size = 0.3),
-    # remove space where legend would be
-    legend.margin = margin(-1.0, 0.5, 0.5, 0.5, "cm"),
-    legend.position = c(44,15)/100,
-    # add space between legend items
-    legend.spacing.y = unit(0.2, "cm")
-  ) +
-  guides(color = guide_legend(byrow = TRUE))
-) %>% 
-  ggsave(filename = paste0("../Results/Fig_DM_", tempsuffix, '.pdf'), width = 10, height = 8)
-
-file.remove(paste0("../Results/temp__", tempsuffix, ".pdf"))
 
 ## plot with Calendar SE --------------------------------------------------
 

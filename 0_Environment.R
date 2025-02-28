@@ -1769,109 +1769,110 @@ ReturnPlotsWithDM_std_errors_indicators = function(dt, suffix = '', rollmonths =
   return(printme = printme)
 }
 
-ReturnPlotsWithDM_std_errors = function(dt, suffix = '', rollmonths = 60, colors = NA,
-                            xl = -360, xh = 240, yl = -10, yh = 130, fig.width = 10,
-                            fig.height = 8, fontsize = 18, basepath = NA_character_,
-                            labelmatch = FALSE, hideoos = FALSE,
-                            legendlabels = c('Published','Matched data-mined','Alt data-mined'),
-                            legendpos = c(80,85)/100,
-                            yaxislab = 'Trailing 5-Year Mean Return (bps p.m.)',
-                            filetype = '.pdf',
-                            linesize = 1.1,
-                            show_se = TRUE
-) {
+# # No longer used
+# ReturnPlotsWithDM_std_errors = function(dt, suffix = '', rollmonths = 60, colors = NA,
+#                             xl = -360, xh = 240, yl = -10, yh = 130, fig.width = 10,
+#                             fig.height = 8, fontsize = 18, basepath = NA_character_,
+#                             labelmatch = FALSE, hideoos = FALSE,
+#                             legendlabels = c('Published','Matched data-mined','Alt data-mined'),
+#                             legendpos = c(80,85)/100,
+#                             yaxislab = 'Trailing 5-Year Mean Return (bps p.m.)',
+#                             filetype = '.pdf',
+#                             linesize = 1.1,
+#                             show_se = TRUE
+# ) {
   
-  # check if you have matchRetAlt and adjust accordingly
-  if (any(names(dt)=='matchRetAlt')){
-    select_cols = c('eventDate','ret','matchRet','matchRetAlt')
-  } else if (any(names(dt)=='matchRet')){
-    select_cols = c('eventDate','ret','matchRet')
-  } else {
-    select_cols = c('eventDate','ret')
-  }
+#   # check if you have matchRetAlt and adjust accordingly
+#   if (any(names(dt)=='matchRetAlt')){
+#     select_cols = c('eventDate','ret','matchRet','matchRetAlt')
+#   } else if (any(names(dt)=='matchRet')){
+#     select_cols = c('eventDate','ret','matchRet')
+#   } else {
+#     select_cols = c('eventDate','ret')
+#   }
   
-  dt = dt %>% 
-    select(all_of(select_cols)) %>% 
-    gather(key = 'SignalType', value = 'return', -eventDate) %>% 
-    # First get mean return for each period
-    group_by(SignalType, eventDate) %>% 
-    summarise(
-      period_mean = mean(return, na.rm=TRUE),
-      .groups = 'drop'
-    ) %>% 
-    # Now for each SignalType, get rolling calculations
-    group_by(SignalType) %>%
-    arrange(eventDate) %>%
-    mutate(
-      # Rolling mean of the period means
-      roll_rbar = zoo::rollmean(period_mean, k = rollmonths, fill = NA, align = 'right'),
-      # Standard error of this rolling mean
-      roll_se = zoo::rollapply(
-        period_mean,
-        width = rollmonths,
-        FUN = function(x) sd(x, na.rm = TRUE)/sqrt(rollmonths),
-        align = 'right',
-        fill = NA
-      ),
-      upper = roll_rbar + 1 * roll_se,
-      lower = roll_rbar - 1 * roll_se
-    )
+#   dt = dt %>% 
+#     select(all_of(select_cols)) %>% 
+#     gather(key = 'SignalType', value = 'return', -eventDate) %>% 
+#     # First get mean return for each period
+#     group_by(SignalType, eventDate) %>% 
+#     summarise(
+#       period_mean = mean(return, na.rm=TRUE),
+#       .groups = 'drop'
+#     ) %>% 
+#     # Now for each SignalType, get rolling calculations
+#     group_by(SignalType) %>%
+#     arrange(eventDate) %>%
+#     mutate(
+#       # Rolling mean of the period means
+#       roll_rbar = zoo::rollmean(period_mean, k = rollmonths, fill = NA, align = 'right'),
+#       # Standard error of this rolling mean
+#       roll_se = zoo::rollapply(
+#         period_mean,
+#         width = rollmonths,
+#         FUN = function(x) sd(x, na.rm = TRUE)/sqrt(rollmonths),
+#         align = 'right',
+#         fill = NA
+#       ),
+#       upper = roll_rbar + 1 * roll_se,
+#       lower = roll_rbar - 1 * roll_se
+#     )
   
-  if (hideoos==TRUE){
-    dt = dt %>% 
-      filter(!(SignalType == 'matchRet' & eventDate > 0))
-  }
+#   if (hideoos==TRUE){
+#     dt = dt %>% 
+#       filter(!(SignalType == 'matchRet' & eventDate > 0))
+#   }
   
-  printme = dt %>% 
-    mutate(SignalType = factor(SignalType, 
-                              levels = c('ret', 'matchRet','matchRetAlt'),
-                              labels = legendlabels)) %>% 
-    ggplot(aes(x = eventDate, y = roll_rbar, color = SignalType, linetype = SignalType)) +
-    {if(show_se) geom_ribbon(
-      data = . %>% filter(SignalType == legendlabels[1]), # Only for published
-      aes(ymin = lower, ymax = upper), 
-      fill = colors[1],  # Use the first color for published
-      alpha = 0.1, 
-      color = NA
-    )} +
-    geom_line(size = linesize) +
-    scale_color_manual(values = colors) + 
-    scale_fill_manual(values = colors) +
-    scale_linetype_manual(values = c('solid', 'longdash','dashed')) +
-    geom_vline(xintercept = 0) +
-    coord_cartesian(
-      xlim = c(xl, xh), ylim = c(yl, yh)
-    ) +
-    scale_y_continuous(breaks = seq(-200,180,25)) +
-    scale_x_continuous(breaks = seq(-360,360,60)) +  
-    geom_hline(yintercept = 100, color = 'dimgrey') +
-    geom_hline(yintercept = 0) +
-    ylab(yaxislab) +
-    xlab('Months Since Original Sample Ended') +
-    labs(color = '', linetype = '') +
-    theme_light(base_size = fontsize) +
-    theme(
-      legend.position = legendpos,
-      legend.spacing.y = unit(0.1, units = 'cm'),
-      legend.background = element_rect(fill='transparent'),
-      legend.key.width = unit(1.5, units = 'cm')
-    ) +
-    guides(fill = "none")
+#   printme = dt %>% 
+#     mutate(SignalType = factor(SignalType, 
+#                               levels = c('ret', 'matchRet','matchRetAlt'),
+#                               labels = legendlabels)) %>% 
+#     ggplot(aes(x = eventDate, y = roll_rbar, color = SignalType, linetype = SignalType)) +
+#     {if(show_se) geom_ribbon(
+#       data = . %>% filter(SignalType == legendlabels[1]), # Only for published
+#       aes(ymin = lower, ymax = upper), 
+#       fill = colors[1],  # Use the first color for published
+#       alpha = 0.1, 
+#       color = NA
+#     )} +
+#     geom_line(size = linesize) +
+#     scale_color_manual(values = colors) + 
+#     scale_fill_manual(values = colors) +
+#     scale_linetype_manual(values = c('solid', 'longdash','dashed')) +
+#     geom_vline(xintercept = 0) +
+#     coord_cartesian(
+#       xlim = c(xl, xh), ylim = c(yl, yh)
+#     ) +
+#     scale_y_continuous(breaks = seq(-200,180,25)) +
+#     scale_x_continuous(breaks = seq(-360,360,60)) +  
+#     geom_hline(yintercept = 100, color = 'dimgrey') +
+#     geom_hline(yintercept = 0) +
+#     ylab(yaxislab) +
+#     xlab('Months Since Original Sample Ended') +
+#     labs(color = '', linetype = '') +
+#     theme_light(base_size = fontsize) +
+#     theme(
+#       legend.position = legendpos,
+#       legend.spacing.y = unit(0.1, units = 'cm'),
+#       legend.background = element_rect(fill='transparent'),
+#       legend.key.width = unit(1.5, units = 'cm')
+#     ) +
+#     guides(fill = "none")
   
-  if (labelmatch == TRUE){
-    printme = printme +
-      annotate('text', x = -90, y = 12, fontface = 'italic',
-               label = '<- matching region',
-               color = 'grey40' , size = 5) +
-      annotate('text', x = 70, y = 12, fontface = 'italic',
-               label = 'unmatched ->',
-               color = 'grey40' , size = 5)
-  }
+#   if (labelmatch == TRUE){
+#     printme = printme +
+#       annotate('text', x = -90, y = 12, fontface = 'italic',
+#                label = '<- matching region',
+#                color = 'grey40' , size = 5) +
+#       annotate('text', x = 70, y = 12, fontface = 'italic',
+#                label = 'unmatched ->',
+#                color = 'grey40' , size = 5)
+#   }
   
-  ggsave(paste0(basepath, '_', suffix, filetype), width = fig.width, height = fig.height)
+#   ggsave(paste0(basepath, '_', suffix, filetype), width = fig.width, height = fig.height)
   
-  return(printme)
-}
+#   return(printme)
+# }
 
 # Function that takes a signal and computes the long-short portfolio returns
 make_many_ls = function(){
