@@ -32,71 +32,12 @@ czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
 dmcomp <- readRDS("../Data/Processed/dmcomp_sumstats.RDS")
 dmtic <- readRDS("../Data/Processed/dmtic_sumstats.RDS")
 
-## Specialized data prep function -------------------------------
+# Load pre-computed matched returns
+ret_for_plot0 <- readRDS("../Data/Processed/ret_for_plot0.RDS")
+ret_for_plot1 <- readRDS("../Data/Processed/ret_for_plot1.RDS")
+ret_for_plot_MaxPredictors <- readRDS("../Data/Processed/ret_for_plot_MaxPredictors.RDS")
 
-make_ret_for_plotting <- function(plotdat, theory_filter = NULL){
-  # takes dm selection criteria and returns data for an event time plot
- 
-  # join and reformat for plotting function
-  # it wants columns:  (eventDate, ret, matchRet, matchRetAlt)
-  # dm_mean returns are already scaled (see above)
-  if(is.null(theory_filter)){
-    ret_for_plotting <- czret %>%
-      transmute(pubname = signalname, eventDate, ret = ret_scaled) %>%
-      left_join(
-        plotdat$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
-      ) %>%
-      select(eventDate, ret, matchRet, pubname) %>%
-      # keep only rows where DM matchrets are observed
-      filter(!is.na(matchRet) )
-  }else{
-    if(theory_filter == 'all'){
-      ret_for_plotting <- czret %>%
-        transmute(pubname = signalname, eventDate, ret = ret_scaled) %>%
-        left_join(
-          plotdat$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
-        ) %>%
-        select(eventDate, ret, matchRet, pubname) %>%
-        # keep only rows where DM matchrets are observed
-        filter(!is.na(matchRet) )
-    }else{    
-      ret_for_plotting <- czret %>%
-        filter(theory == theory_filter) %>%
-        transmute(pubname = signalname, eventDate, ret = ret_scaled) %>%
-        left_join(
-          plotdat$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
-        ) %>%
-        select(eventDate, ret, matchRet, pubname) %>%
-        # keep only rows where DM matchrets are observed
-        filter(!is.na(matchRet) )}
-    
-  }
-  
-  return(ret_for_plotting)
-  
-} # end make_ret_for_plotting
-
-# Slow Setup --------------------------------------------------------
-## Shared Settings --------------------------------------------------
-plotdat0 <- list()
-
-plotdat0$name <- "t_min_2"
-plotdat0$npubmax = Inf
-plotdat0$use_sign_info = TRUE
-
-plotdat0$matchset <- list(
-  # tolerance in levels
-  t_tol = globalSettings$t_tol,
-  r_tol = globalSettings$r_tol,
-  # tolerance relative to op stat
-  t_reltol = globalSettings$t_reltol,
-  r_reltol = globalSettings$r_reltol,
-  # alternative filtering
-  t_min = globalSettings$t_min,
-  t_max = globalSettings$t_max, 
-  t_rankpct_min = globalSettings$t_rankpct_min,
-  minNumStocks = globalSettings$minNumStocks
-)
+# Default Plot Settings --------------------------------------------------
 
 # aesthetic settings
 fontsizeall = 28
@@ -104,111 +45,9 @@ legposall = c(30,15)/100
 ylaball = 'Trailing 5-Year Return (bps pm)'
 linesizeall = 1.5
 
-## Shared data prep --------------------------------------------------
-# here, matchRet uses accounting signals with t>2
-
-# make event time returns for Compustat DM
-temp = list()
-temp$matched <- SelectDMStrats(dmcomp$insampsum, plotdat0$matchset)
-
-print("Making accounting event time returns")
-print("Can take a few minutes...")
-start_time <- Sys.time()
-temp$event_time <- make_DM_event_returns(
-  DMname = dmcomp$name, match_strats = temp$matched, npubmax = plotdat0$npubmax, 
-  czsum = czsum, use_sign_info = plotdat0$use_sign_info
-)
-stop_time <- Sys.time()
-print(stop_time - start_time)
-
-plotdat0$comp_matched <- temp$matched
-plotdat0$comp_event_time <- temp$event_time
-rm(temp)
-
-ret_for_plot0 = czret %>%
-    transmute(pubname = signalname, eventDate, calendarDate = date, ret = ret_scaled, theory) %>%
-    left_join(
-        plotdat0$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean),
-        by = c("pubname", "eventDate")
-    ) %>%
-    select(eventDate, calendarDate, ret, matchRet, pubname, theory) 
-
-## Shared data prep 2 --------------------------------------------------
-# adds to the previous ret_for_plot0
-# creates matchRetAlt, which uses the top 5% t-stats
-
-tempplotdat = plotdat0
-tempplotdat$matchset$t_min = 0 # turn off t_min filter
-tempplotdat$matchset$t_rankpct_min = 5 # add top 5% t filter
-
-# make event time returns for Compustat DM
-temp = list()
-temp$matched <- SelectDMStrats(dmcomp$insampsum, tempplotdat$matchset)
-
-print("Making accounting event time returns")
-print("Can take a few minutes...")
-start_time <- Sys.time()
-temp$event_time <- make_DM_event_returns(
-  DMname = dmcomp$name, match_strats = temp$matched, npubmax = tempplotdat$npubmax, 
-  czsum = czsum, use_sign_info = tempplotdat$use_sign_info
-)
-stop_time <- Sys.time()
-print(stop_time - start_time)
-
-tempplotdat$comp_matched <- temp$matched
-tempplotdat$comp_event_time <- temp$event_time
-rm(temp)
-
-ret_for_plot1 = ret_for_plot0 %>%
-  left_join(
-    tempplotdat$comp_event_time %>% transmute(pubname, eventDate, matchRetAlt = dm_mean),
-    by = c("pubname", "eventDate")
-  ) %>% 
-  select(eventDate, ret, matchRet, matchRetAlt, pubname, theory)
-
-## Shared data prep 3 --------------------------------------------------
-# an alternative to ret_for_plot0 and ret_for_plot1
-# uses top maxDMpredictors[rr] accounting signals
-
-# max number of DM predictors per paper
-maxDMpredictors = c(100, 1000)
-
-ret_for_plot_MaxPredictors = tibble()
-for (rr in 1:length(maxDMpredictors)) {
-  
-  print(paste0("Making accounting event time returns with Max DM predictors: ", maxDMpredictors[rr]))
-  
-  tempMatched <- plotdat0$comp_matched %>% 
-    filter(rank_tstat <= maxDMpredictors[rr] + 1) 
-  
-  print("Can take a few minutes...")
-  start_time <- Sys.time()
-  tempEvent_time <- make_DM_event_returns(
-    DMname = dmcomp$name, match_strats = tempMatched, npubmax = plotdat0$npubmax, 
-    czsum = czsum, use_sign_info = plotdat0$use_sign_info
-  )
-  stop_time <- Sys.time()
-  print(stop_time - start_time)
-  
-  ret_for_plot_MaxPredictors = czret %>%
-    transmute(pubname = signalname, eventDate, ret = ret_scaled, theory) %>%
-    left_join(
-      tempEvent_time %>% transmute(pubname, eventDate, matchRet = dm_mean),
-      by = c("pubname", "eventDate")
-    ) %>%
-    select(eventDate, ret, matchRet, pubname, theory) %>% 
-    mutate(maxDMpredictors = maxDMpredictors[rr]) %>% 
-    bind_rows(ret_for_plot_MaxPredictors)
-  
-}
-
-# Convenience Save --------------------------------------------------------
-
-save.image('../Data/tmp_4c2_ResearchVsDMPlots.RData')
-
-# Convenience Load --------------------------------------------------------
-
-load('../Data/tmp_4c2_ResearchVsDMPlots.RData')
+# x-axis range for all plots
+global_xl = -360  # x-axis lower bound
+global_xh = 300   # x-axis upper bound
 
 # Intro Plot --------------------------------------------------
 
@@ -225,6 +64,8 @@ printme = ReturnPlotsWithDM(
   labelmatch = FALSE,
   yl = -0,
   yh = 125,
+  xl = global_xl,
+  xh = global_xh,
   legendlabels =
     c(
       paste0("Published (and Peer Reviewed)"),
@@ -273,6 +114,8 @@ printme = ReturnPlotsWithDM_std_errors(
   labelmatch = FALSE,
   yl = -0,
   yh = 125,
+  xl = global_xl,
+  xh = global_xh,
   legendlabels =
     c(
       paste0("Published (and Peer Reviewed)"),
@@ -301,7 +144,7 @@ printme = ReturnPlotsWithDM_std_errors(
 
 file.remove(paste0("../Results/temp__", tempsuffix, ".pdf"))
 
-## plot --------------------------------------------------
+## plot with Calendar SE --------------------------------------------------
 
 tempsuffix = "t_min_2_se_indicators_calendar"
 
@@ -314,6 +157,8 @@ printme = ReturnPlotsWithDM_std_errors_indicators(
   labelmatch = FALSE,
   yl = -0,
   yh = 125,
+  xl = global_xl,
+  xh = global_xh,
   legendlabels =
     c(
       paste0("Published (and Peer Reviewed)"),
@@ -356,6 +201,8 @@ printme = ReturnPlotsWithDM(
   labelmatch = FALSE,
   yl = -0,
   yh = 125,
+  xl = global_xl,
+  xh = global_xh,
   legendlabels =
     c(
       paste0("Published (and Peer Reviewed)"),
@@ -405,6 +252,7 @@ for (jj in unique(czret$theory)) {
     colors = colors,
     labelmatch = FALSE,
     yl =-100, yh = 175,
+    xl = global_xl, xh = global_xh,
     fig.width = 18,
     fontsize = 38,
     legendlabels =
@@ -416,32 +264,30 @@ for (jj in unique(czret$theory)) {
     yaxislab = 'Trailing 5-Year Return',
     legendpos = c(25,20)/100,
   )  
+
+  # Plot with Calendar SE
+  plt_cal = ReturnPlotsWithDM_std_errors_indicators(
+    dt = tempret,
+    basepath = "../Results/Fig_DM_SE_Calendar",
+    suffix = tempname,
+    rollmonths = 60,
+    colors = colors,
+    labelmatch = FALSE,
+    yl =-100, yh = 175,
+    xl = global_xl, xh = global_xh,
+    fig.width = 18,
+    fontsize = 38,
+    legendlabels =
+      c(
+        paste0("Published with ", str_to_title(jj), " Explanation"),
+        paste0("|t|>2.0 Mining Accounting"),
+        'N/A'
+      ),
+    yaxislab = 'Trailing 5-Year Return',
+    legendpos = c(25,20)/100,
+  )
   
 }
-
-## Plot with legend label for slides ------------------------------------
-
-# Plot
-plt = ReturnPlotsWithDM(
-  dt = ret_for_plot0 %>% filter(theory == "risk") %>% filter(!is.na(matchRet)),
-  basepath = "../Results/Fig_DM",
-  suffix = "t_min_2_cat_risk_slides",
-  rollmonths = 60,
-  colors = colors,
-  labelmatch = FALSE,
-  yl =-100, yh = 175,
-  fig.width = 18,
-  fontsize = 38,
-  legendlabels =
-    c(
-      paste0("Published with Risk Explanation"),
-      paste0("|t|>2.0 Mining Accounting"),
-      'N/A'
-    ),
-  yaxislab = 'Trailing 5-Year Return',
-  legendpos = c(25,20)/100,
-  filetype = '.pdf'
-)  
 
 # Trailing N-year return plots --------------------------------------
 
@@ -463,7 +309,7 @@ for (n_year_roll in n_year_list) {
     rollmonths = n_year_roll * 12,
     colors = colors,
     labelmatch = FALSE,
-    xl = -360, xh = 240,
+    xl = global_xl, xh = global_xh,
     yl = -0, yh = 150,
     legendlabels =
       c(
@@ -488,46 +334,66 @@ for (n_year_roll in n_year_list) {
 
 # Accounting variables only plot  ----------------------------
 
-# Compare to top 5% of t-stats (computed in previous chunk)
+# get accounting signals
+czacct = readRDS('../Data/Processed/czsum_allpredictors.RDS') %>% 
+  left_join(fread('../Data/Raw/SignalDoc.csv') %>% 
+    transmute(Acronym, Cat.Data, Cat.Form, Def = tolower(`Detailed Definition`)) 
+    , by = c('signalname' = 'Acronym')) %>% 
+  filter(signalname %in% inclSignals & Cat.Data == 'Accounting')
 
-# Load info on accounting variables and filter
-signaldoc = data.table::fread('../Data/Raw/SignalDoc.csv') %>% 
-  filter(Cat.Data == 'Accounting') %>% 
-  filter(Acronym %in% inclSignals)
+# find accounting signals to drop
+czacct = czacct %>% 
+  mutate(
+    drop = FALSE
+    # drop quarterly compustat
+    , drop = if_else(grepl('quarter', Def), TRUE, drop)
+    # drop analyst forecasts
+    , drop = if_else(grepl('analyst|meanest|earningssurprise', Def), TRUE, drop)
+    # drop discrete signals
+    , drop = if_else(Cat.Form == 'discrete', TRUE, drop)
+    # drop ShareIss1Y and ShareIss5Y because they use only crsp data
+    , drop = if_else(signalname %in% c('ShareIss1Y', 'ShareIss5Y'), TRUE, drop)
+  ) %>% 
+  select(signalname, drop, everything()) %>% 
+  arrange(-drop) 
+
 
 ret_for_plottingAnnualAccounting = ret_for_plot1 %>% 
-  filter(pubname %in% unique(signaldoc$Acronym)) %>% 
-  # Remove some papers with non-standard construction procedures or unusual signal timing
-  left_join(signaldoc, by = c('pubname' = 'Acronym')) %>%
-  filter(!(Authors %in% c('Xie', 'Mohanram', 'Piotroski', 'Lyandres, Sun and Zhang',
-                          'Haugen and Baker', 'Frankel and Lee'))) %>%
-  # Remove quarterly Compustat and a few others not constructed via annual CS
-  filter(!(pubname %in% c("Cash", "ChTax", "EarningsSurprise", 
-                          "NumEarnIncrease", "RevenueSurprise", "roaq",
-                          'EarnSupBig',
-                          'EarningsStreak',
-                          'ShareIss1Y',
-                          'ShareIss5Y'))) %>% 
+  # keep only published signals that use annual compustat, no double sorts, no weird discrete signals
+  filter(pubname %in% czacct[czacct$drop==FALSE, ]$signalname) %>% 
   select(-matchRet) %>% 
+  # select top 5% t-stats as the matchRet (bad notation, sorry)
   rename(matchRet = matchRetAlt) %>%
   filter(!is.na(matchRet))
 
-printme = ReturnPlotsWithDM(
+
+# Add calendar date to the dataset for clustering standard errors
+ret_for_plottingAnnualAccounting = ret_for_plottingAnnualAccounting %>%
+  left_join(
+    czret %>% select(signalname, eventDate, date),
+    by = c("pubname" = "signalname", "eventDate" = "eventDate")
+  ) %>%
+  rename(calendarDate = date)
+
+# Use the calendar time-based standard errors function
+printme = ReturnPlotsWithDM_std_errors_indicators(
   dt = ret_for_plottingAnnualAccounting,
   basepath = "../Results/Fig_DM",
-  suffix = "t_top5Pct_AccountingOnly",
+  suffix = "t_top5Pct_AccountingOnly_CalendarSE",
   rollmonths = 60,
   colors = colors,
   labelmatch = FALSE,
   yl = -0,
   yh = 125,
+  xl = global_xl,
+  xh = global_xh,
   legendlabels =
     c(
-      paste0("Published (and Peer Reviewed)"),
+      paste0("Pub Compustat Annual"),
       paste0("Data-Mined for Top 5% |t| in Original Sample"),
       'N/A'
     ),
-  legendpos = c(35,20)/100,
+  legendpos = c(42,20)/100,
   fontsize = fontsizeall,
   yaxislab = ylaball,
   linesize = linesizeall
@@ -535,23 +401,18 @@ printme = ReturnPlotsWithDM(
 
 # custom edits 
 printme2 = printme + theme(
-  legend.background = element_rect(fill = "white", color = "black"
-                                   , size = 0.3)
+  legend.background = element_rect(fill = "white", color = "black", size = 0.3),
   # remove space where legend would be
-  , legend.margin = margin(-0.7, 0.5, 0.5, 0.5, "cm")
-  , legend.position  = c(44,15)/100
+  legend.margin = margin(-0.7, 0.5, 0.5, 0.5, "cm"),
+  legend.position = c(44,15)/100,
   # add space between legend items
-  , legend.spacing.y = unit(0.2, "cm")
+  legend.spacing.y = unit(0.2, "cm")
 ) +
   guides(color = guide_legend(byrow = TRUE))
 
 # save
-ggsave(paste0("../Results/Fig_DM_t_top5Pct_AccountingOnly.pdf"), width = 10, height = 8)
+ggsave(paste0("../Results/Fig_DM_t_top5Pct_AccountingOnly_CalendarSE.pdf"), width = 10, height = 8)
 
-ret_for_plottingAnnualAccounting[eventDate>0 & eventDate <= Inf & pubname %in% unique(signaldoc$Acronym), .(mean(ret), mean(matchRet))]
-
-ret_for_plottingAnnualAccounting %>% filter(pubname %in% unique(signaldoc$Acronym)) %>% 
-  distinct(pubname)
 
 # Restricting the number of DM predictors per paper -----------------------
 
@@ -575,6 +436,8 @@ printme = ReturnPlotsWithDM(
   labelmatch = FALSE,
   yl = -0,
   yh = 125,
+  xl = global_xl,
+  xh = global_xh,
   legendlabels =
     c(
       paste0("Published (and Peer Reviewed)"),
@@ -629,7 +492,8 @@ for (jj in levels(ret_for_plot_journal$journaltype)) {
     rollmonths = 60,
     colors = colors,
     labelmatch = FALSE,
-    yl = -0, yh = 125,  # Adjusted y-axis range to match other plots
+    yl = -0, yh = 125,
+    xl = global_xl, xh = global_xh,
     fig.width = 18,
     fontsize = 38,
     legendlabels =

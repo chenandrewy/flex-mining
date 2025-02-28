@@ -1723,6 +1723,11 @@ ReturnPlotsWithDM_std_errors_indicators = function(dt, suffix = '', rollmonths =
                               levels = c('ret', 'matchRet','matchRetAlt'),
                               labels = legendlabels)) %>% 
     ggplot(aes(x = eventDate, y = roll_rbar, color = SignalType, linetype = SignalType)) +
+    # plot point est
+    geom_line(size = linesize) +
+    scale_color_manual(values = colors) + 
+    scale_fill_manual(values = colors) +
+    scale_linetype_manual(values = c('solid', 'longdash','dashed')) +
     # Add CI only for published signals
     geom_ribbon(
       data = . %>% filter(SignalType == legendlabels[1]),
@@ -1730,11 +1735,7 @@ ReturnPlotsWithDM_std_errors_indicators = function(dt, suffix = '', rollmonths =
       fill = colors[1],
       alpha = 0.1, 
       color = NA
-    ) +
-    geom_line(size = linesize) +
-    scale_color_manual(values = colors) + 
-    scale_fill_manual(values = colors) +
-    scale_linetype_manual(values = c('solid', 'longdash','dashed')) +
+    ) +    
     geom_vline(xintercept = 0) +
     coord_cartesian(xlim = c(xl, xh), ylim = c(yl, yh)) +
     scale_y_continuous(breaks = seq(-200,180,25)) +
@@ -1812,8 +1813,8 @@ ReturnPlotsWithDM_std_errors = function(dt, suffix = '', rollmonths = 60, colors
         align = 'right',
         fill = NA
       ),
-      upper = roll_rbar + 1.96 * roll_se,
-      lower = roll_rbar - 1.96 * roll_se
+      upper = roll_rbar + 1 * roll_se,
+      lower = roll_rbar - 1 * roll_se
     )
   
   if (hideoos==TRUE){

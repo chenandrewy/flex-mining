@@ -7,8 +7,13 @@
 
 rm(list = ls())
 
-source("0_Environment.R")
+debugSource("0_Environment.R")
 library(doParallel)
+
+## Global Plot Settings -------------------------------------------
+
+global_xl = -360
+global_xh = 300
 
 ## Load Global Data -------------------------------------------
 
@@ -97,6 +102,8 @@ plot_one_setting = function(plotdat){
     labelmatch = FALSE,
     yl = -50,
     yh = 140,
+    xl = global_xl,
+    xh = global_xh,
     legendlabels =
       c(
         paste0("Published"),
@@ -108,6 +115,40 @@ plot_one_setting = function(plotdat){
     yaxislab = ylaball,
     linesize = linesizeall
   )
+  
+
+  # Plot with Calendar-Based Standard Errors
+  ret_for_plotting2 <- ret_for_plotting %>%
+    left_join(
+      czret %>% select(signalname, eventDate, date),
+      by = c("pubname" = "signalname", "eventDate" = "eventDate")
+    ) %>%
+    rename(calendarDate = date)
+  
+  ReturnPlotsWithDM_std_errors_indicators(
+    dt = ret_for_plotting2,
+    basepath = "../Results/Fig_AltDM_SE_Calendar",
+    suffix = plotdat$name,
+    rollmonths = 60,
+    colors = colors,
+    labelmatch = FALSE,
+    yl = -50,
+    yh = 140,
+    xl = global_xl,
+    xh = global_xh,
+    legendlabels =
+      c(
+        paste0("Published"),
+        paste0(plotdat$legprefix, " Mining Accounting"), 
+        paste0(plotdat$legprefix, " Mining Tickers")
+      ),
+    legendpos = legposall,
+    fontsize = fontsizeall, 
+    yaxislab = ylaball,
+    linesize = linesizeall
+  ) 
+
+  
   
 } # end plot_one_setting
 
