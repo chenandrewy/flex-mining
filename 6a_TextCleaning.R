@@ -8,7 +8,6 @@ source('0_Environment.R')
 library(haven)
 library(quanteda)
 library(lexicon)
-library(stm)  
 library(stopwords)
 library("quanteda.textstats")
 library("spacyr")
@@ -158,7 +157,8 @@ kw_comp <- kwic(toks_reg, pattern = "*aheadearnings", window = 10)
 
 head(kw_comp, 10)
 
-kw_comp <- kwic(texts[1, text], pattern = "*aheadearnings", window = 20)
+# Fix the kwic error - need to tokenize text first
+kw_comp <- kwic(tokens(texts[1, text]), pattern = "*aheadearnings", window = 20, valuetype = "glob")
 
 head(kw_comp, 10)
 
@@ -375,7 +375,8 @@ words_mispricing <- c(
                       'short(-| )sale cost'
 )
 
-kw_hl <- kwic(texts_join_lemma$text130, pattern = words_mispricing)
+# Fix other kwic instances
+kw_hl <- kwic(tokens(texts_join_lemma$text130), pattern = words_mispricing, valuetype = "regex")
 
 
 kw_anom <- kwic(texts_lemma, pattern = words_mispricing)
