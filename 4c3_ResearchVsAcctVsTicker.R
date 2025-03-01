@@ -7,7 +7,7 @@
 
 rm(list = ls())
 
-debugSource("0_Environment.R")
+source("0_Environment.R")
 library(doParallel)
 
 ## Global Plot Settings -------------------------------------------
