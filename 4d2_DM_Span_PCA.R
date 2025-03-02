@@ -1,6 +1,4 @@
-# Created 2024 05. Finds spanned and unspanned dm strats, makes 
-# themes based off hierarchical clustering using correlation matrix
-# tbc
+# Created 2024 05. 
 
 # Setup --------------------------------------------------------
 
@@ -8,9 +6,6 @@ rm(list = ls())
 source("0_Environment.R")
 library(doParallel)
 
-# hierarchical clustering
-library(ggdendro)
-library(dendextend)
 
 ## User Settings ------------------------------------------------
 

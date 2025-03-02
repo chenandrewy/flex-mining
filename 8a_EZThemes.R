@@ -309,10 +309,6 @@ for (i in 1:length(subheadrow)){
 
 writeLines(tex1, '../results/theme_ez_decay.tex')
 
-# copy to overleaf (if on Andrew's machine)
-if (any(grepl('ayc', Sys.info()))) {
-  writeLines(tex1, 'D:/Dropbox/Apps/Overleaf/PeerReviewedTheory_Paper/exhibits/theme_ez_decay.tex')
-}
 
 # Make table for slides ----------------------------------------
 
@@ -413,7 +409,3 @@ for (i in 1:length(subheadrow)){
 
 writeLines(tex1, '../results/theme_ez_slides.tex')
 
-# copy to overleaf (if on Andrew's machine)
-if (any(grepl('ayc', Sys.info()))) {
-  writeLines(tex1, 'D:/Dropbox/Risk-vs-ac/paper-risk-vs-temp/exhibits/theme_ez_slides.tex')
-}
