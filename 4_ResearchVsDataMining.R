@@ -6,5 +6,6 @@ source('4c1_ResearchVsDMprep.R', echo = T)
 source('4c2_ResearchVsDMPlots.R', echo = T)
 source('4c3_ResearchVsAcctVsTicker.R', echo = T)
 source('4d_ResearchVsDMRobustnessCorrelationsEtc.R', echo = T)
-source('4d2_DM_Span_PCA.R', echo = T)
-source('4e_InspectTables.R', echo = T)
+source('4d2_InspectTables.R', echo = T)
+source('4e_DM_Span_PCA.R', echo = T)
+

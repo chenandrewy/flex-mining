@@ -516,7 +516,7 @@ ggsave("../Results/Fig_spanned_over_time.pdf", plot = plot, device = "pdf", widt
 library(xtable)
 table_latex <- xtable(tab_span2, caption = "Spanning of Strategies Over Time", label = "tab:spanning")
 # Set the table alignment and format
-align(table_latex) <- "llllll"
+xtable::align(table_latex) <- "llllll"
 digits(table_latex) <- c(0, 0, 0, 0, 0, 1)  # Adjust the number of digits for each column
 
 # Print the LaTeX code
@@ -602,7 +602,7 @@ tab_span2_melt$variable <- factor(tab_span2_melt$variable,
                                   labels = c("Cummulative Number of Matched DM Portfolios",
                                              "Number of Spanned DM Portfolios",
                                              "Number of Unspanned DM Portfolios"))
-colors
+
 # Create the ggplot
 plot <- ggplot(tab_span2_melt, aes(x = sampend, y = value, color = variable)) +
   geom_line(aes(group = variable), linewidth = 1.1) +

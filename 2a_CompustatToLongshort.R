@@ -257,6 +257,9 @@ toc - tic
 ## Loop over signals -------------------------------------------------------
 # call make_many_ls (this is where the action is) 
 
+print('Constructing long-short portfolios')
+print('Check ../Data/make_many_ls.log for progress')
+
 tic_loop = Sys.time()
 
 if (debugset$num_cores > 1){

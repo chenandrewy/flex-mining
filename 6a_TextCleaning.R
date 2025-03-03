@@ -11,10 +11,11 @@ library(lexicon)
 library(stopwords)
 library("quanteda.textstats")
 library("spacyr")
+library(fuzzyjoin)
 
 spacy_initialize(model = "en_core_web_sm")
 
-texts <- fread('../IntermediateText/text_with_pdf_name.csv', header = TRUE)
+texts <- fread('DataIntermediate/text_with_pdf_name.csv', header = TRUE)
 
 sngl_quot_rx = "[ʻʼʽ٬‘’‚‛՚︐]"
 
@@ -326,14 +327,14 @@ texts[, misprice_risk_ratio := (misp_count + 1)/(risk_count + 1)]
 subset_text <- texts[!is.na(year), .(file_names, new_file_name, Year = year, Authors = author, journal,
                                      signalname, word_count, misp_count, risk_count, misprice_risk_ratio)]
 
-fwrite(subset_text, '../IntermediateText/TextAnalysis.csv')
+fwrite(subset_text, '../Data/Processed/TextAnalysis.csv')
 
 fwrite(texts[!is.na(year), .(file_names, new_file_name, Year = year,
                              Authors = author, journal,
                              signalname, word_count,
                              misp_count, risk_count,
                              misprice_risk_ratio, text_lemmatized)],
-       '../IntermediateText/FullTextAnalysis.csv')
+       '../Data/Processed/FullTextAnalysis.csv')
 
 
 words_mispricing <- c(
@@ -409,7 +410,7 @@ risk_list <-  kw_r$keyword %>% unique()
 
 risk_list %>% as.data.table() %>% fwrite('DataIntermediate/risk_words.csv')
 
-subset_text <- fread('../IntermediateText/TextAnalysis.csv')  %>%  rename(Journal = journal) %>%
+subset_text <- fread('../Data/Processed/TextAnalysis.csv')  %>%  rename(Journal = journal) %>%
   # dplyr::select(Authors, Year, Journal, file_names)%>%
   mutate(Journal = gsub('^RF$', 'ROF', Journal)) %>%
   mutate(Journal = gsub('^TAR$', 'AR', Journal)) %>%
@@ -431,7 +432,7 @@ signal_text[czret, Keep := Keep]
 
 signal_text <- signal_text[Keep == TRUE,]  
 
-library(fuzzyjoin)
+
 joined_inner <- signal_text %>% dplyr::select(signalname, Year, Journal, author_merge, Authors) %>%
   rename(Authors2 = Authors, Authors = author_merge) %>%
   stringdist_inner_join(subset_text ,
