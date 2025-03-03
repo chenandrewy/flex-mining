@@ -92,12 +92,8 @@ czret = data.table::fread("../Data/Raw/PredictorPortsFull.csv") %>%
   select(signalname, date, ret, samptype, sampstart, sampend, pubdate, Rep_Quality) %>% 
   filter(!is.na(samptype)) %>% 
   # Add event time
-  mutate(eventDate = interval(sampend, date) %/% months(1)) %>% 
-  # fix sign of dCPVolSpread: https://github.com/OpenSourceAP/CrossSection/issues/139
-  mutate(
-    ret = if_else(signalname == 'dCPVolSpread', -ret, ret)
-  ) 
-
+  mutate(eventDate = interval(sampend, date) %/% months(1))
+  
 # summary stats
 czsum = czret %>%
   filter(samptype == 'insamp') %>% 
