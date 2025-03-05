@@ -5,6 +5,25 @@ rm(list = ls())
 source("0_Environment.R")
 library(kableExtra)
 
+## Load CZ ----------------------------------------------------
+inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType, 
+                                  topT = globalSettings$topT)
+
+# published
+czsum <- readRDS("../Data/Processed/czsum_allpredictors.RDS") %>%
+    filter(Keep) %>% 
+    filter(signalname %in% inclSignals) %>% 
+    setDT()
+
+czcat <- fread("DataInput/SignalsTheoryChecked.csv") %>%
+    select(signalname, Year, theory) %>% 
+   filter(signalname %in% inclSignals)
+
+czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
+  filter(signalname %in% inclSignals) %>% 
+  left_join(czcat, by = "signalname") %>%
+  mutate(ret_scaled = ret / rbar * 100)
+
 ## User Settings ------------------------------------------------
 
 # define predictor
@@ -30,13 +49,13 @@ oos1 = tibble(
 
 oos2 = tibble(
   start = as.yearmon('Jan 2005')
-  , end = as.yearmon('Dec 2022')
+  , end = max(czret$date)
 )
 
 # full post sample
 oos3 = tibble(
   start = as.yearmon('Jan 1981')
-  , end = as.yearmon('Dec 2022')
+  , end = max(czret$date)
 )
 
 # list of anomalies for measuring spanning
@@ -53,25 +72,6 @@ dmcomp$name <- paste0('../Data/Processed/'
 # Data load -----------------------------------------------------
 
 tic0 = Sys.time()
-
-## Load CZ ----------------------------------------------------
-inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType, 
-                                  topT = globalSettings$topT)
-
-# published
-czsum <- readRDS("../Data/Processed/czsum_allpredictors.RDS") %>%
-    filter(Keep) %>% 
-    filter(signalname %in% inclSignals) %>% 
-    setDT()
-
-czcat <- fread("DataInput/SignalsTheoryChecked.csv") %>%
-    select(signalname, Year, theory) %>% 
-   filter(signalname %in% inclSignals)
-
-czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
-  filter(signalname %in% inclSignals) %>% 
-  left_join(czcat, by = "signalname") %>%
-  mutate(ret_scaled = ret / rbar * 100)
 
 ## Load DM --------------------------------------------------
 # read in DM strats (only used in this section)

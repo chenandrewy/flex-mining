@@ -23,24 +23,6 @@ czcat = fread('DataInput/SignalsTheoryChecked.csv') %>%
   filter(signalname %in% inclSignals)
   
 
-# Write to md file -------------------------------------------------------------
-
-sink('../Results/DataCounts.md')
-print(paste0('Predictors in Chen-Zim data: ', nrow(czsum)))
-
-print(paste0('We drop ', nrow(czsum %>% filter(!rbar_ok)), ' predictors for tiny rbar (distant from original papers)'))
-print(czsum %>% filter(!rbar_ok) )
-
-temp = czsum %>% filter(rbar_ok) %>% filter(!n_ok)
-print(paste0('We drop ', nrow(temp), ' predictors for post-sample periods < 9 years'))
-print(temp)
-
-temp = czsum %>% filter(rbar_ok, n_ok, main_signal == 'main') 
-print(paste0('We keep ', nrow(temp), ' published signals for the main analysis '))
-
-sink()
-
-
 # Journal counts -------------------------------------------------------------------
 
 
@@ -122,7 +104,7 @@ czsum %>%
                file = '../Results/SignalsByTheoryAndJournal.tex', sep = ',')
 
 
-# DM counts ---------------------------------------------------------------
+# For DM counts ---------------------------------------------------------------
 
 source('0_Environment.R')
 
@@ -130,24 +112,56 @@ dmdat = readRDS(paste0('../Data/Processed/',
                        globalSettings$dataVersion, 
                        ' LongShort.RData'))
 
-dmdat %>% names()
+
+denom_ok = fread('DataIntermediate/freq_obs_1963.csv') %>% 
+  filter(freq_obs_1963 > globalSettings$denom_min_fobs) 
 
 
-dmdat$ret %>% distinct(signalid) 
+# Write to md file -------------------------------------------------------------
 
-print(nrow(dmdat$signal_list))
-n1 = dmdat$signal_list %>% distinct(v1) %>% nrow()
-n2 = dmdat$signal_list %>% distinct(v2) %>% nrow()
+sink('../Results/DataCounts.md')
+print(paste0('Predictors in Chen-Zim data: ', nrow(czsum)))
+
+print(paste0('We drop ', nrow(czsum %>% filter(!rbar_ok)), ' predictors for tiny rbar (distant from original papers)'))
+print(czsum %>% filter(!rbar_ok) )
+
+temp = czsum %>% filter(rbar_ok) %>% filter(!n_ok)
+print(paste0('We drop ', nrow(temp), ' predictors for post-sample periods < 9 years'))
+print(temp)
+
+temp = czsum %>% filter(rbar_ok, n_ok, main_signal != 'main') 
+print(paste0('We drop ', nrow(temp), ' predictors to limit each paper to two main signals'))
+print(temp)
+
+temp = czsum %>% filter(rbar_ok, n_ok, main_signal == 'main') 
+print(paste0('We keep ', nrow(temp), ' published signals for the main analysis '))
+
+print('\n')
+
+print('Share of predictors that are risk or mispricing')
+temp = tab_risk_or_mispricing %>% 
+  ungroup() %>% 
+  mutate(across(where(is.integer), ~ as.numeric(.))) %>% 
+  mutate(
+    pct_Top3 = Top3 / sum(Top3) * 100
+    , pct_Any = Any / sum(Any) * 100
+  ) %>% 
+  select(theory, starts_with('pct')) %>% 
+  print()
+
+# DM counts
+print('\n')
+print('DM counts')
+print(paste0('Total ratios: ',nrow(dmdat$signal_list)))
+print(paste0('Numerators: ',n1))
+print(paste0('Denominators: ',n2))
+print(paste0('Number of ratios before removing redundant (n1*n2*2): ',n1*n2*2))
+print(paste0('Number of ratios dropped (n1*n2*2 - nrow(dmdat$signal_list)): ',n1*n2*2 - nrow(dmdat$signal_list)))
+
+print(paste0('Number of ratios where the numerator is also a valid denominator (n2*n2): ',n2*n2))
+print(paste0('Number of distinct ratios where the numerator is also a valid denominator (n2 choose 2): ',choose(n2,2)))
+print(paste0('Number of ratios dropped (n2*n2 - choose(n2,2)): ',n2*n2 - choose(n2,2)))
+
+sink()
 
 
-print(n1 * n2 + (n1-n2)*n2 + choose(n2,2))
-print(n1)
-print(n2)
-
-
-dmdat$user$signal
-
-n1 * n2 *2
-n1 * n2 *2 - nrow(dmdat$signal_list)
-
-n2*n2

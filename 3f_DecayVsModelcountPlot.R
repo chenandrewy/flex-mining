@@ -292,3 +292,34 @@ plotme_t = czt  %>%
 plotme_t[, median(insamp), by = modeltype]
 plotme_t[, median(insamp), by = theory]
 a <- plotme_t[, median(insamp), by = .(modeltype, theory)]
+
+# Numbers for paper -----------------------
+
+sink(file = '../Results/Fig_DecayVsModel.md')
+
+print('\n Number of signals with a model')
+plotme_t %>% mutate(
+  has_model = modeltype != 'No Model'
+) %>% 
+  group_by(has_model) %>% 
+  summarize(nsignal = n()) %>% 
+  print()
+
+print('\n Number of signals by model type')
+plotme %>% group_by(modeltype) %>%
+  summarize(nsignal = n()) %>% 
+  print()
+
+print('\n Post-samp returns of fancy models')
+options(width = 1000)
+plotme %>% filter(modeltype %in% c('Dynamic', 'Quantitative')) %>% 
+  arrange(modeltype, signalname) %>% 
+  left_join(
+    czret %>% 
+      filter(samptype %in% c('oos','postpub')) %>% 
+      group_by(signalname) %>% 
+      summarize(postsamp_start = min(date), postsamp_end = max(date)) 
+  ) %>% 
+  print()
+
+sink()

@@ -95,11 +95,34 @@ printme = ReturnPlotsWithDM(
 
 file.remove(paste0("../Results/temp__", tempsuffix, ".pdf"))
 
-# numbers for intro
-ret_for_plot0[eventDate>0 & eventDate <= Inf, .(mean(ret), mean(matchRet))]
+## numbers for intro --------------------------------------------------
 
-ret_for_plot0 %>% distinct(pubname)
-czret %>% distinct(signalname)
+sink(paste0("../Results/Fig_DM_", tempsuffix, '.md'))
+
+print(paste0("Mean post-samp return in this figure: "))
+ret_for_plot0 %>% 
+              filter(eventDate > 0 & eventDate <= Inf) %>% 
+              summarize(
+    pub_mean_pool = mean(ret), dm_mean_pool = mean(matchRet)
+  ) %>% print()
+
+print(paste0("number of published signals by eventDate: "))
+ret_for_plot0 %>% 
+  filter(eventDate%%60 == 0, eventDate >= 0) %>% 
+  group_by(eventDate) %>% 
+  summarize(
+    n_pub = n_distinct(pubname)
+  ) %>% print()
+
+sink()  
+
+name1 = ret_for_plot0 %>% filter(eventDate ==-60) %>% pull(pubname) %>% unique()
+name2 = ret_for_plot0 %>% filter(eventDate ==0) %>% pull(pubname) %>% unique()
+
+setdiff(name2, name1)
+
+temp = ret_for_plot0[pubname=='ProbInformedTrading']
+View(temp)
 
 
 ## plot with Calendar SE --------------------------------------------------
