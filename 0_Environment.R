@@ -89,6 +89,7 @@ globalSettings = list(
   prep_data = T,
   num_cores = round(.4*parallel::detectCores()),  # Adjust number of cores used as you see fit (use num_cores = 1 for serial)
   shortlist = F,
+  interactive_mode = FALSE,  # Set to TRUE for interactive execution
 
   # DM vs OP matching requirements
   t_tol    = .1*Inf, # tolerance in t-statistics (DM vs OP) for matching

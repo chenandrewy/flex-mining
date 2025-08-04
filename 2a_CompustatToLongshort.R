@@ -111,8 +111,10 @@ print(n1 * n2 + (n1-n2)*n2 + choose(n2,2))
 print(n1)
 print(n2)
 print(user$name) 
-keyin = readline('type q to abort')
-if (keyin == 'q') stop('stopping')
+if (globalSettings$interactive_mode) {
+  keyin = readline('type q to abort')
+  if (keyin == 'q') stop('stopping')
+}
 
 
 # Create big temp data ---------------------------------------------------------------

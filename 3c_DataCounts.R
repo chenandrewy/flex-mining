@@ -108,6 +108,10 @@ czsum %>%
 
 source('0_Environment.R')
 
+# Define n1 and n2 from compnames for data counts
+n1 <- length(compnames$yz.numer)
+n2 <- length(compnames$yz.denom)
+
 dmdat = readRDS(paste0('../Data/Processed/',
                        globalSettings$dataVersion, 
                        ' LongShort.RData'))

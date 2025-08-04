@@ -2,10 +2,23 @@
 source('0_Environment.R')
 library(googledrive)
 
+# Load credentials from .env file
+if (file.exists('.env')) {
+  library(dotenv)
+  load_dot_env('.env')
+}
+
 # Check whether wrds connection already exists, if not, create a new one
 if (!exists('wrds') || !dbIsValid(wrds)) {
-  user <- getPass('wrds username: ')
-  pass <- getPass('wrds password: ')
+  # Try to get credentials from environment variables first
+  user <- Sys.getenv('WRDS_USERNAME')
+  pass <- Sys.getenv('WRDS_PASSWORD')
+  
+  # If not in env, fall back to interactive prompt
+  if (user == '' || pass == '') {
+    user <- getPass('wrds username: ')
+    pass <- getPass('wrds password: ')
+  }
   
   wrds <- dbConnect(Postgres(), 
                     host='wrds-pgdata.wharton.upenn.edu',
