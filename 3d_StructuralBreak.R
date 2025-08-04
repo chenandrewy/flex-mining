@@ -7,7 +7,7 @@
 
 # Setup ========================
 rm(list = ls())
-source("0_Environment.r")
+source("0_Environment.R")
 
 DMname <- paste0(
     "../Data/Processed/",
