@@ -396,6 +396,8 @@ ggsave(paste0("../Results/Fig_DM_t_top5Pct_AccountingOnly_CalendarSE.pdf"), widt
 
 
 # Restricting the number of DM predictors per paper -----------------------
+# Note: The normalization of DM strategies to have an in-sample mean of 100
+# occurs in the `make_DM_event_returns` function in `0_Environment.R`.
 
 # Prep for plotting
 ret_for_plot_MaxPredictors1 = ret_for_plot_MaxPredictors %>%
