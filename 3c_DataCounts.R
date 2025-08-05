@@ -26,16 +26,49 @@ czcat = fread('DataInput/SignalsTheoryChecked.csv') %>%
 # Journal counts -------------------------------------------------------------------
 
 
-# for main paper (difficult to include automatically, copy and paste values please)
+## for main paper 
+
+### Top 3 finance
 finlist = c('JF','RFS','JFE')
-tab_risk_or_mispricing = czsum %>% 
+tab_risk_or_mispricingTop3 = czsum %>% 
   filter(rbar_ok, n_ok, main_signal == 'main') %>% 
   left_join(czcat, by = 'signalname') %>% 
   mutate(Top3 = ifelse(Journal %in% finlist, 'Top3', 'Other')) %>%
   group_by(Top3, theory) %>%
   count() %>% 
   pivot_wider(names_from = Top3, values_from = n, values_fill = 0) %>% 
-  mutate(Any = Other + Top3)
+  mutate(Any = Other + Top3) %>% 
+  select(theory, Any, Top3) %>% 
+  arrange(desc(theory))
+
+### Finance and accounting
+tab_risk_or_mispricingJournal = czsum %>% 
+  filter(rbar_ok, n_ok, main_signal == 'main') %>% 
+  left_join(czcat, by = 'signalname') %>% 
+  mutate(JournalCat = case_when(
+         Journal %in% globalSettings$finlistAll  ~ 'Finance',
+         Journal %in% globalSettings$acctlistAll ~ 'Accounting',
+         TRUE                     ~ 'Other')) %>%
+  group_by(JournalCat, theory) %>%
+  count() %>% 
+  pivot_wider(names_from = JournalCat, values_from = n, values_fill = 0) %>% 
+  select(theory, Finance, Accounting) %>% 
+  arrange(desc(theory))
+
+## Combine the two tables and save as tex
+tab_risk_or_mispricing = tab_risk_or_mispricingTop3 %>% 
+  left_join(tab_risk_or_mispricingJournal, by = 'theory') %>% 
+  select(theory, Any, Top3, Finance, Accounting) %>% 
+  arrange(desc(theory)) %>% 
+  mutate(theory = str_to_title(theory))
+
+tab_risk_or_mispricing %>% 
+  xtable() %>% 
+  print(include.rownames = FALSE, 
+        include.colnames = FALSE,
+        hline.after = NULL,
+      only.contents = TRUE,
+      file = '../Results/ApproachVsJournalsPart1.csv')
 
 # Create LaTeX table with actual values instead of \Sexpr commands
 cat(sprintf('%% Risk vs Mispricing Table

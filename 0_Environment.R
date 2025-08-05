@@ -102,9 +102,13 @@ globalSettings = list(
   
   # DM requirements
   minShareTG2 = .1,  # Include strategies with t-stat > 2 in at least X % of published time periods
-  TG2Set = '1994-2020' # 1994-2020: DM strategies evaluated over 1994-2020
-                       # Matches:   all sample matching periods
-                       # Rolling1994-2020: DM strategies evaluated on rolling t-stats in 1994-2020
+  TG2Set = '1994-2020', # 1994-2020: DM strategies evaluated over 1994-2020
+                        # Matches:   all sample matching periods
+                        # Rolling1994-2020: DM strategies evaluated on rolling t-stats in 1994-2020
+  
+  # Finance and Accounting journals
+  finlistAll  = c('JF','RFS','JFE','JFQA','MS', 'ROF', 'JEmpFin', 'JFM'),
+  acctlistAll = c('AR','RAS','JAR','JAE', 'CAR', 'BAR', 'JBFA')
 )
 
 # Set seed for random sampling
