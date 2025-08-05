@@ -119,6 +119,22 @@ tab_modeltype %>%
         only.contents = TRUE,
         file = '../Results/ApproachVsJournalsPart2.csv')
 
+## add totals
+tab_sum = tab_modeltype %>%
+  ungroup() %>% 
+  select(-modeltype) %>%
+  summarise(across(everything(), sum, na.rm = TRUE)) %>% 
+  mutate(modeltype = '\\textbf{Total}') %>% 
+  select(modeltype, everything())
+
+tab_sum %>% 
+  xtable() %>% 
+  print(include.rownames = FALSE, 
+        include.colnames = FALSE,
+        hline.after = NULL,
+        only.contents = TRUE,
+        file = '../Results/ApproachVsJournalsPart3.csv',
+        sanitize.text.function = identity)
 
 # Risk vs mispricing example quotes table ---------------------------------
 
