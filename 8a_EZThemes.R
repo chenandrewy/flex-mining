@@ -194,7 +194,7 @@ groupsum = stratsum %>%
 # save groupsum to csv for manual categorization (if needed)
 # (this gets copy-pasted into DataInput/DM-Numerator-LitCat.xlsx)
 if (FALSE) {
-  groupsum %>% distinct(signal_form, v1, numer) %>%  write_csv('../results/numer_list.csv')
+  groupsum %>% distinct(signal_form, v1, numer) %>%  write_csv('../Results/numer_list.csv')
 }
 
 # Make table ----------------------------------------
@@ -244,12 +244,12 @@ tab2 = tab1 %>%
 # export to temp.tex
 tab2 %>% 
   kable('latex', booktabs = T, linesep='', escape=F, digits=2) %>% 
-  cat(file='../results/temp.tex')
+  cat(file='../Results/temp.tex')
 
 # Make it beautiful ----------------------------------------
 
 # setup
-tex = readLines('../results/temp.tex')
+tex = readLines('../Results/temp.tex')
 mcol = function(x) paste0('\\multicolumn{1}{c}{', x, '}')
 strsamp = paste0(year(insamp$start), '-', year(insamp$end))
 stroos1 = paste0(year(oos1$start), '-', year(oos1$end))
@@ -307,7 +307,7 @@ for (i in 1:length(subheadrow)){
 }
 
 
-writeLines(tex1, '../results/theme_ez_decay.tex')
+writeLines(tex1, '../Results/theme_ez_decay.tex')
 
 
 # Make table for slides ----------------------------------------
@@ -338,12 +338,12 @@ tab2 = tab1 %>%
 # export to temp.tex
 tab2 %>% 
   kable('latex', booktabs = T, linesep='', escape=F, digits=2) %>% 
-  cat(file='../results/temp.tex')
+  cat(file='../Results/temp.tex')
 
 # Make it beautiful ----------------------------------------
 
 # setup
-tex = readLines('../results/temp.tex')
+tex = readLines('../Results/temp.tex')
 mcol = function(x) paste0('\\multicolumn{1}{c}{', x, '}')
 strsamp = paste0(year(insamp$start), '-', year(insamp$end))
 stroos1 = paste0(year(oos1$start), '-', year(oos1$end))
@@ -407,5 +407,5 @@ for (i in 1:length(subheadrow)){
 }
 
 
-writeLines(tex1, '../results/theme_ez_slides.tex')
+writeLines(tex1, '../Results/theme_ez_slides.tex')
 
