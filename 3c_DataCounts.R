@@ -19,14 +19,20 @@ czsum = readRDS('../Data/Processed/czsum_allpredictors.RDS') %>%
   )
 
 czcat = fread('DataInput/SignalsTheoryChecked.csv') %>% 
-  select(signalname, theory) %>% 
-  filter(signalname %in% inclSignals)
+  filter(signalname %in% inclSignals) %>% 
+  mutate(modeltype = case_when(NoModel == 1 ~ 'No Model',
+                               Stylized == 1 ~ 'Stylized',
+                               Dynamic == 1 ~ 'Dynamic',
+                               Quantitative == 1 ~ 'Quantitative')) %>%
+  mutate(modeltype = factor(modeltype, levels = c('No Model', 'Stylized', 'Dynamic', 'Quantitative'))) %>%
+  select(signalname, theory, modeltype) 
+  
   
 
 # Journal counts -------------------------------------------------------------------
 
 
-## for main paper 
+## for main paper: Risk/Mispricing and Model counts 
 
 ### Top 3 finance
 finlist = c('JF','RFS','JFE')
@@ -69,6 +75,52 @@ tab_risk_or_mispricing %>%
         hline.after = NULL,
       only.contents = TRUE,
       file = '../Results/ApproachVsJournalsPart1.csv')
+
+## Model type table
+
+### Top 3 finance
+tab_modeltypeTop3 = czsum %>% 
+  filter(rbar_ok, n_ok, main_signal == 'main') %>% 
+  left_join(czcat, by = 'signalname') %>% 
+  mutate(Top3 = ifelse(Journal %in% finlist, 'Top3', 'Other')) %>%
+  group_by(Top3, modeltype) %>%
+  count() %>% 
+  pivot_wider(names_from = Top3, values_from = n, values_fill = 0) %>% 
+  mutate(Any = Other + Top3) %>% 
+  select(modeltype, Any, Top3) %>% 
+  arrange(modeltype)
+
+
+### Finance and accounting
+tab_modeltypeJournal = czsum %>% 
+  filter(rbar_ok, n_ok, main_signal == 'main') %>% 
+  left_join(czcat, by = 'signalname') %>% 
+  mutate(JournalCat = case_when(
+    Journal %in% globalSettings$finlistAll  ~ 'Finance',
+    Journal %in% globalSettings$acctlistAll ~ 'Accounting',
+    TRUE                     ~ 'Other')) %>%
+  group_by(JournalCat, modeltype) %>%
+  count() %>% 
+  pivot_wider(names_from = JournalCat, values_from = n, values_fill = 0) %>% 
+  select(modeltype, Finance, Accounting) %>% 
+  arrange(modeltype)
+
+## Combine the two tables and save as tex
+tab_modeltype = tab_modeltypeTop3 %>% 
+  left_join(tab_modeltypeJournal, by = 'modeltype') %>% 
+  select(modeltype, Any, Top3, Finance, Accounting) %>% 
+  arrange(modeltype) 
+
+tab_modeltype %>% 
+  xtable() %>% 
+  print(include.rownames = FALSE, 
+        include.colnames = FALSE,
+        hline.after = NULL,
+        only.contents = TRUE,
+        file = '../Results/ApproachVsJournalsPart2.csv')
+
+
+# Risk vs mispricing example quotes table ---------------------------------
 
 # Create LaTeX table with actual values instead of \Sexpr commands
 cat(sprintf('%% Risk vs Mispricing Table
