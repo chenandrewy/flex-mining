@@ -9,3 +9,6 @@ source('4d_ResearchVsDMRobustnessCorrelationsEtc.R', echo = T)
 source('4d2_InspectTables.R', echo = T)
 source('4e_DM_Span_PCA.R', echo = T)
 
+# Risk-adjusted analysis with both filter types
+source('4c4_RunBothFilters.R', echo = T)
+

@@ -9,9 +9,20 @@ library(doParallel)
 
 t_threshold_a = 1
 t_threshold_b = 2
+return_threshold = 0.15  # 15 bps threshold for average in-sample return/alpha
+
+# Filter type: "tstat" for t-stat filtering, "return" for return filtering
+# Check for environment variable first, otherwise use default
+filter_type <- Sys.getenv("FILTER_TYPE", "tstat")  # Default to t-stat filtering
 
 # Create results subfolder for risk-adjusted analysis
-results_dir <- "../Results/RiskAdjusted"
+base_results_dir <- "../Results/RiskAdjusted"
+if (filter_type == "return") {
+  results_dir <- file.path(base_results_dir, paste0("ReturnFilter_", return_threshold))
+} else {
+  results_dir <- file.path(base_results_dir, "TstatFilter")
+}
+
 if (!dir.exists(results_dir)) {
   dir.create(results_dir, recursive = TRUE)
   cat("Created directory:", results_dir, "\n")
@@ -96,7 +107,8 @@ create_filtered_plot_data <- function(ret_for_plot0_adj, signals_list, dm_aggreg
 # Helper function to create and save risk-adjusted plots
 create_risk_adjusted_plot <- function(plot_data, pub_col, dm_col, 
                                      adjustment_type, t_threshold, 
-                                     y_axis_label, y_high = 125) {
+                                     y_axis_label, y_high = 125,
+                                     filter_type = "tstat", return_threshold = 0.15) {
   
   if(nrow(plot_data) > 0) {
     # Print summary statistics
@@ -109,7 +121,11 @@ create_risk_adjusted_plot <- function(plot_data, pub_col, dm_col,
       ) %>% print()
     
     # Create suffix for file naming
-    suffix <- paste0(tolower(adjustment_type), "_t", t_threshold)
+    if (filter_type == "return") {
+      suffix <- paste0(tolower(adjustment_type), "_r", gsub("\\.", "", as.character(return_threshold)))
+    } else {
+      suffix <- paste0(tolower(adjustment_type), "_t", t_threshold)
+    }
     
     # Create plot
     plot_obj <- ReturnPlotsWithDM_std_errors_indicators(
@@ -130,8 +146,14 @@ create_risk_adjusted_plot <- function(plot_data, pub_col, dm_col,
       xl = global_xl,
       xh = global_xh,
       legendlabels = c(
-        paste0("Published (", adjustment_type, ", t>=", t_threshold, ")"),
-        paste0("Data-Mined (", adjustment_type, ", t>=", t_threshold, ")"),
+        paste0("Published (", adjustment_type, ", ",
+               ifelse(filter_type == "return", 
+                      paste0("avg>=", return_threshold), 
+                      paste0("t>=", t_threshold)), ")"),
+        paste0("Data-Mined (", adjustment_type, ", ",
+               ifelse(filter_type == "return", 
+                      paste0("avg>=", return_threshold), 
+                      paste0("t>=", t_threshold)), ")"),
         'N/A'
       ),
       legendpos = c(35,20)/100,
@@ -319,12 +341,16 @@ ret_for_plot0 %>%
 cat("\nNumber of signals:", length(unique(ret_for_plot0$pubname[!is.na(ret_for_plot0$matchRet)])), "\n")
 
 
-# T-stat filtered versions -----------------------------------------------
+# Filtered versions (t-stat or return) -----------------------------------------------
 
-cat("\n\n=== T-STAT FILTERED ANALYSIS (t >=", t_threshold_b, ") ===\n")
+if (filter_type == "return") {
+  cat("\n\n=== RETURN FILTERED ANALYSIS (avg return/alpha >=", return_threshold, ") ===\n")
+} else {
+  cat("\n\n=== T-STAT FILTERED ANALYSIS (t >=", t_threshold_b, ") ===\n")
+}
 
-# First compute t-stats for individual DM signals
-cat("\nComputing t-stats for individual DM signals...\n")
+# First compute statistics for individual DM signals
+cat("\nComputing statistics for individual DM signals...\n")
 setDT(candidateReturns_adj)
 
 # Add samptype if not present
@@ -336,45 +362,85 @@ if(!"samptype" %in% names(candidateReturns_adj)) {
     )
 }
 
-# Compute t-stats for each DM signal
-dm_tstats <- candidateReturns_adj[
+# Compute statistics for each DM signal
+dm_stats <- candidateReturns_adj[
   samptype == "insamp" & !is.na(abnormal_capm),
   .(
+    # T-stats
     abar_capm_dm_t = mean(abnormal_capm, na.rm = TRUE) / sd(abnormal_capm, na.rm = TRUE) * sqrt(.N),
-    abar_ff3_dm_t = mean(abnormal_ff3, na.rm = TRUE) / sd(abnormal_ff3, na.rm = TRUE) * sqrt(.N)
+    abar_ff3_dm_t = mean(abnormal_ff3, na.rm = TRUE) / sd(abnormal_ff3, na.rm = TRUE) * sqrt(.N),
+    # Average returns/alphas
+    abar_capm_dm = mean(abnormal_capm, na.rm = TRUE),
+    abar_ff3_dm = mean(abnormal_ff3, na.rm = TRUE)
   ),
   by = .(actSignal, candSignalname)
 ]
 
-# Filter DM signals by t >= t_threshold_b and recompute aggregates
-dm_filtered_capm <- candidateReturns_adj %>%
-  inner_join(
-    dm_tstats %>% filter(abar_capm_dm_t >= t_threshold_b),
-    by = c("actSignal", "candSignalname")
-  )
+# Filter DM signals based on chosen filter type
+if (filter_type == "return") {
+  dm_filtered_capm <- candidateReturns_adj %>%
+    inner_join(
+      dm_stats %>% filter(abar_capm_dm >= return_threshold),
+      by = c("actSignal", "candSignalname")
+    )
+  
+  dm_filtered_ff3 <- candidateReturns_adj %>%
+    inner_join(
+      dm_stats %>% filter(abar_ff3_dm >= return_threshold),
+      by = c("actSignal", "candSignalname")
+    )
+  
+  # Get published signals that meet return threshold
+  # Note: rbar_scaled, abar_capm, abar_ff3 are already in percentage terms (multiplied by 100)
+  signals_raw_t2 <- unique(czret[rbar_scaled >= return_threshold]$signalname)
+  signals_capm_t2 <- unique(czret[abar_capm >= return_threshold]$signalname)
+  signals_ff3_t2 <- unique(czret[abar_ff3 >= return_threshold]$signalname)
+  
+} else {
+  dm_filtered_capm <- candidateReturns_adj %>%
+    inner_join(
+      dm_stats %>% filter(abar_capm_dm_t >= t_threshold_b),
+      by = c("actSignal", "candSignalname")
+    )
+  
+  dm_filtered_ff3 <- candidateReturns_adj %>%
+    inner_join(
+      dm_stats %>% filter(abar_ff3_dm_t >= t_threshold_b),
+      by = c("actSignal", "candSignalname")
+    )
+  
+  # Get signals with t >= t_threshold_b for different measures
+  signals_raw_t2 <- unique(czret[rbar_scaled_t >= t_threshold_b]$signalname)
+  signals_capm_t2 <- unique(czret[abar_capm_t >= t_threshold_b]$signalname)
+  signals_ff3_t2 <- unique(czret[abar_ff3_t >= t_threshold_b]$signalname)
+}
 
-dm_filtered_ff3 <- candidateReturns_adj %>%
-  inner_join(
-    dm_tstats %>% filter(abar_ff3_dm_t >= t_threshold_b),
-    by = c("actSignal", "candSignalname")
-  )
+if (filter_type == "return") {
+  cat("\nNumber of PUBLISHED signals with avg return/alpha >=", return_threshold, ":\n")
+  cat("Raw returns:", length(signals_raw_t2), "\n")
+  cat("CAPM alpha:", length(signals_capm_t2), "\n")
+  cat("FF3 alpha:", length(signals_ff3_t2), "\n")
+  
+  cat("\nNumber of DM signals with avg return/alpha >=", return_threshold, ":\n")
+  cat("CAPM alpha:", sum(dm_stats$abar_capm_dm >= return_threshold, na.rm = TRUE), "\n")
+  cat("FF3 alpha:", sum(dm_stats$abar_ff3_dm >= return_threshold, na.rm = TRUE), "\n")
+} else {
+  cat("\nNumber of PUBLISHED signals with t >=", t_threshold_b, ":\n")
+  cat("Raw returns:", length(signals_raw_t2), "\n")
+  cat("CAPM alpha:", length(signals_capm_t2), "\n")
+  cat("FF3 alpha:", length(signals_ff3_t2), "\n")
+  
+  cat("\nNumber of DM signals with t >=", t_threshold_b, ":\n")
+  cat("CAPM alpha:", sum(dm_stats$abar_capm_dm_t >= t_threshold_b, na.rm = TRUE), "\n")
+  cat("FF3 alpha:", sum(dm_stats$abar_ff3_dm_t >= t_threshold_b, na.rm = TRUE), "\n")
+}
 
-# Get signals with t >= t_threshold_b for different measures
-signals_raw_t2 <- unique(czret[rbar_scaled_t >= t_threshold_b]$signalname)
-signals_capm_t2 <- unique(czret[abar_capm_t >= t_threshold_b]$signalname)
-signals_ff3_t2 <- unique(czret[abar_ff3_t >= t_threshold_b]$signalname)
-
-cat("\nNumber of PUBLISHED signals with t >=", t_threshold_b, ":\n")
-cat("Raw returns:", length(signals_raw_t2), "\n")
-cat("CAPM alpha:", length(signals_capm_t2), "\n")
-cat("FF3 alpha:", length(signals_ff3_t2), "\n")
-
-cat("\nNumber of DM signals with t >=", t_threshold_b, ":\n")
-cat("CAPM alpha:", sum(dm_tstats$abar_capm_dm_t >= t_threshold_b, na.rm = TRUE), "\n")
-cat("FF3 alpha:", sum(dm_tstats$abar_ff3_dm_t >= t_threshold_b, na.rm = TRUE), "\n")
-
-# Create filtered plots for CAPM t >= t_threshold_b
-cat("\n=== CAPM FILTERED (t >=", t_threshold_b, ") STATISTICS ===\n")
+# Create filtered plots for CAPM
+if (filter_type == "return") {
+  cat("\n=== CAPM FILTERED (avg alpha >=", return_threshold, ") STATISTICS ===\n")
+} else {
+  cat("\n=== CAPM FILTERED (t >=", t_threshold_b, ") STATISTICS ===\n")
+}
 
 # Use helper function to normalize and aggregate
 dm_capm_aggregated <- normalize_and_aggregate_dm(
@@ -403,7 +469,9 @@ printme_capm_t2 <- create_risk_adjusted_plot(
   "matchRet_capm_t2_normalized",
   "CAPM Alpha",
   t_threshold_b,
-  "Trailing 5-Year CAPM Alpha (% of In-Sample Alpha)"
+  "Trailing 5-Year CAPM Alpha (% of In-Sample Alpha)",
+  filter_type = filter_type,
+  return_threshold = return_threshold
 )
 
 # Create filtered plots for FF3 t >= t_threshold_b
@@ -436,7 +504,9 @@ printme_ff3_t2 <- create_risk_adjusted_plot(
   "matchRet_ff3_t2_normalized",
   "FF3 Alpha",
   t_threshold_b,
-  "Trailing 5-Year FF3 Alpha (% of In-Sample Alpha)"
+  "Trailing 5-Year FF3 Alpha (% of In-Sample Alpha)",
+  filter_type = filter_type,
+  return_threshold = return_threshold
 )
 
 # Time-varying abnormal returns (IS beta in IS, post-sample beta in OOS) --------
@@ -446,25 +516,34 @@ cat("\n\n=== TIME-VARYING ABNORMAL RETURNS (IS/OOS BETAS) ===\n")
 # Check if time-varying columns exist in the data
 if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff3_tv" %in% names(candidateReturns_adj)) {
   
-  # Compute t-stats for time-varying abnormal returns
-  dm_tstats_tv <- candidateReturns_adj[
+  # Compute statistics for time-varying abnormal returns
+  dm_stats_tv <- candidateReturns_adj[
     samptype == "insamp" & !is.na(abnormal_capm_tv),
     .(
       abar_capm_tv_dm_t = mean(abnormal_capm_tv, na.rm = TRUE) / sd(abnormal_capm_tv, na.rm = TRUE) * sqrt(.N),
-      abar_ff3_tv_dm_t = mean(abnormal_ff3_tv, na.rm = TRUE) / sd(abnormal_ff3_tv, na.rm = TRUE) * sqrt(.N)
+      abar_ff3_tv_dm_t = mean(abnormal_ff3_tv, na.rm = TRUE) / sd(abnormal_ff3_tv, na.rm = TRUE) * sqrt(.N),
+      abar_capm_tv_dm = mean(abnormal_capm_tv, na.rm = TRUE),
+      abar_ff3_tv_dm = mean(abnormal_ff3_tv, na.rm = TRUE)
     ),
     by = .(actSignal, candSignalname)
   ]
   
-  # CAPM time-varying with t >= t_threshold_b
-  cat("\n=== CAPM TIME-VARYING (t >=", t_threshold_b, ") STATISTICS ===\n")
-  
-  # Filter DM signals
-  dm_filtered_capm_tv <- candidateReturns_adj %>%
-    inner_join(
-      dm_tstats_tv %>% filter(abar_capm_tv_dm_t >= t_threshold_b),
-      by = c("actSignal", "candSignalname")
-    )
+  # CAPM time-varying filtering
+  if (filter_type == "return") {
+    cat("\n=== CAPM TIME-VARYING (avg alpha >=", return_threshold, ") STATISTICS ===\n")
+    dm_filtered_capm_tv <- candidateReturns_adj %>%
+      inner_join(
+        dm_stats_tv %>% filter(abar_capm_tv_dm >= return_threshold),
+        by = c("actSignal", "candSignalname")
+      )
+  } else {
+    cat("\n=== CAPM TIME-VARYING (t >=", t_threshold_b, ") STATISTICS ===\n")
+    dm_filtered_capm_tv <- candidateReturns_adj %>%
+      inner_join(
+        dm_stats_tv %>% filter(abar_capm_tv_dm_t >= t_threshold_b),
+        by = c("actSignal", "candSignalname")
+      )
+  }
   
   # Normalize and aggregate
   dm_capm_tv_aggregated <- normalize_and_aggregate_dm(
@@ -483,9 +562,13 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff3_tv" %in%
     "capm_tv_t2_normalized"
   )
   
-  cat("Published signals with CAPM t >=", t_threshold_b, ":", length(signals_capm_t2), "\n")
+  cat("Published signals with CAPM", ifelse(filter_type == "return", paste("avg alpha >=", return_threshold), paste("t >=", t_threshold_b)), ":", length(signals_capm_t2), "\n")
   cat("Published signals with filtered DM matches (time-varying):", length(unique(ret_for_plot0_capm_tv_t2$pubname)), "\n")
-  cat("DM signals with time-varying CAPM t >=", t_threshold_b, ":", sum(dm_tstats_tv$abar_capm_tv_dm_t >= t_threshold_b, na.rm = TRUE), "\n")
+  if (filter_type == "return") {
+    cat("DM signals with time-varying CAPM avg alpha >=", return_threshold, ":", sum(dm_stats_tv$abar_capm_tv_dm >= return_threshold, na.rm = TRUE), "\n")
+  } else {
+    cat("DM signals with time-varying CAPM t >=", t_threshold_b, ":", sum(dm_stats_tv$abar_capm_tv_dm_t >= t_threshold_b, na.rm = TRUE), "\n")
+  }
   
   # Create and save plot
   printme_capm_tv_t2 <- create_risk_adjusted_plot(
@@ -494,18 +577,27 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff3_tv" %in%
     "matchRet_capm_tv_t2_normalized",
     "CAPM TV Alpha",
     t_threshold_b,
-    "Trailing 5-Year CAPM Alpha (% of In-Sample Alpha, Time-Varying Betas)"
+    "Trailing 5-Year CAPM Alpha (% of In-Sample Alpha, Time-Varying Betas)",
+    filter_type = filter_type,
+    return_threshold = return_threshold
   )
   
-  # FF3 time-varying with t >= t_threshold_b
-  cat("\n=== FF3 TIME-VARYING (t >=", t_threshold_b, ") STATISTICS ===\n")
-  
-  # Filter DM signals
-  dm_filtered_ff3_tv <- candidateReturns_adj %>%
-    inner_join(
-      dm_tstats_tv %>% filter(abar_ff3_tv_dm_t >= t_threshold_b),
-      by = c("actSignal", "candSignalname")
-    )
+  # FF3 time-varying filtering
+  if (filter_type == "return") {
+    cat("\n=== FF3 TIME-VARYING (avg alpha >=", return_threshold, ") STATISTICS ===\n")
+    dm_filtered_ff3_tv <- candidateReturns_adj %>%
+      inner_join(
+        dm_stats_tv %>% filter(abar_ff3_tv_dm >= return_threshold),
+        by = c("actSignal", "candSignalname")
+      )
+  } else {
+    cat("\n=== FF3 TIME-VARYING (t >=", t_threshold_b, ") STATISTICS ===\n")
+    dm_filtered_ff3_tv <- candidateReturns_adj %>%
+      inner_join(
+        dm_stats_tv %>% filter(abar_ff3_tv_dm_t >= t_threshold_b),
+        by = c("actSignal", "candSignalname")
+      )
+  }
   
   # Normalize and aggregate
   dm_ff3_tv_aggregated <- normalize_and_aggregate_dm(
@@ -524,9 +616,13 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff3_tv" %in%
     "ff3_tv_t2_normalized"
   )
   
-  cat("Published signals with FF3 t >=", t_threshold_b, ":", length(signals_ff3_t2), "\n")
+  cat("Published signals with FF3", ifelse(filter_type == "return", paste("avg alpha >=", return_threshold), paste("t >=", t_threshold_b)), ":", length(signals_ff3_t2), "\n")
   cat("Published signals with filtered DM matches (time-varying):", length(unique(ret_for_plot0_ff3_tv_t2$pubname)), "\n")
-  cat("DM signals with time-varying FF3 t >=", t_threshold_b, ":", sum(dm_tstats_tv$abar_ff3_tv_dm_t >= t_threshold_b, na.rm = TRUE), "\n")
+  if (filter_type == "return") {
+    cat("DM signals with time-varying FF3 avg alpha >=", return_threshold, ":", sum(dm_stats_tv$abar_ff3_tv_dm >= return_threshold, na.rm = TRUE), "\n")
+  } else {
+    cat("DM signals with time-varying FF3 t >=", t_threshold_b, ":", sum(dm_stats_tv$abar_ff3_tv_dm_t >= t_threshold_b, na.rm = TRUE), "\n")
+  }
   
   # Create and save plot
   printme_ff3_tv_t2 <- create_risk_adjusted_plot(
@@ -535,7 +631,9 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff3_tv" %in%
     "matchRet_ff3_tv_t2_normalized",
     "FF3 TV Alpha",
     t_threshold_b,
-    "Trailing 5-Year FF3 Alpha (% of In-Sample Alpha, Time-Varying Betas)"
+    "Trailing 5-Year FF3 Alpha (% of In-Sample Alpha, Time-Varying Betas)",
+    filter_type = filter_type,
+    return_threshold = return_threshold
   )
   
 } else {
@@ -611,7 +709,11 @@ compute_outperformance <- function(plot_data, ret_col, dm_ret_col, group_map, gr
 
 
 # T-STAT FILTERED SUMMARY TABLE (t >= t_threshold_b) ----------------------------------------
-cat("\n\n=== SUMMARY TABLE WITH T >=", t_threshold_b, " FILTER ===\n")
+if (filter_type == "return") {
+  cat("\n\n=== SUMMARY TABLE WITH AVG RETURN/ALPHA >=", return_threshold, " FILTER ===\n")
+} else {
+  cat("\n\n=== SUMMARY TABLE WITH T >=", t_threshold_b, " FILTER ===\n")
+}
 
 # Raw returns with t >= t_threshold_b filter (by theory)
 raw_t2_summary_theory <- compute_outperformance(
@@ -769,8 +871,12 @@ get_values <- function(summary_df, group_col, group_val, value_col) {
   if(length(idx) > 0) return(summary_df[[value_col]][idx]) else return(NA)
 }
 
-# Print t >= t_threshold_b filtered table
-cat("\nPost-Sample Return (t>=", t_threshold_b, ")     Outperformance vs Data-Mining (t>=", t_threshold_b, ")\n")
+# Print filtered table
+if (filter_type == "return") {
+  cat("\nPost-Sample Return (avg>=", return_threshold, ")     Outperformance vs Data-Mining (avg>=", return_threshold, ")\n")
+} else {
+  cat("\nPost-Sample Return (t>=", t_threshold_b, ")     Outperformance vs Data-Mining (t>=", t_threshold_b, ")\n")
+}
 cat("                Raw    CAPM    FF3    Raw    CAPM    FF3\n")
 cat("Theoretical Foundation\n")
 
@@ -838,7 +944,11 @@ cat(sprintf("%-12s (%2s)   (%2s)   (%2s)   (%2s)   (%2s)   (%2s)\n",
             round(overall_t2_summary_raw$outperform_se), round(overall_t2_summary_capm$outperform_se), round(overall_t2_summary_ff3$outperform_se)))
 
 # ANY MODEL VS NO MODEL TABLE (t >= t_threshold_b) ----------------------------------------
-cat("\n\n=== ANY MODEL VS NO MODEL TABLE (t >=", t_threshold_b, ") ===\n")
+if (filter_type == "return") {
+  cat("\n\n=== ANY MODEL VS NO MODEL TABLE (avg >=", return_threshold, ") ===\n")
+} else {
+  cat("\n\n=== ANY MODEL VS NO MODEL TABLE (t >=", t_threshold_b, ") ===\n")
+}
 
 # Create Any Model vs No Model mapping
 anymodel_mapping <- czcat_full %>%
@@ -871,7 +981,11 @@ ff3_t2_summary_anymodel <- compute_outperformance(
 )
 
 # Print Any Model vs No Model table
-cat("\nPost-Sample Return (t>=", t_threshold_b, ")     Outperformance vs Data-Mining (t>=", t_threshold_b, ")\n")
+if (filter_type == "return") {
+  cat("\nPost-Sample Return (avg>=", return_threshold, ")     Outperformance vs Data-Mining (avg>=", return_threshold, ")\n")
+} else {
+  cat("\nPost-Sample Return (t>=", t_threshold_b, ")     Outperformance vs Data-Mining (t>=", t_threshold_b, ")\n")
+}
 cat("                Raw    CAPM    FF3    Raw    CAPM    FF3\n")
 
 for(group in c("No Model", "Any Model")) {
@@ -942,8 +1056,16 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_
 
 # Time-varying abnormal returns table (if available)
 if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_capm_tv_t2")) {
+  if (filter_type == "return") {
+  cat("\n\n=== TIME-VARYING ABNORMAL RETURNS TABLE (avg >=", return_threshold, ") ===\n")
+} else {
   cat("\n\n=== TIME-VARYING ABNORMAL RETURNS TABLE (t >=", t_threshold_b, ") ===\n")
-  cat("\nPost-Sample Return (t>=", t_threshold_b, ")     Outperformance vs Data-Mining (t>=", t_threshold_b, ")\n")
+}
+  if (filter_type == "return") {
+    cat("\nPost-Sample Return (avg>=", return_threshold, ")     Outperformance vs Data-Mining (avg>=", return_threshold, ")\n")
+  } else {
+    cat("\nPost-Sample Return (t>=", t_threshold_b, ")     Outperformance vs Data-Mining (t>=", t_threshold_b, ")\n")
+  }
   cat("                       CAPM-TV  FF3-TV        CAPM-TV  FF3-TV\n")
   cat("Theoretical Foundation\n")
   
@@ -1003,7 +1125,11 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_
 }
 
 # DISCIPLINE AND JOURNAL RANKING TABLE (t >= t_threshold_b) ---------------------------------
-cat("\n\n=== SUMMARY TABLE BY DISCIPLINE AND JOURNAL RANKING (t >=", t_threshold_b, ") ===\n")
+if (filter_type == "return") {
+  cat("\n\n=== SUMMARY TABLE BY DISCIPLINE AND JOURNAL RANKING (avg >=", return_threshold, ") ===\n")
+} else {
+  cat("\n\n=== SUMMARY TABLE BY DISCIPLINE AND JOURNAL RANKING (t >=", t_threshold_b, ") ===\n")
+}
 
 # Filter data to exclude Economics discipline
 discipline_mapping_filtered <- discipline_mapping %>% filter(discipline %in% c("Finance", "Accounting"))
@@ -1119,7 +1245,11 @@ ff3_t2_summary_journal <- journal_data_ff3 %>%
   )
 
 # Print discipline and journal table
-cat("\nPost-Sample Return (t>=", t_threshold_b, ")     Outperformance vs Data-Mining (t>=", t_threshold_b, ")\n")
+if (filter_type == "return") {
+  cat("\nPost-Sample Return (avg>=", return_threshold, ")     Outperformance vs Data-Mining (avg>=", return_threshold, ")\n")
+} else {
+  cat("\nPost-Sample Return (t>=", t_threshold_b, ")     Outperformance vs Data-Mining (t>=", t_threshold_b, ")\n")
+}
 cat("                Raw    CAPM    FF3    Raw    CAPM    FF3\n")
 cat("Discipline\n")
 
@@ -1363,58 +1493,63 @@ export_table_discipline <- data.frame(
 )
 
 # Export to CSV
-write.csv(export_table_main, paste0(results_dir, "/Table_RiskAdjusted_TheoryModel_t2.csv"), row.names = FALSE)
-write.csv(export_table_discipline, paste0(results_dir, "/Table_RiskAdjusted_DisciplineJournal_t2.csv"), row.names = FALSE)
+file_suffix <- ifelse(filter_type == "return", paste0("_r", gsub("\\.", "", as.character(return_threshold))), paste0("_t", t_threshold_b))
+write.csv(export_table_main, paste0(results_dir, "/Table_RiskAdjusted_TheoryModel", file_suffix, ".csv"), row.names = FALSE)
+write.csv(export_table_discipline, paste0(results_dir, "/Table_RiskAdjusted_DisciplineJournal", file_suffix, ".csv"), row.names = FALSE)
 
 # Also export the raw summary data for reference
-write.csv(raw_t2_summary_theory, paste0(results_dir, "/Raw_TheoryGroup_t2.csv"), row.names = FALSE)
-write.csv(capm_t2_summary_theory, paste0(results_dir, "/CAPM_TheoryGroup_t2.csv"), row.names = FALSE)
-write.csv(ff3_t2_summary_theory, paste0(results_dir, "/FF3_TheoryGroup_t2.csv"), row.names = FALSE)
-write.csv(raw_t2_summary_model, paste0(results_dir, "/Raw_ModelGroup_t2.csv"), row.names = FALSE)
-write.csv(capm_t2_summary_model, paste0(results_dir, "/CAPM_ModelGroup_t2.csv"), row.names = FALSE)
-write.csv(ff3_t2_summary_model, paste0(results_dir, "/FF3_ModelGroup_t2.csv"), row.names = FALSE)
-write.csv(raw_t2_summary_discipline, paste0(results_dir, "/Raw_Discipline_t2.csv"), row.names = FALSE)
-write.csv(capm_t2_summary_discipline, paste0(results_dir, "/CAPM_Discipline_t2.csv"), row.names = FALSE)
-write.csv(ff3_t2_summary_discipline, paste0(results_dir, "/FF3_Discipline_t2.csv"), row.names = FALSE)
-write.csv(raw_t2_summary_journal, paste0(results_dir, "/Raw_Journal_t2.csv"), row.names = FALSE)
-write.csv(capm_t2_summary_journal, paste0(results_dir, "/CAPM_Journal_t2.csv"), row.names = FALSE)
-write.csv(ff3_t2_summary_journal, paste0(results_dir, "/FF3_Journal_t2.csv"), row.names = FALSE)
+write.csv(raw_t2_summary_theory, paste0(results_dir, "/Raw_TheoryGroup", file_suffix, ".csv"), row.names = FALSE)
+write.csv(capm_t2_summary_theory, paste0(results_dir, "/CAPM_TheoryGroup", file_suffix, ".csv"), row.names = FALSE)
+write.csv(ff3_t2_summary_theory, paste0(results_dir, "/FF3_TheoryGroup", file_suffix, ".csv"), row.names = FALSE)
+write.csv(raw_t2_summary_model, paste0(results_dir, "/Raw_ModelGroup", file_suffix, ".csv"), row.names = FALSE)
+write.csv(capm_t2_summary_model, paste0(results_dir, "/CAPM_ModelGroup", file_suffix, ".csv"), row.names = FALSE)
+write.csv(ff3_t2_summary_model, paste0(results_dir, "/FF3_ModelGroup", file_suffix, ".csv"), row.names = FALSE)
+write.csv(raw_t2_summary_discipline, paste0(results_dir, "/Raw_Discipline", file_suffix, ".csv"), row.names = FALSE)
+write.csv(capm_t2_summary_discipline, paste0(results_dir, "/CAPM_Discipline", file_suffix, ".csv"), row.names = FALSE)
+write.csv(ff3_t2_summary_discipline, paste0(results_dir, "/FF3_Discipline", file_suffix, ".csv"), row.names = FALSE)
+write.csv(raw_t2_summary_journal, paste0(results_dir, "/Raw_Journal", file_suffix, ".csv"), row.names = FALSE)
+write.csv(capm_t2_summary_journal, paste0(results_dir, "/CAPM_Journal", file_suffix, ".csv"), row.names = FALSE)
+write.csv(ff3_t2_summary_journal, paste0(results_dir, "/FF3_Journal", file_suffix, ".csv"), row.names = FALSE)
 
 cat("\n=== EXPORTED TABLES ===\n")
 cat(paste("All files saved in:", results_dir, "\n"))
 cat("\nMain summary tables:\n")
-cat("- Table_RiskAdjusted_TheoryModel_t2.csv\n")
-cat("- Table_RiskAdjusted_DisciplineJournal_t2.csv\n")
+cat(paste0("- Table_RiskAdjusted_TheoryModel", file_suffix, ".csv\n"))
+cat(paste0("- Table_RiskAdjusted_DisciplineJournal", file_suffix, ".csv\n"))
 cat("\nDetailed breakdowns:\n")
 cat("- Raw/CAPM/FF3 by TheoryGroup/ModelGroup/Discipline/Journal (12 files)\n")
 cat("\nPlots generated:\n")
 cat("- Fig_RiskAdj_raw_returns.pdf\n")
 cat("- Fig_RiskAdj_capm_adjusted.pdf\n") 
 cat("- Fig_RiskAdj_ff3_adjusted.pdf\n")
-cat("- Fig_RiskAdj_capm_t", t_threshold_a, ".pdf (t>=", t_threshold_a, " filtered)\n", sep="")
-cat("- Fig_RiskAdj_ff3_t", t_threshold_a, ".pdf (t>=", t_threshold_a, " filtered)\n", sep="")
+if (filter_type == "tstat") {
+  cat("- Fig_RiskAdj_capm_t", t_threshold_a, ".pdf (t>=", t_threshold_a, " filtered)\n", sep="")
+  cat("- Fig_RiskAdj_ff3_t", t_threshold_a, ".pdf (t>=", t_threshold_a, " filtered)\n", sep="")
+}
 cat("- Fig_RiskAdj_capm_t", t_threshold_b, ".pdf (t>=", t_threshold_b, " filtered)\n", sep="")
 cat("- Fig_RiskAdj_ff3_t", t_threshold_b, ".pdf (t>=", t_threshold_b, " filtered)\n", sep="")
 if("abnormal_capm_tv" %in% names(candidateReturns_adj)) {
   cat("- Fig_RiskAdj_capm_tv_t", t_threshold_b, ".pdf (time-varying, t>=", t_threshold_b, " filtered)\n", sep="")
   cat("- Fig_RiskAdj_ff3_tv_t", t_threshold_b, ".pdf (time-varying, t>=", t_threshold_b, " filtered)\n", sep="")
 }
-cat("\n=== T >=", t_threshold_a, " FILTERED ANALYSIS ===\n")
-
-# Identify published signals with t >= t_threshold_a
-signals_capm_ta <- unique(czret[abar_capm_t >= t_threshold_a]$signalname)
-signals_ff3_ta <- unique(czret[abar_ff3_t >= t_threshold_a]$signalname)
+# Only run t >= 1 analysis for t-stat filtering
+if (filter_type == "tstat") {
+  cat("\n=== T >=", t_threshold_a, " FILTERED ANALYSIS ===\n")
+  
+  # Identify published signals with t >= t_threshold_a
+  signals_capm_ta <- unique(czret[abar_capm_t >= t_threshold_a]$signalname)
+  signals_ff3_ta <- unique(czret[abar_ff3_t >= t_threshold_a]$signalname)
 
 # Filter DM signals by t >= t_threshold_a
 dm_filtered_capm_ta <- candidateReturns_adj %>%
   inner_join(
-    dm_tstats %>% filter(abar_capm_dm_t >= t_threshold_a),
+    dm_stats %>% filter(abar_capm_dm_t >= t_threshold_a),
     by = c("actSignal", "candSignalname")
   )
 
 dm_filtered_ff3_ta <- candidateReturns_adj %>%
   inner_join(
-    dm_tstats %>% filter(abar_ff3_dm_t >= t_threshold_a),
+    dm_stats %>% filter(abar_ff3_dm_t >= t_threshold_a),
     by = c("actSignal", "candSignalname")
   )
 
@@ -1449,7 +1584,9 @@ printme_capm_ta <- create_risk_adjusted_plot(
   "CAPM Alpha",
   t_threshold_a,
   "Trailing 5-Year CAPM Alpha (% of In-Sample Alpha)",
-  y_high = 150
+  y_high = 150,
+  filter_type = filter_type,
+  return_threshold = return_threshold
 )
 
 # FF3 t >= t_threshold_a
@@ -1482,7 +1619,11 @@ printme_ff3_ta <- create_risk_adjusted_plot(
   "matchRet_ff3_ta_normalized",
   "FF3 Alpha",
   t_threshold_a,
-  "Trailing 5-Year FF3 Alpha (% of In-Sample Alpha)"
+  "Trailing 5-Year FF3 Alpha (% of In-Sample Alpha)",
+  filter_type = filter_type,
+  return_threshold = return_threshold
 )
+
+} # End of t >= 1 analysis block
 
 print("\nRisk-adjusted analysis completed successfully!")
