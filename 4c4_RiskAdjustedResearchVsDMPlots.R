@@ -271,6 +271,7 @@ czret[samptype == 'insamp', `:=`(
   rbar_scaled = mean(ret_scaled, na.rm = TRUE),
   rbar_scaled_t = mean(ret_scaled, na.rm = TRUE) / sd(ret_scaled, na.rm = TRUE) * sqrt(.N)
 ), by = signalname]
+czret[, rbar_scaled := nafill(rbar_scaled, "locf"), by = .(signalname)]
 czret[, rbar_scaled_t := nafill(rbar_scaled_t, "locf"), by = .(signalname)]
 
 # Compute normalized DM abnormal returns ---------------------------------
@@ -474,8 +475,12 @@ printme_capm_t2 <- create_risk_adjusted_plot(
   return_threshold = return_threshold
 )
 
-# Create filtered plots for FF3 t >= t_threshold_b
-cat("\n=== FF3 FILTERED (t >=", t_threshold_b, ") STATISTICS ===\n")
+# Create filtered plots for FF3
+if (filter_type == "return") {
+  cat("\n=== FF3 FILTERED (avg alpha >=", return_threshold, ") STATISTICS ===\n")
+} else {
+  cat("\n=== FF3 FILTERED (t >=", t_threshold_b, ") STATISTICS ===\n")
+}
 
 # Use helper function to normalize and aggregate
 dm_ff3_aggregated <- normalize_and_aggregate_dm(
@@ -715,13 +720,22 @@ if (filter_type == "return") {
   cat("\n\n=== SUMMARY TABLE WITH T >=", t_threshold_b, " FILTER ===\n")
 }
 
-# Raw returns with t >= t_threshold_b filter (by theory)
-raw_t2_summary_theory <- compute_outperformance(
-  ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
-    left_join(czret %>% select(signalname, rbar_scaled_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
-    filter(rbar_scaled_t >= t_threshold_b), 
-  "ret", "matchRet", theory_mapping, "theory_group"
-)
+# Raw returns filter (by theory)
+if (filter_type == "return") {
+  raw_t2_summary_theory <- compute_outperformance(
+    ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
+      left_join(czret %>% select(signalname, rbar_scaled) %>% distinct(), by = c("pubname" = "signalname")) %>%
+      filter(rbar_scaled >= return_threshold), 
+    "ret", "matchRet", theory_mapping, "theory_group"
+  )
+} else {
+  raw_t2_summary_theory <- compute_outperformance(
+    ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
+      left_join(czret %>% select(signalname, rbar_scaled_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
+      filter(rbar_scaled_t >= t_threshold_b), 
+    "ret", "matchRet", theory_mapping, "theory_group"
+  )
+}
 
 # CAPM t >= t_threshold_b filtered (by theory)
 capm_t2_summary_theory <- compute_outperformance(
@@ -735,13 +749,22 @@ ff3_t2_summary_theory <- compute_outperformance(
   "abnormal_ff3_normalized", "matchRet_ff3_t2_normalized", theory_mapping, "theory_group"
 )
 
-# Raw returns with t >= t_threshold_b filter (by model)
-raw_t2_summary_model <- compute_outperformance(
-  ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
-    left_join(czret %>% select(signalname, rbar_scaled_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
-    filter(rbar_scaled_t >= t_threshold_b), 
-  "ret", "matchRet", model_mapping, "modeltype_grouped"
-)
+# Raw returns filter (by model)
+if (filter_type == "return") {
+  raw_t2_summary_model <- compute_outperformance(
+    ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
+      left_join(czret %>% select(signalname, rbar_scaled) %>% distinct(), by = c("pubname" = "signalname")) %>%
+      filter(rbar_scaled >= return_threshold), 
+    "ret", "matchRet", model_mapping, "modeltype_grouped"
+  )
+} else {
+  raw_t2_summary_model <- compute_outperformance(
+    ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
+      left_join(czret %>% select(signalname, rbar_scaled_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
+      filter(rbar_scaled_t >= t_threshold_b), 
+    "ret", "matchRet", model_mapping, "modeltype_grouped"
+  )
+}
 
 # CAPM t >= t_threshold_b filtered (by model)
 capm_t2_summary_model <- compute_outperformance(
@@ -755,22 +778,28 @@ ff3_t2_summary_model <- compute_outperformance(
   "abnormal_ff3_normalized", "matchRet_ff3_t2_normalized", model_mapping, "modeltype_grouped"
 )
 
-# Overall t >= t_threshold_b summaries
+# Overall filtered summaries
+if (filter_type == "return") {
+  filtered_signals_raw <- czret$signalname[czret$rbar_scaled >= return_threshold]
+} else {
+  filtered_signals_raw <- czret$signalname[czret$rbar_scaled_t >= t_threshold_b]
+}
+
 overall_t2_summary_raw <- data.frame(
   group = "Overall",
-  n_signals = length(unique(czret$signalname[czret$rbar_scaled_t >= t_threshold_b])),
+  n_signals = length(unique(filtered_signals_raw)),
   pub_oos = mean(ret_for_plot0$ret[ret_for_plot0$eventDate > 0 & !is.na(ret_for_plot0$matchRet) & 
-                                   ret_for_plot0$pubname %in% czret$signalname[czret$rbar_scaled_t >= t_threshold_b]], na.rm = TRUE),
+                                   ret_for_plot0$pubname %in% filtered_signals_raw], na.rm = TRUE),
   pub_oos_se = sd(ret_for_plot0$ret[ret_for_plot0$eventDate > 0 & !is.na(ret_for_plot0$matchRet) & 
-                                    ret_for_plot0$pubname %in% czret$signalname[czret$rbar_scaled_t >= t_threshold_b]], na.rm = TRUE) / 
+                                    ret_for_plot0$pubname %in% filtered_signals_raw], na.rm = TRUE) / 
                sqrt(sum(ret_for_plot0$eventDate > 0 & !is.na(ret_for_plot0$matchRet) & 
-                        ret_for_plot0$pubname %in% czret$signalname[czret$rbar_scaled_t >= t_threshold_b])),
+                        ret_for_plot0$pubname %in% filtered_signals_raw)),
   dm_oos = mean(ret_for_plot0$matchRet[ret_for_plot0$eventDate > 0 & !is.na(ret_for_plot0$matchRet) & 
-                                       ret_for_plot0$pubname %in% czret$signalname[czret$rbar_scaled_t >= t_threshold_b]], na.rm = TRUE),
+                                       ret_for_plot0$pubname %in% filtered_signals_raw], na.rm = TRUE),
   dm_oos_se = sd(ret_for_plot0$matchRet[ret_for_plot0$eventDate > 0 & !is.na(ret_for_plot0$matchRet) & 
-                                        ret_for_plot0$pubname %in% czret$signalname[czret$rbar_scaled_t >= t_threshold_b]], na.rm = TRUE) / 
+                                        ret_for_plot0$pubname %in% filtered_signals_raw], na.rm = TRUE) / 
               sqrt(sum(ret_for_plot0$eventDate > 0 & !is.na(ret_for_plot0$matchRet) & 
-                       ret_for_plot0$pubname %in% czret$signalname[czret$rbar_scaled_t >= t_threshold_b])),
+                       ret_for_plot0$pubname %in% filtered_signals_raw)),
   outperform = NA,
   outperform_se = NA
 )
@@ -960,13 +989,22 @@ anymodel_mapping <- czcat_full %>%
     )
   )
 
-# Raw returns with t >= t_threshold_b filter (by model binary)
-raw_t2_summary_anymodel <- compute_outperformance(
-  ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
-    left_join(czret %>% select(signalname, rbar_scaled_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
-    filter(rbar_scaled_t >= t_threshold_b), 
-  "ret", "matchRet", anymodel_mapping, "model_binary"
-)
+# Raw returns filter (by model binary)
+if (filter_type == "return") {
+  raw_t2_summary_anymodel <- compute_outperformance(
+    ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
+      left_join(czret %>% select(signalname, rbar_scaled) %>% distinct(), by = c("pubname" = "signalname")) %>%
+      filter(rbar_scaled >= return_threshold), 
+    "ret", "matchRet", anymodel_mapping, "model_binary"
+  )
+} else {
+  raw_t2_summary_anymodel <- compute_outperformance(
+    ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
+      left_join(czret %>% select(signalname, rbar_scaled_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
+      filter(rbar_scaled_t >= t_threshold_b), 
+    "ret", "matchRet", anymodel_mapping, "model_binary"
+  )
+}
 
 # CAPM t >= t_threshold_b filtered (by model binary)
 capm_t2_summary_anymodel <- compute_outperformance(
@@ -1135,10 +1173,17 @@ if (filter_type == "return") {
 discipline_mapping_filtered <- discipline_mapping %>% filter(discipline %in% c("Finance", "Accounting"))
 
 # Create data with discipline column
-discipline_data <- ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
-  left_join(czret %>% select(signalname, rbar_scaled_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
-  filter(rbar_scaled_t >= t_threshold_b) %>%
-  inner_join(discipline_mapping_filtered, by = c("pubname" = "signalname"))
+if (filter_type == "return") {
+  discipline_data <- ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
+    left_join(czret %>% select(signalname, rbar_scaled) %>% distinct(), by = c("pubname" = "signalname")) %>%
+    filter(rbar_scaled >= return_threshold) %>%
+    inner_join(discipline_mapping_filtered, by = c("pubname" = "signalname"))
+} else {
+  discipline_data <- ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
+    left_join(czret %>% select(signalname, rbar_scaled_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
+    filter(rbar_scaled_t >= t_threshold_b) %>%
+    inner_join(discipline_mapping_filtered, by = c("pubname" = "signalname"))
+}
 
 # Raw returns with t >= t_threshold_b filter (by discipline) - excluding Economics
 raw_t2_summary_discipline <- discipline_data %>%
@@ -1191,11 +1236,18 @@ ff3_t2_summary_discipline <- discipline_data_ff3 %>%
 # Filter data to exclude Economics journals
 journal_mapping_filtered <- journal_mapping %>% filter(journal_rank != "Economics")
 
-# Raw returns with t >= t_threshold_b filter (by journal) - excluding Economics
-journal_data <- ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
-  left_join(czret %>% select(signalname, rbar_scaled_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
-  filter(rbar_scaled_t >= t_threshold_b) %>%
-  inner_join(journal_mapping_filtered, by = c("pubname" = "signalname"))
+# Raw returns filter (by journal) - excluding Economics
+if (filter_type == "return") {
+  journal_data <- ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
+    left_join(czret %>% select(signalname, rbar_scaled) %>% distinct(), by = c("pubname" = "signalname")) %>%
+    filter(rbar_scaled >= return_threshold) %>%
+    inner_join(journal_mapping_filtered, by = c("pubname" = "signalname"))
+} else {
+  journal_data <- ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
+    left_join(czret %>% select(signalname, rbar_scaled_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
+    filter(rbar_scaled_t >= t_threshold_b) %>%
+    inner_join(journal_mapping_filtered, by = c("pubname" = "signalname"))
+}
 
 raw_t2_summary_journal <- journal_data %>%
   group_by(journal_rank) %>%
