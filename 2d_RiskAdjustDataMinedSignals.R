@@ -73,11 +73,13 @@ setDT(candidateReturns)
 # Get unique pairs for progress tracking
 unique_pairs <- unique(candidateReturns[, .(actSignal, candSignalname)])
 
-# For each matched pair (actSignal, candSignalname), compute betas using data from sampstart onwards
+# For each matched pair (actSignal, candSignalname), compute betas using different sample periods
 print("Computing risk adjustments...")
 tic <- Sys.time()
 
-dm_risk_adj <- candidateReturns[
+# 1. Full sample betas (from sampstart onwards)
+print("Computing full sample betas...")
+dm_risk_adj_full <- candidateReturns[
   date >= sampstart,  # Use full sample from sampstart onwards
   {
     # Progress tracking
@@ -96,33 +98,107 @@ dm_risk_adj <- candidateReturns[
   by = .(actSignal, candSignalname)
 ]
 
+# 2. In-sample betas (between sampstart and sampend)
+cat("\n")
+print("Computing in-sample betas...")
+dm_risk_adj_is <- candidateReturns[
+  date >= sampstart & date <= sampend,  # In-sample period only
+  {
+    # Progress tracking
+    if (.GRP %% 100 == 0) {
+      cat(sprintf("\rProcessing pair %d of %d (%.1f%%)...", 
+                  .GRP, n_unique_pairs, .GRP/n_unique_pairs*100))
+    }
+    
+    .(
+      # CAPM
+      beta_capm_is = extract_beta(ret, mktrf),
+      # FF3
+      ff3_coeffs_is = list(extract_ff3_coeffs(ret, mktrf, smb, hml))
+    )
+  },
+  by = .(actSignal, candSignalname)
+]
+
+# 3. Post-sample betas (after sampend)
+cat("\n")
+print("Computing post-sample betas...")
+dm_risk_adj_post <- candidateReturns[
+  date > sampend,  # Post-sample period only
+  {
+    # Progress tracking
+    if (.GRP %% 100 == 0) {
+      cat(sprintf("\rProcessing pair %d of %d (%.1f%%)...", 
+                  .GRP, n_unique_pairs, .GRP/n_unique_pairs*100))
+    }
+    
+    .(
+      # CAPM
+      beta_capm_post = extract_beta(ret, mktrf),
+      # FF3
+      ff3_coeffs_post = list(extract_ff3_coeffs(ret, mktrf, smb, hml))
+    )
+  },
+  by = .(actSignal, candSignalname)
+]
+
 toc <- Sys.time()
 cat("\n")
 print(paste("Risk adjustment computation time:", round(difftime(toc, tic, units = "mins"), 2), "minutes"))
 
-# Extract FF3 coefficients
-dm_risk_adj[, c("beta_ff3", "s_ff3", "h_ff3") := {
+# Extract FF3 coefficients for all three sets
+# Full sample
+dm_risk_adj_full[, c("beta_ff3", "s_ff3", "h_ff3") := {
   coeffs <- unlist(ff3_coeffs)
   list(coeffs[1], coeffs[2], coeffs[3])
 }]
-dm_risk_adj[, ff3_coeffs := NULL]
+dm_risk_adj_full[, ff3_coeffs := NULL]
 
-# Merge betas back to full data
+# In-sample
+dm_risk_adj_is[, c("beta_ff3_is", "s_ff3_is", "h_ff3_is") := {
+  coeffs <- unlist(ff3_coeffs_is)
+  list(coeffs[1], coeffs[2], coeffs[3])
+}]
+dm_risk_adj_is[, ff3_coeffs_is := NULL]
+
+# Post-sample
+dm_risk_adj_post[, c("beta_ff3_post", "s_ff3_post", "h_ff3_post") := {
+  coeffs <- unlist(ff3_coeffs_post)
+  list(coeffs[1], coeffs[2], coeffs[3])
+}]
+dm_risk_adj_post[, ff3_coeffs_post := NULL]
+
+# Merge all betas back to full data
 candidateReturns <- candidateReturns %>%
-  left_join(dm_risk_adj, by = c('actSignal', 'candSignalname'))
+  left_join(dm_risk_adj_full, by = c('actSignal', 'candSignalname')) %>%
+  left_join(dm_risk_adj_is, by = c('actSignal', 'candSignalname')) %>%
+  left_join(dm_risk_adj_post, by = c('actSignal', 'candSignalname'))
 
 # Compute abnormal returns
 candidateReturns <- candidateReturns %>%
   mutate(
-    # CAPM abnormal
+    # Full sample abnormal returns
     abnormal_capm = ret - beta_capm * mktrf,
-    # FF3 abnormal
-    abnormal_ff3 = ret - (beta_ff3 * mktrf + s_ff3 * smb + h_ff3 * hml)
+    abnormal_ff3 = ret - (beta_ff3 * mktrf + s_ff3 * smb + h_ff3 * hml),
+    
+    # Time-varying abnormal returns: IS betas for IS period, post-sample betas for OOS period
+    abnormal_capm_tv = case_when(
+      date <= sampend ~ ret - beta_capm_is * mktrf,  # IS period: use IS beta
+      date > sampend ~ ret - beta_capm_post * mktrf,  # OOS period: use post-sample beta
+      TRUE ~ NA_real_
+    ),
+    abnormal_ff3_tv = case_when(
+      date <= sampend ~ ret - (beta_ff3_is * mktrf + s_ff3_is * smb + h_ff3_is * hml),  # IS period: use IS betas
+      date > sampend ~ ret - (beta_ff3_post * mktrf + s_ff3_post * smb + h_ff3_post * hml),  # OOS period: use post-sample betas
+      TRUE ~ NA_real_
+    )
   )
 
 # Summary statistics
-print(paste("CAPM adjustments computed:", sum(!is.na(candidateReturns$beta_capm))))
-print(paste("FF3 adjustments computed:", sum(!is.na(candidateReturns$beta_ff3))))
+print(paste("Full sample CAPM adjustments computed:", sum(!is.na(candidateReturns$beta_capm))))
+print(paste("Full sample FF3 adjustments computed:", sum(!is.na(candidateReturns$beta_ff3))))
+print(paste("In-sample CAPM adjustments computed:", sum(!is.na(candidateReturns$beta_capm_is))))
+print(paste("Post-sample CAPM adjustments computed:", sum(!is.na(candidateReturns$beta_capm_post))))
 
 # Check a few examples
 print("\nExample risk adjustments (first 5 unique DM signals):")
@@ -132,7 +208,7 @@ candidateReturns %>%
   slice(1) %>%
   ungroup() %>%
   slice(1:5) %>%
-  select(actSignal, candSignalname, beta_capm, beta_ff3, s_ff3, h_ff3) %>%
+  select(actSignal, candSignalname, beta_capm, beta_capm_is, beta_capm_post, beta_ff3, beta_ff3_is, beta_ff3_post) %>%
   print()
 
 # Save risk-adjusted DM returns -------------------------------------------
@@ -148,7 +224,10 @@ print(paste("Risk-adjusted DM returns saved to:",
 dm_coefficients <- candidateReturns %>%
   group_by(actSignal, candSignalname) %>%
   slice(1) %>%
-  select(actSignal, candSignalname, beta_capm, beta_ff3, s_ff3, h_ff3) %>%
+  select(actSignal, candSignalname, 
+         beta_capm, beta_ff3, s_ff3, h_ff3,  # Full sample
+         beta_capm_is, beta_ff3_is, s_ff3_is, h_ff3_is,  # In-sample
+         beta_capm_post, beta_ff3_post, s_ff3_post, h_ff3_post) %>%  # Post-sample
   ungroup()
 
 saveRDS(dm_coefficients,
@@ -168,6 +247,8 @@ matched_risk_adj <- candidateReturns %>%
     matchRet_raw = mean(ret, na.rm = TRUE),
     matchRet_capm = mean(abnormal_capm, na.rm = TRUE),
     matchRet_ff3 = mean(abnormal_ff3, na.rm = TRUE),
+    matchRet_capm_tv = mean(abnormal_capm_tv, na.rm = TRUE),  # Time-varying CAPM
+    matchRet_ff3_tv = mean(abnormal_ff3_tv, na.rm = TRUE),    # Time-varying FF3
     .groups = 'drop'
   )
 
