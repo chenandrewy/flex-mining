@@ -8,7 +8,7 @@ source("0_Environment.R")
 library(doParallel)
 
 t_threshold_a = 1
-t_threshold_b = 0
+t_threshold_b = 2
 
 # Create results subfolder for risk-adjusted analysis
 results_dir <- "../Results/RiskAdjusted"
@@ -41,8 +41,8 @@ if (!file.exists("../Data/Processed/ret_for_plot1.RDS")) {
 }
 
 # Helper functions -----------------------------------------------------
-extract_beta <- function(x, y) {
-  model <- lm(y ~ x)
+extract_beta <- function(ret, mktrf) {
+  model <- lm(ret ~ mktrf)
   bet <- coef(model)[2]
   return(bet)
 }
@@ -76,10 +76,6 @@ czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
   ) %>% 
   filter(signalname %in% inclSignals)
 
-# Load pre-computed dm sumstats
-dmcomp <- readRDS("../Data/Processed/dmcomp_sumstats.RDS")
-dmtic <- readRDS("../Data/Processed/dmtic_sumstats.RDS")
-
 # Load pre-computed matched returns
 ret_for_plot0 <- readRDS("../Data/Processed/ret_for_plot0.RDS")
 ret_for_plot1 <- readRDS("../Data/Processed/ret_for_plot1.RDS")
@@ -87,9 +83,6 @@ ret_for_plot1 <- readRDS("../Data/Processed/ret_for_plot1.RDS")
 # Load pre-computed risk-adjusted DM returns
 # Load individual DM returns for t-stat computation
 candidateReturns_adj <- readRDS(risk_adj_file)
-candidateReturns_adj %>% filter(candSignalname == 196 & samptype == "insamp") %>% summarise(mean(ret, na.rm = TRUE))
-# Load aggregated summary (we'll recompute this with filtering)
-matched_risk_adj <- readRDS(summary_file)
 
 # Load FF factors and join ------------------------------------------------
 FamaFrenchFactors <- readRDS('../Data/Raw/FamaFrenchFactors.RData') %>%
@@ -116,7 +109,7 @@ czret %>% setDT()
 print(czret[, .(min(ret_scaled), max(ret_scaled), min(ret), max(ret), min(mktrf, na.rm = TRUE), max(mktrf, na.rm = TRUE), min(smb, na.rm = TRUE), max(smb, na.rm = TRUE), min(hml, na.rm = TRUE), max(hml, na.rm = TRUE))])
 
 # Full-sample betas for published signals
-czret[, beta_capm := extract_beta(ret, mktrf), by = signalname]
+czret[, beta_capm := extract_beta(ret = ret, mktrf = mktrf), by = signalname]
 czret[, abnormal_capm := ret - beta_capm*mktrf]
 
 # Normalize abnormal returns by in-sample mean and compute t-stats
@@ -126,11 +119,13 @@ czret[samptype == 'insamp', `:=`(
 ), by = signalname]
 czret[, abar_capm := nafill(abar_capm, "locf"), by = .(signalname)]
 czret[, abar_capm_t := nafill(abar_capm_t, "locf"), by = .(signalname)]
-czret[, abnormal_capm_normalized := 100*abnormal_capm/abar_capm]
+
+# Fix: Add protection against division by zero
+czret[, abnormal_capm_normalized := ifelse(abs(abar_capm) > 1e-10, 100*abnormal_capm/abar_capm, NA)]
 
 ## FF3 adjustments - full sample coefficients  
 czret[, c("beta_ff3", "s_ff3", "h_ff3") := {
-  coeffs <- extract_ff3_coeffs(ret, mktrf, smb, hml)
+  coeffs <- extract_ff3_coeffs(ret = ret, mktrf = mktrf, smb = smb, hml = hml)
   list(coeffs[1], coeffs[2], coeffs[3])
 }, by = signalname]
 
@@ -143,7 +138,9 @@ czret[samptype == 'insamp', `:=`(
 ), by = signalname]
 czret[, abar_ff3 := nafill(abar_ff3, "locf"), by = .(signalname)]
 czret[, abar_ff3_t := nafill(abar_ff3_t, "locf"), by = .(signalname)]
-czret[, abnormal_ff3_normalized := 100*abnormal_ff3/abar_ff3]
+
+# Fix: Add protection against division by zero
+czret[, abnormal_ff3_normalized := ifelse(abs(abar_ff3) > 1e-10, 100*abnormal_ff3/abar_ff3, NA)]
 
 # Also compute raw return t-stats for comparison
 czret[samptype == 'insamp', `:=`(
@@ -163,7 +160,6 @@ ret_for_plot0_adj <- ret_for_plot0 %>%
 
 # Default Plot Settings --------------------------------------------------
 fontsizeall = 28
-legposall = c(30,15)/100
 ylaball = 'Trailing 5-Year Return (bps pm)'
 linesizeall = 1.5
 global_xl = -360  
@@ -223,7 +219,7 @@ cat("\nNumber of signals:", length(unique(ret_for_plot0$pubname[!is.na(ret_for_p
 
 # T-stat filtered versions -----------------------------------------------
 
-cat("\n\n=== T-STAT FILTERED ANALYSIS (t >= 2) ===\n")
+cat("\n\n=== T-STAT FILTERED ANALYSIS (t >=", t_threshold_b, ") ===\n")
 
 # First compute t-stats for individual DM signals
 cat("\nComputing t-stats for individual DM signals...\n")
@@ -248,42 +244,42 @@ dm_tstats <- candidateReturns_adj[
   by = .(actSignal, candSignalname)
 ]
 
-# Filter DM signals by t >= 2 and recompute aggregates
+# Filter DM signals by t >= t_threshold_b and recompute aggregates
 dm_filtered_capm <- candidateReturns_adj %>%
   inner_join(
-    dm_tstats %>% filter(abar_capm_dm_t >= 2),
+    dm_tstats %>% filter(abar_capm_dm_t >= t_threshold_b),
     by = c("actSignal", "candSignalname")
   )
 
 dm_filtered_ff3 <- candidateReturns_adj %>%
   inner_join(
-    dm_tstats %>% filter(abar_ff3_dm_t >= 2),
+    dm_tstats %>% filter(abar_ff3_dm_t >= t_threshold_b),
     by = c("actSignal", "candSignalname")
   )
 
-# Get signals with t >= 2 for different measures
-signals_raw_t2 <- unique(czret[rbar_scaled_t >= 2]$signalname)
-signals_capm_t2 <- unique(czret[abar_capm_t >= 2]$signalname)
-signals_ff3_t2 <- unique(czret[abar_ff3_t >= 2]$signalname)
+# Get signals with t >= t_threshold_b for different measures
+signals_raw_t2 <- unique(czret[rbar_scaled_t >= t_threshold_b]$signalname)
+signals_capm_t2 <- unique(czret[abar_capm_t >= t_threshold_b]$signalname)
+signals_ff3_t2 <- unique(czret[abar_ff3_t >= t_threshold_b]$signalname)
 
-cat("\nNumber of PUBLISHED signals with t >= 2:\n")
+cat("\nNumber of PUBLISHED signals with t >=", t_threshold_b, ":\n")
 cat("Raw returns:", length(signals_raw_t2), "\n")
 cat("CAPM alpha:", length(signals_capm_t2), "\n")
 cat("FF3 alpha:", length(signals_ff3_t2), "\n")
 
-cat("\nNumber of DM signals with t >= 2:\n")
-cat("CAPM alpha:", sum(dm_tstats$abar_capm_dm_t >= 2, na.rm = TRUE), "\n")
-cat("FF3 alpha:", sum(dm_tstats$abar_ff3_dm_t >= 2, na.rm = TRUE), "\n")
+cat("\nNumber of DM signals with t >=", t_threshold_b, ":\n")
+cat("CAPM alpha:", sum(dm_tstats$abar_capm_dm_t >= t_threshold_b, na.rm = TRUE), "\n")
+cat("FF3 alpha:", sum(dm_tstats$abar_ff3_dm_t >= t_threshold_b, na.rm = TRUE), "\n")
 
-# Create filtered plots for CAPM t >= 2
-cat("\n=== CAPM FILTERED (t >= 2) STATISTICS ===\n")
+# Create filtered plots for CAPM t >= t_threshold_b
+cat("\n=== CAPM FILTERED (t >=", t_threshold_b, ") STATISTICS ===\n")
 
 # Normalize each DM return series individually and aggregate
 dm_capm_aggregated <- dm_filtered_capm %>%
   group_by(actSignal, candSignalname) %>%
   mutate(
     insample_mean = mean(abnormal_capm[samptype == "insamp"], na.rm = TRUE),
-    abnormal_capm_normalized_ind = 100 * abnormal_capm / insample_mean
+    abnormal_capm_normalized_ind = ifelse(abs(insample_mean) > 1e-10, 100 * abnormal_capm / insample_mean, NA)
   ) %>%
   ungroup() %>%
   group_by(actSignal, eventDate) %>%
@@ -302,7 +298,7 @@ ret_for_plot0_capm_t2 <- ret_for_plot0_adj %>%
   ) %>%
   filter(!is.na(matchRet_capm_t2_normalized))
 
-cat("Published signals with CAPM t >= 2:", length(signals_capm_t2), "\n")
+cat("Published signals with CAPM t >=", t_threshold_b, ":", length(signals_capm_t2), "\n")
 cat("Published signals with filtered DM matches:", length(unique(ret_for_plot0_capm_t2$pubname)), "\n")
 
 if(nrow(ret_for_plot0_capm_t2) > 0) {
@@ -320,7 +316,7 @@ if(nrow(ret_for_plot0_capm_t2) > 0) {
       left_join(czret %>% select(signalname, eventDate, date) %>% distinct(), by = c("pubname" = "signalname", "eventDate" = "eventDate")) %>%
       rename(calendarDate = date),
     basepath = "../Results/temp_",
-    suffix = "capm_t2",
+    suffix = paste0("capm_t", t_threshold_b),
     rollmonths = 60,
     colors = colors,
     labelmatch = FALSE,
@@ -328,32 +324,34 @@ if(nrow(ret_for_plot0_capm_t2) > 0) {
     yh = 125,
     xl = global_xl,
     xh = global_xh,
-    legendlabels =
-      c(
-        paste0("Published (CAPM Alpha, t≥2)"),
-        paste0("Data-Mined (CAPM Alpha, t≥2)"),
-        'N/A'
-      ),
+          legendlabels =
+        c(
+          paste0("Published (CAPM Alpha, t>=", t_threshold_b, ")"),
+          paste0("Data-Mined (CAPM Alpha, t>=", t_threshold_b, ")"),
+          'N/A'
+        ),
     legendpos = c(35,20)/100,
     fontsize = fontsizeall,
     yaxislab = "Trailing 5-Year CAPM Alpha (% of In-Sample Alpha)",
     linesize = linesizeall
   )
   
-  ggsave(filename = paste0(results_dir, "/Fig_RiskAdj_capm_t2.pdf"), 
+  ggsave(filename = paste0(results_dir, "/Fig_RiskAdj_capm_t", t_threshold_b, ".pdf"), 
          printme_capm_t2, width = 10, height = 8)
-  file.remove("../Results/temp__capm_t2.pdf")
+  # Fix: Remove temp file with correct naming
+  temp_file <- paste0("../Results/temp_capm_t", t_threshold_b, ".pdf")
+  if(file.exists(temp_file)) file.remove(temp_file)
 }
 
-# Create filtered plots for FF3 t >= 2
-cat("\n=== FF3 FILTERED (t >= 2) STATISTICS ===\n")
+# Create filtered plots for FF3 t >= t_threshold_b
+cat("\n=== FF3 FILTERED (t >=", t_threshold_b, ") STATISTICS ===\n")
 
 # Normalize each DM return series individually and aggregate
 dm_ff3_aggregated <- dm_filtered_ff3 %>%
   group_by(actSignal, candSignalname) %>%
   mutate(
     insample_mean = mean(abnormal_ff3[samptype == "insamp"], na.rm = TRUE),
-    abnormal_ff3_normalized_ind = 100 * abnormal_ff3 / insample_mean
+    abnormal_ff3_normalized_ind = ifelse(abs(insample_mean) > 1e-10, 100 * abnormal_ff3 / insample_mean, NA)
   ) %>%
   ungroup() %>%
   group_by(actSignal, eventDate) %>%
@@ -372,7 +370,7 @@ ret_for_plot0_ff3_t2 <- ret_for_plot0_adj %>%
   ) %>%
   filter(!is.na(matchRet_ff3_t2_normalized))
 
-cat("Published signals with FF3 t >= 2:", length(signals_ff3_t2), "\n")
+cat("Published signals with FF3 t >=", t_threshold_b, ":", length(signals_ff3_t2), "\n")
 cat("Published signals with filtered DM matches:", length(unique(ret_for_plot0_ff3_t2$pubname)), "\n")
 
 if(nrow(ret_for_plot0_ff3_t2) > 0) {
@@ -390,29 +388,31 @@ if(nrow(ret_for_plot0_ff3_t2) > 0) {
       left_join(czret %>% select(signalname, eventDate, date) %>% distinct(), by = c("pubname" = "signalname", "eventDate" = "eventDate")) %>%
       rename(calendarDate = date),
     basepath = "../Results/temp_",
-    suffix = "ff3_t2",
+    suffix = paste0("ff3_t", t_threshold_b),
     rollmonths = 60,
     colors = colors,
     labelmatch = FALSE,
     yl = -0,
-    yh = 200,
+    yh = 125,
     xl = global_xl,
     xh = global_xh,
-    legendlabels =
-      c(
-        paste0("Published (FF3 Alpha, t≥2)"),
-        paste0("Data-Mined (FF3 Alpha, t≥2)"),
-        'N/A'
-      ),
+          legendlabels =
+        c(
+          paste0("Published (FF3 Alpha, t>=", t_threshold_b, ")"),
+          paste0("Data-Mined (FF3 Alpha, t>=", t_threshold_b, ")"),
+          'N/A'
+        ),
     legendpos = c(35,20)/100,
     fontsize = fontsizeall,
     yaxislab = "Trailing 5-Year FF3 Alpha (% of In-Sample Alpha)",
     linesize = linesizeall
   )
   
-  ggsave(filename = paste0(results_dir, "/Fig_RiskAdj_ff3_t2.pdf"), 
+  ggsave(filename = paste0(results_dir, "/Fig_RiskAdj_ff3_t", t_threshold_b, ".pdf"), 
          printme_ff3_t2, width = 10, height = 8)
-  file.remove("../Results/temp__ff3_t2.pdf")
+  # Fix: Remove temp file with correct naming
+  temp_file <- paste0("../Results/temp_ff3_t", t_threshold_b, ".pdf")
+  if(file.exists(temp_file)) file.remove(temp_file)
 }
 
 # Create summary table by theoretical foundation -------------------------------
@@ -482,65 +482,65 @@ compute_outperformance <- function(plot_data, ret_col, dm_ret_col, group_map, gr
 
 
 
-# T-STAT FILTERED SUMMARY TABLE (t >= 2) ----------------------------------------
-cat("\n\n=== SUMMARY TABLE WITH T >= 2 FILTER ===\n")
+# T-STAT FILTERED SUMMARY TABLE (t >= t_threshold_b) ----------------------------------------
+cat("\n\n=== SUMMARY TABLE WITH T >=", t_threshold_b, " FILTER ===\n")
 
-# Raw returns with t >= 2 filter (by theory)
+# Raw returns with t >= t_threshold_b filter (by theory)
 raw_t2_summary_theory <- compute_outperformance(
   ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
     left_join(czret %>% select(signalname, rbar_scaled_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
-    filter(rbar_scaled_t >= 2), 
+    filter(rbar_scaled_t >= t_threshold_b), 
   "ret", "matchRet", theory_mapping, "theory_group"
 )
 
-# CAPM t >= 2 filtered (by theory)
+# CAPM t >= t_threshold_b filtered (by theory)
 capm_t2_summary_theory <- compute_outperformance(
   ret_for_plot0_capm_t2,
   "abnormal_capm_normalized", "matchRet_capm_t2_normalized", theory_mapping, "theory_group"
 )
 
-# FF3 t >= 2 filtered (by theory) 
+# FF3 t >= t_threshold_b filtered (by theory) 
 ff3_t2_summary_theory <- compute_outperformance(
   ret_for_plot0_ff3_t2,
   "abnormal_ff3_normalized", "matchRet_ff3_t2_normalized", theory_mapping, "theory_group"
 )
 
-# Raw returns with t >= 2 filter (by model)
+# Raw returns with t >= t_threshold_b filter (by model)
 raw_t2_summary_model <- compute_outperformance(
   ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
     left_join(czret %>% select(signalname, rbar_scaled_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
-    filter(rbar_scaled_t >= 2), 
+    filter(rbar_scaled_t >= t_threshold_b), 
   "ret", "matchRet", model_mapping, "modeltype_grouped"
 )
 
-# CAPM t >= 2 filtered (by model)
+# CAPM t >= t_threshold_b filtered (by model)
 capm_t2_summary_model <- compute_outperformance(
   ret_for_plot0_capm_t2,
   "abnormal_capm_normalized", "matchRet_capm_t2_normalized", model_mapping, "modeltype_grouped"
 )
 
-# FF3 t >= 2 filtered (by model)
+# FF3 t >= t_threshold_b filtered (by model)
 ff3_t2_summary_model <- compute_outperformance(
   ret_for_plot0_ff3_t2,
   "abnormal_ff3_normalized", "matchRet_ff3_t2_normalized", model_mapping, "modeltype_grouped"
 )
 
-# Overall t >= 2 summaries
+# Overall t >= t_threshold_b summaries
 overall_t2_summary_raw <- data.frame(
   group = "Overall",
-  n_signals = length(unique(czret$signalname[czret$rbar_scaled_t >= 2])),
+  n_signals = length(unique(czret$signalname[czret$rbar_scaled_t >= t_threshold_b])),
   pub_oos = mean(ret_for_plot0$ret[ret_for_plot0$eventDate > 0 & !is.na(ret_for_plot0$matchRet) & 
-                                   ret_for_plot0$pubname %in% czret$signalname[czret$rbar_scaled_t >= 2]], na.rm = TRUE),
+                                   ret_for_plot0$pubname %in% czret$signalname[czret$rbar_scaled_t >= t_threshold_b]], na.rm = TRUE),
   pub_oos_se = sd(ret_for_plot0$ret[ret_for_plot0$eventDate > 0 & !is.na(ret_for_plot0$matchRet) & 
-                                    ret_for_plot0$pubname %in% czret$signalname[czret$rbar_scaled_t >= 2]], na.rm = TRUE) / 
+                                    ret_for_plot0$pubname %in% czret$signalname[czret$rbar_scaled_t >= t_threshold_b]], na.rm = TRUE) / 
                sqrt(sum(ret_for_plot0$eventDate > 0 & !is.na(ret_for_plot0$matchRet) & 
-                        ret_for_plot0$pubname %in% czret$signalname[czret$rbar_scaled_t >= 2])),
+                        ret_for_plot0$pubname %in% czret$signalname[czret$rbar_scaled_t >= t_threshold_b])),
   dm_oos = mean(ret_for_plot0$matchRet[ret_for_plot0$eventDate > 0 & !is.na(ret_for_plot0$matchRet) & 
-                                       ret_for_plot0$pubname %in% czret$signalname[czret$rbar_scaled_t >= 2]], na.rm = TRUE),
+                                       ret_for_plot0$pubname %in% czret$signalname[czret$rbar_scaled_t >= t_threshold_b]], na.rm = TRUE),
   dm_oos_se = sd(ret_for_plot0$matchRet[ret_for_plot0$eventDate > 0 & !is.na(ret_for_plot0$matchRet) & 
-                                        ret_for_plot0$pubname %in% czret$signalname[czret$rbar_scaled_t >= 2]], na.rm = TRUE) / 
+                                        ret_for_plot0$pubname %in% czret$signalname[czret$rbar_scaled_t >= t_threshold_b]], na.rm = TRUE) / 
               sqrt(sum(ret_for_plot0$eventDate > 0 & !is.na(ret_for_plot0$matchRet) & 
-                       ret_for_plot0$pubname %in% czret$signalname[czret$rbar_scaled_t >= 2])),
+                       ret_for_plot0$pubname %in% czret$signalname[czret$rbar_scaled_t >= t_threshold_b])),
   outperform = NA,
   outperform_se = NA
 )
@@ -583,8 +583,8 @@ get_values <- function(summary_df, group_col, group_val, value_col) {
   if(length(idx) > 0) return(summary_df[[value_col]][idx]) else return(NA)
 }
 
-# Print t >= 2 filtered table
-cat("\nPost-Sample Return (t>=2)     Outperformance vs Data-Mining (t>=2)\n")
+# Print t >= t_threshold_b filtered table
+cat("\nPost-Sample Return (t>=", t_threshold_b, ")     Outperformance vs Data-Mining (t>=", t_threshold_b, ")\n")
 cat("                Raw    CAPM    FF3    Raw    CAPM    FF3\n")
 cat("Theoretical Foundation\n")
 
@@ -651,8 +651,8 @@ cat(sprintf("%-12s (%2s)   (%2s)   (%2s)   (%2s)   (%2s)   (%2s)\n",
             "", round(overall_t2_summary_raw$pub_oos_se), round(overall_t2_summary_capm$pub_oos_se), round(overall_t2_summary_ff3$pub_oos_se), 
             round(overall_t2_summary_raw$outperform_se), round(overall_t2_summary_capm$outperform_se), round(overall_t2_summary_ff3$outperform_se)))
 
-# DISCIPLINE AND JOURNAL RANKING TABLE (t >= 2) ---------------------------------
-cat("\n\n=== SUMMARY TABLE BY DISCIPLINE AND JOURNAL RANKING (t >= 2) ===\n")
+# DISCIPLINE AND JOURNAL RANKING TABLE (t >= t_threshold_b) ---------------------------------
+cat("\n\n=== SUMMARY TABLE BY DISCIPLINE AND JOURNAL RANKING (t >=", t_threshold_b, ") ===\n")
 
 # Filter data to exclude Economics discipline
 discipline_mapping_filtered <- discipline_mapping %>% filter(discipline %in% c("Finance", "Accounting"))
@@ -660,10 +660,10 @@ discipline_mapping_filtered <- discipline_mapping %>% filter(discipline %in% c("
 # Create data with discipline column
 discipline_data <- ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
   left_join(czret %>% select(signalname, rbar_scaled_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
-  filter(rbar_scaled_t >= 2) %>%
+  filter(rbar_scaled_t >= t_threshold_b) %>%
   inner_join(discipline_mapping_filtered, by = c("pubname" = "signalname"))
 
-# Raw returns with t >= 2 filter (by discipline) - excluding Economics
+# Raw returns with t >= t_threshold_b filter (by discipline) - excluding Economics
 raw_t2_summary_discipline <- discipline_data %>%
   group_by(discipline) %>%
   summarise(
@@ -677,7 +677,7 @@ raw_t2_summary_discipline <- discipline_data %>%
     .groups = 'drop'
   )
 
-# CAPM t >= 2 filtered (by discipline) - excluding Economics
+# CAPM t >= t_threshold_b filtered (by discipline) - excluding Economics
 discipline_data_capm <- ret_for_plot0_capm_t2 %>%
   inner_join(discipline_mapping_filtered, by = c("pubname" = "signalname"))
 
@@ -694,7 +694,7 @@ capm_t2_summary_discipline <- discipline_data_capm %>%
     .groups = 'drop'
   )
 
-# FF3 t >= 2 filtered (by discipline) - excluding Economics
+# FF3 t >= t_threshold_b filtered (by discipline) - excluding Economics
 discipline_data_ff3 <- ret_for_plot0_ff3_t2 %>%
   inner_join(discipline_mapping_filtered, by = c("pubname" = "signalname"))
 
@@ -714,10 +714,10 @@ ff3_t2_summary_discipline <- discipline_data_ff3 %>%
 # Filter data to exclude Economics journals
 journal_mapping_filtered <- journal_mapping %>% filter(journal_rank != "Economics")
 
-# Raw returns with t >= 2 filter (by journal) - excluding Economics
+# Raw returns with t >= t_threshold_b filter (by journal) - excluding Economics
 journal_data <- ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
   left_join(czret %>% select(signalname, rbar_scaled_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
-  filter(rbar_scaled_t >= 2) %>%
+  filter(rbar_scaled_t >= t_threshold_b) %>%
   inner_join(journal_mapping_filtered, by = c("pubname" = "signalname"))
 
 raw_t2_summary_journal <- journal_data %>%
@@ -733,7 +733,7 @@ raw_t2_summary_journal <- journal_data %>%
     .groups = 'drop'
   )
 
-# CAPM t >= 2 filtered (by journal) - excluding Economics
+# CAPM t >= t_threshold_b filtered (by journal) - excluding Economics
 journal_data_capm <- ret_for_plot0_capm_t2 %>%
   inner_join(journal_mapping_filtered, by = c("pubname" = "signalname"))
 
@@ -750,7 +750,7 @@ capm_t2_summary_journal <- journal_data_capm %>%
     .groups = 'drop'
   )
 
-# FF3 t >= 2 filtered (by journal) - excluding Economics
+# FF3 t >= t_threshold_b filtered (by journal) - excluding Economics
 journal_data_ff3 <- ret_for_plot0_ff3_t2 %>%
   inner_join(journal_mapping_filtered, by = c("pubname" = "signalname"))
 
@@ -768,7 +768,7 @@ ff3_t2_summary_journal <- journal_data_ff3 %>%
   )
 
 # Print discipline and journal table
-cat("\nPost-Sample Return (t>=2)     Outperformance vs Data-Mining (t>=2)\n")
+cat("\nPost-Sample Return (t>=", t_threshold_b, ")     Outperformance vs Data-Mining (t>=", t_threshold_b, ")\n")
 cat("                Raw    CAPM    FF3    Raw    CAPM    FF3\n")
 cat("Discipline\n")
 
@@ -829,84 +829,107 @@ for(group in groups_journal) {
 
 # Export tables to CSV -------------------------------------------------------
 
-# Create comprehensive summary table for export
+# Function to format values with standard errors in parentheses
+format_with_se <- function(value, se) {
+  if(is.na(value) || is.na(se)) return(NA)
+  return(paste0(round(value), " (", round(se), ")"))
+}
+
+# Create comprehensive summary table for export (formatted like printed table)
 export_table_main <- data.frame(
   Category = c(rep("Theoretical Foundation", 3), rep("Modeling Formalism", 3), "Overall"),
   Group = c("Risk", "Mispricing", "Agnostic", "No Model", "Stylized", "Dynamic or Quantitative", "All"),
-  # Post-sample returns
+  # Post-sample returns with standard errors
   Raw_Return = c(
-    get_values(raw_t2_summary_theory, "theory_group", "Risk", "pub_oos"),
-    get_values(raw_t2_summary_theory, "theory_group", "Mispricing", "pub_oos"),
-    get_values(raw_t2_summary_theory, "theory_group", "Agnostic", "pub_oos"),
-    get_values(raw_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos"),
-    get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"),
-    get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos"),
-    overall_t2_summary_raw$pub_oos
+    format_with_se(get_values(raw_t2_summary_theory, "theory_group", "Risk", "pub_oos"), 
+                   get_values(raw_t2_summary_theory, "theory_group", "Risk", "pub_oos_se")),
+    format_with_se(get_values(raw_t2_summary_theory, "theory_group", "Mispricing", "pub_oos"), 
+                   get_values(raw_t2_summary_theory, "theory_group", "Mispricing", "pub_oos_se")),
+    format_with_se(get_values(raw_t2_summary_theory, "theory_group", "Agnostic", "pub_oos"), 
+                   get_values(raw_t2_summary_theory, "theory_group", "Agnostic", "pub_oos_se")),
+    format_with_se(get_values(raw_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos"), 
+                   get_values(raw_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos_se")),
+    format_with_se(get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"), 
+                   get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos_se")),
+    format_with_se(get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos"), 
+                   get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos_se")),
+    format_with_se(overall_t2_summary_raw$pub_oos, overall_t2_summary_raw$pub_oos_se)
   ),
   CAPM_Return = c(
-    get_values(capm_t2_summary_theory, "theory_group", "Risk", "pub_oos"),
-    get_values(capm_t2_summary_theory, "theory_group", "Mispricing", "pub_oos"),
-    get_values(capm_t2_summary_theory, "theory_group", "Agnostic", "pub_oos"),
-    get_values(capm_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos"),
-    get_values(capm_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"),
-    get_values(capm_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos"),
-    overall_t2_summary_capm$pub_oos
+    format_with_se(get_values(capm_t2_summary_theory, "theory_group", "Risk", "pub_oos"), 
+                   get_values(capm_t2_summary_theory, "theory_group", "Risk", "pub_oos_se")),
+    format_with_se(get_values(capm_t2_summary_theory, "theory_group", "Mispricing", "pub_oos"), 
+                   get_values(capm_t2_summary_theory, "theory_group", "Mispricing", "pub_oos_se")),
+    format_with_se(get_values(capm_t2_summary_theory, "theory_group", "Agnostic", "pub_oos"), 
+                   get_values(capm_t2_summary_theory, "theory_group", "Agnostic", "pub_oos_se")),
+    format_with_se(get_values(capm_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos"), 
+                   get_values(capm_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos_se")),
+    format_with_se(get_values(capm_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"), 
+                   get_values(capm_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos_se")),
+    format_with_se(get_values(capm_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos"), 
+                   get_values(capm_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos_se")),
+    format_with_se(overall_t2_summary_capm$pub_oos, overall_t2_summary_capm$pub_oos_se)
   ),
   FF3_Return = c(
-    get_values(ff3_t2_summary_theory, "theory_group", "Risk", "pub_oos"),
-    get_values(ff3_t2_summary_theory, "theory_group", "Mispricing", "pub_oos"),
-    get_values(ff3_t2_summary_theory, "theory_group", "Agnostic", "pub_oos"),
-    get_values(ff3_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos"),
-    get_values(ff3_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"),
-    get_values(ff3_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos"),
-    overall_t2_summary_ff3$pub_oos
+    format_with_se(get_values(ff3_t2_summary_theory, "theory_group", "Risk", "pub_oos"), 
+                   get_values(ff3_t2_summary_theory, "theory_group", "Risk", "pub_oos_se")),
+    format_with_se(get_values(ff3_t2_summary_theory, "theory_group", "Mispricing", "pub_oos"), 
+                   get_values(ff3_t2_summary_theory, "theory_group", "Mispricing", "pub_oos_se")),
+    format_with_se(get_values(ff3_t2_summary_theory, "theory_group", "Agnostic", "pub_oos"), 
+                   get_values(ff3_t2_summary_theory, "theory_group", "Agnostic", "pub_oos_se")),
+    format_with_se(get_values(ff3_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos"), 
+                   get_values(ff3_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos_se")),
+    format_with_se(get_values(ff3_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"), 
+                   get_values(ff3_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos_se")),
+    format_with_se(get_values(ff3_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos"), 
+                   get_values(ff3_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos_se")),
+    format_with_se(overall_t2_summary_ff3$pub_oos, overall_t2_summary_ff3$pub_oos_se)
   ),
-  # Outperformance vs data-mining
+  # Outperformance vs data-mining with standard errors
   Raw_Outperformance = c(
-    get_values(raw_t2_summary_theory, "theory_group", "Risk", "outperform"),
-    get_values(raw_t2_summary_theory, "theory_group", "Mispricing", "outperform"),
-    get_values(raw_t2_summary_theory, "theory_group", "Agnostic", "outperform"),
-    get_values(raw_t2_summary_model, "modeltype_grouped", "No Model", "outperform"),
-    get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"),
-    get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform"),
-    overall_t2_summary_raw$outperform
+    format_with_se(get_values(raw_t2_summary_theory, "theory_group", "Risk", "outperform"), 
+                   get_values(raw_t2_summary_theory, "theory_group", "Risk", "outperform_se")),
+    format_with_se(get_values(raw_t2_summary_theory, "theory_group", "Mispricing", "outperform"), 
+                   get_values(raw_t2_summary_theory, "theory_group", "Mispricing", "outperform_se")),
+    format_with_se(get_values(raw_t2_summary_theory, "theory_group", "Agnostic", "outperform"), 
+                   get_values(raw_t2_summary_theory, "theory_group", "Agnostic", "outperform_se")),
+    format_with_se(get_values(raw_t2_summary_model, "modeltype_grouped", "No Model", "outperform"), 
+                   get_values(raw_t2_summary_model, "modeltype_grouped", "No Model", "outperform_se")),
+    format_with_se(get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"), 
+                   get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "outperform_se")),
+    format_with_se(get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform"), 
+                   get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform_se")),
+    format_with_se(overall_t2_summary_raw$outperform, overall_t2_summary_raw$outperform_se)
   ),
   CAPM_Outperformance = c(
-    get_values(capm_t2_summary_theory, "theory_group", "Risk", "outperform"),
-    get_values(capm_t2_summary_theory, "theory_group", "Mispricing", "outperform"),
-    get_values(capm_t2_summary_theory, "theory_group", "Agnostic", "outperform"),
-    get_values(capm_t2_summary_model, "modeltype_grouped", "No Model", "outperform"),
-    get_values(capm_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"),
-    get_values(capm_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform"),
-    overall_t2_summary_capm$outperform
+    format_with_se(get_values(capm_t2_summary_theory, "theory_group", "Risk", "outperform"), 
+                   get_values(capm_t2_summary_theory, "theory_group", "Risk", "outperform_se")),
+    format_with_se(get_values(capm_t2_summary_theory, "theory_group", "Mispricing", "outperform"), 
+                   get_values(capm_t2_summary_theory, "theory_group", "Mispricing", "outperform_se")),
+    format_with_se(get_values(capm_t2_summary_theory, "theory_group", "Agnostic", "outperform"), 
+                   get_values(capm_t2_summary_theory, "theory_group", "Agnostic", "outperform_se")),
+    format_with_se(get_values(capm_t2_summary_model, "modeltype_grouped", "No Model", "outperform"), 
+                   get_values(capm_t2_summary_model, "modeltype_grouped", "No Model", "outperform_se")),
+    format_with_se(get_values(capm_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"), 
+                   get_values(capm_t2_summary_model, "modeltype_grouped", "Stylized", "outperform_se")),
+    format_with_se(get_values(capm_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform"), 
+                   get_values(capm_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform_se")),
+    format_with_se(overall_t2_summary_capm$outperform, overall_t2_summary_capm$outperform_se)
   ),
   FF3_Outperformance = c(
-    get_values(ff3_t2_summary_theory, "theory_group", "Risk", "outperform"),
-    get_values(ff3_t2_summary_theory, "theory_group", "Mispricing", "outperform"),
-    get_values(ff3_t2_summary_theory, "theory_group", "Agnostic", "outperform"),
-    get_values(ff3_t2_summary_model, "modeltype_grouped", "No Model", "outperform"),
-    get_values(ff3_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"),
-    get_values(ff3_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform"),
-    overall_t2_summary_ff3$outperform
-  ),
-  # Standard errors
-  Raw_Return_SE = c(
-    get_values(raw_t2_summary_theory, "theory_group", "Risk", "pub_oos_se"),
-    get_values(raw_t2_summary_theory, "theory_group", "Mispricing", "pub_oos_se"),
-    get_values(raw_t2_summary_theory, "theory_group", "Agnostic", "pub_oos_se"),
-    get_values(raw_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos_se"),
-    get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos_se"),
-    get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos_se"),
-    overall_t2_summary_raw$pub_oos_se
-  ),
-  Raw_Outperformance_SE = c(
-    get_values(raw_t2_summary_theory, "theory_group", "Risk", "outperform_se"),
-    get_values(raw_t2_summary_theory, "theory_group", "Mispricing", "outperform_se"),
-    get_values(raw_t2_summary_theory, "theory_group", "Agnostic", "outperform_se"),
-    get_values(raw_t2_summary_model, "modeltype_grouped", "No Model", "outperform_se"),
-    get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "outperform_se"),
-    get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform_se"),
-    overall_t2_summary_raw$outperform_se
+    format_with_se(get_values(ff3_t2_summary_theory, "theory_group", "Risk", "outperform"), 
+                   get_values(ff3_t2_summary_theory, "theory_group", "Risk", "outperform_se")),
+    format_with_se(get_values(ff3_t2_summary_theory, "theory_group", "Mispricing", "outperform"), 
+                   get_values(ff3_t2_summary_theory, "theory_group", "Mispricing", "outperform_se")),
+    format_with_se(get_values(ff3_t2_summary_theory, "theory_group", "Agnostic", "outperform"), 
+                   get_values(ff3_t2_summary_theory, "theory_group", "Agnostic", "outperform_se")),
+    format_with_se(get_values(ff3_t2_summary_model, "modeltype_grouped", "No Model", "outperform"), 
+                   get_values(ff3_t2_summary_model, "modeltype_grouped", "No Model", "outperform_se")),
+    format_with_se(get_values(ff3_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"), 
+                   get_values(ff3_t2_summary_model, "modeltype_grouped", "Stylized", "outperform_se")),
+    format_with_se(get_values(ff3_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform"), 
+                   get_values(ff3_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform_se")),
+    format_with_se(overall_t2_summary_ff3$outperform, overall_t2_summary_ff3$outperform_se)
   )
 )
 
@@ -915,46 +938,76 @@ export_table_discipline <- data.frame(
   Category = c(rep("Discipline", 2), rep("Journal Ranking", 3)),
   Group = c("Finance", "Accounting", "JF, JFE, RFS", "AR, JAR, JAE", "Other"),
   Raw_Return = c(
-    get_values(raw_t2_summary_discipline, "discipline", "Finance", "pub_oos"),
-    get_values(raw_t2_summary_discipline, "discipline", "Accounting", "pub_oos"),
-    get_values(raw_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "pub_oos"),
-    get_values(raw_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "pub_oos"),
-    get_values(raw_t2_summary_journal, "journal_rank", "Other", "pub_oos")
+    format_with_se(get_values(raw_t2_summary_discipline, "discipline", "Finance", "pub_oos"), 
+                   get_values(raw_t2_summary_discipline, "discipline", "Finance", "pub_oos_se")),
+    format_with_se(get_values(raw_t2_summary_discipline, "discipline", "Accounting", "pub_oos"), 
+                   get_values(raw_t2_summary_discipline, "discipline", "Accounting", "pub_oos_se")),
+    format_with_se(get_values(raw_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "pub_oos"), 
+                   get_values(raw_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "pub_oos_se")),
+    format_with_se(get_values(raw_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "pub_oos"), 
+                   get_values(raw_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "pub_oos_se")),
+    format_with_se(get_values(raw_t2_summary_journal, "journal_rank", "Other", "pub_oos"), 
+                   get_values(raw_t2_summary_journal, "journal_rank", "Other", "pub_oos_se"))
   ),
   CAPM_Return = c(
-    get_values(capm_t2_summary_discipline, "discipline", "Finance", "pub_oos"),
-    get_values(capm_t2_summary_discipline, "discipline", "Accounting", "pub_oos"),
-    get_values(capm_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "pub_oos"),
-    get_values(capm_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "pub_oos"),
-    get_values(capm_t2_summary_journal, "journal_rank", "Other", "pub_oos")
+    format_with_se(get_values(capm_t2_summary_discipline, "discipline", "Finance", "pub_oos"), 
+                   get_values(capm_t2_summary_discipline, "discipline", "Finance", "pub_oos_se")),
+    format_with_se(get_values(capm_t2_summary_discipline, "discipline", "Accounting", "pub_oos"), 
+                   get_values(capm_t2_summary_discipline, "discipline", "Accounting", "pub_oos_se")),
+    format_with_se(get_values(capm_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "pub_oos"), 
+                   get_values(capm_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "pub_oos_se")),
+    format_with_se(get_values(capm_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "pub_oos"), 
+                   get_values(capm_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "pub_oos_se")),
+    format_with_se(get_values(capm_t2_summary_journal, "journal_rank", "Other", "pub_oos"), 
+                   get_values(capm_t2_summary_journal, "journal_rank", "Other", "pub_oos_se"))
   ),
   FF3_Return = c(
-    get_values(ff3_t2_summary_discipline, "discipline", "Finance", "pub_oos"),
-    get_values(ff3_t2_summary_discipline, "discipline", "Accounting", "pub_oos"),
-    get_values(ff3_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "pub_oos"),
-    get_values(ff3_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "pub_oos"),
-    get_values(ff3_t2_summary_journal, "journal_rank", "Other", "pub_oos")
+    format_with_se(get_values(ff3_t2_summary_discipline, "discipline", "Finance", "pub_oos"), 
+                   get_values(ff3_t2_summary_discipline, "discipline", "Finance", "pub_oos_se")),
+    format_with_se(get_values(ff3_t2_summary_discipline, "discipline", "Accounting", "pub_oos"), 
+                   get_values(ff3_t2_summary_discipline, "discipline", "Accounting", "pub_oos_se")),
+    format_with_se(get_values(ff3_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "pub_oos"), 
+                   get_values(ff3_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "pub_oos_se")),
+    format_with_se(get_values(ff3_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "pub_oos"), 
+                   get_values(ff3_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "pub_oos_se")),
+    format_with_se(get_values(ff3_t2_summary_journal, "journal_rank", "Other", "pub_oos"), 
+                   get_values(ff3_t2_summary_journal, "journal_rank", "Other", "pub_oos_se"))
   ),
   Raw_Outperformance = c(
-    get_values(raw_t2_summary_discipline, "discipline", "Finance", "outperform"),
-    get_values(raw_t2_summary_discipline, "discipline", "Accounting", "outperform"),
-    get_values(raw_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "outperform"),
-    get_values(raw_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "outperform"),
-    get_values(raw_t2_summary_journal, "journal_rank", "Other", "outperform")
+    format_with_se(get_values(raw_t2_summary_discipline, "discipline", "Finance", "outperform"), 
+                   get_values(raw_t2_summary_discipline, "discipline", "Finance", "outperform_se")),
+    format_with_se(get_values(raw_t2_summary_discipline, "discipline", "Accounting", "outperform"), 
+                   get_values(raw_t2_summary_discipline, "discipline", "Accounting", "outperform_se")),
+    format_with_se(get_values(raw_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "outperform"), 
+                   get_values(raw_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "outperform_se")),
+    format_with_se(get_values(raw_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "outperform"), 
+                   get_values(raw_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "outperform_se")),
+    format_with_se(get_values(raw_t2_summary_journal, "journal_rank", "Other", "outperform"), 
+                   get_values(raw_t2_summary_journal, "journal_rank", "Other", "outperform_se"))
   ),
   CAPM_Outperformance = c(
-    get_values(capm_t2_summary_discipline, "discipline", "Finance", "outperform"),
-    get_values(capm_t2_summary_discipline, "discipline", "Accounting", "outperform"),
-    get_values(capm_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "outperform"),
-    get_values(capm_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "outperform"),
-    get_values(capm_t2_summary_journal, "journal_rank", "Other", "outperform")
+    format_with_se(get_values(capm_t2_summary_discipline, "discipline", "Finance", "outperform"), 
+                   get_values(capm_t2_summary_discipline, "discipline", "Finance", "outperform_se")),
+    format_with_se(get_values(capm_t2_summary_discipline, "discipline", "Accounting", "outperform"), 
+                   get_values(capm_t2_summary_discipline, "discipline", "Accounting", "outperform_se")),
+    format_with_se(get_values(capm_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "outperform"), 
+                   get_values(capm_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "outperform_se")),
+    format_with_se(get_values(capm_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "outperform"), 
+                   get_values(capm_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "outperform_se")),
+    format_with_se(get_values(capm_t2_summary_journal, "journal_rank", "Other", "outperform"), 
+                   get_values(capm_t2_summary_journal, "journal_rank", "Other", "outperform_se"))
   ),
   FF3_Outperformance = c(
-    get_values(ff3_t2_summary_discipline, "discipline", "Finance", "outperform"),
-    get_values(ff3_t2_summary_discipline, "discipline", "Accounting", "outperform"),
-    get_values(ff3_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "outperform"),
-    get_values(ff3_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "outperform"),
-    get_values(ff3_t2_summary_journal, "journal_rank", "Other", "outperform")
+    format_with_se(get_values(ff3_t2_summary_discipline, "discipline", "Finance", "outperform"), 
+                   get_values(ff3_t2_summary_discipline, "discipline", "Finance", "outperform_se")),
+    format_with_se(get_values(ff3_t2_summary_discipline, "discipline", "Accounting", "outperform"), 
+                   get_values(ff3_t2_summary_discipline, "discipline", "Accounting", "outperform_se")),
+    format_with_se(get_values(ff3_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "outperform"), 
+                   get_values(ff3_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "outperform_se")),
+    format_with_se(get_values(ff3_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "outperform"), 
+                   get_values(ff3_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "outperform_se")),
+    format_with_se(get_values(ff3_t2_summary_journal, "journal_rank", "Other", "outperform"), 
+                   get_values(ff3_t2_summary_journal, "journal_rank", "Other", "outperform_se"))
   )
 )
 
@@ -987,27 +1040,27 @@ cat("\nPlots:\n")
 cat("- Fig_RiskAdj_raw_returns.pdf\n")
 cat("- Fig_RiskAdj_capm_adjusted.pdf\n") 
 cat("- Fig_RiskAdj_ff3_adjusted.pdf\n")
-cat("- Fig_RiskAdj_capm_t2.pdf (t>=2 filtered)\n")
-cat("- Fig_RiskAdj_ff3_t2.pdf (t>=2 filtered)\n")
+cat("- Fig_RiskAdj_capm_t2.pdf (t>=", t_threshold_b, " filtered)\n")
+cat("- Fig_RiskAdj_ff3_t2.pdf (t>=", t_threshold_b, " filtered)\n")
 print("\nRisk-adjusted analysis completed successfully!")
-cat("\n=== T >= t_threshold_b FILTERED ANALYSIS ===\n")
+cat("\n=== T >=", t_threshold_a, " FILTERED ANALYSIS ===\n")
 
-# Identify published signals with t >= t_threshold_b
-signals_capm_t1 <- czret$signalname[czret$abar_capm_t >= t_threshold_b & !is.na(czret$abar_capm_t)]
-signals_ff3_t1 <- czret$signalname[czret$abar_ff3_t >= t_threshold_b & !is.na(czret$abar_ff3_t)]
+# Identify published signals with t >= t_threshold_a (not t_threshold_b to avoid double filtering)
+signals_capm_ta <- czret$signalname[czret$abar_capm_t >= t_threshold_a & !is.na(czret$abar_capm_t)]
+signals_ff3_ta <- czret$signalname[czret$abar_ff3_t >= t_threshold_a & !is.na(czret$abar_ff3_t)]
 
-# Filter and aggregate DM candidates for CAPM t >= t_threshold_b
-dm_filtered_capm_t1 <- candidateReturns_adj %>%
+# Filter and aggregate DM candidates for CAPM t >= t_threshold_a
+dm_filtered_capm_ta <- candidateReturns_adj %>%
   left_join(dm_tstats, by = c("actSignal", "candSignalname")) %>%
   filter(
-    actSignal %in% signals_capm_t1,
-    abar_capm_dm_t >= t_threshold_b,
+    actSignal %in% signals_capm_ta,
+    abar_capm_dm_t >= t_threshold_a,  # Use t_threshold_a for consistency
     !is.na(abnormal_capm)
   ) %>%
   group_by(actSignal, eventDate) %>%
   summarise(
-    matchRet_capm_t1 = mean(abnormal_capm, na.rm = TRUE),
-    n_matches_capm_t1 = n(),
+    matchRet_capm_ta = mean(abnormal_capm, na.rm = TRUE),
+    n_matches_capm_ta = n(),
     samptype = first(samptype),
     .groups = 'drop'
   ) %>%
@@ -1017,23 +1070,23 @@ dm_filtered_capm_t1 <- candidateReturns_adj %>%
   ) %>%
   group_by(actSignal) %>%
   mutate(
-    abar_capm_dm_filtered = mean(matchRet_capm_t1[samptype == "insamp"], na.rm = TRUE),
-    matchRet_capm_t1_normalized = 100 * matchRet_capm_t1 / abar_capm_dm_filtered
+    abar_capm_dm_filtered = mean(matchRet_capm_ta[samptype == "insamp"], na.rm = TRUE),
+    matchRet_capm_ta_normalized = ifelse(abs(abar_capm_dm_filtered) > 1e-10, 100 * matchRet_capm_ta / abar_capm_dm_filtered, NA)
   ) %>%
   ungroup()
 
-# Filter and aggregate DM candidates for FF3 t >= t_threshold_b  
-dm_filtered_ff3_t1 <- candidateReturns_adj %>%
+# Filter and aggregate DM candidates for FF3 t >= t_threshold_a  
+dm_filtered_ff3_ta <- candidateReturns_adj %>%
   left_join(dm_tstats, by = c("actSignal", "candSignalname")) %>%
   filter(
-    actSignal %in% signals_ff3_t1,
-    abar_ff3_dm_t >= t_threshold_b,
+    actSignal %in% signals_ff3_ta,
+    abar_ff3_dm_t >= t_threshold_a,  # Use t_threshold_a for consistency
     !is.na(abnormal_ff3)
   ) %>%
   group_by(actSignal, eventDate) %>%
   summarise(
-    matchRet_ff3_t1 = mean(abnormal_ff3, na.rm = TRUE),
-    n_matches_ff3_t1 = n(),
+    matchRet_ff3_ta = mean(abnormal_ff3, na.rm = TRUE),
+    n_matches_ff3_ta = n(),
     samptype = first(samptype),
     .groups = 'drop'
   ) %>%
@@ -1043,33 +1096,33 @@ dm_filtered_ff3_t1 <- candidateReturns_adj %>%
   ) %>%
   group_by(actSignal) %>%
   mutate(
-    abar_ff3_dm_filtered = mean(matchRet_ff3_t1[samptype == "insamp"], na.rm = TRUE),
-    matchRet_ff3_t1_normalized = 100 * matchRet_ff3_t1 / abar_ff3_dm_filtered
+    abar_ff3_dm_filtered = mean(matchRet_ff3_ta[samptype == "insamp"], na.rm = TRUE),
+    matchRet_ff3_ta_normalized = ifelse(abs(abar_ff3_dm_filtered) > 1e-10, 100 * matchRet_ff3_ta / abar_ff3_dm_filtered, NA)
   ) %>%
   ungroup()
 
 # Join filtered DM to plotting data
-ret_for_plot0_capm_t1 <- ret_for_plot0_adj %>%
-  filter(pubname %in% signals_capm_t1) %>%
+ret_for_plot0_capm_ta <- ret_for_plot0_adj %>%
+  filter(pubname %in% signals_capm_ta) %>%
   left_join(
-    dm_filtered_capm_t1 %>% select(actSignal, eventDate, matchRet_capm_t1_normalized, n_matches_capm_t1),
+    dm_filtered_capm_ta %>% select(actSignal, eventDate, matchRet_capm_ta_normalized, n_matches_capm_ta),
     by = c("pubname" = "actSignal", "eventDate" = "eventDate")
   ) %>%
-  filter(!is.na(matchRet_capm_t1_normalized))
+  filter(!is.na(matchRet_capm_ta_normalized))
 
-ret_for_plot0_ff3_t1 <- ret_for_plot0_adj %>%
-  filter(pubname %in% signals_ff3_t1) %>%
+ret_for_plot0_ff3_ta <- ret_for_plot0_adj %>%
+  filter(pubname %in% signals_ff3_ta) %>%
   left_join(
-    dm_filtered_ff3_t1 %>% select(actSignal, eventDate, matchRet_ff3_t1_normalized, n_matches_ff3_t1),
+    dm_filtered_ff3_ta %>% select(actSignal, eventDate, matchRet_ff3_ta_normalized, n_matches_ff3_ta),
     by = c("pubname" = "actSignal", "eventDate" = "eventDate")
   ) %>%
-  filter(!is.na(matchRet_ff3_t1_normalized))
+  filter(!is.na(matchRet_ff3_ta_normalized))
 
-# CAPM adjusted plot (t >= t_threshold_b)
-tempsuffix = "capm_t1"
-printme_capm_t1 = ReturnPlotsWithDM_std_errors_indicators(
-  dt = ret_for_plot0_capm_t1 %>% 
-    transmute(eventDate, pubname, theory, ret = abnormal_capm_normalized, matchRet = matchRet_capm_t1_normalized) %>%
+# CAPM adjusted plot (t >= t_threshold_a)
+tempsuffix = paste0("capm_t", t_threshold_a)
+printme_capm_ta = ReturnPlotsWithDM_std_errors_indicators(
+  dt = ret_for_plot0_capm_ta %>% 
+    transmute(eventDate, pubname, theory, ret = abnormal_capm_normalized, matchRet = matchRet_capm_ta_normalized) %>%
     left_join(czret %>% select(signalname, eventDate, date) %>% distinct(), by = c("pubname" = "signalname", "eventDate" = "eventDate")) %>%
     rename(calendarDate = date),
   basepath = "../Results/temp_",
@@ -1082,8 +1135,8 @@ printme_capm_t1 = ReturnPlotsWithDM_std_errors_indicators(
   xl = global_xl,
   xh = global_xh,
   legendlabels = c(
-    paste0("Published (CAPM α / |Insample α|, t≥1)"),
-    paste0("Data-Mined (CAPM α / |Insample α|, t≥1)"),
+    paste0("Published (CAPM Alpha / |Insample Alpha|, t>=", t_threshold_a, ")"),
+    paste0("Data-Mined (CAPM Alpha / |Insample Alpha|, t>=", t_threshold_a, ")"),
     'N/A'
   ),
   legendpos = c(35,20)/100,
@@ -1092,16 +1145,16 @@ printme_capm_t1 = ReturnPlotsWithDM_std_errors_indicators(
   linesize = linesizeall
 )
 
-ggsave(filename = paste0(results_dir, "/Fig_RiskAdj_", tempsuffix, '.pdf'), 
-       printme_capm_t1, width = 10, height = 8)
+ggsave(filename = paste0(results_dir, "/Fig_RiskAdj_capm_t", t_threshold_a, '.pdf'), 
+       printme_capm_ta, width = 10, height = 8)
 
-cat("CAPM t>= t_threshold_b signals:", length(unique(ret_for_plot0_capm_t1$pubname)), "\n")
+cat("CAPM t>=", t_threshold_a, " signals:", length(unique(ret_for_plot0_capm_ta$pubname)), "\n")
 
-# FF3 adjusted plot (t >= t_threshold_b)  
-tempsuffix = "ff3_t1"
-printme_ff3_t1 = ReturnPlotsWithDM_std_errors_indicators(
-  dt = ret_for_plot0_ff3_t1 %>% 
-    transmute(eventDate, pubname, theory, ret = abnormal_ff3_normalized, matchRet = matchRet_ff3_t1_normalized) %>%
+# FF3 adjusted plot (t >= t_threshold_a)  
+tempsuffix = paste0("ff3_t", t_threshold_a)
+printme_ff3_ta = ReturnPlotsWithDM_std_errors_indicators(
+  dt = ret_for_plot0_ff3_ta %>% 
+    transmute(eventDate, pubname, theory, ret = abnormal_ff3_normalized, matchRet = matchRet_ff3_ta_normalized) %>%
     left_join(czret %>% select(signalname, eventDate, date) %>% distinct(), by = c("pubname" = "signalname", "eventDate" = "eventDate")) %>%
     rename(calendarDate = date),
   basepath = "../Results/temp_",
@@ -1109,13 +1162,13 @@ printme_ff3_t1 = ReturnPlotsWithDM_std_errors_indicators(
   rollmonths = 60,
   colors = colors,
   labelmatch = FALSE,
-  yl = -50,
-  yh = 150,
+  yl = -0,
+  yh = 125,
   xl = global_xl,
   xh = global_xh,
   legendlabels = c(
-    paste0("Published (FF3 α / |Insample α|, t≥1)"),
-    paste0("Data-Mined (FF3 α / |Insample α|, t≥1)"),
+    paste0("Published (FF3 Alpha / |Insample Alpha|, t>=", t_threshold_a, ")"),
+    paste0("Data-Mined (FF3 Alpha / |Insample Alpha|, t>=", t_threshold_a, ")"),
     'N/A'
   ),
   legendpos = c(35,20)/100,
@@ -1124,9 +1177,9 @@ printme_ff3_t1 = ReturnPlotsWithDM_std_errors_indicators(
   linesize = linesizeall
 )
 
-ggsave(filename = paste0(results_dir, "/Fig_RiskAdj_", tempsuffix, '.pdf'), 
-       printme_ff3_t1, width = 10, height = 8)
+ggsave(filename = paste0(results_dir, "/Fig_RiskAdj_ff3_t", t_threshold_a, '.pdf'), 
+       printme_ff3_ta, width = 10, height = 8)
 
-cat("FF3 t>= t_threshold_b signals:", length(unique(ret_for_plot0_ff3_t1$pubname)), "\n")
+cat("FF3 t>=", t_threshold_a, " signals:", length(unique(ret_for_plot0_ff3_ta$pubname)), "\n")
 
 print("\nRisk-adjusted analysis completed successfully!")
