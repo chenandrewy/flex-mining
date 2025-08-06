@@ -11,8 +11,8 @@ inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType,
 czsum = readRDS('../Data/Processed/czsum_allpredictors.RDS') %>% 
   select(signalname,rbar,nobs_postsamp,rbar_ok,n_ok,Keep) %>% 
   left_join(
-  fread('../Data/Raw/SignalDoc.csv')[, 1:15] %>% 
-  transmute(signalname = Acronym, Journal, Authors, Year, SampleStartYear, SampleEndYear)
+    fread('../Data/Raw/SignalDoc.csv')[, 1:15] %>% 
+      transmute(signalname = Acronym, Journal, Authors, Year, SampleStartYear, SampleEndYear)
   ) %>% 
   mutate(
     main_signal = if_else(signalname %in% inclSignals,'main', 'extra')
@@ -26,8 +26,8 @@ czcat = fread('DataInput/SignalsTheoryChecked.csv') %>%
                                Quantitative == 1 ~ 'Quantitative')) %>%
   mutate(modeltype = factor(modeltype, levels = c('No Model', 'Stylized', 'Dynamic', 'Quantitative'))) %>%
   select(signalname, theory, modeltype) 
-  
-  
+
+
 
 # Journal counts -------------------------------------------------------------------
 
@@ -52,9 +52,9 @@ tab_risk_or_mispricingJournal = czsum %>%
   filter(rbar_ok, n_ok, main_signal == 'main') %>% 
   left_join(czcat, by = 'signalname') %>% 
   mutate(JournalCat = case_when(
-         Journal %in% globalSettings$finlistAll  ~ 'Finance',
-         Journal %in% globalSettings$acctlistAll ~ 'Accounting',
-         TRUE                     ~ 'Other')) %>%
+    Journal %in% globalSettings$finlistAll  ~ 'Finance',
+    Journal %in% globalSettings$acctlistAll ~ 'Accounting',
+    TRUE                     ~ 'Other')) %>%
   group_by(JournalCat, theory) %>%
   count() %>% 
   pivot_wider(names_from = JournalCat, values_from = n, values_fill = 0) %>% 
@@ -70,11 +70,12 @@ tab_risk_or_mispricing = tab_risk_or_mispricingTop3 %>%
 
 tab_risk_or_mispricing %>% 
   xtable() %>% 
-  print(include.rownames = FALSE, 
-        include.colnames = FALSE,
-        hline.after = NULL,
-      only.contents = TRUE,
-      file = '../Results/ApproachVsJournalsPart1.csv')
+  print.xtable(
+    include.rownames = FALSE, 
+    include.colnames = FALSE,
+    hline.after = NULL,
+    only.contents = TRUE,
+    file = '../Results/ApproachVsJournalsPart1.tex', sep = ',')
 
 ## Model type table
 
@@ -113,11 +114,12 @@ tab_modeltype = tab_modeltypeTop3 %>%
 
 tab_modeltype %>% 
   xtable() %>% 
-  print(include.rownames = FALSE, 
-        include.colnames = FALSE,
-        hline.after = NULL,
-        only.contents = TRUE,
-        file = '../Results/ApproachVsJournalsPart2.csv')
+  print.xtable(
+    include.rownames = FALSE, 
+    include.colnames = FALSE,
+    hline.after = NULL,
+    only.contents = TRUE,
+    file = '../Results/ApproachVsJournalsPart2.tex', sep = ',')
 
 ## add totals
 tab_sum = tab_modeltype %>%
@@ -129,12 +131,14 @@ tab_sum = tab_modeltype %>%
 
 tab_sum %>% 
   xtable() %>% 
-  print(include.rownames = FALSE, 
-        include.colnames = FALSE,
-        hline.after = NULL,
-        only.contents = TRUE,
-        file = '../Results/ApproachVsJournalsPart3.csv',
-        sanitize.text.function = identity)
+  print.xtable(
+    include.rownames = FALSE, 
+    include.colnames = FALSE,
+    hline.after = NULL,
+    only.contents = TRUE,
+    file = '../Results/ApproachVsJournalsPart3.tex', 
+    sep = ',',
+    sanitize.text.function = identity)
 
 # Risk vs mispricing example quotes table ---------------------------------
 
@@ -155,14 +159,14 @@ cat(sprintf('%% Risk vs Mispricing Table
   Total & %d & %d &   &  \\\\
   \\bottomrule
 \\end{tabular}%%',
-  filter(tab_risk_or_mispricing, theory == "risk")$Any,
-  filter(tab_risk_or_mispricing, theory == "risk")$Top3,
-  filter(tab_risk_or_mispricing, theory == "mispricing")$Any,
-  filter(tab_risk_or_mispricing, theory == "mispricing")$Top3,
-  filter(tab_risk_or_mispricing, theory == "agnostic")$Any,
-  filter(tab_risk_or_mispricing, theory == "agnostic")$Top3,
-  sum(tab_risk_or_mispricing$Any),
-  sum(tab_risk_or_mispricing$Top3)
+            filter(tab_risk_or_mispricing, theory == "risk")$Any,
+            filter(tab_risk_or_mispricing, theory == "risk")$Top3,
+            filter(tab_risk_or_mispricing, theory == "mispricing")$Any,
+            filter(tab_risk_or_mispricing, theory == "mispricing")$Top3,
+            filter(tab_risk_or_mispricing, theory == "agnostic")$Any,
+            filter(tab_risk_or_mispricing, theory == "agnostic")$Top3,
+            sum(tab_risk_or_mispricing$Any),
+            sum(tab_risk_or_mispricing$Top3)
 ), file = '../Results/table_risk_vs_mispricing.tex')
 
 
