@@ -641,9 +641,230 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff3_tv" %in%
     return_threshold = return_threshold
   )
   
+  # Create Time-Varying Alpha Summary Tables
+  cat("\n\n=== TIME-VARYING ALPHA SUMMARY TABLES ===\n")
+  
+  # Prepare data for TV alpha summary tables
+  tv_plot_data <- list()
+  
+  # Add raw data for comparison (filtered by the same signals)
+  if (filter_type == "return") {
+    tv_plot_data[["raw"]] <- ret_for_plot0 %>% 
+      filter(!is.na(matchRet)) %>%
+      left_join(czret %>% select(signalname, rbar_scaled) %>% distinct(), 
+                by = c("pubname" = "signalname")) %>%
+      filter(rbar_scaled >= return_threshold)
+  } else {
+    tv_plot_data[["raw"]] <- ret_for_plot0 %>% 
+      filter(!is.na(matchRet)) %>%
+      left_join(czret %>% select(signalname, rbar_scaled_t) %>% distinct(), 
+                by = c("pubname" = "signalname")) %>%
+      filter(rbar_scaled_t >= t_threshold_b)
+  }
+  
+  tv_plot_data[["capm_tv"]] <- ret_for_plot0_capm_tv_t2
+  tv_plot_data[["ff3_tv"]] <- ret_for_plot0_ff3_tv_t2
+  
+  # Create mappings (reuse existing ones from main analysis)
+  tv_mappings <- list(
+    theory = theory_mapping,
+    model = model_mapping
+  )
+  
+  # Create TV alpha summaries
+  tv_summaries <- create_summary_tables(
+    tv_plot_data,
+    tv_mappings,
+    table_name = "Time-Varying Alpha Analysis",
+    filter_desc = ifelse(filter_type == "return", 
+                        paste0("avg >= ", return_threshold),
+                        paste0("t >= ", t_threshold_b))
+  )
+  
+  # Print TV alpha summary by theory
+  print_summary_table(
+    tv_summaries[["theory"]],
+    groups = c("Risk", "Mispricing", "Agnostic"),
+    group_col = "theory_group",
+    table_title = "TIME-VARYING ALPHA BY THEORETICAL FOUNDATION",
+    analysis_types = c("raw", "capm_tv", "ff3_tv"),
+    analysis_labels = c("Raw", "CAPM-TV", "FF3-TV")
+  )
+  
+  # Print TV alpha summary by model
+  print_summary_table(
+    tv_summaries[["model"]],
+    groups = c("No Model", "Stylized", "Dynamic or Quantitative"),
+    group_col = "modeltype_grouped",
+    table_title = "TIME-VARYING ALPHA BY MODELING FORMALISM",
+    analysis_types = c("raw", "capm_tv", "ff3_tv"),
+    analysis_labels = c("Raw", "CAPM-TV", "FF3-TV")
+  )
+  
+  # Export TV alpha tables
+  export_filename <- paste0(results_dir, "/tv_alpha_summary_",
+                           ifelse(filter_type == "return", 
+                                  paste0("r", gsub("\\.", "", as.character(return_threshold))),
+                                  paste0("t", t_threshold_b)), ".csv")
+  export_summary_tables(tv_summaries, export_filename, 
+                        filter_desc = ifelse(filter_type == "return",
+                                           paste0("Return >= ", return_threshold),
+                                           paste0("T-stat >= ", t_threshold_b)))
+  
 } else {
   cat("\nTime-varying abnormal returns not available in the data.\n")
   cat("Please run 2d_RiskAdjustDataMinedSignals.R with the updated code to generate these columns.\n")
+}
+
+# Generic Summary Table Functions ----------------------------------------------
+
+# Function to create comprehensive summary tables for any analysis type
+create_summary_tables <- function(plot_data_list, group_mappings, table_name = "Analysis",
+                                  filter_desc = "", overall_summaries = NULL) {
+  
+  # plot_data_list should be a named list: list(raw = data1, capm = data2, ff3 = data3)
+  # group_mappings should be a named list: list(theory = mapping1, model = mapping2, ...)
+  # overall_summaries is optional: list(raw = summary1, capm = summary2, ff3 = summary3)
+  
+  results <- list()
+  
+  # Process each grouping type
+  for (group_name in names(group_mappings)) {
+    group_results <- list()
+    
+    for (analysis_type in names(plot_data_list)) {
+      data <- plot_data_list[[analysis_type]]
+      mapping <- group_mappings[[group_name]]
+      
+      # Get appropriate column names based on analysis type
+      if (analysis_type == "raw") {
+        ret_col <- "ret"
+        dm_col <- "matchRet"
+      } else if (grepl("capm", analysis_type)) {
+        ret_col <- "abnormal_capm_normalized"
+        if (analysis_type == "capm_tv") {
+          dm_col <- "matchRet_capm_tv_t2_normalized"
+        } else {
+          dm_col <- paste0("matchRet_", gsub("^ret_for_plot0_", "", analysis_type), "_normalized")
+        }
+      } else if (grepl("ff3", analysis_type)) {
+        ret_col <- "abnormal_ff3_normalized"
+        if (analysis_type == "ff3_tv") {
+          dm_col <- "matchRet_ff3_tv_t2_normalized"
+        } else {
+          dm_col <- paste0("matchRet_", gsub("^ret_for_plot0_", "", analysis_type), "_normalized")
+        }
+      }
+      
+      # Compute outperformance
+      if (nrow(data) > 0) {
+        summary <- compute_outperformance(data, ret_col, dm_col, mapping, 
+                                         group_col = names(mapping)[2])
+        group_results[[analysis_type]] <- summary
+      }
+    }
+    
+    results[[group_name]] <- group_results
+  }
+  
+  # Add overall summaries if provided
+  if (!is.null(overall_summaries)) {
+    results[["overall"]] <- overall_summaries
+  }
+  
+  return(results)
+}
+
+# Function to print formatted summary table
+print_summary_table <- function(summaries, groups, group_col, table_title, 
+                               analysis_types = c("raw", "capm", "ff3"),
+                               analysis_labels = c("Raw", "CAPM", "FF3")) {
+  
+  cat("\n", table_title, "\n", sep="")
+  cat(strrep("-", nchar(table_title)), "\n")
+  
+  # Header
+  cat(sprintf("%-25s", ""))
+  for (label in analysis_labels) {
+    cat(sprintf("   %s          ", label))
+  }
+  cat("\n")
+  
+  cat(sprintf("%-25s", "Group"))
+  for (i in 1:length(analysis_types)) {
+    cat("  Post-Samp  Outperf")
+  }
+  cat("\n")
+  
+  # Helper to safely get values
+  get_value <- function(summary, group_col, group, metric) {
+    if (is.null(summary) || nrow(summary) == 0) return(NA)
+    val <- summary[[metric]][summary[[group_col]] == group]
+    if (length(val) == 0) return(NA)
+    return(val[1])
+  }
+  
+  # Print each group
+  for (group in groups) {
+    # Values row
+    cat(sprintf("%-25s", group))
+    
+    for (type in analysis_types) {
+      summary <- summaries[[type]]
+      pub_oos <- round(get_value(summary, group_col, group, "pub_oos"))
+      outperform <- round(get_value(summary, group_col, group, "outperform"))
+      
+      if (is.na(pub_oos)) pub_oos <- "--"
+      if (is.na(outperform)) outperform <- "--"
+      
+      cat(sprintf("   %4s      %4s", pub_oos, outperform))
+    }
+    cat("\n")
+    
+    # Standard errors row
+    cat(sprintf("%-25s", ""))
+    
+    for (type in analysis_types) {
+      summary <- summaries[[type]]
+      pub_se <- round(get_value(summary, group_col, group, "pub_oos_se"))
+      out_se <- round(get_value(summary, group_col, group, "outperform_se"))
+      
+      if (is.na(pub_se)) pub_se <- "--"
+      if (is.na(out_se)) out_se <- "--"
+      
+      cat(sprintf("   (%2s)      (%2s)", pub_se, out_se))
+    }
+    cat("\n")
+  }
+}
+
+# Function to export tables to CSV
+export_summary_tables <- function(summaries, filename, filter_desc = "") {
+  
+  # Create a comprehensive data frame for export
+  all_results <- data.frame()
+  
+  for (category in names(summaries)) {
+    if (category == "overall") next  # Handle overall separately
+    
+    for (analysis_type in names(summaries[[category]])) {
+      summary <- summaries[[category]][[analysis_type]]
+      if (!is.null(summary) && nrow(summary) > 0) {
+        summary$category <- category
+        summary$analysis_type <- analysis_type
+        all_results <- rbind(all_results, summary)
+      }
+    }
+  }
+  
+  # Add filter description as metadata
+  if (filter_desc != "") {
+    all_results$filter <- filter_desc
+  }
+  
+  # Save to CSV
+  write.csv(all_results, filename, row.names = FALSE)
+  cat("\nSummary tables exported to:", filename, "\n")
 }
 
 # Create summary table by theoretical foundation -------------------------------
@@ -712,6 +933,66 @@ compute_outperformance <- function(plot_data, ret_col, dm_ret_col, group_map, gr
 }
 
 
+
+# FULL-SAMPLE ALPHA SUMMARY TABLES (Using new functions) --------------------
+cat("\n\n=== FULL-SAMPLE ALPHA SUMMARY TABLES (FILTERED) ===\n")
+
+# Prepare data for full-sample alpha summary tables
+fs_plot_data <- list()
+
+# Add raw filtered data
+if (filter_type == "return") {
+  fs_plot_data[["raw"]] <- ret_for_plot0 %>% 
+    filter(!is.na(matchRet)) %>%
+    left_join(czret %>% select(signalname, rbar_scaled) %>% distinct(), 
+              by = c("pubname" = "signalname")) %>%
+    filter(rbar_scaled >= return_threshold)
+} else {
+  fs_plot_data[["raw"]] <- ret_for_plot0 %>% 
+    filter(!is.na(matchRet)) %>%
+    left_join(czret %>% select(signalname, rbar_scaled_t) %>% distinct(), 
+              by = c("pubname" = "signalname")) %>%
+    filter(rbar_scaled_t >= t_threshold_b)
+}
+
+fs_plot_data[["capm"]] <- ret_for_plot0_capm_t2
+fs_plot_data[["ff3"]] <- ret_for_plot0_ff3_t2
+
+# Create mappings
+fs_mappings <- list(
+  theory = theory_mapping,
+  model = model_mapping
+)
+
+# Create full-sample summaries using new functions
+fs_summaries <- create_summary_tables(
+  fs_plot_data,
+  fs_mappings,
+  table_name = "Full-Sample Alpha Analysis",
+  filter_desc = ifelse(filter_type == "return", 
+                      paste0("avg >= ", return_threshold),
+                      paste0("t >= ", t_threshold_b))
+)
+
+# Print full-sample summary by theory
+print_summary_table(
+  fs_summaries[["theory"]],
+  groups = c("Risk", "Mispricing", "Agnostic"),
+  group_col = "theory_group",
+  table_title = "FULL-SAMPLE ALPHA BY THEORETICAL FOUNDATION",
+  analysis_types = c("raw", "capm", "ff3"),
+  analysis_labels = c("Raw", "CAPM", "FF3")
+)
+
+# Print full-sample summary by model
+print_summary_table(
+  fs_summaries[["model"]],
+  groups = c("No Model", "Stylized", "Dynamic or Quantitative"),
+  group_col = "modeltype_grouped",
+  table_title = "FULL-SAMPLE ALPHA BY MODELING FORMALISM",
+  analysis_types = c("raw", "capm", "ff3"),
+  analysis_labels = c("Raw", "CAPM", "FF3")
+)
 
 # T-STAT FILTERED SUMMARY TABLE (t >= t_threshold_b) ----------------------------------------
 if (filter_type == "return") {
