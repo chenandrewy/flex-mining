@@ -516,6 +516,220 @@ printme_ff3_t2 <- create_risk_adjusted_plot(
 
 # Time-varying abnormal returns (IS beta in IS, post-sample beta in OOS) --------
 
+# Load model categories EARLY (needed for time-varying and other analyses)
+# Moved here from line 875 to be available for all analyses
+czcat_full <- fread("DataInput/SignalsTheoryChecked.csv") %>%
+  select(signalname, Year, theory, Journal, NoModel, Stylized, Dynamic, Quantitative) %>%
+  filter(signalname %in% inclSignals) %>%
+  mutate(
+    modeltype = case_when(
+      NoModel == 1 ~ "No Model",
+      Stylized == 1 ~ "Stylized", 
+      Dynamic == 1 ~ "Dynamic",
+      Quantitative == 1 ~ "Quantitative"
+    ),
+    # Combine Dynamic and Quantitative as in your target format
+    modeltype_grouped = case_when(
+      modeltype == "No Model" ~ "No Model",
+      modeltype == "Stylized" ~ "Stylized",
+      modeltype %in% c("Dynamic", "Quantitative") ~ "Dynamic or Quantitative"
+    ),
+    theory_group = case_when(
+      theory %in% c("risk", "Risk") ~ "Risk",
+      theory %in% c("mispricing", "Mispricing") ~ "Mispricing", 
+      TRUE ~ "Agnostic"
+    ),
+    # Add discipline (Finance vs Accounting vs Economics)
+    discipline = case_when(
+      Journal %in% c("JAR", "JAE", "AR") ~ "Accounting",
+      Journal %in% c("QJE", "JPE") ~ "Economics",
+      TRUE ~ "Finance"
+    ),
+    # Add journal ranking from 3g (excluding Economics journals)
+    journal_rank = case_when(
+      Journal %in% c("JF", "JFE", "RFS") ~ "JF, JFE, RFS",
+      Journal %in% c("JAR", "JAE", "AR") ~ "AR, JAR, JAE", 
+      Journal %in% c("QJE", "JPE") ~ "Economics", # Mark but will exclude
+      TRUE ~ "Other"
+    )
+  )
+
+# Get mappings
+theory_mapping <- czcat_full %>% select(signalname, theory_group) %>% distinct()
+model_mapping <- czcat_full %>% select(signalname, modeltype_grouped) %>% distinct()
+discipline_mapping <- czcat_full %>% select(signalname, discipline) %>% distinct()
+journal_mapping <- czcat_full %>% select(signalname, journal_rank) %>% distinct()
+
+# Define helper functions here (needed for analyses below)
+# ----------------------------------------------
+
+# Function to compute outperformance metrics with standard errors
+compute_outperformance <- function(plot_data, ret_col, dm_ret_col, group_map, group_col = "theory_group") {
+  plot_data %>%
+    left_join(group_map, by = c("pubname" = "signalname")) %>%
+    filter(!is.na(.data[[group_col]])) %>%
+    group_by(.data[[group_col]]) %>%
+    summarise(
+      n_signals = n_distinct(pubname),
+      pub_oos = mean(.data[[ret_col]][eventDate > 0], na.rm = TRUE),
+      pub_oos_se = sd(.data[[ret_col]][eventDate > 0], na.rm = TRUE) / sqrt(sum(eventDate > 0 & !is.na(.data[[ret_col]]))),
+      dm_oos = mean(.data[[dm_ret_col]][eventDate > 0], na.rm = TRUE),
+      dm_oos_se = sd(.data[[dm_ret_col]][eventDate > 0], na.rm = TRUE) / sqrt(sum(eventDate > 0 & !is.na(.data[[dm_ret_col]]))),
+      outperform = pub_oos - dm_oos,
+      outperform_se = sqrt(pub_oos_se^2 + dm_oos_se^2),
+      .groups = 'drop'
+    )
+}
+
+# Function to create comprehensive summary tables for any analysis type
+create_summary_tables <- function(plot_data_list, group_mappings, table_name = "Analysis",
+                                  filter_desc = "", overall_summaries = NULL) {
+  
+  # plot_data_list should be a named list: list(raw = data1, capm = data2, ff3 = data3)
+  # group_mappings should be a named list: list(theory = mapping1, model = mapping2, ...)
+  # overall_summaries is optional: list(raw = summary1, capm = summary2, ff3 = summary3)
+  
+  results <- list()
+  
+  for (group_type in names(group_mappings)) {
+    group_map <- group_mappings[[group_type]]
+    group_col <- names(group_map)[2]  # Get the group column name
+    
+    results[[group_type]] <- list()
+    
+    for (analysis_type in names(plot_data_list)) {
+      plot_data <- plot_data_list[[analysis_type]]
+      
+      # Determine column names based on analysis type
+      ret_col <- switch(analysis_type,
+                       "raw" = "ret",
+                       "capm" = "abnormal_capm_normalized",
+                       "ff3" = "abnormal_ff3_normalized",
+                       "capm_tv" = "abnormal_capm_normalized",
+                       "ff3_tv" = "abnormal_ff3_normalized",
+                       "ret")  # default
+      
+      dm_col <- switch(analysis_type,
+                      "raw" = "matchRet",
+                      "capm" = "matchRet_capm_t2_normalized",
+                      "ff3" = "matchRet_ff3_t2_normalized",
+                      "capm_tv" = "matchRet_capm_tv_t2_normalized",
+                      "ff3_tv" = "matchRet_ff3_tv_t2_normalized",
+                      "matchRet")  # default
+      
+      # Compute outperformance for this group
+      if (!is.null(plot_data) && nrow(plot_data) > 0) {
+        results[[group_type]][[analysis_type]] <- compute_outperformance(
+          plot_data, ret_col, dm_col, group_map, group_col
+        )
+      }
+    }
+  }
+  
+  # Add overall summaries if provided
+  if (!is.null(overall_summaries)) {
+    results[["overall"]] <- overall_summaries
+  }
+  
+  return(results)
+}
+
+# Function to print formatted summary table
+print_summary_table <- function(summaries, groups, group_col, table_title, 
+                               analysis_types = c("raw", "capm", "ff3"),
+                               analysis_labels = c("Raw", "CAPM", "FF3")) {
+  
+  cat("\n", table_title, "\n", sep="")
+  cat(strrep("-", nchar(table_title)), "\n")
+  
+  # Header
+  cat(sprintf("%-25s", ""))
+  for (label in analysis_labels) {
+    cat(sprintf("   %s          ", label))
+  }
+  cat("\n")
+  
+  cat(sprintf("%-25s", "Group"))
+  for (i in 1:length(analysis_types)) {
+    cat("  Post-Samp  Outperf")
+  }
+  cat("\n")
+  
+  # Helper to safely get values
+  get_value <- function(summary, group_col, group, metric) {
+    if (is.null(summary) || nrow(summary) == 0) return(NA)
+    val <- summary[[metric]][summary[[group_col]] == group]
+    if (length(val) == 0) return(NA)
+    return(val[1])
+  }
+  
+  # Print each group
+  for (group in groups) {
+    # Values row
+    cat(sprintf("%-25s", group))
+    for (analysis in analysis_types) {
+      summary <- summaries[[analysis]]
+      pub_oos <- get_value(summary, group_col, group, "pub_oos")
+      outperform <- get_value(summary, group_col, group, "outperform")
+      cat(sprintf("  %8.2f  %8.2f", 
+                 ifelse(is.na(pub_oos), NA, pub_oos),
+                 ifelse(is.na(outperform), NA, outperform)))
+    }
+    cat("\n")
+    
+    # Standard errors row
+    cat(sprintf("%-25s", ""))
+    for (analysis in analysis_types) {
+      summary <- summaries[[analysis]]
+      pub_oos_se <- get_value(summary, group_col, group, "pub_oos_se")
+      outperform_se <- get_value(summary, group_col, group, "outperform_se")
+      cat(sprintf("  (%6.2f)  (%6.2f)", 
+                 ifelse(is.na(pub_oos_se), NA, pub_oos_se),
+                 ifelse(is.na(outperform_se), NA, outperform_se)))
+    }
+    cat("\n")
+  }
+}
+
+# Function to export tables to CSV
+export_summary_tables <- function(summaries, filename, filter_desc = "") {
+  
+  # Create a comprehensive list for export
+  all_results <- list()
+  
+  for (category in names(summaries)) {
+    if (category == "overall") next  # Handle overall separately
+    
+    for (analysis_type in names(summaries[[category]])) {
+      summary <- summaries[[category]][[analysis_type]]
+      if (!is.null(summary) && nrow(summary) > 0) {
+        summary$category <- category
+        summary$analysis_type <- analysis_type
+        
+        # Add filter description as metadata
+        if (filter_desc != "") {
+          summary$filter <- filter_desc
+        }
+        
+        # Use bind_rows instead of rbind to handle different column sets
+        if (length(all_results) == 0) {
+          all_results <- summary
+        } else {
+          all_results <- bind_rows(all_results, summary)
+        }
+      }
+    }
+  }
+  
+  # Save to CSV
+  if (length(all_results) > 0) {
+    write.csv(all_results, filename, row.names = FALSE)
+    cat("\nSummary tables exported to:", filename, "\n")
+  } else {
+    cat("\nNo summary data to export.\n")
+  }
+}
+
 cat("\n\n=== TIME-VARYING ABNORMAL RETURNS (IS/OOS BETAS) ===\n")
 
 # Check if time-varying columns exist in the data
@@ -719,218 +933,6 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff3_tv" %in%
 # Generic Summary Table Functions ----------------------------------------------
 
 # Function to create comprehensive summary tables for any analysis type
-create_summary_tables <- function(plot_data_list, group_mappings, table_name = "Analysis",
-                                  filter_desc = "", overall_summaries = NULL) {
-  
-  # plot_data_list should be a named list: list(raw = data1, capm = data2, ff3 = data3)
-  # group_mappings should be a named list: list(theory = mapping1, model = mapping2, ...)
-  # overall_summaries is optional: list(raw = summary1, capm = summary2, ff3 = summary3)
-  
-  results <- list()
-  
-  # Process each grouping type
-  for (group_name in names(group_mappings)) {
-    group_results <- list()
-    
-    for (analysis_type in names(plot_data_list)) {
-      data <- plot_data_list[[analysis_type]]
-      mapping <- group_mappings[[group_name]]
-      
-      # Get appropriate column names based on analysis type
-      if (analysis_type == "raw") {
-        ret_col <- "ret"
-        dm_col <- "matchRet"
-      } else if (grepl("capm", analysis_type)) {
-        ret_col <- "abnormal_capm_normalized"
-        if (analysis_type == "capm_tv") {
-          dm_col <- "matchRet_capm_tv_t2_normalized"
-        } else {
-          dm_col <- paste0("matchRet_", gsub("^ret_for_plot0_", "", analysis_type), "_normalized")
-        }
-      } else if (grepl("ff3", analysis_type)) {
-        ret_col <- "abnormal_ff3_normalized"
-        if (analysis_type == "ff3_tv") {
-          dm_col <- "matchRet_ff3_tv_t2_normalized"
-        } else {
-          dm_col <- paste0("matchRet_", gsub("^ret_for_plot0_", "", analysis_type), "_normalized")
-        }
-      }
-      
-      # Compute outperformance
-      if (nrow(data) > 0) {
-        summary <- compute_outperformance(data, ret_col, dm_col, mapping, 
-                                         group_col = names(mapping)[2])
-        group_results[[analysis_type]] <- summary
-      }
-    }
-    
-    results[[group_name]] <- group_results
-  }
-  
-  # Add overall summaries if provided
-  if (!is.null(overall_summaries)) {
-    results[["overall"]] <- overall_summaries
-  }
-  
-  return(results)
-}
-
-# Function to print formatted summary table
-print_summary_table <- function(summaries, groups, group_col, table_title, 
-                               analysis_types = c("raw", "capm", "ff3"),
-                               analysis_labels = c("Raw", "CAPM", "FF3")) {
-  
-  cat("\n", table_title, "\n", sep="")
-  cat(strrep("-", nchar(table_title)), "\n")
-  
-  # Header
-  cat(sprintf("%-25s", ""))
-  for (label in analysis_labels) {
-    cat(sprintf("   %s          ", label))
-  }
-  cat("\n")
-  
-  cat(sprintf("%-25s", "Group"))
-  for (i in 1:length(analysis_types)) {
-    cat("  Post-Samp  Outperf")
-  }
-  cat("\n")
-  
-  # Helper to safely get values
-  get_value <- function(summary, group_col, group, metric) {
-    if (is.null(summary) || nrow(summary) == 0) return(NA)
-    val <- summary[[metric]][summary[[group_col]] == group]
-    if (length(val) == 0) return(NA)
-    return(val[1])
-  }
-  
-  # Print each group
-  for (group in groups) {
-    # Values row
-    cat(sprintf("%-25s", group))
-    
-    for (type in analysis_types) {
-      summary <- summaries[[type]]
-      pub_oos <- round(get_value(summary, group_col, group, "pub_oos"))
-      outperform <- round(get_value(summary, group_col, group, "outperform"))
-      
-      if (is.na(pub_oos)) pub_oos <- "--"
-      if (is.na(outperform)) outperform <- "--"
-      
-      cat(sprintf("   %4s      %4s", pub_oos, outperform))
-    }
-    cat("\n")
-    
-    # Standard errors row
-    cat(sprintf("%-25s", ""))
-    
-    for (type in analysis_types) {
-      summary <- summaries[[type]]
-      pub_se <- round(get_value(summary, group_col, group, "pub_oos_se"))
-      out_se <- round(get_value(summary, group_col, group, "outperform_se"))
-      
-      if (is.na(pub_se)) pub_se <- "--"
-      if (is.na(out_se)) out_se <- "--"
-      
-      cat(sprintf("   (%2s)      (%2s)", pub_se, out_se))
-    }
-    cat("\n")
-  }
-}
-
-# Function to export tables to CSV
-export_summary_tables <- function(summaries, filename, filter_desc = "") {
-  
-  # Create a comprehensive data frame for export
-  all_results <- data.frame()
-  
-  for (category in names(summaries)) {
-    if (category == "overall") next  # Handle overall separately
-    
-    for (analysis_type in names(summaries[[category]])) {
-      summary <- summaries[[category]][[analysis_type]]
-      if (!is.null(summary) && nrow(summary) > 0) {
-        summary$category <- category
-        summary$analysis_type <- analysis_type
-        all_results <- rbind(all_results, summary)
-      }
-    }
-  }
-  
-  # Add filter description as metadata
-  if (filter_desc != "") {
-    all_results$filter <- filter_desc
-  }
-  
-  # Save to CSV
-  write.csv(all_results, filename, row.names = FALSE)
-  cat("\nSummary tables exported to:", filename, "\n")
-}
-
-# Create summary table by theoretical foundation -------------------------------
-
-cat("\n\n=== SUMMARY TABLE BY THEORETICAL FOUNDATION ===\n")
-
-# Load model categories from 3f and journal categories from 3g
-czcat_full <- fread("DataInput/SignalsTheoryChecked.csv") %>%
-  select(signalname, Year, theory, Journal, NoModel, Stylized, Dynamic, Quantitative) %>%
-  filter(signalname %in% inclSignals) %>%
-  mutate(
-    modeltype = case_when(
-      NoModel == 1 ~ "No Model",
-      Stylized == 1 ~ "Stylized", 
-      Dynamic == 1 ~ "Dynamic",
-      Quantitative == 1 ~ "Quantitative"
-    ),
-    # Combine Dynamic and Quantitative as in your target format
-    modeltype_grouped = case_when(
-      modeltype == "No Model" ~ "No Model",
-      modeltype == "Stylized" ~ "Stylized",
-      modeltype %in% c("Dynamic", "Quantitative") ~ "Dynamic or Quantitative"
-    ),
-    theory_group = case_when(
-      theory %in% c("risk", "Risk") ~ "Risk",
-      theory %in% c("mispricing", "Mispricing") ~ "Mispricing", 
-      TRUE ~ "Agnostic"
-    ),
-    # Add discipline (Finance vs Accounting vs Economics)
-    discipline = case_when(
-      Journal %in% c("JAR", "JAE", "AR") ~ "Accounting",
-      Journal %in% c("QJE", "JPE") ~ "Economics",
-      TRUE ~ "Finance"
-    ),
-    # Add journal ranking from 3g (excluding Economics journals)
-    journal_rank = case_when(
-      Journal %in% c("JF", "JFE", "RFS") ~ "JF, JFE, RFS",
-      Journal %in% c("JAR", "JAE", "AR") ~ "AR, JAR, JAE", 
-      Journal %in% c("QJE", "JPE") ~ "Economics", # Mark but will exclude
-      TRUE ~ "Other"
-    )
-  )
-
-# Get mappings
-theory_mapping <- czcat_full %>% select(signalname, theory_group) %>% distinct()
-model_mapping <- czcat_full %>% select(signalname, modeltype_grouped) %>% distinct()
-discipline_mapping <- czcat_full %>% select(signalname, discipline) %>% distinct()
-journal_mapping <- czcat_full %>% select(signalname, journal_rank) %>% distinct()
-
-# Function to compute outperformance metrics with standard errors
-compute_outperformance <- function(plot_data, ret_col, dm_ret_col, group_map, group_col = "theory_group") {
-  plot_data %>%
-    left_join(group_map, by = c("pubname" = "signalname")) %>%
-    filter(!is.na(.data[[group_col]])) %>%
-    group_by(.data[[group_col]]) %>%
-    summarise(
-      n_signals = n_distinct(pubname),
-      pub_oos = mean(.data[[ret_col]][eventDate > 0], na.rm = TRUE),
-      pub_oos_se = sd(.data[[ret_col]][eventDate > 0], na.rm = TRUE) / sqrt(sum(eventDate > 0 & !is.na(.data[[ret_col]]))),
-      dm_oos = mean(.data[[dm_ret_col]][eventDate > 0], na.rm = TRUE),
-      dm_oos_se = sd(.data[[dm_ret_col]][eventDate > 0], na.rm = TRUE) / sqrt(sum(eventDate > 0 & !is.na(.data[[dm_ret_col]]))),
-      outperform = pub_oos - dm_oos,
-      outperform_se = sqrt(pub_oos_se^2 + dm_oos_se^2),
-      .groups = 'drop'
-    )
-}
 
 
 
@@ -1179,6 +1181,324 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_
 get_values <- function(summary_df, group_col, group_val, value_col) {
   idx <- which(summary_df[[group_col]] == group_val)
   if(length(idx) > 0) return(summary_df[[value_col]][idx]) else return(NA)
+}
+
+# ============================================================================
+# IMPROVED HELPER FUNCTIONS FOR TABLE GENERATION
+# ============================================================================
+
+# Helper function to build table data more efficiently
+build_table_row <- function(summaries, group_val, group_col, metrics = c("pub_oos", "pub_oos_se", "outperform", "outperform_se")) {
+  row_data <- list()
+  
+  for (analysis in names(summaries)) {
+    for (metric in metrics) {
+      col_name <- paste0(analysis, "_", metric)
+      row_data[[col_name]] <- get_values(summaries[[analysis]], group_col, group_val, metric)
+    }
+  }
+  
+  return(row_data)
+}
+
+# Unified function to format values with standard errors
+format_value_se <- function(value, se, digits = 0, latex = FALSE) {
+  if (is.na(value) || is.na(se)) return(NA)
+  
+  if (latex) {
+    return(sprintf("$%.*f$ ($%.*f$)", digits, value, digits, se))
+  } else {
+    return(sprintf("%.*f (%.*f)", digits, value, digits, se))
+  }
+}
+
+# Function to create LaTeX table from summary data
+create_latex_table <- function(table_data, caption = "", label = "", 
+                              column_spec = NULL, booktabs = TRUE,
+                              size = "\\small", placement = "htbp") {
+  
+  # Load required package
+  if (!requireNamespace("xtable", quietly = TRUE)) {
+    cat("Installing xtable package for LaTeX table generation...\n")
+    install.packages("xtable")
+  }
+  library(xtable)
+  
+  # Create xtable object
+  xt <- xtable(table_data, caption = caption, label = label)
+  
+  # Set column alignment if not specified
+  if (is.null(column_spec)) {
+    column_spec <- paste0("l", paste(rep("r", ncol(table_data)), collapse = ""))
+  }
+  xtable::align(xt) <- column_spec
+  
+  # Generate LaTeX code with options
+  latex_code <- print(xt, 
+                     booktabs = booktabs,
+                     include.rownames = FALSE,
+                     floating.environment = "table",
+                     table.placement = placement,
+                     size = size,
+                     sanitize.text.function = identity,
+                     print.results = FALSE)
+  
+  return(latex_code)
+}
+
+# Enhanced function to create LaTeX table with proper formatting
+create_formatted_latex_table <- function(table_data, caption = "", label = "",
+                                        group_headers = NULL, placement = "htbp",
+                                        separate_se_rows = TRUE) {
+  
+  # Build the LaTeX table manually for better control
+  latex_lines <- character()
+  
+  # Table environment
+  latex_lines <- c(latex_lines, 
+                  paste0("\\begin{table}[", placement, "]"),
+                  "\\centering")
+  
+  # Caption
+  if (caption != "") {
+    latex_lines <- c(latex_lines, paste0("\\caption{", caption, "}"))
+  }
+  
+  # Determine column specification based on the table structure
+  # Look for columns to identify structure
+  col_names <- names(table_data)
+  has_category <- "Category" %in% col_names
+  has_group <- "Group" %in% col_names
+  
+  # Count data columns (excluding Category and Group)
+  data_cols <- col_names[!col_names %in% c("Category", "Group")]
+  n_data_cols <- length(data_cols)
+  
+  # Build column spec: left-aligned for labels, centered for data
+  if (has_group && !has_category) {
+    col_spec <- paste0("l", paste(rep("c", n_data_cols), collapse = ""))
+  } else if (has_category && has_group) {
+    col_spec <- paste0("l", paste(rep("c", n_data_cols), collapse = ""))  # Only one 'l' for Group
+  } else {
+    col_spec <- paste(rep("c", ncol(table_data)), collapse = "")
+  }
+  
+  latex_lines <- c(latex_lines, paste0("\\begin{tabular}{", col_spec, "}"))
+  latex_lines <- c(latex_lines, "\\toprule")
+  
+  # Create column headers with spanning headers
+  if (!is.null(group_headers)) {
+    # First row with spanning headers
+    header_line <- "& "  # Empty cell for row labels
+    
+    for (i in seq_along(group_headers)) {
+      span_info <- group_headers[[i]]
+      header_line <- paste0(header_line, 
+                           "\\multicolumn{", span_info$span, "}{c}{", span_info$title, "}")
+      if (i < length(group_headers)) {
+        header_line <- paste0(header_line, " & ")
+      }
+    }
+    header_line <- paste0(header_line, " \\\\")
+    latex_lines <- c(latex_lines, header_line)
+    
+    # Add cmidrule for each spanning header
+    rule_line <- ""
+    current_col <- 2  # Start from column 2 (after row label column)
+    for (span_info in group_headers) {
+      end_col <- current_col + span_info$span - 1
+      if (rule_line != "") rule_line <- paste0(rule_line, " ")
+      rule_line <- paste0(rule_line, "\\cmidrule(lr){", current_col, "-", end_col, "}")
+      current_col <- end_col + 1
+    }
+    latex_lines <- c(latex_lines, rule_line)
+  }
+  
+  # Second row with individual column headers
+  # Clean column names for display - extract just the type (Raw/CAPM/FF3)
+  display_cols <- character()
+  for (col in data_cols) {
+    # Extract the analysis type from column name
+    if (grepl("Raw", col)) {
+      display_cols <- c(display_cols, "Raw")
+    } else if (grepl("CAPM", col)) {
+      display_cols <- c(display_cols, "CAPM")
+    } else if (grepl("FF3", col)) {
+      display_cols <- c(display_cols, "FF3")
+    } else {
+      # Fallback - clean the column name
+      clean_col <- gsub("_Return$|_Outperformance$", "", col)
+      display_cols <- c(display_cols, clean_col)
+    }
+  }
+  
+  header_line <- paste(c("", display_cols), collapse = " & ")
+  latex_lines <- c(latex_lines, paste0(header_line, " \\\\"))
+  latex_lines <- c(latex_lines, "\\midrule")
+  
+  # Process data rows with separated values and SEs
+  current_category <- ""
+  
+  for (i in 1:nrow(table_data)) {
+    row_data <- table_data[i,]
+    
+    # Handle category headers (bold) if present
+    if (has_category) {
+      if (row_data$Category != current_category) {
+        current_category <- as.character(row_data$Category)
+        latex_lines <- c(latex_lines, paste0("\\textbf{", current_category, "} & & & & & & \\\\"))
+      }
+    }
+    
+    # Get group label
+    group_label <- if(has_group) as.character(row_data$Group) else ""
+    
+    # Extract values and SEs from the formatted strings
+    values <- character()
+    ses <- character()
+    
+    for (col in data_cols) {
+      val_str <- as.character(row_data[[col]])
+      # Parse the "value (se)" format
+      if (grepl("\\(", val_str)) {
+        parts <- strsplit(val_str, " \\(")[[1]]
+        values <- c(values, trimws(parts[1]))
+        se_part <- gsub("\\)", "", parts[2])
+        ses <- c(ses, paste0("(", trimws(se_part), ")"))
+      } else {
+        values <- c(values, val_str)
+        ses <- c(ses, "")
+      }
+    }
+    
+    # Write value row
+    value_line <- paste(c(group_label, values), collapse = " & ")
+    latex_lines <- c(latex_lines, paste0(value_line, " \\\\"))
+    
+    # Write SE row (with empty first cell for alignment)
+    se_line <- paste(c("", ses), collapse = " & ")
+    latex_lines <- c(latex_lines, paste0(se_line, " \\\\"))
+  }
+  
+  # Close table
+  latex_lines <- c(latex_lines, "\\bottomrule")
+  latex_lines <- c(latex_lines, "\\end{tabular}")
+  
+  # Label
+  if (label != "") {
+    latex_lines <- c(latex_lines, paste0("\\label{", label, "}"))
+  }
+  
+  latex_lines <- c(latex_lines, "\\end{table}")
+  
+  return(paste(latex_lines, collapse = "\n"))
+}
+
+# Refactored function to build summary tables efficiently
+build_summary_table <- function(categories, groups, summaries, 
+                               analysis_types = c("raw", "capm", "ff3"),
+                               metrics_config = list(
+                                 return = c("pub_oos", "pub_oos_se"),
+                                 outperform = c("outperform", "outperform_se")
+                               ),
+                               format_latex = FALSE, digits = 0) {
+  
+  # Initialize result data frame
+  result_df <- data.frame(
+    Category = categories,
+    Group = groups,
+    stringsAsFactors = FALSE
+  )
+  
+  # Build columns in the correct order: Raw_Return, CAPM_Return, FF3_Return, Raw_Outperform, CAPM_Outperform, FF3_Outperform
+  # First add all return columns
+  for (analysis in analysis_types) {
+    analysis_label <- switch(analysis,
+                           "raw" = "Raw",
+                           "capm" = "CAPM", 
+                           "ff3" = "FF3",
+                           analysis)
+    
+    if ("return" %in% names(metrics_config)) {
+      col_name <- paste0(analysis_label, "_Return")
+      result_df[[col_name]] <- mapply(function(grp, cat_data) {
+        val <- cat_data[[paste0(analysis, "_", metrics_config$return[1])]]
+        se <- cat_data[[paste0(analysis, "_", metrics_config$return[2])]]
+        format_value_se(val, se, digits, format_latex)
+      }, groups, summaries, SIMPLIFY = TRUE)
+    }
+  }
+  
+  # Then add all outperformance columns
+  for (analysis in analysis_types) {
+    analysis_label <- switch(analysis,
+                           "raw" = "Raw",
+                           "capm" = "CAPM", 
+                           "ff3" = "FF3",
+                           analysis)
+    
+    if ("outperform" %in% names(metrics_config)) {
+      col_name <- paste0(analysis_label, "_Outperformance")
+      result_df[[col_name]] <- mapply(function(grp, cat_data) {
+        val <- cat_data[[paste0(analysis, "_", metrics_config$outperform[1])]]
+        se <- cat_data[[paste0(analysis, "_", metrics_config$outperform[2])]]
+        format_value_se(val, se, digits, format_latex)
+      }, groups, summaries, SIMPLIFY = TRUE)
+    }
+  }
+  
+  return(result_df)
+}
+
+# Function to export tables in multiple formats
+export_tables_multi_format <- function(table_data, base_filename, 
+                                      formats = c("csv", "latex", "txt"),
+                                      latex_options = list()) {
+  
+  results_files <- list()
+  
+  # Export CSV
+  if ("csv" %in% formats) {
+    csv_file <- paste0(base_filename, ".csv")
+    write.csv(table_data, csv_file, row.names = FALSE)
+    results_files$csv <- csv_file
+    cat("Exported CSV:", csv_file, "\n")
+  }
+  
+  # Export LaTeX with enhanced formatting
+  if ("latex" %in% formats) {
+    latex_file <- paste0(base_filename, ".tex")
+    
+    # Apply default LaTeX options with group headers
+    default_opts <- list(
+      caption = "", 
+      label = "",
+      group_headers = list(
+        list(title = "Post-Sample Return", span = 3),
+        list(title = "Outperformance vs Data-Mining", span = 3)
+      ),
+      placement = "htbp"
+    )
+    latex_opts <- modifyList(default_opts, latex_options)
+    
+    # Use the enhanced formatted table function
+    latex_code <- do.call(create_formatted_latex_table, c(list(table_data = table_data), latex_opts))
+    writeLines(latex_code, latex_file)
+    results_files$latex <- latex_file
+    cat("Exported LaTeX:", latex_file, "\n")
+  }
+  
+  # Export formatted text
+  if ("txt" %in% formats) {
+    txt_file <- paste0(base_filename, ".txt")
+    sink(txt_file)
+    print(table_data, row.names = FALSE)
+    sink()
+    results_files$txt <- txt_file
+    cat("Exported TXT:", txt_file, "\n")
+  }
+  
+  return(results_files)
 }
 
 # Print filtered table
@@ -1641,208 +1961,163 @@ for(group in groups_journal) {
               "", raw_se, capm_se, ff3_se, raw_out_se, capm_out_se, ff3_out_se))
 }
 
-# Export tables to CSV -------------------------------------------------------
+# Export tables to CSV and LaTeX -------------------------------------------------------
 
-# Function to format values with standard errors in parentheses
-format_with_se <- function(value, se) {
-  if(is.na(value) || is.na(se)) return(NA)
-  return(paste0(round(value), " (", round(se), ")"))
+# REFACTORED TABLE CREATION USING NEW HELPER FUNCTIONS
+
+# Build main summary table using refactored approach
+main_groups <- c("Risk", "Mispricing", "Agnostic", "No Model", "Stylized", "Dynamic or Quantitative")
+main_categories <- c(rep("Theoretical Foundation", 3), rep("Modeling Formalism", 3))
+
+# Collect theory summaries
+theory_summaries <- list(
+  raw = raw_t2_summary_theory,
+  capm = capm_t2_summary_theory,
+  ff3 = ff3_t2_summary_theory
+)
+
+# Collect model summaries
+model_summaries <- list(
+  raw = raw_t2_summary_model,
+  capm = capm_t2_summary_model,
+  ff3 = ff3_t2_summary_model
+)
+
+# Build data for each group
+main_table_data <- list()
+for (i in 1:length(main_groups)) {
+  group <- main_groups[i]
+  
+  if (i <= 3) {
+    # Theory groups
+    main_table_data[[i]] <- build_table_row(theory_summaries, group, "theory_group")
+  } else {
+    # Model groups
+    model_group <- main_groups[i]
+    main_table_data[[i]] <- build_table_row(model_summaries, model_group, "modeltype_grouped")
+  }
 }
 
-# Create comprehensive summary table for export (formatted like printed table)
-export_table_main <- data.frame(
-  Category = c(rep("Theoretical Foundation", 3), rep("Modeling Formalism", 3), "Overall"),
-  Group = c("Risk", "Mispricing", "Agnostic", "No Model", "Stylized", "Dynamic or Quantitative", "All"),
-  # Post-sample returns with standard errors
-  Raw_Return = c(
-    format_with_se(get_values(raw_t2_summary_theory, "theory_group", "Risk", "pub_oos"), 
-                   get_values(raw_t2_summary_theory, "theory_group", "Risk", "pub_oos_se")),
-    format_with_se(get_values(raw_t2_summary_theory, "theory_group", "Mispricing", "pub_oos"), 
-                   get_values(raw_t2_summary_theory, "theory_group", "Mispricing", "pub_oos_se")),
-    format_with_se(get_values(raw_t2_summary_theory, "theory_group", "Agnostic", "pub_oos"), 
-                   get_values(raw_t2_summary_theory, "theory_group", "Agnostic", "pub_oos_se")),
-    format_with_se(get_values(raw_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos"), 
-                   get_values(raw_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos_se")),
-    format_with_se(get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"), 
-                   get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos_se")),
-    format_with_se(get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos"), 
-                   get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos_se")),
-    format_with_se(overall_t2_summary_raw$pub_oos, overall_t2_summary_raw$pub_oos_se)
-  ),
-  CAPM_Return = c(
-    format_with_se(get_values(capm_t2_summary_theory, "theory_group", "Risk", "pub_oos"), 
-                   get_values(capm_t2_summary_theory, "theory_group", "Risk", "pub_oos_se")),
-    format_with_se(get_values(capm_t2_summary_theory, "theory_group", "Mispricing", "pub_oos"), 
-                   get_values(capm_t2_summary_theory, "theory_group", "Mispricing", "pub_oos_se")),
-    format_with_se(get_values(capm_t2_summary_theory, "theory_group", "Agnostic", "pub_oos"), 
-                   get_values(capm_t2_summary_theory, "theory_group", "Agnostic", "pub_oos_se")),
-    format_with_se(get_values(capm_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos"), 
-                   get_values(capm_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos_se")),
-    format_with_se(get_values(capm_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"), 
-                   get_values(capm_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos_se")),
-    format_with_se(get_values(capm_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos"), 
-                   get_values(capm_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos_se")),
-    format_with_se(overall_t2_summary_capm$pub_oos, overall_t2_summary_capm$pub_oos_se)
-  ),
-  FF3_Return = c(
-    format_with_se(get_values(ff3_t2_summary_theory, "theory_group", "Risk", "pub_oos"), 
-                   get_values(ff3_t2_summary_theory, "theory_group", "Risk", "pub_oos_se")),
-    format_with_se(get_values(ff3_t2_summary_theory, "theory_group", "Mispricing", "pub_oos"), 
-                   get_values(ff3_t2_summary_theory, "theory_group", "Mispricing", "pub_oos_se")),
-    format_with_se(get_values(ff3_t2_summary_theory, "theory_group", "Agnostic", "pub_oos"), 
-                   get_values(ff3_t2_summary_theory, "theory_group", "Agnostic", "pub_oos_se")),
-    format_with_se(get_values(ff3_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos"), 
-                   get_values(ff3_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos_se")),
-    format_with_se(get_values(ff3_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"), 
-                   get_values(ff3_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos_se")),
-    format_with_se(get_values(ff3_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos"), 
-                   get_values(ff3_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos_se")),
-    format_with_se(overall_t2_summary_ff3$pub_oos, overall_t2_summary_ff3$pub_oos_se)
-  ),
-  # Outperformance vs data-mining with standard errors
-  Raw_Outperformance = c(
-    format_with_se(get_values(raw_t2_summary_theory, "theory_group", "Risk", "outperform"), 
-                   get_values(raw_t2_summary_theory, "theory_group", "Risk", "outperform_se")),
-    format_with_se(get_values(raw_t2_summary_theory, "theory_group", "Mispricing", "outperform"), 
-                   get_values(raw_t2_summary_theory, "theory_group", "Mispricing", "outperform_se")),
-    format_with_se(get_values(raw_t2_summary_theory, "theory_group", "Agnostic", "outperform"), 
-                   get_values(raw_t2_summary_theory, "theory_group", "Agnostic", "outperform_se")),
-    format_with_se(get_values(raw_t2_summary_model, "modeltype_grouped", "No Model", "outperform"), 
-                   get_values(raw_t2_summary_model, "modeltype_grouped", "No Model", "outperform_se")),
-    format_with_se(get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"), 
-                   get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "outperform_se")),
-    format_with_se(get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform"), 
-                   get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform_se")),
-    format_with_se(overall_t2_summary_raw$outperform, overall_t2_summary_raw$outperform_se)
-  ),
-  CAPM_Outperformance = c(
-    format_with_se(get_values(capm_t2_summary_theory, "theory_group", "Risk", "outperform"), 
-                   get_values(capm_t2_summary_theory, "theory_group", "Risk", "outperform_se")),
-    format_with_se(get_values(capm_t2_summary_theory, "theory_group", "Mispricing", "outperform"), 
-                   get_values(capm_t2_summary_theory, "theory_group", "Mispricing", "outperform_se")),
-    format_with_se(get_values(capm_t2_summary_theory, "theory_group", "Agnostic", "outperform"), 
-                   get_values(capm_t2_summary_theory, "theory_group", "Agnostic", "outperform_se")),
-    format_with_se(get_values(capm_t2_summary_model, "modeltype_grouped", "No Model", "outperform"), 
-                   get_values(capm_t2_summary_model, "modeltype_grouped", "No Model", "outperform_se")),
-    format_with_se(get_values(capm_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"), 
-                   get_values(capm_t2_summary_model, "modeltype_grouped", "Stylized", "outperform_se")),
-    format_with_se(get_values(capm_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform"), 
-                   get_values(capm_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform_se")),
-    format_with_se(overall_t2_summary_capm$outperform, overall_t2_summary_capm$outperform_se)
-  ),
-  FF3_Outperformance = c(
-    format_with_se(get_values(ff3_t2_summary_theory, "theory_group", "Risk", "outperform"), 
-                   get_values(ff3_t2_summary_theory, "theory_group", "Risk", "outperform_se")),
-    format_with_se(get_values(ff3_t2_summary_theory, "theory_group", "Mispricing", "outperform"), 
-                   get_values(ff3_t2_summary_theory, "theory_group", "Mispricing", "outperform_se")),
-    format_with_se(get_values(ff3_t2_summary_theory, "theory_group", "Agnostic", "outperform"), 
-                   get_values(ff3_t2_summary_theory, "theory_group", "Agnostic", "outperform_se")),
-    format_with_se(get_values(ff3_t2_summary_model, "modeltype_grouped", "No Model", "outperform"), 
-                   get_values(ff3_t2_summary_model, "modeltype_grouped", "No Model", "outperform_se")),
-    format_with_se(get_values(ff3_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"), 
-                   get_values(ff3_t2_summary_model, "modeltype_grouped", "Stylized", "outperform_se")),
-    format_with_se(get_values(ff3_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform"), 
-                   get_values(ff3_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform_se")),
-    format_with_se(overall_t2_summary_ff3$outperform, overall_t2_summary_ff3$outperform_se)
-  )
+# Add overall row
+overall_data <- list(
+  raw_pub_oos = overall_t2_summary_raw$pub_oos,
+  raw_pub_oos_se = overall_t2_summary_raw$pub_oos_se,
+  raw_outperform = overall_t2_summary_raw$outperform,
+  raw_outperform_se = overall_t2_summary_raw$outperform_se,
+  capm_pub_oos = overall_t2_summary_capm$pub_oos,
+  capm_pub_oos_se = overall_t2_summary_capm$pub_oos_se,
+  capm_outperform = overall_t2_summary_capm$outperform,
+  capm_outperform_se = overall_t2_summary_capm$outperform_se,
+  ff3_pub_oos = overall_t2_summary_ff3$pub_oos,
+  ff3_pub_oos_se = overall_t2_summary_ff3$pub_oos_se,
+  ff3_outperform = overall_t2_summary_ff3$outperform,
+  ff3_outperform_se = overall_t2_summary_ff3$outperform_se
 )
 
-# Create discipline/journal table for export
-export_table_discipline <- data.frame(
-  Category = c(rep("Discipline", 2), rep("Journal Ranking", 3)),
-  Group = c("Finance", "Accounting", "JF, JFE, RFS", "AR, JAR, JAE", "Other"),
-  Raw_Return = c(
-    format_with_se(get_values(raw_t2_summary_discipline, "discipline", "Finance", "pub_oos"), 
-                   get_values(raw_t2_summary_discipline, "discipline", "Finance", "pub_oos_se")),
-    format_with_se(get_values(raw_t2_summary_discipline, "discipline", "Accounting", "pub_oos"), 
-                   get_values(raw_t2_summary_discipline, "discipline", "Accounting", "pub_oos_se")),
-    format_with_se(get_values(raw_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "pub_oos"), 
-                   get_values(raw_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "pub_oos_se")),
-    format_with_se(get_values(raw_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "pub_oos"), 
-                   get_values(raw_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "pub_oos_se")),
-    format_with_se(get_values(raw_t2_summary_journal, "journal_rank", "Other", "pub_oos"), 
-                   get_values(raw_t2_summary_journal, "journal_rank", "Other", "pub_oos_se"))
-  ),
-  CAPM_Return = c(
-    format_with_se(get_values(capm_t2_summary_discipline, "discipline", "Finance", "pub_oos"), 
-                   get_values(capm_t2_summary_discipline, "discipline", "Finance", "pub_oos_se")),
-    format_with_se(get_values(capm_t2_summary_discipline, "discipline", "Accounting", "pub_oos"), 
-                   get_values(capm_t2_summary_discipline, "discipline", "Accounting", "pub_oos_se")),
-    format_with_se(get_values(capm_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "pub_oos"), 
-                   get_values(capm_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "pub_oos_se")),
-    format_with_se(get_values(capm_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "pub_oos"), 
-                   get_values(capm_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "pub_oos_se")),
-    format_with_se(get_values(capm_t2_summary_journal, "journal_rank", "Other", "pub_oos"), 
-                   get_values(capm_t2_summary_journal, "journal_rank", "Other", "pub_oos_se"))
-  ),
-  FF3_Return = c(
-    format_with_se(get_values(ff3_t2_summary_discipline, "discipline", "Finance", "pub_oos"), 
-                   get_values(ff3_t2_summary_discipline, "discipline", "Finance", "pub_oos_se")),
-    format_with_se(get_values(ff3_t2_summary_discipline, "discipline", "Accounting", "pub_oos"), 
-                   get_values(ff3_t2_summary_discipline, "discipline", "Accounting", "pub_oos_se")),
-    format_with_se(get_values(ff3_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "pub_oos"), 
-                   get_values(ff3_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "pub_oos_se")),
-    format_with_se(get_values(ff3_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "pub_oos"), 
-                   get_values(ff3_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "pub_oos_se")),
-    format_with_se(get_values(ff3_t2_summary_journal, "journal_rank", "Other", "pub_oos"), 
-                   get_values(ff3_t2_summary_journal, "journal_rank", "Other", "pub_oos_se"))
-  ),
-  Raw_Outperformance = c(
-    format_with_se(get_values(raw_t2_summary_discipline, "discipline", "Finance", "outperform"), 
-                   get_values(raw_t2_summary_discipline, "discipline", "Finance", "outperform_se")),
-    format_with_se(get_values(raw_t2_summary_discipline, "discipline", "Accounting", "outperform"), 
-                   get_values(raw_t2_summary_discipline, "discipline", "Accounting", "outperform_se")),
-    format_with_se(get_values(raw_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "outperform"), 
-                   get_values(raw_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "outperform_se")),
-    format_with_se(get_values(raw_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "outperform"), 
-                   get_values(raw_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "outperform_se")),
-    format_with_se(get_values(raw_t2_summary_journal, "journal_rank", "Other", "outperform"), 
-                   get_values(raw_t2_summary_journal, "journal_rank", "Other", "outperform_se"))
-  ),
-  CAPM_Outperformance = c(
-    format_with_se(get_values(capm_t2_summary_discipline, "discipline", "Finance", "outperform"), 
-                   get_values(capm_t2_summary_discipline, "discipline", "Finance", "outperform_se")),
-    format_with_se(get_values(capm_t2_summary_discipline, "discipline", "Accounting", "outperform"), 
-                   get_values(capm_t2_summary_discipline, "discipline", "Accounting", "outperform_se")),
-    format_with_se(get_values(capm_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "outperform"), 
-                   get_values(capm_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "outperform_se")),
-    format_with_se(get_values(capm_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "outperform"), 
-                   get_values(capm_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "outperform_se")),
-    format_with_se(get_values(capm_t2_summary_journal, "journal_rank", "Other", "outperform"), 
-                   get_values(capm_t2_summary_journal, "journal_rank", "Other", "outperform_se"))
-  ),
-  FF3_Outperformance = c(
-    format_with_se(get_values(ff3_t2_summary_discipline, "discipline", "Finance", "outperform"), 
-                   get_values(ff3_t2_summary_discipline, "discipline", "Finance", "outperform_se")),
-    format_with_se(get_values(ff3_t2_summary_discipline, "discipline", "Accounting", "outperform"), 
-                   get_values(ff3_t2_summary_discipline, "discipline", "Accounting", "outperform_se")),
-    format_with_se(get_values(ff3_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "outperform"), 
-                   get_values(ff3_t2_summary_journal, "journal_rank", "JF, JFE, RFS", "outperform_se")),
-    format_with_se(get_values(ff3_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "outperform"), 
-                   get_values(ff3_t2_summary_journal, "journal_rank", "AR, JAR, JAE", "outperform_se")),
-    format_with_se(get_values(ff3_t2_summary_journal, "journal_rank", "Other", "outperform"), 
-                   get_values(ff3_t2_summary_journal, "journal_rank", "Other", "outperform_se"))
-  )
+main_categories <- c(main_categories, "Overall")
+main_groups <- c(main_groups, "All")
+main_table_data[[length(main_table_data) + 1]] <- overall_data
+
+# Create the main table using the new build_summary_table function
+export_table_main <- build_summary_table(
+  categories = main_categories,
+  groups = main_groups,
+  summaries = main_table_data,
+  analysis_types = c("raw", "capm", "ff3"),
+  format_latex = FALSE,
+  digits = 0
 )
 
-# Export to CSV
+# Build discipline/journal table using refactored approach
+discipline_groups <- c("Finance", "Accounting")
+discipline_categories <- rep("Discipline", 2)
+
+journal_groups <- c("JF, JFE, RFS", "AR, JAR, JAE", "Other")
+journal_categories <- rep("Journal Ranking", 3)
+
+# Collect discipline summaries
+discipline_summaries <- list(
+  raw = raw_t2_summary_discipline,
+  capm = capm_t2_summary_discipline,
+  ff3 = ff3_t2_summary_discipline
+)
+
+# Collect journal summaries  
+journal_summaries <- list(
+  raw = raw_t2_summary_journal,
+  capm = capm_t2_summary_journal,
+  ff3 = ff3_t2_summary_journal
+)
+
+# Build discipline data
+discipline_table_data <- list()
+for (i in 1:length(discipline_groups)) {
+  discipline_table_data[[i]] <- build_table_row(discipline_summaries, discipline_groups[i], "discipline")
+}
+
+# Build journal data
+for (i in 1:length(journal_groups)) {
+  discipline_table_data[[length(discipline_table_data) + 1]] <- build_table_row(journal_summaries, journal_groups[i], "journal_rank")
+}
+
+# Create the discipline/journal table
+export_table_discipline <- build_summary_table(
+  categories = c(discipline_categories, journal_categories),
+  groups = c(discipline_groups, journal_groups),
+  summaries = discipline_table_data,
+  analysis_types = c("raw", "capm", "ff3"),
+  format_latex = FALSE,
+  digits = 0
+)
+
+# [Old repetitive code with 66+ format_with_se(get_values(...)) calls removed]
+# Now using the refactored build_summary_table() function above 
+# Export to CSV and LaTeX using new multi-format function
 file_suffix <- ifelse(filter_type == "return", paste0("_r", gsub("\\.", "", as.character(return_threshold))), paste0("_t", t_threshold_b))
-write.csv(export_table_main, paste0(results_dir, "/Table_RiskAdjusted_TheoryModel", file_suffix, ".csv"), row.names = FALSE)
-write.csv(export_table_discipline, paste0(results_dir, "/Table_RiskAdjusted_DisciplineJournal", file_suffix, ".csv"), row.names = FALSE)
 
-# Also export the raw summary data for reference
-write.csv(raw_t2_summary_theory, paste0(results_dir, "/Raw_TheoryGroup", file_suffix, ".csv"), row.names = FALSE)
-write.csv(capm_t2_summary_theory, paste0(results_dir, "/CAPM_TheoryGroup", file_suffix, ".csv"), row.names = FALSE)
-write.csv(ff3_t2_summary_theory, paste0(results_dir, "/FF3_TheoryGroup", file_suffix, ".csv"), row.names = FALSE)
-write.csv(raw_t2_summary_model, paste0(results_dir, "/Raw_ModelGroup", file_suffix, ".csv"), row.names = FALSE)
-write.csv(capm_t2_summary_model, paste0(results_dir, "/CAPM_ModelGroup", file_suffix, ".csv"), row.names = FALSE)
-write.csv(ff3_t2_summary_model, paste0(results_dir, "/FF3_ModelGroup", file_suffix, ".csv"), row.names = FALSE)
-write.csv(raw_t2_summary_discipline, paste0(results_dir, "/Raw_Discipline", file_suffix, ".csv"), row.names = FALSE)
-write.csv(capm_t2_summary_discipline, paste0(results_dir, "/CAPM_Discipline", file_suffix, ".csv"), row.names = FALSE)
-write.csv(ff3_t2_summary_discipline, paste0(results_dir, "/FF3_Discipline", file_suffix, ".csv"), row.names = FALSE)
-write.csv(raw_t2_summary_journal, paste0(results_dir, "/Raw_Journal", file_suffix, ".csv"), row.names = FALSE)
-write.csv(capm_t2_summary_journal, paste0(results_dir, "/CAPM_Journal", file_suffix, ".csv"), row.names = FALSE)
-write.csv(ff3_t2_summary_journal, paste0(results_dir, "/FF3_Journal", file_suffix, ".csv"), row.names = FALSE)
+# Export main theory/model table in multiple formats
+export_tables_multi_format(
+  export_table_main,
+  base_filename = paste0(results_dir, "/Table_RiskAdjusted_TheoryModel", file_suffix),
+  formats = c("csv", "latex"),
+  latex_options = list(
+    caption = "Risk-Adjusted Returns: Theoretical Foundation and Modeling Formalism",
+    label = "tab:risk_adjusted_theory_model"
+  )
+)
+
+# Export discipline/journal table in multiple formats  
+export_tables_multi_format(
+  export_table_discipline,
+  base_filename = paste0(results_dir, "/Table_RiskAdjusted_DisciplineJournal", file_suffix),
+  formats = c("csv", "latex"),
+  latex_options = list(
+    caption = "Risk-Adjusted Returns: Discipline and Journal Rankings",
+    label = "tab:risk_adjusted_discipline_journal"
+  )
+)
+
+# Also export the raw summary data for reference (CSV only for raw data)
+# Using a loop to reduce repetition
+summary_data_list <- list(
+  list(data = raw_t2_summary_theory, name = "Raw_TheoryGroup"),
+  list(data = capm_t2_summary_theory, name = "CAPM_TheoryGroup"),
+  list(data = ff3_t2_summary_theory, name = "FF3_TheoryGroup"),
+  list(data = raw_t2_summary_model, name = "Raw_ModelGroup"),
+  list(data = capm_t2_summary_model, name = "CAPM_ModelGroup"),
+  list(data = ff3_t2_summary_model, name = "FF3_ModelGroup"),
+  list(data = raw_t2_summary_discipline, name = "Raw_Discipline"),
+  list(data = capm_t2_summary_discipline, name = "CAPM_Discipline"),
+  list(data = ff3_t2_summary_discipline, name = "FF3_Discipline"),
+  list(data = raw_t2_summary_journal, name = "Raw_Journal"),
+  list(data = capm_t2_summary_journal, name = "CAPM_Journal"),
+  list(data = ff3_t2_summary_journal, name = "FF3_Journal")
+)
+
+# Export all summary data efficiently
+for (item in summary_data_list) {
+  write.csv(item$data, paste0(results_dir, "/", item$name, file_suffix, ".csv"), row.names = FALSE)
+}
 
 cat("\n=== EXPORTED TABLES ===\n")
 cat(paste("All files saved in:", results_dir, "\n"))
