@@ -1653,6 +1653,30 @@ for(group in c("No Model", "Any Model")) {
               "", raw_se, capm_se, ff3_se, raw_out_se, capm_out_se, ff3_out_se))
 }
 
+# Store Any Model vs No Model data for later export
+anymodel_table_data <- list()
+anymodel_groups <- c("No Model", "Any Model")
+
+for(i in 1:length(anymodel_groups)) {
+  group <- anymodel_groups[i]
+  anymodel_table_data[[i]] <- list(
+    raw_pub_oos = get_values(raw_t2_summary_anymodel, "model_binary", group, "pub_oos"),
+    raw_pub_oos_se = get_values(raw_t2_summary_anymodel, "model_binary", group, "pub_oos_se"),
+    raw_outperform = get_values(raw_t2_summary_anymodel, "model_binary", group, "outperform"),
+    raw_outperform_se = get_values(raw_t2_summary_anymodel, "model_binary", group, "outperform_se"),
+    
+    capm_pub_oos = get_values(capm_t2_summary_anymodel, "model_binary", group, "pub_oos"),
+    capm_pub_oos_se = get_values(capm_t2_summary_anymodel, "model_binary", group, "pub_oos_se"),
+    capm_outperform = get_values(capm_t2_summary_anymodel, "model_binary", group, "outperform"),
+    capm_outperform_se = get_values(capm_t2_summary_anymodel, "model_binary", group, "outperform_se"),
+    
+    ff3_pub_oos = get_values(ff3_t2_summary_anymodel, "model_binary", group, "pub_oos"),
+    ff3_pub_oos_se = get_values(ff3_t2_summary_anymodel, "model_binary", group, "pub_oos_se"),
+    ff3_outperform = get_values(ff3_t2_summary_anymodel, "model_binary", group, "outperform"),
+    ff3_outperform_se = get_values(ff3_t2_summary_anymodel, "model_binary", group, "outperform_se")
+  )
+}
+
 # Time-varying Any Model vs No Model (if available)
 if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_capm_tv_t2")) {
   # CAPM time-varying t >= t_threshold_b filtered (by model binary)
@@ -2097,6 +2121,29 @@ export_tables_multi_format(
   )
 )
 
+# Create and export the Any Model vs No Model table
+if (exists("anymodel_table_data")) {
+  export_table_anymodel <- build_summary_table(
+    categories = rep("", length(anymodel_groups)),  # No categories for this table
+    groups = anymodel_groups,
+    summaries = anymodel_table_data,
+    analysis_types = c("raw", "capm", "ff3"),
+    format_latex = FALSE,
+    digits = 0
+  )
+  
+  # Export Any Model vs No Model table in multiple formats
+  export_tables_multi_format(
+    export_table_anymodel %>% select(-Category),  # Remove empty Category column
+    base_filename = paste0(results_dir, "/Table_RiskAdjusted_AnyModelVsNoModel", file_suffix),
+    formats = c("csv", "latex"),
+    latex_options = list(
+      caption = "Risk-Adjusted Returns: Any Model vs No Model",
+      label = "tab:risk_adjusted_anymodel"
+    )
+  )
+}
+
 # Also export the raw summary data for reference (CSV only for raw data)
 # Using a loop to reduce repetition
 summary_data_list <- list(
@@ -2122,8 +2169,9 @@ for (item in summary_data_list) {
 cat("\n=== EXPORTED TABLES ===\n")
 cat(paste("All files saved in:", results_dir, "\n"))
 cat("\nMain summary tables:\n")
-cat(paste0("- Table_RiskAdjusted_TheoryModel", file_suffix, ".csv\n"))
-cat(paste0("- Table_RiskAdjusted_DisciplineJournal", file_suffix, ".csv\n"))
+cat(paste0("- Table_RiskAdjusted_TheoryModel", file_suffix, ".csv and .tex\n"))
+cat(paste0("- Table_RiskAdjusted_DisciplineJournal", file_suffix, ".csv and .tex\n"))
+cat(paste0("- Table_RiskAdjusted_AnyModelVsNoModel", file_suffix, ".csv and .tex\n"))
 cat("\nDetailed breakdowns:\n")
 cat("- Raw/CAPM/FF3 by TheoryGroup/ModelGroup/Discipline/Journal (12 files)\n")
 cat("\nPlots generated:\n")
