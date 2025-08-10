@@ -5,11 +5,12 @@
 # Setup ----------------------------------------------------------------
 rm(list = ls())
 source("0_Environment.R")
-library(doParallel)
 
 t_threshold_a = 1
 t_threshold_b = 2
-return_threshold = 0.15  # 15 bps threshold for average in-sample return/alpha
+# For raw returns: threshold is in basis points (e.g., 15 = 0.15% per month)
+# For CAPM/FF3 alphas: values are already normalized to ~100, so use 15 for consistency
+return_threshold = 0.15  # 15 basis points for raw returns/alphas
 
 # Filter type: "tstat" for t-stat filtering, "return" for return filtering
 # Check for environment variable first, otherwise use default
@@ -18,7 +19,9 @@ filter_type <- Sys.getenv("FILTER_TYPE", "return")  # Default to return filterin
 # Create results subfolder for risk-adjusted analysis
 base_results_dir <- "../Results/RiskAdjusted"
 if (filter_type == "return") {
-  results_dir <- file.path(base_results_dir, paste0("ReturnFilter_", return_threshold))
+  # Format threshold for directory name (e.g., 15 -> "15", 0.15 -> "0.15")
+  threshold_str <- if (return_threshold < 1) paste0("0.", return_threshold * 100) else as.character(return_threshold)
+  results_dir <- file.path(base_results_dir, paste0("ReturnFilter_", threshold_str))
 } else {
   results_dir <- file.path(base_results_dir, "TstatFilter")
 }
@@ -45,10 +48,6 @@ summary_file <- paste0('../Data/Processed/', DMshortname, ' MatchedRiskAdjSummar
 if (!file.exists(risk_adj_file) | !file.exists(summary_file)) {
   cat("Risk-adjusted DM files not found. Running 2d_RiskAdjustDataMinedSignals.R...\n")
   source("2d_RiskAdjustDataMinedSignals.R")
-}
-if (!file.exists("../Data/Processed/ret_for_plot1.RDS")) {
-  cat("Ret_for_plot1 file not found. Running 4c1_ResearchVsDMprep.R...\n")
-  source("4c1_ResearchVsDMprep.R")
 }
 
 # Helper functions -----------------------------------------------------
@@ -122,7 +121,7 @@ create_risk_adjusted_plot <- function(plot_data, pub_col, dm_col,
     
     # Create suffix for file naming
     if (filter_type == "return") {
-      suffix <- paste0(tolower(adjustment_type), "_r", gsub("\\.", "", as.character(return_threshold)))
+      suffix <- paste0(tolower(adjustment_type), "_r", gsub("\\.", "", format(return_threshold, nsmall = 0)))
     } else {
       suffix <- paste0(tolower(adjustment_type), "_t", t_threshold)
     }
@@ -202,7 +201,6 @@ czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
 
 # Load pre-computed matched returns
 ret_for_plot0 <- readRDS("../Data/Processed/ret_for_plot0.RDS")
-ret_for_plot1 <- readRDS("../Data/Processed/ret_for_plot1.RDS")
 
 # Load pre-computed risk-adjusted DM returns
 # Load individual DM returns for t-stat computation
@@ -221,16 +219,43 @@ ret_for_plot0 <- ret_for_plot0 %>%
     by = c("pubname" = "signalname", "eventDate" = "eventDate")
   )
 
-ret_for_plot1 <- ret_for_plot1 %>%
-  left_join(
-    czret %>% select(signalname, eventDate, date, mktrf, smb, hml),
-    by = c("pubname" = "signalname", "eventDate" = "eventDate")
-  )
-
 ## CAPM adjustments - full sample betas
 czret %>% setDT()
+# Ensure stable ordering before any LOCF fills
+data.table::setorder(czret, signalname, eventDate)
 
-print(czret[, .(min(ret_scaled), max(ret_scaled), min(ret), max(ret), min(mktrf, na.rm = TRUE), max(mktrf, na.rm = TRUE), min(smb, na.rm = TRUE), max(smb, na.rm = TRUE), min(hml, na.rm = TRUE), max(hml, na.rm = TRUE))])
+print(czret[, .(
+  ret_scaled_min = min(ret_scaled, na.rm = TRUE),
+  ret_scaled_p05 = quantile(ret_scaled, 0.05, na.rm = TRUE),
+  ret_scaled_p25 = quantile(ret_scaled, 0.25, na.rm = TRUE),
+  ret_scaled_p75 = quantile(ret_scaled, 0.75, na.rm = TRUE),
+  ret_scaled_p95 = quantile(ret_scaled, 0.95, na.rm = TRUE),
+  ret_scaled_max = max(ret_scaled, na.rm = TRUE),
+  ret_min = min(ret, na.rm = TRUE),
+  ret_p05 = quantile(ret, 0.05, na.rm = TRUE),
+  ret_p25 = quantile(ret, 0.25, na.rm = TRUE),
+  ret_p75 = quantile(ret, 0.75, na.rm = TRUE),
+  ret_p95 = quantile(ret, 0.95, na.rm = TRUE),
+  ret_max = max(ret, na.rm = TRUE),
+  mktrf_min = min(mktrf, na.rm = TRUE),
+  mktrf_p05 = quantile(mktrf, 0.05, na.rm = TRUE),
+  mktrf_p25 = quantile(mktrf, 0.25, na.rm = TRUE),
+  mktrf_p75 = quantile(mktrf, 0.75, na.rm = TRUE),
+  mktrf_p95 = quantile(mktrf, 0.95, na.rm = TRUE),
+  mktrf_max = max(mktrf, na.rm = TRUE),
+  smb_min = min(smb, na.rm = TRUE),
+  smb_p05 = quantile(smb, 0.05, na.rm = TRUE),
+  smb_p25 = quantile(smb, 0.25, na.rm = TRUE),
+  smb_p75 = quantile(smb, 0.75, na.rm = TRUE),
+  smb_p95 = quantile(smb, 0.95, na.rm = TRUE),
+  smb_max = max(smb, na.rm = TRUE),
+  hml_min = min(hml, na.rm = TRUE),
+  hml_p05 = quantile(hml, 0.05, na.rm = TRUE),
+  hml_p25 = quantile(hml, 0.25, na.rm = TRUE),
+  hml_p75 = quantile(hml, 0.75, na.rm = TRUE),
+  hml_p95 = quantile(hml, 0.95, na.rm = TRUE),
+  hml_max = max(hml, na.rm = TRUE)
+)])
 
 # Full-sample betas for published signals
 czret[, beta_capm := extract_beta(ret = ret, mktrf = mktrf), by = signalname]
@@ -276,13 +301,18 @@ czret[, abar_ff3_t := nafill(abar_ff3_t, "locf"), by = .(signalname)]
 # Fix: Add protection against division by zero
 czret[, abnormal_ff3_normalized := ifelse(abs(abar_ff3) > 1e-10, 100*abnormal_ff3/abar_ff3, NA)]
 
-# Also compute raw return t-stats for comparison
+# Compute raw return averages and t-stats on actual returns (not scaled)
 czret[samptype == 'insamp', `:=`(
-  rbar_scaled = mean(ret_scaled, na.rm = TRUE),
-  rbar_scaled_t = mean(ret_scaled, na.rm = TRUE) / sd(ret_scaled, na.rm = TRUE) * sqrt(.N)
+  rbar_avg = mean(ret, na.rm = TRUE),  # Average actual return in basis points
+  rbar_t = {
+    m <- mean(ret, na.rm = TRUE)
+    s <- sd(ret, na.rm = TRUE) 
+    n <- sum(!is.na(ret))
+    if (n > 1 && s > 0) m / s * sqrt(n) else NA_real_
+  }
 ), by = signalname]
-czret[, rbar_scaled := nafill(rbar_scaled, "locf"), by = .(signalname)]
-czret[, rbar_scaled_t := nafill(rbar_scaled_t, "locf"), by = .(signalname)]
+czret[, rbar_avg := nafill(rbar_avg, "locf"), by = .(signalname)]
+czret[, rbar_t := nafill(rbar_t, "locf"), by = .(signalname)]
 
 # Compute normalized DM abnormal returns ---------------------------------
 
@@ -412,8 +442,9 @@ if (filter_type == "return") {
     )
   
   # Get published signals that meet return threshold
-  # Note: rbar_scaled, abar_capm, abar_ff3 are already in percentage terms (multiplied by 100)
-  signals_raw_t2 <- unique(czret[rbar_scaled >= return_threshold]$signalname)
+  # Note: abar_capm, abar_ff3 are already in percentage terms (multiplied by 100)
+  # For raw returns, use rbar_avg which is in basis points (return_threshold is in basis points)
+  signals_raw_t2 <- unique(czret[rbar_avg >= return_threshold]$signalname)
   signals_capm_t2 <- unique(czret[abar_capm >= return_threshold]$signalname)
   signals_ff3_t2 <- unique(czret[abar_ff3 >= return_threshold]$signalname)
   
@@ -431,7 +462,7 @@ if (filter_type == "return") {
     )
   
   # Get signals with t >= t_threshold_b for different measures
-  signals_raw_t2 <- unique(czret[rbar_scaled_t >= t_threshold_b]$signalname)
+  signals_raw_t2 <- unique(czret[rbar_t >= t_threshold_b]$signalname)
   signals_capm_t2 <- unique(czret[abar_capm_t >= t_threshold_b]$signalname)
   signals_ff3_t2 <- unique(czret[abar_ff3_t >= t_threshold_b]$signalname)
 }
@@ -905,15 +936,15 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff3_tv" %in%
   if (filter_type == "return") {
     tv_plot_data[["raw"]] <- ret_for_plot0 %>% 
       filter(!is.na(matchRet)) %>%
-      left_join(czret %>% select(signalname, rbar_scaled) %>% distinct(), 
+      left_join(czret %>% select(signalname, rbar_avg) %>% distinct(), 
                 by = c("pubname" = "signalname")) %>%
-      filter(rbar_scaled >= return_threshold)
+      filter(rbar_avg >= return_threshold)
   } else {
     tv_plot_data[["raw"]] <- ret_for_plot0 %>% 
       filter(!is.na(matchRet)) %>%
-      left_join(czret %>% select(signalname, rbar_scaled_t) %>% distinct(), 
+      left_join(czret %>% select(signalname, rbar_t) %>% distinct(), 
                 by = c("pubname" = "signalname")) %>%
-      filter(rbar_scaled_t >= t_threshold_b)
+      filter(rbar_t >= t_threshold_b)
   }
   
   tv_plot_data[["capm_tv"]] <- ret_for_plot0_capm_tv_t2
@@ -986,15 +1017,15 @@ fs_plot_data <- list()
 if (filter_type == "return") {
   fs_plot_data[["raw"]] <- ret_for_plot0 %>% 
     filter(!is.na(matchRet)) %>%
-    left_join(czret %>% select(signalname, rbar_scaled) %>% distinct(), 
+    left_join(czret %>% select(signalname, rbar_avg) %>% distinct(), 
               by = c("pubname" = "signalname")) %>%
-    filter(rbar_scaled >= return_threshold)
+    filter(rbar_avg >= return_threshold)
 } else {
   fs_plot_data[["raw"]] <- ret_for_plot0 %>% 
     filter(!is.na(matchRet)) %>%
-    left_join(czret %>% select(signalname, rbar_scaled_t) %>% distinct(), 
+    left_join(czret %>% select(signalname, rbar_t) %>% distinct(), 
               by = c("pubname" = "signalname")) %>%
-    filter(rbar_scaled_t >= t_threshold_b)
+    filter(rbar_t >= t_threshold_b)
 }
 
 fs_plot_data[["capm"]] <- ret_for_plot0_capm_t2
@@ -1047,15 +1078,15 @@ if (filter_type == "return") {
 if (filter_type == "return") {
   raw_t2_summary_theory <- compute_outperformance(
     ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
-      left_join(czret %>% select(signalname, rbar_scaled) %>% distinct(), by = c("pubname" = "signalname")) %>%
-      filter(rbar_scaled >= return_threshold), 
+      left_join(czret %>% select(signalname, rbar_avg) %>% distinct(), by = c("pubname" = "signalname")) %>%
+      filter(rbar_avg >= return_threshold), 
     "ret", "matchRet", theory_mapping, "theory_group"
   )
 } else {
   raw_t2_summary_theory <- compute_outperformance(
     ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
-      left_join(czret %>% select(signalname, rbar_scaled_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
-      filter(rbar_scaled_t >= t_threshold_b), 
+      left_join(czret %>% select(signalname, rbar_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
+      filter(rbar_t >= t_threshold_b), 
     "ret", "matchRet", theory_mapping, "theory_group"
   )
 }
@@ -1076,15 +1107,15 @@ ff3_t2_summary_theory <- compute_outperformance(
 if (filter_type == "return") {
   raw_t2_summary_model <- compute_outperformance(
     ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
-      left_join(czret %>% select(signalname, rbar_scaled) %>% distinct(), by = c("pubname" = "signalname")) %>%
-      filter(rbar_scaled >= return_threshold), 
+      left_join(czret %>% select(signalname, rbar_avg) %>% distinct(), by = c("pubname" = "signalname")) %>%
+      filter(rbar_avg >= return_threshold), 
     "ret", "matchRet", model_mapping, "modeltype_grouped"
   )
 } else {
   raw_t2_summary_model <- compute_outperformance(
     ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
-      left_join(czret %>% select(signalname, rbar_scaled_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
-      filter(rbar_scaled_t >= t_threshold_b), 
+      left_join(czret %>% select(signalname, rbar_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
+      filter(rbar_t >= t_threshold_b), 
     "ret", "matchRet", model_mapping, "modeltype_grouped"
   )
 }
@@ -1103,9 +1134,9 @@ ff3_t2_summary_model <- compute_outperformance(
 
 # Overall filtered summaries
 if (filter_type == "return") {
-  filtered_signals_raw <- czret$signalname[czret$rbar_scaled >= return_threshold]
+  filtered_signals_raw <- czret$signalname[czret$rbar_avg >= return_threshold]
 } else {
-  filtered_signals_raw <- czret$signalname[czret$rbar_scaled_t >= t_threshold_b]
+  filtered_signals_raw <- czret$signalname[czret$rbar_t >= t_threshold_b]
 }
 
 overall_t2_summary_raw <- data.frame(
@@ -1714,15 +1745,15 @@ anymodel_mapping <- czcat_full %>%
 if (filter_type == "return") {
   raw_t2_summary_anymodel <- compute_outperformance(
     ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
-      left_join(czret %>% select(signalname, rbar_scaled) %>% distinct(), by = c("pubname" = "signalname")) %>%
-      filter(rbar_scaled >= return_threshold), 
+      left_join(czret %>% select(signalname, rbar_avg) %>% distinct(), by = c("pubname" = "signalname")) %>%
+      filter(rbar_avg >= return_threshold), 
     "ret", "matchRet", anymodel_mapping, "model_binary"
   )
 } else {
   raw_t2_summary_anymodel <- compute_outperformance(
     ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
-      left_join(czret %>% select(signalname, rbar_scaled_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
-      filter(rbar_scaled_t >= t_threshold_b), 
+      left_join(czret %>% select(signalname, rbar_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
+      filter(rbar_t >= t_threshold_b), 
     "ret", "matchRet", anymodel_mapping, "model_binary"
   )
 }
@@ -2075,13 +2106,13 @@ discipline_mapping_filtered <- discipline_mapping %>% filter(discipline %in% c("
 # Create data with discipline column
 if (filter_type == "return") {
   discipline_data <- ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
-    left_join(czret %>% select(signalname, rbar_scaled) %>% distinct(), by = c("pubname" = "signalname")) %>%
-    filter(rbar_scaled >= return_threshold) %>%
+    left_join(czret %>% select(signalname, rbar_avg) %>% distinct(), by = c("pubname" = "signalname")) %>%
+    filter(rbar_avg >= return_threshold) %>%
     inner_join(discipline_mapping_filtered, by = c("pubname" = "signalname"))
 } else {
   discipline_data <- ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
-    left_join(czret %>% select(signalname, rbar_scaled_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
-    filter(rbar_scaled_t >= t_threshold_b) %>%
+    left_join(czret %>% select(signalname, rbar_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
+    filter(rbar_t >= t_threshold_b) %>%
     inner_join(discipline_mapping_filtered, by = c("pubname" = "signalname"))
 }
 
@@ -2157,13 +2188,13 @@ journal_mapping_filtered <- journal_mapping %>% filter(journal_rank != "Economic
 # Raw returns filter (by journal) - excluding Economics
 if (filter_type == "return") {
   journal_data <- ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
-    left_join(czret %>% select(signalname, rbar_scaled) %>% distinct(), by = c("pubname" = "signalname")) %>%
-    filter(rbar_scaled >= return_threshold) %>%
+    left_join(czret %>% select(signalname, rbar_avg) %>% distinct(), by = c("pubname" = "signalname")) %>%
+    filter(rbar_avg >= return_threshold) %>%
     inner_join(journal_mapping_filtered, by = c("pubname" = "signalname"))
 } else {
   journal_data <- ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
-    left_join(czret %>% select(signalname, rbar_scaled_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
-    filter(rbar_scaled_t >= t_threshold_b) %>%
+    left_join(czret %>% select(signalname, rbar_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
+    filter(rbar_t >= t_threshold_b) %>%
     inner_join(journal_mapping_filtered, by = c("pubname" = "signalname"))
 }
 
@@ -2408,7 +2439,10 @@ export_table_discipline <- build_summary_table(
 # [Old repetitive code with 66+ format_with_se(get_values(...)) calls removed]
 # Now using the refactored build_summary_table() function above 
 # Export to CSV and LaTeX using new multi-format function
-file_suffix <- ifelse(filter_type == "return", paste0("_r", gsub("\\.", "", as.character(return_threshold))), paste0("_t", t_threshold_b))
+# Format file suffix based on threshold value
+file_suffix <- ifelse(filter_type == "return", 
+                     paste0("_r", gsub("\\.", "", format(return_threshold, nsmall = 0))), 
+                     paste0("_t", t_threshold_b))
 
 # Export main theory/model table in multiple formats
 export_tables_multi_format(
@@ -2625,18 +2659,11 @@ if (exists("tv_theory_data")) {
 cat("\nDetailed breakdowns:\n")
 cat("- Raw/CAPM/FF3 by TheoryGroup/ModelGroup/Discipline/Journal (12 files)\n")
 cat("\nPlots generated:\n")
-cat("- Fig_RiskAdj_raw_returns.pdf\n")
-cat("- Fig_RiskAdj_capm_adjusted.pdf\n") 
-cat("- Fig_RiskAdj_ff3_adjusted.pdf\n")
-if (filter_type == "tstat") {
-  cat("- Fig_RiskAdj_capm_t", t_threshold_a, ".pdf (t>=", t_threshold_a, " filtered)\n", sep="")
-  cat("- Fig_RiskAdj_ff3_t", t_threshold_a, ".pdf (t>=", t_threshold_a, " filtered)\n", sep="")
-}
-cat("- Fig_RiskAdj_capm_t", t_threshold_b, ".pdf (t>=", t_threshold_b, " filtered)\n", sep="")
-cat("- Fig_RiskAdj_ff3_t", t_threshold_b, ".pdf (t>=", t_threshold_b, " filtered)\n", sep="")
-if("abnormal_capm_tv" %in% names(candidateReturns_adj)) {
-  cat("- Fig_RiskAdj_capm_tv_t", t_threshold_b, ".pdf (time-varying, t>=", t_threshold_b, " filtered)\n", sep="")
-  cat("- Fig_RiskAdj_ff3_tv_t", t_threshold_b, ".pdf (time-varying, t>=", t_threshold_b, " filtered)\n", sep="")
+plot_files <- list.files(results_dir, pattern = "^Fig_RiskAdj_.*\\.pdf$", full.names = FALSE)
+if (length(plot_files) == 0) {
+  cat("- None found\n")
+} else {
+  cat(paste0("- ", plot_files, "\n"), sep = "")
 }
 # Only run t >= 1 analysis for t-stat filtering
 if (filter_type == "tstat") {
