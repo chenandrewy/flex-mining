@@ -239,7 +239,12 @@ czret[, abnormal_capm := ret - beta_capm*mktrf]
 # Normalize abnormal returns by in-sample mean and compute t-stats
 czret[samptype == 'insamp', `:=`(
   abar_capm = mean(abnormal_capm, na.rm = TRUE),
-  abar_capm_t = mean(abnormal_capm, na.rm = TRUE) / sd(abnormal_capm, na.rm = TRUE) * sqrt(.N)
+  abar_capm_t = {
+    m <- mean(abnormal_capm, na.rm = TRUE)
+    s <- sd(abnormal_capm, na.rm = TRUE)
+    n <- sum(!is.na(abnormal_capm))
+    if (n > 1 && s > 0) m / s * sqrt(n) else NA_real_
+  }
 ), by = signalname]
 czret[, abar_capm := nafill(abar_capm, "locf"), by = .(signalname)]
 czret[, abar_capm_t := nafill(abar_capm_t, "locf"), by = .(signalname)]
@@ -258,7 +263,12 @@ czret[, abnormal_ff3 := ret - (beta_ff3*mktrf + s_ff3*smb + h_ff3*hml)]
 # Normalize FF3 abnormal returns and compute t-stats
 czret[samptype == 'insamp', `:=`(
   abar_ff3 = mean(abnormal_ff3, na.rm = TRUE),
-  abar_ff3_t = mean(abnormal_ff3, na.rm = TRUE) / sd(abnormal_ff3, na.rm = TRUE) * sqrt(.N)
+  abar_ff3_t = {
+    m <- mean(abnormal_ff3, na.rm = TRUE)
+    s <- sd(abnormal_ff3, na.rm = TRUE)
+    n <- sum(!is.na(abnormal_ff3))
+    if (n > 1 && s > 0) m / s * sqrt(n) else NA_real_
+  }
 ), by = signalname]
 czret[, abar_ff3 := nafill(abar_ff3, "locf"), by = .(signalname)]
 czret[, abar_ff3_t := nafill(abar_ff3_t, "locf"), by = .(signalname)]
@@ -363,13 +373,23 @@ if(!"samptype" %in% names(candidateReturns_adj)) {
     )
 }
 
-# Compute statistics for each DM signal
+# Compute statistics for each DM signal with proper NA handling
 dm_stats <- candidateReturns_adj[
   samptype == "insamp" & !is.na(abnormal_capm),
   .(
-    # T-stats
-    abar_capm_dm_t = mean(abnormal_capm, na.rm = TRUE) / sd(abnormal_capm, na.rm = TRUE) * sqrt(.N),
-    abar_ff3_dm_t = mean(abnormal_ff3, na.rm = TRUE) / sd(abnormal_ff3, na.rm = TRUE) * sqrt(.N),
+    # T-stats with proper NA handling and zero SD protection
+    abar_capm_dm_t = {
+      m <- mean(abnormal_capm, na.rm = TRUE)
+      s <- sd(abnormal_capm, na.rm = TRUE)
+      n <- sum(!is.na(abnormal_capm))
+      if (n > 1 && s > 0) m / s * sqrt(n) else NA_real_
+    },
+    abar_ff3_dm_t = {
+      m <- mean(abnormal_ff3, na.rm = TRUE)
+      s <- sd(abnormal_ff3, na.rm = TRUE)
+      n <- sum(!is.na(abnormal_ff3))
+      if (n > 1 && s > 0) m / s * sqrt(n) else NA_real_
+    },
     # Average returns/alphas
     abar_capm_dm = mean(abnormal_capm, na.rm = TRUE),
     abar_ff3_dm = mean(abnormal_ff3, na.rm = TRUE)
@@ -470,7 +490,7 @@ printme_capm_t2 <- create_risk_adjusted_plot(
   "matchRet_capm_t2_normalized",
   "CAPM Alpha",
   t_threshold_b,
-  "Trailing 5-Year CAPM Alpha (% of In-Sample Alpha)",
+  "Trailing 5-Year CAPM Alpha",
   filter_type = filter_type,
   return_threshold = return_threshold
 )
@@ -509,7 +529,7 @@ printme_ff3_t2 <- create_risk_adjusted_plot(
   "matchRet_ff3_t2_normalized",
   "FF3 Alpha",
   t_threshold_b,
-  "Trailing 5-Year FF3 Alpha (% of In-Sample Alpha)",
+  "Trailing 5-Year FF3 Alpha",
   filter_type = filter_type,
   return_threshold = return_threshold
 )
@@ -576,9 +596,15 @@ compute_outperformance <- function(plot_data, ret_col, dm_ret_col, group_map, gr
     summarise(
       n_signals = n_distinct(pubname),
       pub_oos = mean(.data[[ret_col]][eventDate > 0], na.rm = TRUE),
-      pub_oos_se = sd(.data[[ret_col]][eventDate > 0], na.rm = TRUE) / sqrt(sum(eventDate > 0 & !is.na(.data[[ret_col]]))),
+      pub_oos_se = {
+        n <- sum(eventDate > 0 & !is.na(.data[[ret_col]]))
+        if (n > 1) sd(.data[[ret_col]][eventDate > 0], na.rm = TRUE) / sqrt(n) else NA_real_
+      },
       dm_oos = mean(.data[[dm_ret_col]][eventDate > 0], na.rm = TRUE),
-      dm_oos_se = sd(.data[[dm_ret_col]][eventDate > 0], na.rm = TRUE) / sqrt(sum(eventDate > 0 & !is.na(.data[[dm_ret_col]]))),
+      dm_oos_se = {
+        n <- sum(eventDate > 0 & !is.na(.data[[dm_ret_col]]))
+        if (n > 1) sd(.data[[dm_ret_col]][eventDate > 0], na.rm = TRUE) / sqrt(n) else NA_real_
+      },
       outperform = pub_oos - dm_oos,
       outperform_se = sqrt(pub_oos_se^2 + dm_oos_se^2),
       .groups = 'drop'
@@ -739,12 +765,22 @@ cat("\n\n=== TIME-VARYING ABNORMAL RETURNS (IS/OOS BETAS) ===\n")
 # Check if time-varying columns exist in the data
 if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff3_tv" %in% names(candidateReturns_adj)) {
   
-  # Compute statistics for time-varying abnormal returns
+  # Compute statistics for time-varying abnormal returns with proper NA handling
   dm_stats_tv <- candidateReturns_adj[
     samptype == "insamp" & !is.na(abnormal_capm_tv),
     .(
-      abar_capm_tv_dm_t = mean(abnormal_capm_tv, na.rm = TRUE) / sd(abnormal_capm_tv, na.rm = TRUE) * sqrt(.N),
-      abar_ff3_tv_dm_t = mean(abnormal_ff3_tv, na.rm = TRUE) / sd(abnormal_ff3_tv, na.rm = TRUE) * sqrt(.N),
+      abar_capm_tv_dm_t = {
+        m <- mean(abnormal_capm_tv, na.rm = TRUE)
+        s <- sd(abnormal_capm_tv, na.rm = TRUE)
+        n <- sum(!is.na(abnormal_capm_tv))
+        if (n > 1 && s > 0) m / s * sqrt(n) else NA_real_
+      },
+      abar_ff3_tv_dm_t = {
+        m <- mean(abnormal_ff3_tv, na.rm = TRUE)
+        s <- sd(abnormal_ff3_tv, na.rm = TRUE)
+        n <- sum(!is.na(abnormal_ff3_tv))
+        if (n > 1 && s > 0) m / s * sqrt(n) else NA_real_
+      },
       abar_capm_tv_dm = mean(abnormal_capm_tv, na.rm = TRUE),
       abar_ff3_tv_dm = mean(abnormal_ff3_tv, na.rm = TRUE)
     ),
@@ -800,7 +836,7 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff3_tv" %in%
     "matchRet_capm_tv_t2_normalized",
     "CAPM TV Alpha",
     t_threshold_b,
-    "Trailing 5-Year CAPM Alpha (% of In-Sample Alpha, Time-Varying Betas)",
+    "Trailing 5-Year CAPM Alpha",
     filter_type = filter_type,
     return_threshold = return_threshold
   )
@@ -854,7 +890,7 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff3_tv" %in%
     "matchRet_ff3_tv_t2_normalized",
     "FF3 TV Alpha",
     t_threshold_b,
-    "Trailing 5-Year FF3 Alpha (% of In-Sample Alpha, Time-Varying Betas)",
+    "Trailing 5-Year FF3 Alpha",
     filter_type = filter_type,
     return_threshold = return_threshold
   )
@@ -2055,9 +2091,15 @@ raw_t2_summary_discipline <- discipline_data %>%
   summarise(
     n_signals = n_distinct(pubname),
     pub_oos = mean(ret[eventDate > 0], na.rm = TRUE),
-    pub_oos_se = sd(ret[eventDate > 0], na.rm = TRUE) / sqrt(sum(eventDate > 0 & !is.na(ret))),
+    pub_oos_se = {
+      n <- sum(eventDate > 0 & !is.na(ret))
+      if (n > 1) sd(ret[eventDate > 0], na.rm = TRUE) / sqrt(n) else NA_real_
+    },
     dm_oos = mean(matchRet[eventDate > 0], na.rm = TRUE),
-    dm_oos_se = sd(matchRet[eventDate > 0], na.rm = TRUE) / sqrt(sum(eventDate > 0 & !is.na(matchRet))),
+    dm_oos_se = {
+      n <- sum(eventDate > 0 & !is.na(matchRet))
+      if (n > 1) sd(matchRet[eventDate > 0], na.rm = TRUE) / sqrt(n) else NA_real_
+    },
     outperform = pub_oos - dm_oos,
     outperform_se = sqrt(pub_oos_se^2 + dm_oos_se^2),
     .groups = 'drop'
@@ -2072,9 +2114,15 @@ capm_t2_summary_discipline <- discipline_data_capm %>%
   summarise(
     n_signals = n_distinct(pubname),
     pub_oos = mean(abnormal_capm_normalized[eventDate > 0], na.rm = TRUE),
-    pub_oos_se = sd(abnormal_capm_normalized[eventDate > 0], na.rm = TRUE) / sqrt(sum(eventDate > 0 & !is.na(abnormal_capm_normalized))),
+    pub_oos_se = {
+      n <- sum(eventDate > 0 & !is.na(abnormal_capm_normalized))
+      if (n > 1) sd(abnormal_capm_normalized[eventDate > 0], na.rm = TRUE) / sqrt(n) else NA_real_
+    },
     dm_oos = mean(matchRet_capm_t2_normalized[eventDate > 0], na.rm = TRUE),
-    dm_oos_se = sd(matchRet_capm_t2_normalized[eventDate > 0], na.rm = TRUE) / sqrt(sum(eventDate > 0 & !is.na(matchRet_capm_t2_normalized))),
+    dm_oos_se = {
+      n <- sum(eventDate > 0 & !is.na(matchRet_capm_t2_normalized))
+      if (n > 1) sd(matchRet_capm_t2_normalized[eventDate > 0], na.rm = TRUE) / sqrt(n) else NA_real_
+    },
     outperform = pub_oos - dm_oos,
     outperform_se = sqrt(pub_oos_se^2 + dm_oos_se^2),
     .groups = 'drop'
@@ -2089,9 +2137,15 @@ ff3_t2_summary_discipline <- discipline_data_ff3 %>%
   summarise(
     n_signals = n_distinct(pubname),
     pub_oos = mean(abnormal_ff3_normalized[eventDate > 0], na.rm = TRUE),
-    pub_oos_se = sd(abnormal_ff3_normalized[eventDate > 0], na.rm = TRUE) / sqrt(sum(eventDate > 0 & !is.na(abnormal_ff3_normalized))),
+    pub_oos_se = {
+      n <- sum(eventDate > 0 & !is.na(abnormal_ff3_normalized))
+      if (n > 1) sd(abnormal_ff3_normalized[eventDate > 0], na.rm = TRUE) / sqrt(n) else NA_real_
+    },
     dm_oos = mean(matchRet_ff3_t2_normalized[eventDate > 0], na.rm = TRUE),
-    dm_oos_se = sd(matchRet_ff3_t2_normalized[eventDate > 0], na.rm = TRUE) / sqrt(sum(eventDate > 0 & !is.na(matchRet_ff3_t2_normalized))),
+    dm_oos_se = {
+      n <- sum(eventDate > 0 & !is.na(matchRet_ff3_t2_normalized))
+      if (n > 1) sd(matchRet_ff3_t2_normalized[eventDate > 0], na.rm = TRUE) / sqrt(n) else NA_real_
+    },
     outperform = pub_oos - dm_oos,
     outperform_se = sqrt(pub_oos_se^2 + dm_oos_se^2),
     .groups = 'drop'
@@ -2118,9 +2172,15 @@ raw_t2_summary_journal <- journal_data %>%
   summarise(
     n_signals = n_distinct(pubname),
     pub_oos = mean(ret[eventDate > 0], na.rm = TRUE),
-    pub_oos_se = sd(ret[eventDate > 0], na.rm = TRUE) / sqrt(sum(eventDate > 0 & !is.na(ret))),
+    pub_oos_se = {
+      n <- sum(eventDate > 0 & !is.na(ret))
+      if (n > 1) sd(ret[eventDate > 0], na.rm = TRUE) / sqrt(n) else NA_real_
+    },
     dm_oos = mean(matchRet[eventDate > 0], na.rm = TRUE),
-    dm_oos_se = sd(matchRet[eventDate > 0], na.rm = TRUE) / sqrt(sum(eventDate > 0 & !is.na(matchRet))),
+    dm_oos_se = {
+      n <- sum(eventDate > 0 & !is.na(matchRet))
+      if (n > 1) sd(matchRet[eventDate > 0], na.rm = TRUE) / sqrt(n) else NA_real_
+    },
     outperform = pub_oos - dm_oos,
     outperform_se = sqrt(pub_oos_se^2 + dm_oos_se^2),
     .groups = 'drop'
@@ -2135,9 +2195,15 @@ capm_t2_summary_journal <- journal_data_capm %>%
   summarise(
     n_signals = n_distinct(pubname),
     pub_oos = mean(abnormal_capm_normalized[eventDate > 0], na.rm = TRUE),
-    pub_oos_se = sd(abnormal_capm_normalized[eventDate > 0], na.rm = TRUE) / sqrt(sum(eventDate > 0 & !is.na(abnormal_capm_normalized))),
+    pub_oos_se = {
+      n <- sum(eventDate > 0 & !is.na(abnormal_capm_normalized))
+      if (n > 1) sd(abnormal_capm_normalized[eventDate > 0], na.rm = TRUE) / sqrt(n) else NA_real_
+    },
     dm_oos = mean(matchRet_capm_t2_normalized[eventDate > 0], na.rm = TRUE),
-    dm_oos_se = sd(matchRet_capm_t2_normalized[eventDate > 0], na.rm = TRUE) / sqrt(sum(eventDate > 0 & !is.na(matchRet_capm_t2_normalized))),
+    dm_oos_se = {
+      n <- sum(eventDate > 0 & !is.na(matchRet_capm_t2_normalized))
+      if (n > 1) sd(matchRet_capm_t2_normalized[eventDate > 0], na.rm = TRUE) / sqrt(n) else NA_real_
+    },
     outperform = pub_oos - dm_oos,
     outperform_se = sqrt(pub_oos_se^2 + dm_oos_se^2),
     .groups = 'drop'
@@ -2152,9 +2218,15 @@ ff3_t2_summary_journal <- journal_data_ff3 %>%
   summarise(
     n_signals = n_distinct(pubname),
     pub_oos = mean(abnormal_ff3_normalized[eventDate > 0], na.rm = TRUE),
-    pub_oos_se = sd(abnormal_ff3_normalized[eventDate > 0], na.rm = TRUE) / sqrt(sum(eventDate > 0 & !is.na(abnormal_ff3_normalized))),
+    pub_oos_se = {
+      n <- sum(eventDate > 0 & !is.na(abnormal_ff3_normalized))
+      if (n > 1) sd(abnormal_ff3_normalized[eventDate > 0], na.rm = TRUE) / sqrt(n) else NA_real_
+    },
     dm_oos = mean(matchRet_ff3_t2_normalized[eventDate > 0], na.rm = TRUE),
-    dm_oos_se = sd(matchRet_ff3_t2_normalized[eventDate > 0], na.rm = TRUE) / sqrt(sum(eventDate > 0 & !is.na(matchRet_ff3_t2_normalized))),
+    dm_oos_se = {
+      n <- sum(eventDate > 0 & !is.na(matchRet_ff3_t2_normalized))
+      if (n > 1) sd(matchRet_ff3_t2_normalized[eventDate > 0], na.rm = TRUE) / sqrt(n) else NA_real_
+    },
     outperform = pub_oos - dm_oos,
     outperform_se = sqrt(pub_oos_se^2 + dm_oos_se^2),
     .groups = 'drop'
@@ -2617,7 +2689,7 @@ printme_capm_ta <- create_risk_adjusted_plot(
   "matchRet_capm_ta_normalized",
   "CAPM Alpha",
   t_threshold_a,
-  "Trailing 5-Year CAPM Alpha (% of In-Sample Alpha)",
+  "Trailing 5-Year CAPM Alpha",
   y_high = 150,
   filter_type = filter_type,
   return_threshold = return_threshold
@@ -2653,7 +2725,7 @@ printme_ff3_ta <- create_risk_adjusted_plot(
   "matchRet_ff3_ta_normalized",
   "FF3 Alpha",
   t_threshold_a,
-  "Trailing 5-Year FF3 Alpha (% of In-Sample Alpha)",
+  "Trailing 5-Year FF3 Alpha",
   filter_type = filter_type,
   return_threshold = return_threshold
 )
