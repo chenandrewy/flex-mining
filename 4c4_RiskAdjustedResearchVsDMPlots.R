@@ -13,7 +13,7 @@ return_threshold = 0.15  # 15 bps threshold for average in-sample return/alpha
 
 # Filter type: "tstat" for t-stat filtering, "return" for return filtering
 # Check for environment variable first, otherwise use default
-filter_type <- Sys.getenv("FILTER_TYPE", "tstat")  # Default to t-stat filtering
+filter_type <- Sys.getenv("FILTER_TYPE", "return")  # Default to return filtering
 
 # Create results subfolder for risk-adjusted analysis
 base_results_dir <- "../Results/RiskAdjusted"
@@ -1217,10 +1217,9 @@ create_latex_table <- function(table_data, caption = "", label = "",
                               column_spec = NULL, booktabs = TRUE,
                               size = "\\small", placement = "htbp") {
   
-  # Load required package
+  # Load required package (should be managed by renv)
   if (!requireNamespace("xtable", quietly = TRUE)) {
-    cat("Installing xtable package for LaTeX table generation...\n")
-    install.packages("xtable")
+    stop("xtable package is required but not installed. Please install it using renv::install('xtable')")
   }
   library(xtable)
   
