@@ -10,7 +10,7 @@ t_threshold_a = 1
 t_threshold_b = 2
 # For raw returns: threshold is in basis points (e.g., 15 = 0.15% per month)
 # For CAPM/FF3 alphas: values are already normalized to ~100, so use 15 for consistency
-return_threshold = 0.15  # 15 basis points for raw returns/alphas
+return_threshold = 0.3  # basis points for raw returns/alphas. Returns and FF5 factors are in percentages so 0.3 = 30 bps per month
 
 # Filter type: "tstat" for t-stat filtering, "return" for return filtering
 # Check for environment variable first, otherwise use default
