@@ -560,6 +560,10 @@ model_mapping <- czcat_full %>% select(signalname, modeltype_grouped) %>% distin
 discipline_mapping <- czcat_full %>% select(signalname, discipline) %>% distinct()
 journal_mapping <- czcat_full %>% select(signalname, journal_rank) %>% distinct()
 
+# Define filtered mappings early so they are available to time-varying section
+discipline_mapping_filtered <- discipline_mapping %>% filter(discipline %in% c("Finance", "Accounting"))
+journal_mapping_filtered <- journal_mapping %>% filter(journal_rank != "Economics")
+
 # Define helper functions here (needed for analyses below)
 # ----------------------------------------------
 
@@ -1145,6 +1149,30 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_
     "abnormal_ff3_normalized", "matchRet_ff3_tv_t2_normalized", model_mapping, "modeltype_grouped"
   )
   
+  # CAPM time-varying t >= t_threshold_b filtered (by discipline)
+  capm_tv_t2_summary_discipline <- compute_outperformance(
+    ret_for_plot0_capm_tv_t2,
+    "abnormal_capm_normalized", "matchRet_capm_tv_t2_normalized", discipline_mapping_filtered, "discipline"
+  )
+  
+  # FF3 time-varying t >= t_threshold_b filtered (by discipline)
+  ff3_tv_t2_summary_discipline <- compute_outperformance(
+    ret_for_plot0_ff3_tv_t2,
+    "abnormal_ff3_normalized", "matchRet_ff3_tv_t2_normalized", discipline_mapping_filtered, "discipline"
+  )
+  
+  # CAPM time-varying t >= t_threshold_b filtered (by journal)
+  capm_tv_t2_summary_journal <- compute_outperformance(
+    ret_for_plot0_capm_tv_t2,
+    "abnormal_capm_normalized", "matchRet_capm_tv_t2_normalized", journal_mapping_filtered, "journal_rank"
+  )
+  
+  # FF3 time-varying t >= t_threshold_b filtered (by journal)
+  ff3_tv_t2_summary_journal <- compute_outperformance(
+    ret_for_plot0_ff3_tv_t2,
+    "abnormal_ff3_normalized", "matchRet_ff3_tv_t2_normalized", journal_mapping_filtered, "journal_rank"
+  )
+  
   # Overall time-varying summaries
   overall_t2_summary_capm_tv <- data.frame(
     group = "Overall",
@@ -1321,15 +1349,11 @@ create_formatted_latex_table <- function(table_data, caption = "", label = "",
   is_time_varying <- any(grepl("CAPM_TV|FF3_TV", data_cols))
   
   if (is_time_varying) {
-    # For time-varying tables with column order:
+    # For time-varying tables, columns are ordered as:
     # CAPM_TV_Return, CAPM_TV_Outperformance, FF3_TV_Return, FF3_TV_Outperformance
-    for (col in data_cols) {
-      if (grepl("CAPM_TV", col)) {
-        display_cols <- c(display_cols, "CAPM-TV")
-      } else if (grepl("FF3_TV", col)) {
-        display_cols <- c(display_cols, "FF3-TV")
-      }
-    }
+    # The group headers should be CAPM-TV and FF3-TV (span 2 each)
+    # and the second header row should be Return, Outperformance under each group
+    display_cols <- c("Return", "Outperformance", "Return", "Outperformance")
   } else {
     # For regular tables, extract the analysis type
     for (col in data_cols) {
@@ -1422,31 +1446,22 @@ build_tv_summary_table <- function(categories, groups, summaries, digits = 0) {
     stringsAsFactors = FALSE
   )
   
-  # Build columns in the correct order for LaTeX table:
-  # First all Return columns, then all Outperformance columns
-  
-  # Add return columns for CAPM-TV and FF3-TV
+  # Build columns for CAPM-TV and FF3-TV
   for (analysis in c("capm_tv", "ff3_tv")) {
     analysis_label <- switch(analysis,
                            "capm_tv" = "CAPM_TV",
                            "ff3_tv" = "FF3_TV",
                            analysis)
     
+    # Add return column
     col_name <- paste0(analysis_label, "_Return")
     result_df[[col_name]] <- mapply(function(grp, cat_data) {
       val <- cat_data[[paste0(analysis, "_pub_oos")]]
       se <- cat_data[[paste0(analysis, "_pub_oos_se")]]
       format_value_se(val, se, digits, FALSE)
     }, groups, summaries, SIMPLIFY = TRUE)
-  }
-  
-  # Add outperformance columns for CAPM-TV and FF3-TV
-  for (analysis in c("capm_tv", "ff3_tv")) {
-    analysis_label <- switch(analysis,
-                           "capm_tv" = "CAPM_TV",
-                           "ff3_tv" = "FF3_TV",
-                           analysis)
     
+    # Add outperformance column
     col_name <- paste0(analysis_label, "_Outperformance")
     result_df[[col_name]] <- mapply(function(grp, cat_data) {
       val <- cat_data[[paste0(analysis, "_outperform")]]
@@ -1900,6 +1915,115 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_
     ff3_tv_outperform = overall_t2_summary_ff3_tv$outperform,
     ff3_tv_outperform_se = overall_t2_summary_ff3_tv$outperform_se
   )
+  
+  # Collect time-varying discipline data (if summaries exist)
+  if (exists("capm_tv_t2_summary_discipline") && exists("ff3_tv_t2_summary_discipline")) {
+    tv_discipline_data <- list()
+    discipline_groups <- c("Finance", "Accounting")
+    for(i in 1:length(discipline_groups)) {
+      group <- discipline_groups[i]
+      tv_discipline_data[[i]] <- list(
+        capm_tv_pub_oos = get_values(capm_tv_t2_summary_discipline, "discipline", group, "pub_oos"),
+        capm_tv_pub_oos_se = get_values(capm_tv_t2_summary_discipline, "discipline", group, "pub_oos_se"),
+        capm_tv_outperform = get_values(capm_tv_t2_summary_discipline, "discipline", group, "outperform"),
+        capm_tv_outperform_se = get_values(capm_tv_t2_summary_discipline, "discipline", group, "outperform_se"),
+        
+        ff3_tv_pub_oos = get_values(ff3_tv_t2_summary_discipline, "discipline", group, "pub_oos"),
+        ff3_tv_pub_oos_se = get_values(ff3_tv_t2_summary_discipline, "discipline", group, "pub_oos_se"),
+        ff3_tv_outperform = get_values(ff3_tv_t2_summary_discipline, "discipline", group, "outperform"),
+        ff3_tv_outperform_se = get_values(ff3_tv_t2_summary_discipline, "discipline", group, "outperform_se")
+      )
+    }
+  }
+  
+  # Collect time-varying journal data (if summaries exist)
+  if (exists("capm_tv_t2_summary_journal") && exists("ff3_tv_t2_summary_journal")) {
+    tv_journal_data <- list()
+    journal_groups <- c("JF, JFE, RFS", "AR, JAR, JAE", "Other")
+    for(i in 1:length(journal_groups)) {
+      group <- journal_groups[i]
+      tv_journal_data[[i]] <- list(
+        capm_tv_pub_oos = get_values(capm_tv_t2_summary_journal, "journal_rank", group, "pub_oos"),
+        capm_tv_pub_oos_se = get_values(capm_tv_t2_summary_journal, "journal_rank", group, "pub_oos_se"),
+        capm_tv_outperform = get_values(capm_tv_t2_summary_journal, "journal_rank", group, "outperform"),
+        capm_tv_outperform_se = get_values(capm_tv_t2_summary_journal, "journal_rank", group, "outperform_se"),
+        
+        ff3_tv_pub_oos = get_values(ff3_tv_t2_summary_journal, "journal_rank", group, "pub_oos"),
+        ff3_tv_pub_oos_se = get_values(ff3_tv_t2_summary_journal, "journal_rank", group, "pub_oos_se"),
+        ff3_tv_outperform = get_values(ff3_tv_t2_summary_journal, "journal_rank", group, "outperform"),
+        ff3_tv_outperform_se = get_values(ff3_tv_t2_summary_journal, "journal_rank", group, "outperform_se")
+      )
+    }
+  }
+  
+  # Collect time-varying Any Model vs No Model data (if model summaries exist)
+  if (exists("capm_tv_t2_summary_model") && exists("ff3_tv_t2_summary_model")) {
+    tv_anymodel_data <- list(
+      capm_tv_pub_oos = get_values(capm_tv_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos"),
+      capm_tv_pub_oos_se = get_values(capm_tv_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos_se"),
+      capm_tv_outperform = get_values(capm_tv_t2_summary_model, "modeltype_grouped", "No Model", "outperform"),
+      capm_tv_outperform_se = get_values(capm_tv_t2_summary_model, "modeltype_grouped", "No Model", "outperform_se"),
+      
+      ff3_tv_pub_oos = get_values(ff3_tv_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos"),
+      ff3_tv_pub_oos_se = get_values(ff3_tv_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos_se"),
+      ff3_tv_outperform = get_values(ff3_tv_t2_summary_model, "modeltype_grouped", "No Model", "outperform"),
+      ff3_tv_outperform_se = get_values(ff3_tv_t2_summary_model, "modeltype_grouped", "No Model", "outperform_se")
+    )
+    
+    # For Any Model, combine Stylized and Dynamic/Quantitative
+    anymodel_capm_tv_pub_oos <- mean(c(
+      get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"),
+      get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos")
+    ), na.rm = TRUE)
+    
+    anymodel_capm_tv_outperform <- mean(c(
+      get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"),
+      get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform")
+    ), na.rm = TRUE)
+    
+    anymodel_ff3_tv_pub_oos <- mean(c(
+      get_values(ff3_tv_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"),
+      get_values(ff3_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos")
+    ), na.rm = TRUE)
+    
+    anymodel_ff3_tv_outperform <- mean(c(
+      get_values(ff3_tv_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"),
+      get_values(ff3_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform")
+    ), na.rm = TRUE)
+    
+    # Approximate standard errors for Any Model (using pooled variance)
+    anymodel_capm_tv_pub_oos_se <- sqrt(mean(c(
+      get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos_se")^2,
+      get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos_se")^2
+    ), na.rm = TRUE))
+    
+    anymodel_capm_tv_outperform_se <- sqrt(mean(c(
+      get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Stylized", "outperform_se")^2,
+      get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform_se")^2
+    ), na.rm = TRUE))
+    
+    anymodel_ff3_tv_pub_oos_se <- sqrt(mean(c(
+      get_values(ff3_tv_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos_se")^2,
+      get_values(ff3_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos_se")^2
+    ), na.rm = TRUE))
+    
+    anymodel_ff3_tv_outperform_se <- sqrt(mean(c(
+      get_values(ff3_tv_t2_summary_model, "modeltype_grouped", "Stylized", "outperform_se")^2,
+      get_values(ff3_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform_se")^2
+    ), na.rm = TRUE))
+    
+    tv_anymodel_any <- list(
+      capm_tv_pub_oos = anymodel_capm_tv_pub_oos,
+      capm_tv_pub_oos_se = anymodel_capm_tv_pub_oos_se,
+      capm_tv_outperform = anymodel_capm_tv_outperform,
+      capm_tv_outperform_se = anymodel_capm_tv_outperform_se,
+      
+      ff3_tv_pub_oos = anymodel_ff3_tv_pub_oos,
+      ff3_tv_pub_oos_se = anymodel_ff3_tv_pub_oos_se,
+      ff3_tv_outperform = anymodel_ff3_tv_outperform,
+      ff3_tv_outperform_se = anymodel_ff3_tv_outperform_se
+    )
+  }
 }
 
 # DISCIPLINE AND JOURNAL RANKING TABLE (t >= t_threshold_b) ---------------------------------
@@ -2285,11 +2409,114 @@ if (exists("tv_theory_data") && exists("tv_model_data")) {
       caption = "Time-Varying Risk-Adjusted Returns: Theoretical Foundation and Modeling Formalism",
       label = "tab:risk_adjusted_tv",
       group_headers = list(
-        list(title = "Post-Sample Return", span = 2),
-        list(title = "Outperformance vs Data-Mining", span = 2)
+        list(title = "CAPM-TV", span = 2),
+        list(title = "FF3-TV", span = 2)
       )
     )
   )
+  
+  # Export time-varying discipline/journal table if data exists
+  if (exists("tv_discipline_data") && exists("tv_journal_data")) {
+    # Combine discipline and journal TV data
+    tv_dj_categories <- c(rep("Discipline", 2), rep("Journal Rank", 3))
+    tv_dj_groups <- c("Finance", "Accounting", "JF, JFE, RFS", "AR, JAR, JAE", "Other")
+    tv_dj_all_data <- c(tv_discipline_data, tv_journal_data)
+    
+    # Create time-varying discipline/journal table
+    export_table_tv_dj <- build_tv_summary_table(
+      categories = tv_dj_categories,
+      groups = tv_dj_groups,
+      summaries = tv_dj_all_data,
+      digits = 0
+    )
+    
+    # Export time-varying discipline/journal table
+    export_tables_multi_format(
+      export_table_tv_dj,
+      base_filename = paste0(results_dir, "/Table_RiskAdjusted_TimeVarying_DisciplineJournal", file_suffix),
+      formats = c("csv", "latex"),
+      latex_options = list(
+        caption = "Time-Varying Risk-Adjusted Returns: Discipline and Journal Rank",
+        label = "tab:risk_adjusted_tv_dj",
+        group_headers = list(
+          list(title = "CAPM-TV", span = 2),
+          list(title = "FF3-TV", span = 2)
+        )
+      )
+    )
+  }
+  
+  # Export time-varying Any Model vs No Model table if data exists
+  if (exists("tv_anymodel_data")) {
+    # Create time-varying Any Model vs No Model table
+    tv_am_categories <- c("")
+    tv_am_groups <- c("No Model")
+    tv_am_all_data <- list(tv_anymodel_data)
+    
+    # Add Any Model data 
+    # Calculate Any Model averages from Stylized and Dynamic or Quantitative
+    tv_anymodel_any <- list(
+      capm_tv_pub_oos = mean(c(
+        get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"),
+        get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos")
+      )),
+      capm_tv_pub_oos_se = sqrt(mean(c(
+        get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos_se")^2,
+        get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos_se")^2
+      ))),
+      capm_tv_outperform = mean(c(
+        get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"),
+        get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform")
+      )),
+      capm_tv_outperform_se = sqrt(mean(c(
+        get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Stylized", "outperform_se")^2,
+        get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform_se")^2
+      ))),
+      
+      ff3_tv_pub_oos = mean(c(
+        get_values(ff3_tv_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"),
+        get_values(ff3_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos")
+      )),
+      ff3_tv_pub_oos_se = sqrt(mean(c(
+        get_values(ff3_tv_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos_se")^2,
+        get_values(ff3_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos_se")^2
+      ))),
+      ff3_tv_outperform = mean(c(
+        get_values(ff3_tv_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"),
+        get_values(ff3_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform")
+      )),
+      ff3_tv_outperform_se = sqrt(mean(c(
+        get_values(ff3_tv_t2_summary_model, "modeltype_grouped", "Stylized", "outperform_se")^2,
+        get_values(ff3_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform_se")^2
+      )))
+    )
+    
+    tv_am_categories <- c("", "")
+    tv_am_groups <- c("No Model", "Any Model")
+    tv_am_all_data <- list(tv_anymodel_data, tv_anymodel_any)
+    
+    export_table_tv_am <- build_tv_summary_table(
+      categories = tv_am_categories,
+      groups = tv_am_groups,
+      summaries = tv_am_all_data,
+      digits = 0
+    )
+    
+    # Export time-varying Any Model vs No Model table
+    export_tables_multi_format(
+      export_table_tv_am,
+      base_filename = paste0(results_dir, "/Table_RiskAdjusted_TimeVarying_AnyModelVsNoModel", file_suffix),
+      formats = c("csv", "latex"),
+      latex_options = list(
+        caption = "Time-Varying Risk-Adjusted Returns: Any Model vs No Model",
+        label = "tab:risk_adjusted_tv_anymodel",
+        group_headers = list(
+          list(title = "CAPM-TV", span = 2),
+          list(title = "FF3-TV", span = 2)
+        )
+      )
+    )
+  }
 }
 
 # Also export the raw summary data for reference (CSV only for raw data)
