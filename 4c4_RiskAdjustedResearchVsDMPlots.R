@@ -1422,22 +1422,31 @@ build_tv_summary_table <- function(categories, groups, summaries, digits = 0) {
     stringsAsFactors = FALSE
   )
   
-  # Build columns for CAPM-TV and FF3-TV
+  # Build columns in the correct order for LaTeX table:
+  # First all Return columns, then all Outperformance columns
+  
+  # Add return columns for CAPM-TV and FF3-TV
   for (analysis in c("capm_tv", "ff3_tv")) {
     analysis_label <- switch(analysis,
                            "capm_tv" = "CAPM_TV",
                            "ff3_tv" = "FF3_TV",
                            analysis)
     
-    # Add return column
     col_name <- paste0(analysis_label, "_Return")
     result_df[[col_name]] <- mapply(function(grp, cat_data) {
       val <- cat_data[[paste0(analysis, "_pub_oos")]]
       se <- cat_data[[paste0(analysis, "_pub_oos_se")]]
       format_value_se(val, se, digits, FALSE)
     }, groups, summaries, SIMPLIFY = TRUE)
+  }
+  
+  # Add outperformance columns for CAPM-TV and FF3-TV
+  for (analysis in c("capm_tv", "ff3_tv")) {
+    analysis_label <- switch(analysis,
+                           "capm_tv" = "CAPM_TV",
+                           "ff3_tv" = "FF3_TV",
+                           analysis)
     
-    # Add outperformance column
     col_name <- paste0(analysis_label, "_Outperformance")
     result_df[[col_name]] <- mapply(function(grp, cat_data) {
       val <- cat_data[[paste0(analysis, "_outperform")]]
