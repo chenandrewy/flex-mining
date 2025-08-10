@@ -1315,20 +1315,36 @@ create_formatted_latex_table <- function(table_data, caption = "", label = "",
   }
   
   # Second row with individual column headers
-  # Clean column names for display - extract just the type (Raw/CAPM/FF3)
+  # Clean column names for display - extract just the type (Raw/CAPM/FF3/CAPM-TV/FF3-TV)
   display_cols <- character()
-  for (col in data_cols) {
-    # Extract the analysis type from column name
-    if (grepl("Raw", col)) {
-      display_cols <- c(display_cols, "Raw")
-    } else if (grepl("CAPM", col)) {
-      display_cols <- c(display_cols, "CAPM")
-    } else if (grepl("FF3", col)) {
-      display_cols <- c(display_cols, "FF3")
-    } else {
-      # Fallback - clean the column name
-      clean_col <- gsub("_Return$|_Outperformance$", "", col)
-      display_cols <- c(display_cols, clean_col)
+  
+  # Check if this is a time-varying table (has CAPM_TV and FF3_TV columns)
+  is_time_varying <- any(grepl("CAPM_TV|FF3_TV", data_cols))
+  
+  if (is_time_varying) {
+    # For time-varying tables with column order:
+    # CAPM_TV_Return, CAPM_TV_Outperformance, FF3_TV_Return, FF3_TV_Outperformance
+    for (col in data_cols) {
+      if (grepl("CAPM_TV", col)) {
+        display_cols <- c(display_cols, "CAPM-TV")
+      } else if (grepl("FF3_TV", col)) {
+        display_cols <- c(display_cols, "FF3-TV")
+      }
+    }
+  } else {
+    # For regular tables, extract the analysis type
+    for (col in data_cols) {
+      if (grepl("Raw", col)) {
+        display_cols <- c(display_cols, "Raw")
+      } else if (grepl("CAPM", col) && !grepl("_TV", col)) {
+        display_cols <- c(display_cols, "CAPM")
+      } else if (grepl("FF3", col) && !grepl("_TV", col)) {
+        display_cols <- c(display_cols, "FF3")
+      } else {
+        # Fallback - clean the column name
+        clean_col <- gsub("_Return$|_Outperformance$", "", col)
+        display_cols <- c(display_cols, clean_col)
+      }
     }
   }
   
@@ -1346,7 +1362,10 @@ create_formatted_latex_table <- function(table_data, caption = "", label = "",
     if (has_category) {
       if (row_data$Category != current_category) {
         current_category <- as.character(row_data$Category)
-        latex_lines <- c(latex_lines, paste0("\\textbf{", current_category, "} & & & & & & \\\\"))
+        # Create empty cells for all data columns
+        empty_cells <- rep("", length(data_cols))
+        category_line <- paste(c(paste0("\\textbf{", current_category, "}"), empty_cells), collapse = " & ")
+        latex_lines <- c(latex_lines, paste0(category_line, " \\\\"))
       }
     }
     
@@ -1392,6 +1411,43 @@ create_formatted_latex_table <- function(table_data, caption = "", label = "",
   latex_lines <- c(latex_lines, "\\end{table}")
   
   return(paste(latex_lines, collapse = "\n"))
+}
+
+# Function to build time-varying summary tables
+build_tv_summary_table <- function(categories, groups, summaries, digits = 0) {
+  
+  # Initialize result data frame
+  result_df <- data.frame(
+    Category = categories,
+    Group = groups,
+    stringsAsFactors = FALSE
+  )
+  
+  # Build columns for CAPM-TV and FF3-TV
+  for (analysis in c("capm_tv", "ff3_tv")) {
+    analysis_label <- switch(analysis,
+                           "capm_tv" = "CAPM_TV",
+                           "ff3_tv" = "FF3_TV",
+                           analysis)
+    
+    # Add return column
+    col_name <- paste0(analysis_label, "_Return")
+    result_df[[col_name]] <- mapply(function(grp, cat_data) {
+      val <- cat_data[[paste0(analysis, "_pub_oos")]]
+      se <- cat_data[[paste0(analysis, "_pub_oos_se")]]
+      format_value_se(val, se, digits, FALSE)
+    }, groups, summaries, SIMPLIFY = TRUE)
+    
+    # Add outperformance column
+    col_name <- paste0(analysis_label, "_Outperformance")
+    result_df[[col_name]] <- mapply(function(grp, cat_data) {
+      val <- cat_data[[paste0(analysis, "_outperform")]]
+      se <- cat_data[[paste0(analysis, "_outperform_se")]]
+      format_value_se(val, se, digits, FALSE)
+    }, groups, summaries, SIMPLIFY = TRUE)
+  }
+  
+  return(result_df)
 }
 
 # Refactored function to build summary tables efficiently
@@ -1479,7 +1535,12 @@ export_tables_multi_format <- function(table_data, base_filename,
       ),
       placement = "htbp"
     )
+    # Use modifyList but handle group_headers specially to ensure proper override
     latex_opts <- modifyList(default_opts, latex_options)
+    # If group_headers is provided in latex_options, use it completely
+    if (!is.null(latex_options$group_headers)) {
+      latex_opts$group_headers <- latex_options$group_headers
+    }
     
     # Use the enhanced formatted table function
     latex_code <- do.call(create_formatted_latex_table, c(list(table_data = table_data), latex_opts))
@@ -1785,6 +1846,52 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_
   cat(sprintf("%-12s           (%2s)    (%2s)          (%2s)    (%2s)\n",
               "", round(overall_t2_summary_capm_tv$pub_oos_se), round(overall_t2_summary_ff3_tv$pub_oos_se), 
               round(overall_t2_summary_capm_tv$outperform_se), round(overall_t2_summary_ff3_tv$outperform_se)))
+  
+  # Store time-varying data for LaTeX export
+  tv_theory_data <- list()
+  for(i in 1:length(groups_theory)) {
+    group <- groups_theory[i]
+    tv_theory_data[[i]] <- list(
+      capm_tv_pub_oos = get_values(capm_tv_t2_summary_theory, "theory_group", group, "pub_oos"),
+      capm_tv_pub_oos_se = get_values(capm_tv_t2_summary_theory, "theory_group", group, "pub_oos_se"),
+      capm_tv_outperform = get_values(capm_tv_t2_summary_theory, "theory_group", group, "outperform"),
+      capm_tv_outperform_se = get_values(capm_tv_t2_summary_theory, "theory_group", group, "outperform_se"),
+      
+      ff3_tv_pub_oos = get_values(ff3_tv_t2_summary_theory, "theory_group", group, "pub_oos"),
+      ff3_tv_pub_oos_se = get_values(ff3_tv_t2_summary_theory, "theory_group", group, "pub_oos_se"),
+      ff3_tv_outperform = get_values(ff3_tv_t2_summary_theory, "theory_group", group, "outperform"),
+      ff3_tv_outperform_se = get_values(ff3_tv_t2_summary_theory, "theory_group", group, "outperform_se")
+    )
+  }
+  
+  tv_model_data <- list()
+  for(i in 1:length(groups_model)) {
+    group <- groups_model[i]
+    tv_model_data[[i]] <- list(
+      capm_tv_pub_oos = get_values(capm_tv_t2_summary_model, "modeltype_grouped", group, "pub_oos"),
+      capm_tv_pub_oos_se = get_values(capm_tv_t2_summary_model, "modeltype_grouped", group, "pub_oos_se"),
+      capm_tv_outperform = get_values(capm_tv_t2_summary_model, "modeltype_grouped", group, "outperform"),
+      capm_tv_outperform_se = get_values(capm_tv_t2_summary_model, "modeltype_grouped", group, "outperform_se"),
+      
+      ff3_tv_pub_oos = get_values(ff3_tv_t2_summary_model, "modeltype_grouped", group, "pub_oos"),
+      ff3_tv_pub_oos_se = get_values(ff3_tv_t2_summary_model, "modeltype_grouped", group, "pub_oos_se"),
+      ff3_tv_outperform = get_values(ff3_tv_t2_summary_model, "modeltype_grouped", group, "outperform"),
+      ff3_tv_outperform_se = get_values(ff3_tv_t2_summary_model, "modeltype_grouped", group, "outperform_se")
+    )
+  }
+  
+  # Add overall TV results
+  tv_overall_data <- list(
+    capm_tv_pub_oos = overall_t2_summary_capm_tv$pub_oos,
+    capm_tv_pub_oos_se = overall_t2_summary_capm_tv$pub_oos_se,
+    capm_tv_outperform = overall_t2_summary_capm_tv$outperform,
+    capm_tv_outperform_se = overall_t2_summary_capm_tv$outperform_se,
+    
+    ff3_tv_pub_oos = overall_t2_summary_ff3_tv$pub_oos,
+    ff3_tv_pub_oos_se = overall_t2_summary_ff3_tv$pub_oos_se,
+    ff3_tv_outperform = overall_t2_summary_ff3_tv$outperform,
+    ff3_tv_outperform_se = overall_t2_summary_ff3_tv$outperform_se
+  )
 }
 
 # DISCIPLINE AND JOURNAL RANKING TABLE (t >= t_threshold_b) ---------------------------------
@@ -2144,6 +2251,39 @@ if (exists("anymodel_table_data")) {
   )
 }
 
+# Export time-varying tables if they exist
+if (exists("tv_theory_data") && exists("tv_model_data")) {
+  # Combine theory and model TV data
+  tv_categories <- c(rep("Theoretical Foundation", length(groups_theory)),
+                     rep("Modeling Formalism", length(groups_model)),
+                     "Overall")
+  tv_groups <- c(groups_theory, groups_model, "All")
+  tv_all_data <- c(tv_theory_data, tv_model_data, list(tv_overall_data))
+  
+  # Create time-varying table
+  export_table_tv <- build_tv_summary_table(
+    categories = tv_categories,
+    groups = tv_groups,
+    summaries = tv_all_data,
+    digits = 0
+  )
+  
+  # Export time-varying table
+  export_tables_multi_format(
+    export_table_tv,
+    base_filename = paste0(results_dir, "/Table_RiskAdjusted_TimeVarying", file_suffix),
+    formats = c("csv", "latex"),
+    latex_options = list(
+      caption = "Time-Varying Risk-Adjusted Returns: Theoretical Foundation and Modeling Formalism",
+      label = "tab:risk_adjusted_tv",
+      group_headers = list(
+        list(title = "Post-Sample Return", span = 2),
+        list(title = "Outperformance vs Data-Mining", span = 2)
+      )
+    )
+  )
+}
+
 # Also export the raw summary data for reference (CSV only for raw data)
 # Using a loop to reduce repetition
 summary_data_list <- list(
@@ -2172,6 +2312,9 @@ cat("\nMain summary tables:\n")
 cat(paste0("- Table_RiskAdjusted_TheoryModel", file_suffix, ".csv and .tex\n"))
 cat(paste0("- Table_RiskAdjusted_DisciplineJournal", file_suffix, ".csv and .tex\n"))
 cat(paste0("- Table_RiskAdjusted_AnyModelVsNoModel", file_suffix, ".csv and .tex\n"))
+if (exists("tv_theory_data")) {
+  cat(paste0("- Table_RiskAdjusted_TimeVarying", file_suffix, ".csv and .tex\n"))
+}
 cat("\nDetailed breakdowns:\n")
 cat("- Raw/CAPM/FF3 by TheoryGroup/ModelGroup/Discipline/Journal (12 files)\n")
 cat("\nPlots generated:\n")
