@@ -5,6 +5,7 @@
 # Setup ----------------------------------------------------------------
 rm(list = ls())
 source("0_Environment.R")
+source("helpers/risk_adjusted_helpers.R")
 
 t_threshold = 2
 # For raw returns: threshold is in basis points (e.g., 15 = 0.15% per month)
@@ -50,130 +51,15 @@ if (!file.exists(risk_adj_file) | !file.exists(summary_file)) {
 }
 
 # Helper functions -----------------------------------------------------
-extract_beta <- function(ret, mktrf) {
-  model <- lm(ret ~ mktrf)
-  bet <- coef(model)[2]
-  return(bet)
-}
 
-extract_ff3_coeffs <- function(ret, mktrf, smb, hml) {
-  model <- lm(ret ~ mktrf + smb + hml)
-  coeffs <- coef(model)
-  return(coeffs[2:4])  # Return beta, s, and h coefficients
-}
 
 # Helper function to normalize and aggregate DM returns with t-stat filtering
-normalize_and_aggregate_dm <- function(dm_data, abnormal_col, suffix_name) {
-  # Normalize each DM return series individually
-  dm_normalized <- dm_data %>%
-    group_by(actSignal, candSignalname) %>%
-    mutate(
-      insample_mean = mean(.data[[abnormal_col]][samptype == "insamp"], na.rm = TRUE),
-      normalized_ind = ifelse(abs(insample_mean) > 1e-10, 
-                             100 * .data[[abnormal_col]] / insample_mean, 
-                             NA)
-    ) %>%
-    ungroup()
-  
-  # Aggregate across DM signals for each (actSignal, eventDate)
-  dm_aggregated <- dm_normalized %>%
-    group_by(actSignal, eventDate) %>%
-    summarise(
-      !!sym(paste0("matchRet_", suffix_name)) := mean(normalized_ind, na.rm = TRUE),
-      !!sym(paste0("n_matches_", suffix_name)) := n_distinct(candSignalname),
-      .groups = 'drop'
-    )
-  
-  return(dm_aggregated)
-}
 
 # Helper function to create filtered plot data
-create_filtered_plot_data <- function(ret_for_plot0_adj, signals_list, dm_aggregated, 
-                                     pub_col, dm_col, suffix_name) {
-  # Join filtered DM to plotting data
-  plot_data <- ret_for_plot0_adj %>%
-    filter(pubname %in% signals_list) %>%
-    left_join(
-      dm_aggregated,
-      by = c("pubname" = "actSignal", "eventDate" = "eventDate")
-    ) %>%
-    filter(!is.na(!!sym(dm_col)))
-  
-  return(plot_data)
-}
+
+# NEW: Helper to aggregate DM without normalization (raw units)
 
 # Helper function to create and save risk-adjusted plots
-create_risk_adjusted_plot <- function(plot_data, pub_col, dm_col, 
-                                     adjustment_type, t_threshold, 
-                                     y_axis_label, y_high = 125,
-                                     filter_type = "tstat", return_threshold = 0.15) {
-  
-  if(nrow(plot_data) > 0) {
-    # Print summary statistics
-    plot_data %>% 
-      summarise(
-        pub_mean_insamp = mean(.data[[pub_col]][eventDate <= 0], na.rm = TRUE),
-        pub_mean_oos = mean(.data[[pub_col]][eventDate > 0], na.rm = TRUE),
-        dm_mean_insamp = mean(.data[[dm_col]][eventDate <= 0], na.rm = TRUE),
-        dm_mean_oos = mean(.data[[dm_col]][eventDate > 0], na.rm = TRUE)
-      ) %>% print()
-    
-    # Create suffix for file naming
-    if (filter_type == "return") {
-      suffix <- paste0(tolower(adjustment_type), "_r", gsub("\\.", "", format(return_threshold, nsmall = 0)))
-    } else {
-      suffix <- paste0(tolower(adjustment_type), "_t", t_threshold)
-    }
-    
-    # Create plot
-    plot_obj <- ReturnPlotsWithDM_std_errors_indicators(
-      dt = plot_data %>% 
-        transmute(eventDate, pubname, theory, 
-                 ret = !!sym(pub_col), 
-                 matchRet = !!sym(dm_col)) %>%
-        left_join(czret %>% select(signalname, eventDate, date) %>% distinct(), 
-                 by = c("pubname" = "signalname", "eventDate" = "eventDate")) %>%
-        rename(calendarDate = date),
-      basepath = "../Results/temp_",
-      suffix = suffix,
-      rollmonths = 60,
-      colors = colors,
-      labelmatch = FALSE,
-      yl = 0,
-      yh = y_high,
-      xl = global_xl,
-      xh = global_xh,
-      legendlabels = c(
-        paste0("Published (", adjustment_type, ", ",
-               ifelse(filter_type == "return", 
-                      paste0("avg>=", return_threshold), 
-                      paste0("t>=", t_threshold)), ")"),
-        paste0("Data-Mined (", adjustment_type, ", ",
-               ifelse(filter_type == "return", 
-                      paste0("avg>=", return_threshold), 
-                      paste0("t>=", t_threshold)), ")"),
-        'N/A'
-      ),
-      legendpos = c(35,20)/100,
-      fontsize = fontsizeall,
-      yaxislab = y_axis_label,
-      linesize = linesizeall
-    )
-    
-    # Save plot
-    ggsave(filename = paste0(results_dir, "/Fig_RiskAdj_", suffix, ".pdf"), 
-           plot_obj, width = 10, height = 8)
-    
-    # Remove temp file
-    temp_file <- paste0("../Results/temp_", suffix, ".pdf")
-    if(file.exists(temp_file)) file.remove(temp_file)
-    
-    return(plot_obj)
-  } else {
-    cat("No data available for plotting.\n")
-    return(NULL)
-  }
-}
 
 ## Load Global Data -------------------------------------------
 
@@ -372,7 +258,9 @@ czret[, abnormal_ff3_tv_normalized := ifelse(abs(abar_ff3_tv) > 1e-10, 100 * abn
 # First, create the risk-adjusted data for plotting by joining with `czret`
 ret_for_plot0_adj <- ret_for_plot0 %>%
   left_join(
-    czret %>% select(signalname, eventDate, abnormal_capm_normalized, abnormal_ff3_normalized,
+    czret %>% select(signalname, eventDate,
+                      abnormal_capm, abnormal_ff3, abnormal_capm_tv, abnormal_ff3_tv,
+                      abnormal_capm_normalized, abnormal_ff3_normalized,
                       abnormal_capm_tv_normalized, abnormal_ff3_tv_normalized),
     by = c("pubname" = "signalname", "eventDate" = "eventDate")
   )
@@ -446,86 +334,21 @@ if (filter_type == "return") {
   cat("\n\n=== T-STAT FILTERED ANALYSIS (t >=", t_threshold, ") ===\n")
 }
 
-# First compute statistics for individual DM signals
 cat("\nComputing statistics for individual DM signals...\n")
-setDT(candidateReturns_adj)
+filters <- prepare_dm_filters(
+  candidateReturns_adj = candidateReturns_adj,
+  czret = czret,
+  filter_type = filter_type,
+  t_threshold = t_threshold,
+  return_threshold = return_threshold
+)
 
-# Add samptype if not present
-if(!"samptype" %in% names(candidateReturns_adj)) {
-  candidateReturns_adj <- candidateReturns_adj %>%
-    left_join(
-      czret %>% select(signalname, eventDate, samptype) %>% distinct(),
-      by = c("actSignal" = "signalname", "eventDate" = "eventDate")
-    )
-}
-
-# Compute statistics for each DM signal with proper NA handling
-dm_stats <- candidateReturns_adj[
-  samptype == "insamp" & !is.na(abnormal_capm),
-  .(
-    # T-stats with proper NA handling and zero SD protection
-    abar_capm_dm_t = {
-      m <- mean(abnormal_capm, na.rm = TRUE)
-      s <- sd(abnormal_capm, na.rm = TRUE)
-      n <- sum(!is.na(abnormal_capm))
-      if (n > 1 && s > 0) m / s * sqrt(n) else NA_real_
-    },
-    abar_ff3_dm_t = {
-      m <- mean(abnormal_ff3, na.rm = TRUE)
-      s <- sd(abnormal_ff3, na.rm = TRUE)
-      n <- sum(!is.na(abnormal_ff3))
-      if (n > 1 && s > 0) m / s * sqrt(n) else NA_real_
-    },
-    # Average returns/alphas
-    abar_capm_dm = mean(abnormal_capm, na.rm = TRUE),
-    abar_ff3_dm = mean(abnormal_ff3, na.rm = TRUE)
-  ),
-  by = .(actSignal, candSignalname)
-]
-
-# Filter DM signals based on chosen filter type
-if (filter_type == "return") {
-  dm_filtered_capm <- candidateReturns_adj %>%
-    inner_join(
-      dm_stats %>% filter(abar_capm_dm >= return_threshold),
-      by = c("actSignal", "candSignalname")
-    )
-  
-  dm_filtered_ff3 <- candidateReturns_adj %>%
-    inner_join(
-      dm_stats %>% filter(abar_ff3_dm >= return_threshold),
-      by = c("actSignal", "candSignalname")
-    )
-  
-  # Get published signals that meet return threshold
-  # Note: abar_capm, abar_ff3 are already in percentage terms (multiplied by 100)
-  # For raw returns, use rbar_avg which is in basis points (return_threshold is in basis points)
-  signals_raw_t2 <- unique(czret[rbar_avg >= return_threshold]$signalname)
-  signals_capm_t2 <- unique(czret[abar_capm >= return_threshold]$signalname)
-  signals_ff3_t2 <- unique(czret[abar_ff3 >= return_threshold]$signalname)
-  
-} else {
-  dm_filtered_capm <- candidateReturns_adj %>%
-    inner_join(
-      dm_stats %>% filter(abar_capm_dm_t >= t_threshold),
-      by = c("actSignal", "candSignalname")
-    )
-  
-  dm_filtered_ff3 <- candidateReturns_adj %>%
-    inner_join(
-      dm_stats %>% filter(abar_ff3_dm_t >= t_threshold),
-      by = c("actSignal", "candSignalname")
-    )
-  
-  # Get signals with t >= t_threshold for different measures
-  signals_raw_t2 <- unique(czret[rbar_t >= t_threshold]$signalname)
-  signals_capm_t2 <- unique(czret[abar_capm_t >= t_threshold]$signalname)
-  signals_ff3_t2 <- unique(czret[abar_ff3_t >= t_threshold]$signalname)
-}
-
-# Additionally require published signals to pass the raw filter for comparability
-signals_capm_t2 <- intersect(signals_capm_t2, signals_raw_t2)
-signals_ff3_t2 <- intersect(signals_ff3_t2, signals_raw_t2)
+dm_stats <- filters$dm_stats
+dm_filtered_capm <- filters$dm_filtered_capm
+dm_filtered_ff3 <- filters$dm_filtered_ff3
+signals_raw_t2 <- filters$signals_raw
+signals_capm_t2 <- filters$signals_capm
+signals_ff3_t2 <- filters$signals_ff3
 
 if (filter_type == "return") {
   cat("\nNumber of PUBLISHED signals with avg return/alpha >=", return_threshold, ":\n")
@@ -625,231 +448,32 @@ printme_ff3_t2 <- create_risk_adjusted_plot(
   return_threshold = return_threshold
 )
 
+# Also compute UNNORMALIZED CAPM/FF3 tables to print (raw units) -------------------------
+# Moved into helper function print_unnormalized_tables(); call placed later before TV section
+
 # Time-varying abnormal returns (IS beta in IS, post-sample beta in OOS) --------
 
 # Load model categories EARLY (needed for time-varying and other analyses)
 # Moved here from line 875 to be available for all analyses
-czcat_full <- fread("DataInput/SignalsTheoryChecked.csv") %>%
-  select(signalname, Year, theory, Journal, NoModel, Stylized, Dynamic, Quantitative) %>%
-  filter(signalname %in% inclSignals) %>%
-  mutate(
-    modeltype = case_when(
-      NoModel == 1 ~ "No Model",
-      Stylized == 1 ~ "Stylized", 
-      Dynamic == 1 ~ "Dynamic",
-      Quantitative == 1 ~ "Quantitative"
-    ),
-    # Combine Dynamic and Quantitative as in your target format
-    modeltype_grouped = case_when(
-      modeltype == "No Model" ~ "No Model",
-      modeltype == "Stylized" ~ "Stylized",
-      modeltype %in% c("Dynamic", "Quantitative") ~ "Dynamic or Quantitative"
-    ),
-    theory_group = case_when(
-      theory %in% c("risk", "Risk") ~ "Risk",
-      theory %in% c("mispricing", "Mispricing") ~ "Mispricing", 
-      TRUE ~ "Agnostic"
-    ),
-    # Add discipline (Finance vs Accounting vs Economics)
-    discipline = case_when(
-      Journal %in% c("JAR", "JAE", "AR") ~ "Accounting",
-      Journal %in% c("QJE", "JPE") ~ "Economics",
-      TRUE ~ "Finance"
-    ),
-    # Add journal ranking from 3g (excluding Economics journals)
-    journal_rank = case_when(
-      Journal %in% c("JF", "JFE", "RFS") ~ "JF, JFE, RFS",
-      Journal %in% c("JAR", "JAE", "AR") ~ "AR, JAR, JAE", 
-      Journal %in% c("QJE", "JPE") ~ "Economics", # Mark but will exclude
-      TRUE ~ "Other"
-    )
-  )
-
-# Get mappings
-theory_mapping <- czcat_full %>% select(signalname, theory_group) %>% distinct()
-model_mapping <- czcat_full %>% select(signalname, modeltype_grouped) %>% distinct()
-discipline_mapping <- czcat_full %>% select(signalname, discipline) %>% distinct()
-journal_mapping <- czcat_full %>% select(signalname, journal_rank) %>% distinct()
-
-# Define filtered mappings early so they are available to time-varying section
-discipline_mapping_filtered <- discipline_mapping %>% filter(discipline %in% c("Finance", "Accounting"))
-journal_mapping_filtered <- journal_mapping %>% filter(journal_rank != "Economics")
+mappings <- load_signal_mappings("DataInput/SignalsTheoryChecked.csv", inclSignals)
+czcat_full <- mappings$czcat_full
+theory_mapping <- mappings$theory_mapping
+model_mapping <- mappings$model_mapping
+discipline_mapping <- mappings$discipline_mapping
+journal_mapping <- mappings$journal_mapping
+discipline_mapping_filtered <- mappings$discipline_mapping_filtered
+journal_mapping_filtered <- mappings$journal_mapping_filtered
 
 # Define helper functions here (needed for analyses below)
 # ----------------------------------------------
 
 # Function to compute outperformance metrics with standard errors
-compute_outperformance <- function(plot_data, ret_col, dm_ret_col, group_map, group_col = "theory_group") {
-  plot_data %>%
-    left_join(group_map, by = c("pubname" = "signalname")) %>%
-    filter(!is.na(.data[[group_col]])) %>%
-    group_by(.data[[group_col]]) %>%
-    summarise(
-      n_signals = n_distinct(pubname),
-      pub_oos = mean(.data[[ret_col]][eventDate > 0], na.rm = TRUE),
-      pub_oos_se = {
-        n <- sum(eventDate > 0 & !is.na(.data[[ret_col]]))
-        if (n > 1) sd(.data[[ret_col]][eventDate > 0], na.rm = TRUE) / sqrt(n) else NA_real_
-      },
-      dm_oos = mean(.data[[dm_ret_col]][eventDate > 0], na.rm = TRUE),
-      dm_oos_se = {
-        n <- sum(eventDate > 0 & !is.na(.data[[dm_ret_col]]))
-        if (n > 1) sd(.data[[dm_ret_col]][eventDate > 0], na.rm = TRUE) / sqrt(n) else NA_real_
-      },
-      outperform = pub_oos - dm_oos,
-      outperform_se = sqrt(pub_oos_se^2 + dm_oos_se^2),
-      .groups = 'drop'
-    )
-}
 
 # Function to create comprehensive summary tables for any analysis type
-create_summary_tables <- function(plot_data_list, group_mappings, table_name = "Analysis",
-                                  filter_desc = "", overall_summaries = NULL) {
-  
-  # plot_data_list should be a named list: list(raw = data1, capm = data2, ff3 = data3)
-  # group_mappings should be a named list: list(theory = mapping1, model = mapping2, ...)
-  # overall_summaries is optional: list(raw = summary1, capm = summary2, ff3 = summary3)
-  
-  results <- list()
-  
-  for (group_type in names(group_mappings)) {
-    group_map <- group_mappings[[group_type]]
-    group_col <- names(group_map)[2]  # Get the group column name
-    
-    results[[group_type]] <- list()
-    
-    for (analysis_type in names(plot_data_list)) {
-      plot_data <- plot_data_list[[analysis_type]]
-      
-      # Determine column names based on analysis type
-      ret_col <- switch(analysis_type,
-                       "raw" = "ret",
-                       "capm" = "abnormal_capm_normalized",
-                       "ff3" = "abnormal_ff3_normalized",
-                       "capm_tv" = "abnormal_capm_tv_normalized",
-                       "ff3_tv" = "abnormal_ff3_tv_normalized",
-                       "ret")  # default
-      
-      dm_col <- switch(analysis_type,
-                      "raw" = "matchRet",
-                      "capm" = "matchRet_capm_t2_normalized",
-                      "ff3" = "matchRet_ff3_t2_normalized",
-                      "capm_tv" = "matchRet_capm_tv_t2_normalized",
-                      "ff3_tv" = "matchRet_ff3_tv_t2_normalized",
-                      "matchRet")  # default
-      
-      # Compute outperformance for this group
-      if (!is.null(plot_data) && nrow(plot_data) > 0) {
-        results[[group_type]][[analysis_type]] <- compute_outperformance(
-          plot_data, ret_col, dm_col, group_map, group_col
-        )
-      }
-    }
-  }
-  
-  # Add overall summaries if provided
-  if (!is.null(overall_summaries)) {
-    results[["overall"]] <- overall_summaries
-  }
-  
-  return(results)
-}
 
 # Function to print formatted summary table
-print_summary_table <- function(summaries, groups, group_col, table_title, 
-                               analysis_types = c("raw", "capm", "ff3"),
-                               analysis_labels = c("Raw", "CAPM", "FF3")) {
-  
-  cat("\n", table_title, "\n", sep="")
-  cat(strrep("-", nchar(table_title)), "\n")
-  
-  # Header
-  cat(sprintf("%-25s", ""))
-  for (label in analysis_labels) {
-    cat(sprintf("   %s          ", label))
-  }
-  cat("\n")
-  
-  cat(sprintf("%-25s", "Group"))
-  for (i in 1:length(analysis_types)) {
-    cat("  Post-Samp  Outperf")
-  }
-  cat("\n")
-  
-  # Helper to safely get values
-  get_value <- function(summary, group_col, group, metric) {
-    if (is.null(summary) || nrow(summary) == 0) return(NA)
-    val <- summary[[metric]][summary[[group_col]] == group]
-    if (length(val) == 0) return(NA)
-    return(val[1])
-  }
-  
-  # Print each group
-  for (group in groups) {
-    # Values row
-    cat(sprintf("%-25s", group))
-    for (analysis in analysis_types) {
-      summary <- summaries[[analysis]]
-      pub_oos <- get_value(summary, group_col, group, "pub_oos")
-      outperform <- get_value(summary, group_col, group, "outperform")
-      cat(sprintf("  %8.2f  %8.2f", 
-                 ifelse(is.na(pub_oos), NA, pub_oos),
-                 ifelse(is.na(outperform), NA, outperform)))
-    }
-    cat("\n")
-    
-    # Standard errors row
-    cat(sprintf("%-25s", ""))
-    for (analysis in analysis_types) {
-      summary <- summaries[[analysis]]
-      pub_oos_se <- get_value(summary, group_col, group, "pub_oos_se")
-      outperform_se <- get_value(summary, group_col, group, "outperform_se")
-      cat(sprintf("  (%6.2f)  (%6.2f)", 
-                 ifelse(is.na(pub_oos_se), NA, pub_oos_se),
-                 ifelse(is.na(outperform_se), NA, outperform_se)))
-    }
-    cat("\n")
-  }
-}
 
 # Function to export tables to CSV
-export_summary_tables <- function(summaries, filename, filter_desc = "") {
-  
-  # Create a comprehensive list for export
-  all_results <- list()
-  
-  for (category in names(summaries)) {
-    if (category == "overall") next  # Handle overall separately
-    
-    for (analysis_type in names(summaries[[category]])) {
-      summary <- summaries[[category]][[analysis_type]]
-      if (!is.null(summary) && nrow(summary) > 0) {
-        summary$category <- category
-        summary$analysis_type <- analysis_type
-        
-        # Add filter description as metadata
-        if (filter_desc != "") {
-          summary$filter <- filter_desc
-        }
-        
-        # Use bind_rows instead of rbind to handle different column sets
-        if (length(all_results) == 0) {
-          all_results <- summary
-        } else {
-          all_results <- bind_rows(all_results, summary)
-        }
-      }
-    }
-  }
-  
-  # Save to CSV
-  if (length(all_results) > 0) {
-    write.csv(all_results, filename, row.names = FALSE)
-    cat("\nSummary tables exported to:", filename, "\n")
-  } else {
-    cat("\nNo summary data to export.\n")
-  }
-}
 
 cat("\n\n=== TIME-VARYING ABNORMAL RETURNS (IS/OOS BETAS) ===\n")
 
@@ -1212,56 +836,23 @@ if (filter_type == "return") {
   filtered_signals_raw <- czret$signalname[czret$rbar_t >= t_threshold]
 }
 
-overall_t2_summary_raw <- data.frame(
-  group = "Overall",
-  n_signals = length(unique(filtered_signals_raw)),
-  pub_oos = mean(ret_for_plot0$ret[ret_for_plot0$eventDate > 0 & !is.na(ret_for_plot0$matchRet) & 
-                                   ret_for_plot0$pubname %in% filtered_signals_raw], na.rm = TRUE),
-  pub_oos_se = sd(ret_for_plot0$ret[ret_for_plot0$eventDate > 0 & !is.na(ret_for_plot0$matchRet) & 
-                                    ret_for_plot0$pubname %in% filtered_signals_raw], na.rm = TRUE) / 
-               sqrt(sum(ret_for_plot0$eventDate > 0 & !is.na(ret_for_plot0$matchRet) & 
-                        ret_for_plot0$pubname %in% filtered_signals_raw)),
-  dm_oos = mean(ret_for_plot0$matchRet[ret_for_plot0$eventDate > 0 & !is.na(ret_for_plot0$matchRet) & 
-                                       ret_for_plot0$pubname %in% filtered_signals_raw], na.rm = TRUE),
-  dm_oos_se = sd(ret_for_plot0$matchRet[ret_for_plot0$eventDate > 0 & !is.na(ret_for_plot0$matchRet) & 
-                                        ret_for_plot0$pubname %in% filtered_signals_raw], na.rm = TRUE) / 
-              sqrt(sum(ret_for_plot0$eventDate > 0 & !is.na(ret_for_plot0$matchRet) & 
-                       ret_for_plot0$pubname %in% filtered_signals_raw)),
-  outperform = NA,
-  outperform_se = NA
+overall_t2_summary_raw <- compute_overall_summary(
+  plot_data = ret_for_plot0 %>% filter(!is.na(matchRet), pubname %in% filtered_signals_raw),
+  ret_col = "ret",
+  dm_col = "matchRet"
 )
-overall_t2_summary_raw$outperform <- overall_t2_summary_raw$pub_oos - overall_t2_summary_raw$dm_oos
-overall_t2_summary_raw$outperform_se <- sqrt(overall_t2_summary_raw$pub_oos_se^2 + overall_t2_summary_raw$dm_oos_se^2)
 
-overall_t2_summary_capm <- data.frame(
-  group = "Overall",
-  n_signals = length(unique(ret_for_plot0_capm_t2$pubname)),
-  pub_oos = mean(ret_for_plot0_capm_t2$abnormal_capm_normalized[ret_for_plot0_capm_t2$eventDate > 0], na.rm = TRUE),
-  pub_oos_se = sd(ret_for_plot0_capm_t2$abnormal_capm_normalized[ret_for_plot0_capm_t2$eventDate > 0], na.rm = TRUE) / 
-               sqrt(sum(ret_for_plot0_capm_t2$eventDate > 0 & !is.na(ret_for_plot0_capm_t2$abnormal_capm_normalized))),
-  dm_oos = mean(ret_for_plot0_capm_t2$matchRet_capm_t2_normalized[ret_for_plot0_capm_t2$eventDate > 0], na.rm = TRUE),
-  dm_oos_se = sd(ret_for_plot0_capm_t2$matchRet_capm_t2_normalized[ret_for_plot0_capm_t2$eventDate > 0], na.rm = TRUE) / 
-              sqrt(sum(ret_for_plot0_capm_t2$eventDate > 0 & !is.na(ret_for_plot0_capm_t2$matchRet_capm_t2_normalized))),
-  outperform = NA,
-  outperform_se = NA
+overall_t2_summary_capm <- compute_overall_summary(
+  plot_data = ret_for_plot0_capm_t2,
+  ret_col = "abnormal_capm_normalized",
+  dm_col = "matchRet_capm_t2_normalized"
 )
-overall_t2_summary_capm$outperform <- overall_t2_summary_capm$pub_oos - overall_t2_summary_capm$dm_oos
-overall_t2_summary_capm$outperform_se <- sqrt(overall_t2_summary_capm$pub_oos_se^2 + overall_t2_summary_capm$dm_oos_se^2)
 
-overall_t2_summary_ff3 <- data.frame(
-  group = "Overall",
-  n_signals = length(unique(ret_for_plot0_ff3_t2$pubname)),
-  pub_oos = mean(ret_for_plot0_ff3_t2$abnormal_ff3_normalized[ret_for_plot0_ff3_t2$eventDate > 0], na.rm = TRUE),
-  pub_oos_se = sd(ret_for_plot0_ff3_t2$abnormal_ff3_normalized[ret_for_plot0_ff3_t2$eventDate > 0], na.rm = TRUE) / 
-               sqrt(sum(ret_for_plot0_ff3_t2$eventDate > 0 & !is.na(ret_for_plot0_ff3_t2$abnormal_ff3_normalized))),
-  dm_oos = mean(ret_for_plot0_ff3_t2$matchRet_ff3_t2_normalized[ret_for_plot0_ff3_t2$eventDate > 0], na.rm = TRUE),
-  dm_oos_se = sd(ret_for_plot0_ff3_t2$matchRet_ff3_t2_normalized[ret_for_plot0_ff3_t2$eventDate > 0], na.rm = TRUE) / 
-              sqrt(sum(ret_for_plot0_ff3_t2$eventDate > 0 & !is.na(ret_for_plot0_ff3_t2$matchRet_ff3_t2_normalized))),
-  outperform = NA,
-  outperform_se = NA
+overall_t2_summary_ff3 <- compute_overall_summary(
+  plot_data = ret_for_plot0_ff3_t2,
+  ret_col = "abnormal_ff3_normalized",
+  dm_col = "matchRet_ff3_t2_normalized"
 )
-overall_t2_summary_ff3$outperform <- overall_t2_summary_ff3$pub_oos - overall_t2_summary_ff3$dm_oos
-overall_t2_summary_ff3$outperform_se <- sqrt(overall_t2_summary_ff3$pub_oos_se^2 + overall_t2_summary_ff3$dm_oos_se^2)
 
 # Time-varying summaries (if available)
 if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_capm_tv_t2")) {
@@ -1314,280 +905,35 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_
   )
   
   # Overall time-varying summaries
-  overall_t2_summary_capm_tv <- data.frame(
-    group = "Overall",
-    n_signals = length(unique(ret_for_plot0_capm_tv_t2$pubname)),
-    pub_oos = mean(ret_for_plot0_capm_tv_t2$abnormal_capm_tv_normalized[ret_for_plot0_capm_tv_t2$eventDate > 0], na.rm = TRUE),
-    pub_oos_se = sd(ret_for_plot0_capm_tv_t2$abnormal_capm_tv_normalized[ret_for_plot0_capm_tv_t2$eventDate > 0], na.rm = TRUE) / 
-                 sqrt(sum(ret_for_plot0_capm_tv_t2$eventDate > 0 & !is.na(ret_for_plot0_capm_tv_t2$abnormal_capm_tv_normalized))),
-    dm_oos = mean(ret_for_plot0_capm_tv_t2$matchRet_capm_tv_t2_normalized[ret_for_plot0_capm_tv_t2$eventDate > 0], na.rm = TRUE),
-    dm_oos_se = sd(ret_for_plot0_capm_tv_t2$matchRet_capm_tv_t2_normalized[ret_for_plot0_capm_tv_t2$eventDate > 0], na.rm = TRUE) / 
-                sqrt(sum(ret_for_plot0_capm_tv_t2$eventDate > 0 & !is.na(ret_for_plot0_capm_tv_t2$matchRet_capm_tv_t2_normalized))),
-    outperform = NA,
-    outperform_se = NA
+  overall_t2_summary_capm_tv <- compute_overall_summary(
+    plot_data = ret_for_plot0_capm_tv_t2,
+    ret_col = "abnormal_capm_tv_normalized",
+    dm_col = "matchRet_capm_tv_t2_normalized"
   )
-  overall_t2_summary_capm_tv$outperform <- overall_t2_summary_capm_tv$pub_oos - overall_t2_summary_capm_tv$dm_oos
-  overall_t2_summary_capm_tv$outperform_se <- sqrt(overall_t2_summary_capm_tv$pub_oos_se^2 + overall_t2_summary_capm_tv$dm_oos_se^2)
   
-  overall_t2_summary_ff3_tv <- data.frame(
-    group = "Overall",
-    n_signals = length(unique(ret_for_plot0_ff3_tv_t2$pubname)),
-    pub_oos = mean(ret_for_plot0_ff3_tv_t2$abnormal_ff3_tv_normalized[ret_for_plot0_ff3_tv_t2$eventDate > 0], na.rm = TRUE),
-    pub_oos_se = sd(ret_for_plot0_ff3_tv_t2$abnormal_ff3_tv_normalized[ret_for_plot0_ff3_tv_t2$eventDate > 0], na.rm = TRUE) / 
-                 sqrt(sum(ret_for_plot0_ff3_tv_t2$eventDate > 0 & !is.na(ret_for_plot0_ff3_tv_t2$abnormal_ff3_tv_normalized))),
-    dm_oos = mean(ret_for_plot0_ff3_tv_t2$matchRet_ff3_tv_t2_normalized[ret_for_plot0_ff3_tv_t2$eventDate > 0], na.rm = TRUE),
-    dm_oos_se = sd(ret_for_plot0_ff3_tv_t2$matchRet_ff3_tv_t2_normalized[ret_for_plot0_ff3_tv_t2$eventDate > 0], na.rm = TRUE) / 
-                sqrt(sum(ret_for_plot0_ff3_tv_t2$eventDate > 0 & !is.na(ret_for_plot0_ff3_tv_t2$matchRet_ff3_tv_t2_normalized))),
-    outperform = NA,
-    outperform_se = NA
+  overall_t2_summary_ff3_tv <- compute_overall_summary(
+    plot_data = ret_for_plot0_ff3_tv_t2,
+    ret_col = "abnormal_ff3_tv_normalized",
+    dm_col = "matchRet_ff3_tv_t2_normalized"
   )
-  overall_t2_summary_ff3_tv$outperform <- overall_t2_summary_ff3_tv$pub_oos - overall_t2_summary_ff3_tv$dm_oos
-  overall_t2_summary_ff3_tv$outperform_se <- sqrt(overall_t2_summary_ff3_tv$pub_oos_se^2 + overall_t2_summary_ff3_tv$dm_oos_se^2)
 }
 
-# Helper function to get values by group
-get_values <- function(summary_df, group_col, group_val, value_col) {
-  idx <- which(summary_df[[group_col]] == group_val)
-  if(length(idx) > 0) return(summary_df[[value_col]][idx]) else return(NA)
-}
-
-# Helper function to round and convert -0 to 0
-round_zero <- function(x) {
-  rounded <- round(x)
-  # Convert -0 to 0
-  if (rounded == 0) return(0)
-  return(rounded)
-}
+# Helper functions moved to helpers/risk_adjusted_helpers.R
 
 # ============================================================================
 # IMPROVED HELPER FUNCTIONS FOR TABLE GENERATION
 # ============================================================================
 
-# Helper function to build table data more efficiently
-build_table_row <- function(summaries, group_val, group_col, metrics = c("pub_oos", "pub_oos_se", "outperform", "outperform_se")) {
-  row_data <- list()
-  
-  for (analysis in names(summaries)) {
-    for (metric in metrics) {
-      col_name <- paste0(analysis, "_", metric)
-      row_data[[col_name]] <- get_values(summaries[[analysis]], group_col, group_val, metric)
-    }
-  }
-  
-  return(row_data)
-}
+# build_table_row moved to helpers/risk_adjusted_helpers.R
 
 # Unified function to format values with standard errors
-format_value_se <- function(value, se, digits = 0, latex = FALSE) {
-  if (is.na(value) || is.na(se)) return(NA)
-  
-  # Apply round_zero to both value and se to convert -0 to 0
-  value_rounded <- round_zero(value)
-  se_rounded <- round_zero(se)
-  
-  if (latex) {
-    return(sprintf("$%.*f$ ($%.*f$)", digits, value_rounded, digits, se_rounded))
-  } else {
-    return(sprintf("%.*f (%.*f)", digits, value_rounded, digits, se_rounded))
-  }
-}
+# format_value_se moved to helpers/risk_adjusted_helpers.R
 
 # Function to create LaTeX table from summary data
-create_latex_table <- function(table_data, caption = "", label = "", 
-                              column_spec = NULL, booktabs = TRUE,
-                              size = "\\small", placement = "htbp") {
-  
-  # Load required package (should be managed by renv)
-  if (!requireNamespace("xtable", quietly = TRUE)) {
-    stop("xtable package is required but not installed. Please install it using renv::install('xtable')")
-  }
-  library(xtable)
-  
-  # Create xtable object
-  xt <- xtable(table_data, caption = caption, label = label)
-  
-  # Set column alignment if not specified
-  if (is.null(column_spec)) {
-    column_spec <- paste0("l", paste(rep("r", ncol(table_data)), collapse = ""))
-  }
-  xtable::align(xt) <- column_spec
-  
-  # Generate LaTeX code with options
-  latex_code <- print(xt, 
-                     booktabs = booktabs,
-                     include.rownames = FALSE,
-                     floating.environment = "table",
-                     table.placement = placement,
-                     size = size,
-                     sanitize.text.function = identity,
-                     print.results = FALSE)
-  
-  return(latex_code)
-}
+# create_latex_table moved to helpers/risk_adjusted_helpers.R
 
 # Enhanced function to create LaTeX table with proper formatting
-create_formatted_latex_table <- function(table_data, caption = "", label = "",
-                                        group_headers = NULL, placement = "htbp",
-                                        separate_se_rows = TRUE) {
-  
-  # Build the LaTeX table manually for better control
-  latex_lines <- character()
-  
-  # Table environment
-  latex_lines <- c(latex_lines, 
-                  paste0("\\begin{table}[", placement, "]"),
-                  "\\centering")
-  
-  # Caption
-  if (caption != "") {
-    latex_lines <- c(latex_lines, paste0("\\caption{", caption, "}"))
-  }
-  
-  # Determine column specification based on the table structure
-  # Look for columns to identify structure
-  col_names <- names(table_data)
-  has_category <- "Category" %in% col_names
-  has_group <- "Group" %in% col_names
-  
-  # Count data columns (excluding Category and Group)
-  data_cols <- col_names[!col_names %in% c("Category", "Group")]
-  n_data_cols <- length(data_cols)
-  
-  # Build column spec: left-aligned for labels, centered for data
-  if (has_group && !has_category) {
-    col_spec <- paste0("l", paste(rep("c", n_data_cols), collapse = ""))
-  } else if (has_category && has_group) {
-    col_spec <- paste0("l", paste(rep("c", n_data_cols), collapse = ""))  # Only one 'l' for Group
-  } else {
-    col_spec <- paste(rep("c", ncol(table_data)), collapse = "")
-  }
-  
-  latex_lines <- c(latex_lines, paste0("\\begin{tabular}{", col_spec, "}"))
-  latex_lines <- c(latex_lines, "\\toprule")
-  
-  # Create column headers with spanning headers
-  if (!is.null(group_headers)) {
-    # First row with spanning headers
-    header_line <- "& "  # Empty cell for row labels
-    
-    for (i in seq_along(group_headers)) {
-      span_info <- group_headers[[i]]
-      header_line <- paste0(header_line, 
-                           "\\multicolumn{", span_info$span, "}{c}{", span_info$title, "}")
-      if (i < length(group_headers)) {
-        header_line <- paste0(header_line, " & ")
-      }
-    }
-    header_line <- paste0(header_line, " \\\\")
-    latex_lines <- c(latex_lines, header_line)
-    
-    # Add cmidrule for each spanning header
-    rule_line <- ""
-    current_col <- 2  # Start from column 2 (after row label column)
-    for (span_info in group_headers) {
-      end_col <- current_col + span_info$span - 1
-      if (rule_line != "") rule_line <- paste0(rule_line, " ")
-      rule_line <- paste0(rule_line, "\\cmidrule(lr){", current_col, "-", end_col, "}")
-      current_col <- end_col + 1
-    }
-    latex_lines <- c(latex_lines, rule_line)
-  }
-  
-  # Second row with individual column headers
-  # Clean column names for display - extract just the type (Raw/CAPM/FF3/CAPM-TV/FF3-TV)
-  display_cols <- character()
-  
-  # Check if this is a time-varying table (has CAPM_TV and FF3_TV columns)
-  is_time_varying <- any(grepl("CAPM_TV|FF3_TV", data_cols))
-  
-  if (is_time_varying) {
-    # Determine how many groups to display. If group_headers is provided, use its length.
-    num_groups <- if (!is.null(group_headers)) length(group_headers) else {
-      base_names <- unique(gsub("_(Return|Outperformance)$", "", data_cols))
-      length(base_names)
-    }
-    display_cols <- rep(c("Return", "Outperformance"), num_groups)
-  } else {
-    # For regular tables, extract the analysis type
-    for (col in data_cols) {
-      if (grepl("Raw", col) && grepl("Return|Outperformance", col)) {
-        display_cols <- c(display_cols, ifelse(grepl("Return", col), "Raw", "Raw"))
-      } else if (grepl("CAPM", col) && !grepl("_TV", col)) {
-        display_cols <- c(display_cols, ifelse(grepl("Return", col), "CAPM", "CAPM"))
-      } else if (grepl("FF3", col) && !grepl("_TV", col)) {
-        display_cols <- c(display_cols, ifelse(grepl("Return", col), "FF3", "FF3"))
-      } else {
-        # Fallback - clean the column name
-        clean_col <- gsub("_Return$|_Outperformance$", "", col)
-        display_cols <- c(display_cols, clean_col)
-      }
-    }
-  }
-  
-  header_line <- paste(c("", display_cols), collapse = " & ")
-  latex_lines <- c(latex_lines, paste0(header_line, "\\\\"))
-  latex_lines <- c(latex_lines, "\\midrule")
-  
-  # Process data rows with separated values and SEs
-  current_category <- ""
-  
-  for (i in 1:nrow(table_data)) {
-    row_data <- table_data[i,]
-    
-    # Handle category headers (bold) if present
-    if (has_category) {
-      if (row_data$Category != current_category) {
-        current_category <- as.character(row_data$Category)
-        # Create empty cells for all data columns
-        empty_cells <- rep("", length(data_cols))
-        category_line <- paste(c(paste0("\\textbf{", current_category, "}"), empty_cells), collapse = " & ")
-        latex_lines <- c(latex_lines, paste0(category_line, " \\\\"))
-      }
-    }
-    
-    # Get group label
-    group_label <- if(has_group) as.character(row_data$Group) else ""
-    
-    # Extract values and SEs from the formatted strings
-    values <- character()
-    ses <- character()
-    
-    for (col in data_cols) {
-      val_str <- as.character(row_data[[col]])
-      # Parse the "value (se)" format
-      if (grepl("\\(", val_str)) {
-        parts <- strsplit(val_str, " \\(")[[1]]
-        values <- c(values, trimws(parts[1]))
-        se_part <- gsub("\\)", "", parts[2])
-        ses <- c(ses, paste0("(", trimws(se_part), ")"))
-      } else {
-        values <- c(values, val_str)
-        ses <- c(ses, "")
-      }
-    }
-    
-    # Write value row
-    value_line <- paste(c(group_label, values), collapse = " & ")
-    latex_lines <- c(latex_lines, paste0(value_line, " \\\\"))
-    
-    # Write SE row (with empty first cell for alignment)
-    se_line <- paste(c("", ses), collapse = " & ")
-    latex_lines <- c(latex_lines, paste0(se_line, " \\\\"))
-  }
-  
-  # Close table
-  latex_lines <- c(latex_lines, "\\bottomrule")
-  latex_lines <- c(latex_lines, "\\end{tabular}")
-  
-  # Label
-  if (label != "") {
-    latex_lines <- c(latex_lines, paste0("\\label{", label, "}"))
-  }
-  
-  latex_lines <- c(latex_lines, "\\end{table}")
-  
-  return(paste(latex_lines, collapse = "\n"))
-}
+# create_formatted_latex_table moved to helpers/risk_adjusted_helpers.R
 
 # Function to build time-varying summary tables
 build_tv_summary_table <- function(categories, groups, summaries, digits = 0) {
@@ -1699,60 +1045,7 @@ build_summary_table <- function(categories, groups, summaries,
 }
 
 # Function to export tables in multiple formats
-export_tables_multi_format <- function(table_data, base_filename, 
-                                      formats = c("csv", "latex", "txt"),
-                                      latex_options = list()) {
-  
-  results_files <- list()
-  
-  # Export CSV
-  if ("csv" %in% formats) {
-    csv_file <- paste0(base_filename, ".csv")
-    write.csv(table_data, csv_file, row.names = FALSE)
-    results_files$csv <- csv_file
-    cat("Exported CSV:", csv_file, "\n")
-  }
-  
-  # Export LaTeX with enhanced formatting
-  if ("latex" %in% formats) {
-    latex_file <- paste0(base_filename, ".tex")
-    
-    # Apply default LaTeX options with group headers
-    default_opts <- list(
-      caption = "", 
-      label = "",
-      group_headers = list(
-        list(title = "Post-Sample Return", span = 3),
-        list(title = "Outperformance vs Data-Mining", span = 3)
-      ),
-      placement = "htbp"
-    )
-    # Use modifyList but handle group_headers specially to ensure proper override
-    latex_opts <- modifyList(default_opts, latex_options)
-    # If group_headers is provided in latex_options, use it completely
-    if (!is.null(latex_options$group_headers)) {
-      latex_opts$group_headers <- latex_options$group_headers
-    }
-    
-    # Use the enhanced formatted table function
-    latex_code <- do.call(create_formatted_latex_table, c(list(table_data = table_data), latex_opts))
-    writeLines(latex_code, latex_file)
-    results_files$latex <- latex_file
-    cat("Exported LaTeX:", latex_file, "\n")
-  }
-  
-  # Export formatted text
-  if ("txt" %in% formats) {
-    txt_file <- paste0(base_filename, ".txt")
-    sink(txt_file)
-    print(table_data, row.names = FALSE)
-    sink()
-    results_files$txt <- txt_file
-    cat("Exported TXT:", txt_file, "\n")
-  }
-  
-  return(results_files)
-}
+# export_tables_multi_format moved to helpers/risk_adjusted_helpers.R
 
 # Print filtered table
 if (filter_type == "return") {
@@ -2928,3 +2221,216 @@ if (length(plot_files) == 0) {
 } else {
   cat(paste0("- ", plot_files, "\n"), sep = "")
 }
+
+# Helper: print unnormalized tables for CAPM/FF3 (raw units)
+print_unnormalized_tables <- function() {
+  cat("\n\n=== UNNORMALIZED FULL-SAMPLE ALPHA TABLES (raw units) ===\n")
+  dm_capm_aggregated_raw <- aggregate_dm_no_norm(
+    dm_filtered_capm,
+    "abnormal_capm",
+    "capm_t2_raw"
+  )
+  dm_ff3_aggregated_raw <- aggregate_dm_no_norm(
+    dm_filtered_ff3,
+    "abnormal_ff3",
+    "ff3_t2_raw"
+  )
+  ret_for_plot0_capm_t2_raw <- create_filtered_plot_data(
+    ret_for_plot0_adj,
+    signals_capm_t2,
+    dm_capm_aggregated_raw,
+    "abnormal_capm",
+    "matchRet_capm_t2_raw",
+    "capm_t2_raw"
+  )
+  ret_for_plot0_ff3_t2_raw <- create_filtered_plot_data(
+    ret_for_plot0_adj,
+    signals_ff3_t2,
+    dm_ff3_aggregated_raw,
+    "abnormal_ff3",
+    "matchRet_ff3_t2_raw",
+    "ff3_t2_raw"
+  )
+  capm_t2_summary_theory_rawunits <- compute_outperformance(
+    ret_for_plot0_capm_t2_raw,
+    "abnormal_capm", "matchRet_capm_t2_raw", theory_mapping, "theory_group"
+  )
+  ff3_t2_summary_theory_rawunits <- compute_outperformance(
+    ret_for_plot0_ff3_t2_raw,
+    "abnormal_ff3", "matchRet_ff3_t2_raw", theory_mapping, "theory_group"
+  )
+  capm_t2_summary_model_rawunits <- compute_outperformance(
+    ret_for_plot0_capm_t2_raw,
+    "abnormal_capm", "matchRet_capm_t2_raw", model_mapping, "modeltype_grouped"
+  )
+  ff3_t2_summary_model_rawunits <- compute_outperformance(
+    ret_for_plot0_ff3_t2_raw,
+    "abnormal_ff3", "matchRet_ff3_t2_raw", model_mapping, "modeltype_grouped"
+  )
+  print_summary_table(
+    summaries = list(
+      raw = raw_t2_summary_theory,
+      capm_un = capm_t2_summary_theory_rawunits,
+      ff3_un = ff3_t2_summary_theory_rawunits
+    ),
+    groups = c("Risk", "Mispricing", "Agnostic"),
+    group_col = "theory_group",
+    table_title = if (filter_type == "return") {
+      paste0("FULL-SAMPLE ALPHA (UNNORMALIZED, avg>=", return_threshold, ") BY THEORETICAL FOUNDATION")
+    } else {
+      paste0("FULL-SAMPLE ALPHA (UNNORMALIZED, t>=", t_threshold, ") BY THEORETICAL FOUNDATION")
+    },
+    analysis_types = c("raw", "capm_un", "ff3_un"),
+    analysis_labels = c("Raw", "CAPM(un)", "FF3(un)")
+  )
+  print_summary_table(
+    summaries = list(
+      raw = raw_t2_summary_model,
+      capm_un = capm_t2_summary_model_rawunits,
+      ff3_un = ff3_t2_summary_model_rawunits
+    ),
+    groups = c("No Model", "Stylized", "Dynamic or Quantitative"),
+    group_col = "modeltype_grouped",
+    table_title = if (filter_type == "return") {
+      paste0("FULL-SAMPLE ALPHA (UNNORMALIZED, avg>=", return_threshold, ") BY MODELING FORMALISM")
+    } else {
+      paste0("FULL-SAMPLE ALPHA (UNNORMALIZED, t>=", t_threshold, ") BY MODELING FORMALISM")
+    },
+    analysis_types = c("raw", "capm_un", "ff3_un"),
+    analysis_labels = c("Raw", "CAPM(un)", "FF3(un)")
+  )
+  
+  # Overall (All) row for unnormalized full-sample
+  overall_un_raw <- compute_overall_summary(
+    plot_data = ret_for_plot0 %>% filter(!is.na(matchRet), pubname %in% filtered_signals_raw),
+    ret_col = "ret",
+    dm_col = "matchRet"
+  ) %>% select(-group, -n_signals)
+  
+  overall_un_capm <- compute_overall_summary(
+    plot_data = ret_for_plot0_capm_t2_raw,
+    ret_col = "abnormal_capm",
+    dm_col = "matchRet_capm_t2_raw"
+  ) %>% select(-group, -n_signals)
+  
+  overall_un_ff3 <- compute_overall_summary(
+    plot_data = ret_for_plot0_ff3_t2_raw,
+    ret_col = "abnormal_ff3",
+    dm_col = "matchRet_ff3_t2_raw"
+  ) %>% select(-group, -n_signals)
+  
+  cat("\nOVERALL (UNNORMALIZED)\n")
+  cat(sprintf("%-12s %4.0f   %6.2f   %6.2f   %4.0f   %6.2f   %6.2f\n",
+              "All",
+              round(overall_un_raw$pub_oos), overall_un_capm$pub_oos, overall_un_ff3$pub_oos,
+              round(overall_un_raw$outperform), overall_un_capm$outperform, overall_un_ff3$outperform))
+  cat(sprintf("%-12s (%2.0f)   (%6.2f)   (%6.2f)   (%2.0f)   (%6.2f)   (%6.2f)\n",
+              "",
+              round(overall_un_raw$pub_oos_se), overall_un_capm$pub_oos_se, overall_un_ff3$pub_oos_se,
+              round(overall_un_raw$outperform_se), overall_un_capm$outperform_se, overall_un_ff3$outperform_se))
+  
+  # Time-varying (unnormalized) CAPM/FF3
+  if (exists("dm_filtered_capm_tv") && exists("dm_filtered_ff3_tv")) {
+    cat("\n\n=== UNNORMALIZED TIME-VARYING ALPHA TABLES (raw units) ===\n")
+    dm_capm_tv_aggregated_raw <- aggregate_dm_no_norm(
+      dm_filtered_capm_tv,
+      "abnormal_capm_tv",
+      "capm_tv_t2_raw"
+    )
+    dm_ff3_tv_aggregated_raw <- aggregate_dm_no_norm(
+      dm_filtered_ff3_tv,
+      "abnormal_ff3_tv",
+      "ff3_tv_t2_raw"
+    )
+    ret_for_plot0_capm_tv_t2_raw <- create_filtered_plot_data(
+      ret_for_plot0_adj,
+      signals_capm_tv_t2,
+      dm_capm_tv_aggregated_raw,
+      "abnormal_capm_tv",
+      "matchRet_capm_tv_t2_raw",
+      "capm_tv_t2_raw"
+    )
+    ret_for_plot0_ff3_tv_t2_raw <- create_filtered_plot_data(
+      ret_for_plot0_adj,
+      signals_ff3_tv_t2,
+      dm_ff3_tv_aggregated_raw,
+      "abnormal_ff3_tv",
+      "matchRet_ff3_tv_t2_raw",
+      "ff3_tv_t2_raw"
+    )
+    capm_tv_t2_summary_theory_rawunits <- compute_outperformance(
+      ret_for_plot0_capm_tv_t2_raw,
+      "abnormal_capm_tv", "matchRet_capm_tv_t2_raw", theory_mapping, "theory_group"
+    )
+    ff3_tv_t2_summary_theory_rawunits <- compute_outperformance(
+      ret_for_plot0_ff3_tv_t2_raw,
+      "abnormal_ff3_tv", "matchRet_ff3_tv_t2_raw", theory_mapping, "theory_group"
+    )
+    capm_tv_t2_summary_model_rawunits <- compute_outperformance(
+      ret_for_plot0_capm_tv_t2_raw,
+      "abnormal_capm_tv", "matchRet_capm_tv_t2_raw", model_mapping, "modeltype_grouped"
+    )
+    ff3_tv_t2_summary_model_rawunits <- compute_outperformance(
+      ret_for_plot0_ff3_tv_t2_raw,
+      "abnormal_ff3_tv", "matchRet_ff3_tv_t2_raw", model_mapping, "modeltype_grouped"
+    )
+    print_summary_table(
+      summaries = list(
+        raw = raw_t2_summary_theory,
+        capm_tv_un = capm_tv_t2_summary_theory_rawunits,
+        ff3_tv_un = ff3_tv_t2_summary_theory_rawunits
+      ),
+      groups = c("Risk", "Mispricing", "Agnostic"),
+      group_col = "theory_group",
+      table_title = if (filter_type == "return") {
+        paste0("TIME-VARYING ALPHA (UNNORMALIZED, avg>=", return_threshold, ") BY THEORETICAL FOUNDATION")
+      } else {
+        paste0("TIME-VARYING ALPHA (UNNORMALIZED, t>=", t_threshold, ") BY THEORETICAL FOUNDATION")
+      },
+      analysis_types = c("raw", "capm_tv_un", "ff3_tv_un"),
+      analysis_labels = c("Raw", "CAPM-TV(un)", "FF3-TV(un)")
+    )
+    print_summary_table(
+      summaries = list(
+        raw = raw_t2_summary_model,
+        capm_tv_un = capm_tv_t2_summary_model_rawunits,
+        ff3_tv_un = ff3_tv_t2_summary_model_rawunits
+      ),
+      groups = c("No Model", "Stylized", "Dynamic or Quantitative"),
+      group_col = "modeltype_grouped",
+      table_title = if (filter_type == "return") {
+        paste0("TIME-VARYING ALPHA (UNNORMALIZED, avg>=", return_threshold, ") BY MODELING FORMALISM")
+      } else {
+        paste0("TIME-VARYING ALPHA (UNNORMALIZED, t>=", t_threshold, ") BY MODELING FORMALISM")
+      },
+      analysis_types = c("raw", "capm_tv_un", "ff3_tv_un"),
+      analysis_labels = c("Raw", "CAPM-TV(un)", "FF3-TV(un)")
+    )
+    
+    # Overall (All) row for unnormalized time-varying
+    overall_un_capm_tv <- compute_overall_summary(
+      plot_data = ret_for_plot0_capm_tv_t2_raw,
+      ret_col = "abnormal_capm_tv",
+      dm_col = "matchRet_capm_tv_t2_raw"
+    ) %>% select(-group, -n_signals)
+    
+    overall_un_ff3_tv <- compute_overall_summary(
+      plot_data = ret_for_plot0_ff3_tv_t2_raw,
+      ret_col = "abnormal_ff3_tv",
+      dm_col = "matchRet_ff3_tv_t2_raw"
+    ) %>% select(-group, -n_signals)
+    
+    cat("\nOVERALL TIME-VARYING (UNNORMALIZED)\n")
+    cat(sprintf("%-12s %6.2f   %6.2f   %6.2f\n",
+                "All (CAPM-TV)", overall_un_capm_tv$pub_oos, overall_un_capm_tv$outperform, overall_un_capm_tv$dm_oos))
+    cat(sprintf("%-12s (%6.2f)   (%6.2f)   (%6.2f)\n",
+                "", overall_un_capm_tv$pub_oos_se, overall_un_capm_tv$outperform_se, overall_un_capm_tv$dm_oos_se))
+    cat(sprintf("%-12s %6.2f   %6.2f   %6.2f\n",
+                "All (FF3-TV)", overall_un_ff3_tv$pub_oos, overall_un_ff3_tv$outperform, overall_un_ff3_tv$dm_oos))
+    cat(sprintf("%-12s (%6.2f)   (%6.2f)   (%6.2f)\n",
+                "", overall_un_ff3_tv$pub_oos_se, overall_un_ff3_tv$outperform_se, overall_un_ff3_tv$dm_oos_se))
+  }
+}
+
+# Invoke after function definition
+print_unnormalized_tables()
