@@ -433,9 +433,9 @@ printme = ReturnPlotsWithDM(
   linesize = linesizeall
 )
 
-# Define journal categories before the plotting section ------------------------
-top_finance = c('JF', 'JFE', 'RFS')
-top_accounting = c('JAR', 'JAE', 'AR')  # Top 3 Acct journals
+# Use journal definitions from globalSettings ------------------------
+top_finance = globalSettings$top3Finance
+top_accounting = globalSettings$top3Accounting
 
 # Add journal classifications to ret_for_plot0
 ret_for_plot_journal <- ret_for_plot0 %>%

@@ -1,9 +1,15 @@
 # Risk-adjust data-mined signals using CAPM and FF3
 # Uses matched DM signals from 2b_MatchDataMinedToPub.R
 # Computes full-sample betas (from sampstart onwards) for each DM signal
+#
+# FIXED: Time-varying beta/alpha consistency with published signals
+# - DM signals use sampstart/sampend periods for IS/OOS classification
+# - Published signals use same sampstart/sampend periods (in 4c4 file)
+# - Both use same period definitions for TV adjustments
 
 rm(list = ls())
 source('0_Environment.R')
+source('helpers/risk_adjusted_helpers_tv.R')
 library(doParallel)
 
 # Setup -------------------------------------------------------------------
@@ -18,19 +24,7 @@ DMshortname = DMname %>%
 ncores = globalSettings$num_cores
 
 # Helper functions --------------------------------------------------------
-extract_beta <- function(x, y) {
-  if(sum(!is.na(x) & !is.na(y)) < 12) return(NA_real_)  # Need at least 12 months
-  model <- lm(y ~ x)
-  bet <- coef(model)[2]
-  return(bet)
-}
-
-extract_ff3_coeffs <- function(ret, mktrf, smb, hml) {
-  if(sum(!is.na(ret) & !is.na(mktrf)) < 12) return(c(NA_real_, NA_real_, NA_real_))
-  model <- lm(ret ~ mktrf + smb + hml)
-  coeffs <- coef(model)
-  return(coeffs[2:4])  # Return beta, s, and h coefficients
-}
+# extract_beta and extract_ff3_coeffs are sourced from helpers/risk_adjusted_helpers_tv.R
 
 # Load data ---------------------------------------------------------------
 
@@ -55,7 +49,9 @@ candidateReturns <- candidateReturns %>%
   left_join(czsum, by = c('actSignal' = 'signalname')) %>%
   mutate(
     # Convert eventDate back to actual date
-    date = sampend + eventDate/12
+    date = sampend + eventDate/12,
+    # FIXED: Use sampstart/sampend-based samptype for consistency with published signals
+    samptype = ifelse(date >= sampstart & date <= sampend, 'insamp', 'oos')
   ) %>%
   left_join(FamaFrenchFactors, by = 'date')
 
@@ -182,13 +178,14 @@ candidateReturns <- candidateReturns %>%
     abnormal_ff3 = ret - (beta_ff3 * mktrf + s_ff3 * smb + h_ff3 * hml),
     
     # Time-varying abnormal returns: IS betas for IS period, post-sample betas for OOS period
+    # FIXED: Use sampstart/sampend-based samptype for consistency with published signals
     abnormal_capm_tv = case_when(
-      date <= sampend ~ ret - beta_capm_is * mktrf,  # IS period: use IS beta
+      date >= sampstart & date <= sampend ~ ret - beta_capm_is * mktrf,  # IS period: use IS beta
       date > sampend ~ ret - beta_capm_post * mktrf,  # OOS period: use post-sample beta
       TRUE ~ NA_real_
     ),
     abnormal_ff3_tv = case_when(
-      date <= sampend ~ ret - (beta_ff3_is * mktrf + s_ff3_is * smb + h_ff3_is * hml),  # IS period: use IS betas
+      date >= sampstart & date <= sampend ~ ret - (beta_ff3_is * mktrf + s_ff3_is * smb + h_ff3_is * hml),  # IS period: use IS betas
       date > sampend ~ ret - (beta_ff3_post * mktrf + s_ff3_post * smb + h_ff3_post * hml),  # OOS period: use post-sample betas
       TRUE ~ NA_real_
     )
