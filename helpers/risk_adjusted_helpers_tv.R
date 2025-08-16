@@ -2,12 +2,14 @@
 
 # Basic extraction helpers -------------------------------------------------
 extract_beta <- function(ret, mktrf) {
+  if (sum(stats::complete.cases(ret, mktrf)) < 60) return(NA_real_)
   model <- lm(ret ~ mktrf)
   bet <- coef(model)[2]
   return(bet)
 }
 
 extract_ff3_coeffs <- function(ret, mktrf, smb, hml) {
+  if (sum(stats::complete.cases(ret, mktrf, smb, hml)) < 60) return(c(NA_real_, NA_real_, NA_real_))
   model <- lm(ret ~ mktrf + smb + hml)
   coeffs <- coef(model)
   return(coeffs[2:4])
@@ -18,7 +20,12 @@ normalize_and_aggregate_dm <- function(dm_data, abnormal_col, suffix_name) {
   dm_normalized <- dm_data %>%
     group_by(actSignal, candSignalname) %>%
     mutate(
-      insample_mean = mean(.data[[abnormal_col]][samptype == "insamp"], na.rm = TRUE),
+      # FIXED: Use sampstart/sampend-based periods for consistency with published signals
+      insample_mean = if("sampstart" %in% names(dm_data) && "sampend" %in% names(dm_data)) {
+        mean(.data[[abnormal_col]][date >= sampstart & date <= sampend], na.rm = TRUE)
+      } else {
+        mean(.data[[abnormal_col]][samptype == "insamp"], na.rm = TRUE)
+      },
       normalized_ind = ifelse(abs(insample_mean) > 1e-10,
                              100 * .data[[abnormal_col]] / insample_mean,
                              NA)
@@ -64,22 +71,35 @@ aggregate_dm_no_norm <- function(dm_data, abnormal_col, suffix_name) {
 create_risk_adjusted_plot <- function(plot_data, pub_col, dm_col,
                                      adjustment_type, t_threshold,
                                      y_axis_label, y_high = 125,
-                                     filter_type = "tstat", return_threshold = 0.15) {
+                                     filter_type = "tstat") {
   
   if(nrow(plot_data) > 0) {
     plot_data %>%
       summarise(
-        pub_mean_insamp = mean(.data[[pub_col]][eventDate <= 0], na.rm = TRUE),
-        pub_mean_oos = mean(.data[[pub_col]][eventDate > 0], na.rm = TRUE),
-        dm_mean_insamp = mean(.data[[dm_col]][eventDate <= 0], na.rm = TRUE),
-        dm_mean_oos = mean(.data[[dm_col]][eventDate > 0], na.rm = TRUE)
+        # FIXED: Use sampstart/sampend-based periods for consistency
+        pub_mean_insamp = if("sampstart" %in% names(plot_data) && "sampend" %in% names(plot_data)) {
+          mean(.data[[pub_col]][date >= sampstart & date <= sampend], na.rm = TRUE)
+        } else {
+          mean(.data[[pub_col]][eventDate <= 0], na.rm = TRUE)
+        },
+        pub_mean_oos = if("sampend" %in% names(plot_data)) {
+          mean(.data[[pub_col]][date > sampend], na.rm = TRUE)
+        } else {
+          mean(.data[[pub_col]][eventDate > 0], na.rm = TRUE)
+        },
+        dm_mean_insamp = if("sampstart" %in% names(plot_data) && "sampend" %in% names(plot_data)) {
+          mean(.data[[dm_col]][date >= sampstart & date <= sampend], na.rm = TRUE)
+        } else {
+          mean(.data[[dm_col]][eventDate <= 0], na.rm = TRUE)
+        },
+        dm_mean_oos = if("sampend" %in% names(plot_data)) {
+          mean(.data[[dm_col]][date > sampend], na.rm = TRUE)
+        } else {
+          mean(.data[[dm_col]][eventDate > 0], na.rm = TRUE)
+        }
       ) %>% print()
     
-    if (filter_type == "return") {
-      suffix <- paste0(tolower(adjustment_type), "_r", gsub("\\.", "", format(return_threshold, nsmall = 0)))
-    } else {
-      suffix <- paste0(tolower(adjustment_type), "_t", t_threshold)
-    }
+    suffix <- paste0(tolower(adjustment_type), "_t", t_threshold)
     
     plot_obj <- ReturnPlotsWithDM_std_errors_indicators(
       dt = plot_data %>%
@@ -100,13 +120,9 @@ create_risk_adjusted_plot <- function(plot_data, pub_col, dm_col,
       xh = global_xh,
       legendlabels = c(
         paste0("Published (", adjustment_type, ", ",
-               ifelse(filter_type == "return",
-                      paste0("avg>=", return_threshold),
-                      paste0("t>=", t_threshold)), ")"),
+               paste0("t>=", t_threshold), ")"),
         paste0("Data-Mined (", adjustment_type, ", ",
-               ifelse(filter_type == "return",
-                      paste0("avg>=", return_threshold),
-                      paste0("t>=", t_threshold)), ")"),
+               paste0("t>=", t_threshold), ")"),
         'N/A'
       ),
       legendpos = c(35,20)/100,
@@ -136,15 +152,34 @@ compute_outperformance <- function(plot_data, ret_col, dm_ret_col, group_map, gr
     group_by(.data[[group_col]]) %>%
     summarise(
       n_signals = n_distinct(pubname),
-      pub_oos = mean(.data[[ret_col]][eventDate > 0], na.rm = TRUE),
-      pub_oos_se = {
-        n <- sum(eventDate > 0 & !is.na(.data[[ret_col]]))
-        if (n > 1) sd(.data[[ret_col]][eventDate > 0], na.rm = TRUE) / sqrt(n) else NA_real_
+      # FIXED: Use sampstart/sampend-based periods for consistency
+      pub_oos = if("sampend" %in% names(plot_data)) {
+        mean(.data[[ret_col]][date > sampend], na.rm = TRUE)
+      } else {
+        mean(.data[[ret_col]][eventDate > 0], na.rm = TRUE)
       },
-      dm_oos = mean(.data[[dm_ret_col]][eventDate > 0], na.rm = TRUE),
+      pub_oos_se = {
+        if("sampend" %in% names(plot_data)) {
+          n <- sum(date > sampend & !is.na(.data[[ret_col]]))
+          if (n > 1) sd(.data[[ret_col]][date > sampend], na.rm = TRUE) / sqrt(n) else NA_real_
+        } else {
+          n <- sum(eventDate > 0 & !is.na(.data[[ret_col]]))
+          if (n > 1) sd(.data[[ret_col]][eventDate > 0], na.rm = TRUE) / sqrt(n) else NA_real_
+        }
+      },
+      dm_oos = if("sampend" %in% names(plot_data)) {
+        mean(.data[[dm_ret_col]][date > sampend], na.rm = TRUE)
+      } else {
+        mean(.data[[dm_ret_col]][eventDate > 0], na.rm = TRUE)
+      },
       dm_oos_se = {
-        n <- sum(eventDate > 0 & !is.na(.data[[dm_ret_col]]))
-        if (n > 1) sd(.data[[dm_ret_col]][eventDate > 0], na.rm = TRUE) / sqrt(n) else NA_real_
+        if("sampend" %in% names(plot_data)) {
+          n <- sum(date > sampend & !is.na(.data[[dm_ret_col]]))
+          if (n > 1) sd(.data[[dm_ret_col]][date > sampend], na.rm = TRUE) / sqrt(n) else NA_real_
+        } else {
+          n <- sum(eventDate > 0 & !is.na(.data[[dm_ret_col]]))
+          if (n > 1) sd(.data[[dm_ret_col]][eventDate > 0], na.rm = TRUE) / sqrt(n) else NA_real_
+        }
       },
       outperform = pub_oos - dm_oos,
       outperform_se = sqrt(pub_oos_se^2 + dm_oos_se^2),
@@ -320,17 +355,160 @@ create_latex_table <- function(table_data, caption = "", label = "",
 
 create_formatted_latex_table <- function(table_data, caption = "", label = "",
                                         group_headers = NULL, placement = "htbp",
-                                        separate_se_rows = TRUE) {
-  # Fallback to basic xtable rendering for robustness
-  create_latex_table(
-    table_data = table_data,
-    caption = caption,
-    label = label,
-    column_spec = NULL,
-    booktabs = TRUE,
-    size = "\\small",
-    placement = placement
+                                        separate_se_rows = TRUE,
+                                        show_category_as_section = TRUE) {
+  # Build a pretty LaTeX table manually with optional grouped headers
+  # Expect first columns to be Category and Group (if available); remaining columns are metric columns
+  if (!is.data.frame(table_data)) {
+    stop("table_data must be a data.frame")
+  }
+  n_cols <- ncol(table_data)
+  if (n_cols < 1) {
+    stop("table_data must have at least one column")
+  }
+  # Auto-detect table shape
+  has_category <- "Category" %in% names(table_data)
+  has_group <- "Group" %in% names(table_data)
+  mode <- if (show_category_as_section && has_category) {
+    "section"
+  } else if (has_category && has_group) {
+    "columns"
+  } else {
+    "group_only"
+  }
+  # Determine visible columns and column spec
+  if (mode == "section") {
+    visible_cols <- names(table_data)[-1]  # drop Category from visible; keep Group + metrics
+    num_metric_cols <- length(visible_cols) - 1
+    col_spec <- paste0("l", paste(rep("r", max(0, num_metric_cols)), collapse = ""))
+  } else if (mode == "columns") {
+    visible_cols <- names(table_data)
+    num_metric_cols <- length(visible_cols) - 2
+    col_spec <- paste0("ll", paste(rep("r", max(0, num_metric_cols)), collapse = ""))
+  } else { # group_only
+    visible_cols <- names(table_data)
+    num_metric_cols <- length(visible_cols) - 1
+    col_spec <- paste0("l", paste(rep("r", max(0, num_metric_cols)), collapse = ""))
+  }
+  # Start LaTeX
+  lines <- c()
+  lines <- c(lines, sprintf("\\begin{table}[%s]", placement))
+  lines <- c(lines, "\\centering")
+  lines <- c(lines, "\\small")
+  if (nzchar(caption)) lines <- c(lines, sprintf("\\caption{%s}", caption))
+  if (nzchar(label))   lines <- c(lines, sprintf("\\label{%s}", label))
+  lines <- c(lines, sprintf("\\begin{tabular}{%s}", col_spec))
+  lines <- c(lines, "\\toprule")
+  # Grouped headers row (optional)
+  if (!is.null(group_headers) && length(group_headers) > 0) {
+    header_cells <- if (mode == "columns") c(" ", " ") else c(" ")
+    for (gh in group_headers) {
+      title <- gh$title
+      span  <- gh$span
+      header_cells <- c(header_cells, sprintf("\\multicolumn{%d}{c}{%s}", span, title))
+    }
+    lines <- c(lines, paste(header_cells, collapse = " & "), "\\\\")
+    # cmidrules under grouped headers
+    start_col <- if (mode == "columns") 3 else 2
+    cmids <- c()
+    offset <- 0
+    for (gh in group_headers) {
+      span <- gh$span
+      left <- start_col + offset
+      right <- left + span - 1
+      cmids <- c(cmids, sprintf("\\cmidrule(lr){%d-%d}", left, right))
+      offset <- offset + span
+    }
+    lines <- c(lines, paste(cmids, collapse = " "))
+  }
+  # Second header row with metric labels
+  metric_labels <- character()
+  if (num_metric_cols > 0) {
+    if (mode == "section") {
+      metric_cols <- visible_cols[-1]
+    } else if (mode == "columns") {
+      metric_cols <- visible_cols[-(1:2)]
+    } else { # group_only
+      metric_cols <- visible_cols[-1]
+    }
+    for (cn in metric_cols) {
+      if (grepl("_Return$", cn)) {
+        metric_labels <- c(metric_labels, "Return")
+      } else if (grepl("_Outperformance$", cn)) {
+        metric_labels <- c(metric_labels, "Outperformance")
+      } else {
+        metric_labels <- c(metric_labels, cn)
+      }
+    }
+  }
+  header_row <- switch(mode,
+    section = c("Group", metric_labels),
+    columns = c("Category", "Group", metric_labels),
+    group_only = c("Group", metric_labels)
   )
+  lines <- c(lines, paste(header_row, collapse = " & "), "\\\\")
+  lines <- c(lines, "\\midrule")
+  # Helper to split "value (se)" into separate lines
+  split_val_se <- function(cell) {
+    if (is.na(cell) || is.null(cell) || cell == "") return(list(val = "", se = ""))
+    s <- as.character(cell)
+    m <- regexec("^\\s*([^\\(]+?)\\s*(?:\\(([^\\)]*)\\))?\\s*$", s)
+    reg <- regmatches(s, m)
+    if (length(reg) > 0 && length(reg[[1]]) >= 2) {
+      val <- trimws(reg[[1]][2])
+      se  <- if (length(reg[[1]]) >= 3) trimws(reg[[1]][3]) else ""
+      return(list(val = val, se = se))
+    }
+    list(val = s, se = "")
+  }
+  # Rows
+  prev_cat <- NULL
+  for (i in seq_len(nrow(table_data))) {
+    row <- table_data[i, , drop = FALSE]
+    # Optional category section header
+    if (mode == "section") {
+      cat_val <- as.character(row[[1]])
+      if (is.null(prev_cat) || (!identical(prev_cat, cat_val))) {
+        lines <- c(lines, sprintf("\\multicolumn{%d}{l}{\\textbf{%s}}\\\\", max(1, 1 + num_metric_cols), cat_val))
+        lines <- c(lines, "\\addlinespace[2pt]")
+        prev_cat <- cat_val
+      }
+    }
+    # Values row
+    vals <- c()
+    if (mode == "section") {
+      vals <- c(vals, as.character(row[[2]]))  # Group
+      value_cols <- names(row)[-(1:2)]
+    } else if (mode == "columns") {
+      vals <- c(vals, as.character(row[[1]]), as.character(row[[2]]))
+      value_cols <- names(row)[-(1:2)]
+    } else { # group_only
+      vals <- c(vals, as.character(row[[1]]))
+      value_cols <- names(row)[-1]
+    }
+    for (cn in value_cols) {
+      sp <- split_val_se(row[[cn]])
+      vals <- c(vals, sp$val)
+    }
+    lines <- c(lines, paste(vals, collapse = " & "), "\\\\")
+    # SE row
+    if (separate_se_rows && length(value_cols) > 0) {
+      ses <- switch(mode,
+        section = c(""),
+        columns = c("", ""),
+        group_only = c("")
+      )
+      for (cn in value_cols) {
+        sp <- split_val_se(row[[cn]])
+        ses <- c(ses, if (nzchar(sp$se)) sprintf("(%s)", sp$se) else "")
+      }
+      lines <- c(lines, paste(ses, collapse = " & "), "\\\\[2pt]")
+    }
+  }
+  lines <- c(lines, "\\bottomrule")
+  lines <- c(lines, "\\end{tabular}")
+  lines <- c(lines, "\\end{table}")
+  paste(lines, collapse = "\n")
 }
 
 build_tv_summary_table <- function(categories, groups, summaries, digits = 0) {
@@ -459,8 +637,13 @@ export_tables_multi_format <- function(table_data, base_filename,
 } 
 
 compute_overall_summary <- function(plot_data, ret_col, dm_col) {
+  # FIXED: Use sampstart/sampend-based periods for consistency
   # Subset to post-sample observations
-  oos_rows <- plot_data$eventDate > 0
+  oos_rows <- if("sampend" %in% names(plot_data)) {
+    plot_data$date > plot_data$sampend
+  } else {
+    plot_data$eventDate > 0
+  }
   ret_vals <- plot_data[[ret_col]][oos_rows]
   dm_vals  <- plot_data[[dm_col]][oos_rows]
   n_ret <- sum(!is.na(ret_vals))
@@ -484,8 +667,8 @@ compute_overall_summary <- function(plot_data, ret_col, dm_col) {
   return(result)
 } 
 
-prepare_dm_filters <- function(candidateReturns_adj, czret, filter_type, t_threshold, return_threshold) {
-  # Ensure samptype exists
+prepare_dm_filters <- function(candidateReturns_adj, czret, filter_type, t_threshold) {
+  # Ensure samptype exists and is consistent with sampstart/sampend approach
   if(!"samptype" %in% names(candidateReturns_adj)) {
     candidateReturns_adj <- candidateReturns_adj %>%
       left_join(
@@ -493,56 +676,44 @@ prepare_dm_filters <- function(candidateReturns_adj, czret, filter_type, t_thres
         by = c("actSignal" = "signalname", "eventDate" = "eventDate")
       )
   }
+  
+  # FIXED: Ensure samptype is based on sampstart/sampend for consistency
+  if(!"sampstart" %in% names(candidateReturns_adj) || !"sampend" %in% names(candidateReturns_adj)) {
+    # If sampstart/sampend not available, use existing samptype
+    cat("Warning: sampstart/sampend not available, using existing samptype\n")
+  } else {
+    # Update samptype to be consistent with sampstart/sampend approach
+    candidateReturns_adj <- candidateReturns_adj %>%
+      mutate(samptype = ifelse(date >= sampstart & date <= sampend, 'insamp', 'oos'))
+  }
+  
   setDT(candidateReturns_adj)
-  # Stats per DM signal (IS only)
+  # TV-only stats per DM signal (IS only) - FIXED: Use sampstart/sampend-based IS period
   dm_stats <- candidateReturns_adj[
-    samptype == "insamp" & !is.na(abnormal_capm),
+    (date >= sampstart & date <= sampend) & !is.na(abnormal_capm_tv),
     .(
-      abar_capm_dm_t = {
-        m <- mean(abnormal_capm, na.rm = TRUE)
-        s <- sd(abnormal_capm, na.rm = TRUE)
-        n <- sum(!is.na(abnormal_capm))
+      abar_capm_tv_dm_t = {
+        m <- mean(abnormal_capm_tv, na.rm = TRUE)
+        s <- sd(abnormal_capm_tv, na.rm = TRUE)
+        n <- sum(!is.na(abnormal_capm_tv))
         if (n > 1 && s > 0) m / s * sqrt(n) else NA_real_
       },
-      abar_ff3_dm_t = {
-        m <- mean(abnormal_ff3, na.rm = TRUE)
-        s <- sd(abnormal_ff3, na.rm = TRUE)
-        n <- sum(!is.na(abnormal_ff3))
+      abar_ff3_tv_dm_t = {
+        m <- mean(abnormal_ff3_tv, na.rm = TRUE)
+        s <- sd(abnormal_ff3_tv, na.rm = TRUE)
+        n <- sum(!is.na(abnormal_ff3_tv))
         if (n > 1 && s > 0) m / s * sqrt(n) else NA_real_
       },
-      abar_capm_dm = mean(abnormal_capm, na.rm = TRUE),
-      abar_ff3_dm = mean(abnormal_ff3, na.rm = TRUE)
+      abar_capm_tv_dm = mean(abnormal_capm_tv, na.rm = TRUE),
+      abar_ff3_tv_dm = mean(abnormal_ff3_tv, na.rm = TRUE)
     ),
     by = .(actSignal, candSignalname)
   ]
-  # Filter DM
-  if (filter_type == "return") {
-    dm_filtered_capm <- candidateReturns_adj %>%
-      inner_join(dm_stats %>% filter(abar_capm_dm >= return_threshold), by = c("actSignal", "candSignalname"))
-    dm_filtered_ff3 <- candidateReturns_adj %>%
-      inner_join(dm_stats %>% filter(abar_ff3_dm >= return_threshold), by = c("actSignal", "candSignalname"))
-    signals_raw <- unique(czret[rbar_avg >= return_threshold]$signalname)
-    signals_capm <- unique(czret[abar_capm >= return_threshold]$signalname)
-    signals_ff3 <- unique(czret[abar_ff3 >= return_threshold]$signalname)
-  } else {
-    dm_filtered_capm <- candidateReturns_adj %>%
-      inner_join(dm_stats %>% filter(abar_capm_dm_t >= t_threshold), by = c("actSignal", "candSignalname"))
-    dm_filtered_ff3 <- candidateReturns_adj %>%
-      inner_join(dm_stats %>% filter(abar_ff3_dm_t >= t_threshold), by = c("actSignal", "candSignalname"))
-    signals_raw <- unique(czret[rbar_t >= t_threshold]$signalname)
-    signals_capm <- unique(czret[abar_capm_t >= t_threshold]$signalname)
-    signals_ff3 <- unique(czret[abar_ff3_t >= t_threshold]$signalname)
-  }
-  # Additionally require published signals to pass the raw filter for comparability
-  signals_capm <- intersect(signals_capm, signals_raw)
-  signals_ff3 <- intersect(signals_ff3, signals_raw)
+  # Only need raw signals list for 4c4
+  signals_raw <- unique(czret[rbar_t >= t_threshold]$signalname)
   list(
     dm_stats = dm_stats,
-    dm_filtered_capm = dm_filtered_capm,
-    dm_filtered_ff3 = dm_filtered_ff3,
-    signals_raw = signals_raw,
-    signals_capm = signals_capm,
-    signals_ff3 = signals_ff3
+    signals_raw = signals_raw
   )
 }
 
@@ -568,13 +739,13 @@ load_signal_mappings <- function(signals_checked_csv, incl_signals) {
         TRUE ~ "Agnostic"
       ),
       discipline = case_when(
-        Journal %in% c("JAR", "JAE", "AR") ~ "Accounting",
+        Journal %in% globalSettings$top3Accounting ~ "Accounting",
         Journal %in% c("QJE", "JPE") ~ "Economics",
         TRUE ~ "Finance"
       ),
       journal_rank = case_when(
-        Journal %in% c("JF", "JFE", "RFS") ~ "JF, JFE, RFS",
-        Journal %in% c("JAR", "JAE", "AR") ~ "AR, JAR, JAE",
+        Journal %in% globalSettings$top3Finance ~ "JF, JFE, RFS",
+        Journal %in% globalSettings$top3Accounting ~ "AR, JAR, JAE",
         Journal %in% c("QJE", "JPE") ~ "Economics",
         TRUE ~ "Other"
       )

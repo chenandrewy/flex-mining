@@ -13,9 +13,6 @@ source("0_Environment.R")
 source("helpers/risk_adjusted_helpers_tv.R")
 
 t_threshold = 2
-# For raw returns: threshold is in basis points (e.g., 15 = 0.15% per month)
-# For CAPM/FF3 alphas: values are already normalized to ~100, so use 15 for consistency
-return_threshold = 0.3  # basis points for raw returns/alphas. Returns and FF5 factors are in percentages so 0.3 = 30 bps per month
 
 # Filter type fixed to t-stat only
 filter_type <- "tstat"
@@ -152,10 +149,9 @@ print(czret[, .(
   hml_max = max(hml, na.rm = TRUE)
 )])
 
-# Compute raw return averages and t-stats on actual returns (not scaled)
+# Compute raw return t-stats on actual returns (not scaled)
 # FIXED: Use sampstart/sampend-based periods for consistency with DM signals
 czret[date >= sampstart & date <= sampend, `:=`(
-  rbar_avg = mean(ret, na.rm = TRUE),  # Average actual return in basis points
   rbar_t = {
     m <- mean(ret, na.rm = TRUE)
     s <- sd(ret, na.rm = TRUE) 
@@ -163,7 +159,6 @@ czret[date >= sampstart & date <= sampend, `:=`(
     if (n > 1 && s > 0) m / s * sqrt(n) else NA_real_
   }
 ), by = signalname]
-czret[, rbar_avg := nafill(rbar_avg, "locf"), by = .(signalname)]
 czret[, rbar_t := nafill(rbar_t, "locf"), by = .(signalname)]
 
 # Compute published-side time-varying CAPM/FF3 betas and normalized alphas
@@ -303,8 +298,7 @@ filters <- prepare_dm_filters(
   candidateReturns_adj = candidateReturns_adj,
   czret = czret,
   filter_type = filter_type,
-  t_threshold = t_threshold,
-  return_threshold = return_threshold
+  t_threshold = t_threshold
 )
 
 dm_stats <- filters$dm_stats
@@ -420,8 +414,7 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff3_tv" %in%
     "CAPM TV Alpha",
     t_threshold,
     "Trailing 5-Year CAPM Alpha",
-    filter_type = filter_type,
-    return_threshold = return_threshold
+    filter_type = filter_type
   )
   
   # FF3 time-varying filtering (t-stat only)
@@ -461,8 +454,7 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff3_tv" %in%
     "FF3 TV Alpha",
     t_threshold,
     "Trailing 5-Year FF3 Alpha",
-    filter_type = filter_type,
-    return_threshold = return_threshold
+    filter_type = filter_type
   )
   
   # Create Time-Varying Alpha Summary Tables
@@ -492,9 +484,7 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff3_tv" %in%
     tv_plot_data,
     tv_mappings,
     table_name = "Time-Varying Alpha Analysis",
-    filter_desc = ifelse(filter_type == "return", 
-                        paste0("avg >= ", return_threshold),
-                        paste0("t >= ", t_threshold))
+    filter_desc = paste0("t >= ", t_threshold)
   )
   
   # Print TV alpha summary by theory
