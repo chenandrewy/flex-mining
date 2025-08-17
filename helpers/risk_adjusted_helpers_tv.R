@@ -120,9 +120,9 @@ create_risk_adjusted_plot <- function(plot_data, pub_col, dm_col,
       xh = global_xh,
       legendlabels = c(
         paste0("Published (", adjustment_type, ", ",
-               paste0("t>=", t_threshold), ")"),
+               paste0("t>", t_threshold), ")"),
         paste0("Data-Mined (", adjustment_type, ", ",
-               paste0("t>=", t_threshold), ")"),
+               paste0("t>", t_threshold), ")"),
         'N/A'
       ),
       legendpos = c(35,20)/100,
@@ -380,15 +380,15 @@ create_formatted_latex_table <- function(table_data, caption = "", label = "",
   if (mode == "section") {
     visible_cols <- names(table_data)[-1]  # drop Category from visible; keep Group + metrics
     num_metric_cols <- length(visible_cols) - 1
-    col_spec <- paste0("l", paste(rep("r", max(0, num_metric_cols)), collapse = ""))
+    col_spec <- paste0("l", paste(rep("c", max(0, num_metric_cols)), collapse = ""))
   } else if (mode == "columns") {
     visible_cols <- names(table_data)
     num_metric_cols <- length(visible_cols) - 2
-    col_spec <- paste0("ll", paste(rep("r", max(0, num_metric_cols)), collapse = ""))
+    col_spec <- paste0("ll", paste(rep("c", max(0, num_metric_cols)), collapse = ""))
   } else { # group_only
     visible_cols <- names(table_data)
     num_metric_cols <- length(visible_cols) - 1
-    col_spec <- paste0("l", paste(rep("r", max(0, num_metric_cols)), collapse = ""))
+    col_spec <- paste0("l", paste(rep("c", max(0, num_metric_cols)), collapse = ""))
   }
   # Start LaTeX
   lines <- c()
@@ -710,7 +710,7 @@ prepare_dm_filters <- function(candidateReturns_adj, czret, filter_type, t_thres
     by = .(actSignal, candSignalname)
   ]
   # Only need raw signals list for 4c4
-  signals_raw <- unique(czret[rbar_t >= t_threshold]$signalname)
+  signals_raw <- unique(czret[rbar_t > t_threshold]$signalname)
   list(
     dm_stats = dm_stats,
     signals_raw = signals_raw
