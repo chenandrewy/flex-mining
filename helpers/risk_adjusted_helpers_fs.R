@@ -302,9 +302,9 @@ get_values <- function(summary_df, group_col, group_val, value_col) {
   if(length(idx) > 0) return(summary_df[[value_col]][idx]) else return(NA)
 }
 
-round_zero <- function(x) {
-  rounded <- round(x)
-  if (rounded == 0) return(0)
+round_zero <- function(x, digits = 0) {
+  rounded <- round(x, digits)
+  if (abs(rounded) < 10^(-digits)) return(0)
   return(rounded)
 }
 
@@ -321,8 +321,8 @@ build_table_row_fs <- function(summaries, group_val, group_col, metrics = c("pub
 
 format_value_se_fs <- function(value, se, digits = 0, latex = FALSE) {
   if (is.null(value) || is.null(se) || is.na(value) || is.na(se)) return(NA)
-  value_rounded <- round_zero(value)
-  se_rounded <- round_zero(se)
+  value_rounded <- round_zero(value, digits)
+  se_rounded <- round_zero(se, digits)
   if (latex) {
     return(sprintf("$%.*f$ ($%.*f$)", digits, value_rounded, digits, se_rounded))
   } else {
