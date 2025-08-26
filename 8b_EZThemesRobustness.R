@@ -167,7 +167,7 @@ for (j in 1:nrow(samplePeriods)) {
   # save groupsum to csv for manual categorization (if needed)
   # (this gets copy-pasted into DataInput/DM-Numerator-LitCat.xlsx)
   if (FALSE) {
-    groupsum %>% distinct(v1, numer) %>%  write_csv('../results/numer_list.csv')
+    groupsum %>% distinct(v1, numer) %>%  write_csv('../Results/numer_list.csv')
   }
   
   # themes are then the top 20 groups by t-stat
@@ -195,12 +195,12 @@ for (j in 1:nrow(samplePeriods)) {
   # export to temp.tex
   tab1 %>% 
     kable('latex', booktabs = T, linesep='', escape=F, digits=2) %>% 
-    cat(file='../results/temp.tex')
+    cat(file='../Results/temp.tex')
   
   # Make it beautiful ----------------------------------------
   
   # setup
-  tex = readLines('../results/temp.tex')
+  tex = readLines('../Results/temp.tex')
   mcol = function(x) paste0('\\multicolumn{1}{c}{', x, '}')
   strsamp = paste0(year(insamp$start), '-', year(insamp$end))
   stroos1 = paste0(year(oos1$start), '-', year(oos1$end))
@@ -234,6 +234,6 @@ for (j in 1:nrow(samplePeriods)) {
     , sep = ' & '
   )
   
-  writeLines(tex, paste0('../results/theme_ez_decay', 'inSampEnd', samplePeriods$insampEnd[j], '.tex'))
+  writeLines(tex, paste0('../Results/theme_ez_decay', 'inSampEnd', samplePeriods$insampEnd[j], '.tex'))
   
 } # End loop over in-sample periods

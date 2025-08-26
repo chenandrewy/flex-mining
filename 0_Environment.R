@@ -89,6 +89,7 @@ globalSettings = list(
   prep_data = T,
   num_cores = round(.4*parallel::detectCores()),  # Adjust number of cores used as you see fit (use num_cores = 1 for serial)
   shortlist = F,
+  interactive_mode = FALSE,  # Set to TRUE for interactive execution
 
   # DM vs OP matching requirements
   t_tol    = .1*Inf, # tolerance in t-statistics (DM vs OP) for matching
@@ -101,9 +102,17 @@ globalSettings = list(
   
   # DM requirements
   minShareTG2 = .1,  # Include strategies with t-stat > 2 in at least X % of published time periods
-  TG2Set = '1994-2020' # 1994-2020: DM strategies evaluated over 1994-2020
-                       # Matches:   all sample matching periods
-                       # Rolling1994-2020: DM strategies evaluated on rolling t-stats in 1994-2020
+  TG2Set = '1994-2020', # 1994-2020: DM strategies evaluated over 1994-2020
+                        # Matches:   all sample matching periods
+                        # Rolling1994-2020: DM strategies evaluated on rolling t-stats in 1994-2020
+  
+  # Finance and Accounting journals
+  finlistAll  = c('JF','RFS','JFE','JFQA','MS', 'ROF', 'JEmpFin', 'JFM'),
+  acctlistAll = c('AR','RAS','JAR','JAE', 'CAR', 'BAR', 'JBFA'),
+  
+  # Top 3 journals for main analysis
+  top3Finance = c('JF', 'RFS', 'JFE'),
+  top3Accounting = c('AR', 'JAR', 'JAE')
 )
 
 # Set seed for random sampling

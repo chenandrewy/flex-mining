@@ -396,6 +396,8 @@ ggsave(paste0("../Results/Fig_DM_t_top5Pct_AccountingOnly_CalendarSE.pdf"), widt
 
 
 # Restricting the number of DM predictors per paper -----------------------
+# Note: The normalization of DM strategies to have an in-sample mean of 100
+# occurs in the `make_DM_event_returns` function in `0_Environment.R`.
 
 # Prep for plotting
 ret_for_plot_MaxPredictors1 = ret_for_plot_MaxPredictors %>%
@@ -431,9 +433,9 @@ printme = ReturnPlotsWithDM(
   linesize = linesizeall
 )
 
-# Define journal categories before the plotting section ------------------------
-top_finance = c('JF', 'JFE', 'RFS')
-top_accounting = c('JAR', 'JAE', 'AR')  # Top 3 Acct journals
+# Use journal definitions from globalSettings ------------------------
+top_finance = globalSettings$top3Finance
+top_accounting = globalSettings$top3Accounting
 
 # Add journal classifications to ret_for_plot0
 ret_for_plot_journal <- ret_for_plot0 %>%

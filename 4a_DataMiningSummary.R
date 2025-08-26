@@ -1,5 +1,8 @@
 # Calculate DM OOS summary stats (can take several minutes)
 
+# Load environment
+source('0_Environment.R')
+
 # Settings ---------------------------------------------------------------------
 var_types <- c('vw', 'ew')
 

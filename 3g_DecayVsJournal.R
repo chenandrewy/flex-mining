@@ -9,10 +9,10 @@ czcat = fread('DataInput/SignalsTheoryChecked.csv') %>%
 
 czcat %>% select(Journal) %>% distinct()
 
-# Define top journals
-top_finance = c('JF', 'JFE', 'RFS')
+# Use journal definitions from globalSettings
+top_finance = globalSettings$top3Finance
 top_econ = c('QJE', 'JPE')  # Note: AER, Econometrica, REStud not in data
-top_accounting = c('JAR', 'JAE', 'AR')  # Top 3 Acct journals
+top_accounting = globalSettings$top3Accounting
 
 # Add journal type classifications
 czcat[, journaltype := case_when(
