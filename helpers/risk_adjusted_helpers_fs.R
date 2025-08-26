@@ -1,4 +1,4 @@
-# Helper functions for risk-adjusted plots and tables
+# Helper functions for full sample risk-adjusted plots and tables
 
 # Basic extraction helpers -------------------------------------------------
 extract_beta <- function(ret, mktrf) {
@@ -16,7 +16,7 @@ extract_ff3_coeffs <- function(ret, mktrf, smb, hml) {
 }
 
 # DM aggregation helpers ---------------------------------------------------
-normalize_and_aggregate_dm <- function(dm_data, abnormal_col, suffix_name) {
+normalize_and_aggregate_dm_fs <- function(dm_data, abnormal_col, suffix_name) {
   dm_normalized <- dm_data %>%
     group_by(actSignal, candSignalname) %>%
     mutate(
@@ -43,7 +43,7 @@ normalize_and_aggregate_dm <- function(dm_data, abnormal_col, suffix_name) {
   return(dm_aggregated)
 }
 
-create_filtered_plot_data <- function(ret_for_plot0_adj, signals_list, dm_aggregated,
+create_filtered_plot_data_fs <- function(ret_for_plot0_adj, signals_list, dm_aggregated,
                                      pub_col, dm_col, suffix_name) {
   plot_data <- ret_for_plot0_adj %>%
     filter(pubname %in% signals_list) %>%
@@ -56,7 +56,7 @@ create_filtered_plot_data <- function(ret_for_plot0_adj, signals_list, dm_aggreg
   return(plot_data)
 }
 
-aggregate_dm_no_norm <- function(dm_data, abnormal_col, suffix_name) {
+aggregate_dm_no_norm_fs <- function(dm_data, abnormal_col, suffix_name) {
   dm_aggregated <- dm_data %>%
     group_by(actSignal, eventDate) %>%
     summarise(
@@ -68,7 +68,7 @@ aggregate_dm_no_norm <- function(dm_data, abnormal_col, suffix_name) {
 }
 
 # Plotting helper ----------------------------------------------------------
-create_risk_adjusted_plot <- function(plot_data, pub_col, dm_col,
+create_full_sample_risk_adjusted_plot <- function(plot_data, pub_col, dm_col,
                                      adjustment_type, t_threshold,
                                      y_axis_label, y_high = 125,
                                      filter_type = "tstat") {
@@ -99,7 +99,7 @@ create_risk_adjusted_plot <- function(plot_data, pub_col, dm_col,
         }
       ) %>% print()
     
-    suffix <- paste0(tolower(adjustment_type), "_t", t_threshold)
+    suffix <- paste0(tolower(adjustment_type), "_fs_t", t_threshold)
     
     plot_obj <- ReturnPlotsWithDM_std_errors_indicators(
       dt = plot_data %>%
@@ -131,7 +131,7 @@ create_risk_adjusted_plot <- function(plot_data, pub_col, dm_col,
       linesize = linesizeall
     )
     
-    ggsave(filename = paste0(results_dir, "/Fig_RiskAdj_", suffix, ".pdf"),
+    ggsave(filename = paste0(results_dir, "/Fig_FullSampleRiskAdj_", suffix, ".pdf"),
            plot_obj, width = 10, height = 8)
     
     temp_file <- paste0("../Results/temp_", suffix, ".pdf")
@@ -145,7 +145,7 @@ create_risk_adjusted_plot <- function(plot_data, pub_col, dm_col,
 }
 
 # Summary helpers ----------------------------------------------------------
-compute_outperformance <- function(plot_data, ret_col, dm_ret_col, group_map, group_col = "theory_group") {
+compute_outperformance_fs <- function(plot_data, ret_col, dm_ret_col, group_map, group_col = "theory_group") {
   plot_data %>%
     left_join(group_map, by = c("pubname" = "signalname")) %>%
     filter(!is.na(.data[[group_col]])) %>%
@@ -187,7 +187,7 @@ compute_outperformance <- function(plot_data, ret_col, dm_ret_col, group_map, gr
     )
 }
 
-create_summary_tables <- function(plot_data_list, group_mappings, table_name = "Analysis",
+create_summary_tables_fs <- function(plot_data_list, group_mappings, table_name = "Analysis",
                                   filter_desc = "", overall_summaries = NULL) {
   results <- list()
   for (group_type in names(group_mappings)) {
@@ -200,18 +200,18 @@ create_summary_tables <- function(plot_data_list, group_mappings, table_name = "
                        "raw" = "ret",
                        "capm" = "abnormal_capm_normalized",
                        "ff3" = "abnormal_ff3_normalized",
-                       "capm_tv" = "abnormal_capm_tv_normalized",
-                       "ff3_tv" = "abnormal_ff3_tv_normalized",
+                       "capm_fs" = "abnormal_capm_fs_normalized",
+                       "ff3_fs" = "abnormal_ff3_fs_normalized",
                        "ret")
       dm_col <- switch(analysis_type,
                       "raw" = "matchRet",
                       "capm" = "matchRet_capm_t2_normalized",
                       "ff3" = "matchRet_ff3_t2_normalized",
-                      "capm_tv" = "matchRet_capm_tv_t2_normalized",
-                      "ff3_tv" = "matchRet_ff3_tv_t2_normalized",
+                      "capm_fs" = "matchRet_capm_fs_t2_normalized",
+                      "ff3_fs" = "matchRet_ff3_fs_t2_normalized",
                       "matchRet")
       if (!is.null(plot_data) && nrow(plot_data) > 0) {
-        results[[group_type]][[analysis_type]] <- compute_outperformance(
+        results[[group_type]][[analysis_type]] <- compute_outperformance_fs(
           plot_data, ret_col, dm_col, group_map, group_col
         )
       }
@@ -223,7 +223,7 @@ create_summary_tables <- function(plot_data_list, group_mappings, table_name = "
   return(results)
 }
 
-print_summary_table <- function(summaries, groups, group_col, table_title,
+print_summary_table_fs <- function(summaries, groups, group_col, table_title,
                                analysis_types = c("raw", "capm", "ff3"),
                                analysis_labels = c("Raw", "CAPM", "FF3")) {
   cat("\n", table_title, "\n", sep="")
@@ -268,7 +268,7 @@ print_summary_table <- function(summaries, groups, group_col, table_title,
   }
 }
 
-export_summary_tables <- function(summaries, filename, filter_desc = "") {
+export_summary_tables_fs <- function(summaries, filename, filter_desc = "") {
   all_results <- list()
   for (category in names(summaries)) {
     if (category == "overall") next
@@ -308,7 +308,7 @@ round_zero <- function(x) {
   return(rounded)
 }
 
-build_table_row <- function(summaries, group_val, group_col, metrics = c("pub_oos", "pub_oos_se", "outperform", "outperform_se")) {
+build_table_row_fs <- function(summaries, group_val, group_col, metrics = c("pub_oos", "pub_oos_se", "outperform", "outperform_se")) {
   row_data <- list()
   for (analysis in names(summaries)) {
     for (metric in metrics) {
@@ -319,8 +319,8 @@ build_table_row <- function(summaries, group_val, group_col, metrics = c("pub_oo
   return(row_data)
 }
 
-format_value_se <- function(value, se, digits = 0, latex = FALSE) {
-  if (is.na(value) || is.na(se)) return(NA)
+format_value_se_fs <- function(value, se, digits = 0, latex = FALSE) {
+  if (is.null(value) || is.null(se) || is.na(value) || is.na(se)) return(NA)
   value_rounded <- round_zero(value)
   se_rounded <- round_zero(se)
   if (latex) {
@@ -330,7 +330,7 @@ format_value_se <- function(value, se, digits = 0, latex = FALSE) {
   }
 }
 
-create_latex_table <- function(table_data, caption = "", label = "",
+create_latex_table_fs <- function(table_data, caption = "", label = "",
                               column_spec = NULL, booktabs = TRUE,
                               size = "\\small", placement = "htbp") {
   if (!requireNamespace("xtable", quietly = TRUE)) {
@@ -353,7 +353,7 @@ create_latex_table <- function(table_data, caption = "", label = "",
   return(latex_code)
 }
 
-create_formatted_latex_table <- function(table_data, caption = "", label = "",
+create_formatted_latex_table_fs <- function(table_data, caption = "", label = "",
                                         group_headers = NULL, placement = "htbp",
                                         separate_se_rows = TRUE,
                                         show_category_as_section = TRUE) {
@@ -511,47 +511,8 @@ create_formatted_latex_table <- function(table_data, caption = "", label = "",
   paste(lines, collapse = "\n")
 }
 
-build_tv_summary_table <- function(categories, groups, summaries, digits = 0) {
-  result_df <- data.frame(
-    Category = categories,
-    Group = groups,
-    stringsAsFactors = FALSE
-  )
-  if (all(sapply(summaries, function(x) all(c("raw_pub_oos", "raw_pub_oos_se", "raw_outperform", "raw_outperform_se") %in% names(x))))) {
-    result_df[["Raw_Return"]] <- mapply(function(grp, cat_data) {
-      val <- cat_data[["raw_pub_oos"]]
-      se <- cat_data[["raw_pub_oos_se"]]
-      format_value_se(val, se, digits, FALSE)
-    }, groups, summaries, SIMPLIFY = TRUE)
-    result_df[["Raw_Outperformance"]] <- mapply(function(grp, cat_data) {
-      val <- cat_data[["raw_outperform"]]
-      se <- cat_data[["raw_outperform_se"]]
-      format_value_se(val, se, digits, FALSE)
-    }, groups, summaries, SIMPLIFY = TRUE)
-  }
-  for (analysis in c("capm_tv", "ff3_tv")) {
-    analysis_label <- switch(analysis,
-                           "capm_tv" = "CAPM",
-                           "ff3_tv" = "FF3",
-                           analysis)
-    col_name <- paste0(analysis_label, "_Return")
-    result_df[[col_name]] <- mapply(function(grp, cat_data) {
-      val <- cat_data[[paste0(analysis, "_pub_oos")]]
-      se <- cat_data[[paste0(analysis, "_pub_oos_se")]]
-      format_value_se(val, se, digits, FALSE)
-    }, groups, summaries, SIMPLIFY = TRUE)
-    col_name <- paste0(analysis_label, "_Outperformance")
-    result_df[[col_name]] <- mapply(function(grp, cat_data) {
-      val <- cat_data[[paste0(analysis, "_outperform")]]
-      se <- cat_data[[paste0(analysis, "_outperform_se")]]
-      format_value_se(val, se, digits, FALSE)
-    }, groups, summaries, SIMPLIFY = TRUE)
-  }
-  return(result_df)
-}
-
-build_summary_table <- function(categories, groups, summaries,
-                               analysis_types = c("raw", "capm", "ff3"),
+build_fs_summary_table <- function(categories, groups, summaries,
+                               analysis_types = c("raw", "capm_fs", "ff3_fs"),
                                metrics_config = list(
                                  return = c("pub_oos", "pub_oos_se"),
                                  outperform = c("outperform", "outperform_se")
@@ -562,40 +523,36 @@ build_summary_table <- function(categories, groups, summaries,
     Group = groups,
     stringsAsFactors = FALSE
   )
+  
+  # Create columns in the correct order: Return, Outperformance for each analysis type
   for (analysis in analysis_types) {
     analysis_label <- switch(analysis,
                            "raw" = "Raw",
-                           "capm" = "CAPM",
-                           "ff3" = "FF3",
+                           "capm_fs" = "CAPM",
+                           "ff3_fs" = "FF3",
                            analysis)
-    if ("return" %in% names(metrics_config)) {
-      col_name <- paste0(analysis_label, "_Return")
-      result_df[[col_name]] <- mapply(function(grp, cat_data) {
-        val <- cat_data[[paste0(analysis, "_", metrics_config$return[1])]]
-        se <- cat_data[[paste0(analysis, "_", metrics_config$return[2])]]
-        format_value_se(val, se, digits, format_latex)
-      }, groups, summaries, SIMPLIFY = TRUE)
-    }
+    
+    # Add Return column
+    col_name <- paste0(analysis_label, "_Return")
+    result_df[[col_name]] <- mapply(function(grp, cat_data) {
+      val <- cat_data[[paste0(analysis, "_", metrics_config$return[1])]]
+      se <- cat_data[[paste0(analysis, "_", metrics_config$return[2])]]
+      format_value_se_fs(val, se, digits, format_latex)
+    }, groups, summaries, SIMPLIFY = TRUE)
+    
+    # Add Outperformance column
+    col_name <- paste0(analysis_label, "_Outperformance")
+    result_df[[col_name]] <- mapply(function(grp, cat_data) {
+      val <- cat_data[[paste0(analysis, "_", metrics_config$outperform[1])]]
+      se <- cat_data[[paste0(analysis, "_", metrics_config$outperform[2])]]
+      format_value_se_fs(val, se, digits, format_latex)
+    }, groups, summaries, SIMPLIFY = TRUE)
   }
-  for (analysis in analysis_types) {
-    analysis_label <- switch(analysis,
-                           "raw" = "Raw",
-                           "capm" = "CAPM",
-                           "ff3" = "FF3",
-                           analysis)
-    if ("outperform" %in% names(metrics_config)) {
-      col_name <- paste0(analysis_label, "_Outperformance")
-      result_df[[col_name]] <- mapply(function(grp, cat_data) {
-        val <- cat_data[[paste0(analysis, "_", metrics_config$outperform[1])]]
-        se <- cat_data[[paste0(analysis, "_", metrics_config$outperform[2])]]
-        format_value_se(val, se, digits, format_latex)
-      }, groups, summaries, SIMPLIFY = TRUE)
-    }
-  }
+  
   return(result_df)
 }
 
-export_tables_multi_format <- function(table_data, base_filename,
+export_tables_multi_format_fs <- function(table_data, base_filename,
                                       formats = c("csv", "latex", "txt"),
                                       latex_options = list()) {
   results_files <- list()
@@ -620,7 +577,7 @@ export_tables_multi_format <- function(table_data, base_filename,
     if (!is.null(latex_options$group_headers)) {
       latex_opts$group_headers <- latex_options$group_headers
     }
-    latex_code <- do.call(create_formatted_latex_table, c(list(table_data = table_data), latex_opts))
+    latex_code <- do.call(create_formatted_latex_table_fs, c(list(table_data = table_data), latex_opts))
     writeLines(latex_code, latex_file)
     results_files$latex <- latex_file
     cat("Exported LaTeX:", latex_file, "\n")
@@ -636,7 +593,7 @@ export_tables_multi_format <- function(table_data, base_filename,
   return(results_files)
 } 
 
-compute_overall_summary <- function(plot_data, ret_col, dm_col) {
+compute_overall_summary_fs <- function(plot_data, ret_col, dm_col) {
   # FIXED: Use sampstart/sampend-based periods for consistency
   # Subset to post-sample observations
   oos_rows <- if("sampend" %in% names(plot_data)) {
@@ -667,7 +624,7 @@ compute_overall_summary <- function(plot_data, ret_col, dm_col) {
   return(result)
 } 
 
-prepare_dm_filters <- function(candidateReturns_adj, czret, filter_type, t_threshold) {
+prepare_dm_filters_fs <- function(candidateReturns_adj, czret, filter_type, t_threshold) {
   # Ensure samptype exists and is consistent with sampstart/sampend approach
   if(!"samptype" %in% names(candidateReturns_adj)) {
     candidateReturns_adj <- candidateReturns_adj %>%
@@ -688,28 +645,28 @@ prepare_dm_filters <- function(candidateReturns_adj, czret, filter_type, t_thres
   }
   
   setDT(candidateReturns_adj)
-  # TV-only stats per DM signal (IS only) - FIXED: Use sampstart/sampend-based IS period
+  # Full sample stats per DM signal (IS only) - FIXED: Use sampstart/sampend-based IS period
   dm_stats <- candidateReturns_adj[
-    (date >= sampstart & date <= sampend) & !is.na(abnormal_capm_tv),
+    (date >= sampstart & date <= sampend) & !is.na(abnormal_capm),
     .(
-      abar_capm_tv_dm_t = {
-        m <- mean(abnormal_capm_tv, na.rm = TRUE)
-        s <- sd(abnormal_capm_tv, na.rm = TRUE)
-        n <- sum(!is.na(abnormal_capm_tv))
+      abar_capm_fs_dm_t = {
+        m <- mean(abnormal_capm, na.rm = TRUE)
+        s <- sd(abnormal_capm, na.rm = TRUE)
+        n <- sum(!is.na(abnormal_capm))
         if (n > 1 && s > 0) m / s * sqrt(n) else NA_real_
       },
-      abar_ff3_tv_dm_t = {
-        m <- mean(abnormal_ff3_tv, na.rm = TRUE)
-        s <- sd(abnormal_ff3_tv, na.rm = TRUE)
-        n <- sum(!is.na(abnormal_ff3_tv))
+      abar_ff3_fs_dm_t = {
+        m <- mean(abnormal_ff3, na.rm = TRUE)
+        s <- sd(abnormal_ff3, na.rm = TRUE)
+        n <- sum(!is.na(abnormal_ff3))
         if (n > 1 && s > 0) m / s * sqrt(n) else NA_real_
       },
-      abar_capm_tv_dm = mean(abnormal_capm_tv, na.rm = TRUE),
-      abar_ff3_tv_dm = mean(abnormal_ff3_tv, na.rm = TRUE)
+      abar_capm_fs_dm = mean(abnormal_capm, na.rm = TRUE),
+      abar_ff3_fs_dm = mean(abnormal_ff3, na.rm = TRUE)
     ),
     by = .(actSignal, candSignalname)
   ]
-  # Only need raw signals list for 4c4
+  # Only need raw signals list for 4c5
   signals_raw <- unique(czret[rbar_t > t_threshold]$signalname)
   list(
     dm_stats = dm_stats,

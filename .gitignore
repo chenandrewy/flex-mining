@@ -11,3 +11,25 @@ renv/python/
 # R outputs
 *.log
 Rplots.pdf
+
+#LaTeX outputs
+*.aux
+*.log
+*.sty
+*.cls
+*.bst
+*.bbl
+*.blg
+*.idx
+*.ilg
+*.ind
+*.lof
+*.lot
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.synctex(busy)
+*.synctex.gz(busy)
+*.synctex.gz(busy)
