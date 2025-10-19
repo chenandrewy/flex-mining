@@ -2169,6 +2169,35 @@ ff3_implied_category <- function(data, sampstart, sampend){
   return(( expected_returns/ mean_ret))
 }
 
+# Function to compute FF4 adjustment (Carhart 4-factor with momentum)
+ff4_implied_category <- function(data, sampstart, sampend){
+  # Filter the data
+  data_reg <- data[data$date >= sampstart &
+                     data$date <= sampend & !is.na(retOrig), ]
+
+  # Calculate mean return
+  mean_ret <- mean(data_reg$retOrig, na.rm = TRUE)
+
+  # Fit a linear regression model with FF4 factors (market, size, value, momentum)
+  linear_fit <- lm(retOrig ~ mktrf + smb + hml + umd, data = data_reg)
+
+  # Calculate mean market return
+  mean_mkt <- mean(data_reg$mktrf, na.rm = TRUE)
+
+  # Calculate means of additional features
+  mean_feature1 <- mean(data_reg$smb, na.rm = TRUE)
+  mean_feature2 <- mean(data_reg$hml, na.rm = TRUE)
+  mean_feature3 <- mean(data_reg$umd, na.rm = TRUE)
+
+  # Return the modified calculation accounting for additional features
+  coeffs <- linear_fit$coefficients
+  expected_returns <- (coeffs[2] * mean_mkt +
+                         coeffs[3] * mean_feature1 +
+                         coeffs[4] * mean_feature2 +
+                         coeffs[5] * mean_feature3)
+  return(( expected_returns/ mean_ret))
+}
+
 # Function to compute FF5 adjustment
 ff5_implied_category <- function(data, sampstart, sampend){
   # Filter the data

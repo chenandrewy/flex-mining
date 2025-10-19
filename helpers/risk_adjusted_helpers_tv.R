@@ -15,6 +15,13 @@ extract_ff3_coeffs <- function(ret, mktrf, smb, hml) {
   return(coeffs[2:4])
 }
 
+extract_ff4_coeffs <- function(ret, mktrf, smb, hml, umd) {
+  if (sum(stats::complete.cases(ret, mktrf, smb, hml, umd)) < 60) return(c(NA_real_, NA_real_, NA_real_, NA_real_))
+  model <- lm(ret ~ mktrf + smb + hml + umd)
+  coeffs <- coef(model)
+  return(coeffs[2:5])  # Returns: beta, s, h, u
+}
+
 # DM aggregation helpers ---------------------------------------------------
 normalize_and_aggregate_dm <- function(dm_data, abnormal_col, suffix_name) {
   dm_normalized <- dm_data %>%
@@ -200,15 +207,19 @@ create_summary_tables <- function(plot_data_list, group_mappings, table_name = "
                        "raw" = "ret",
                        "capm" = "abnormal_capm_normalized",
                        "ff3" = "abnormal_ff3_normalized",
+                       "ff4" = "abnormal_ff4_normalized",
                        "capm_tv" = "abnormal_capm_tv_normalized",
                        "ff3_tv" = "abnormal_ff3_tv_normalized",
+                       "ff4_tv" = "abnormal_ff4_tv_normalized",
                        "ret")
       dm_col <- switch(analysis_type,
                       "raw" = "matchRet",
                       "capm" = "matchRet_capm_t2_normalized",
                       "ff3" = "matchRet_ff3_t2_normalized",
+                      "ff4" = "matchRet_ff4_t2_normalized",
                       "capm_tv" = "matchRet_capm_tv_t2_normalized",
                       "ff3_tv" = "matchRet_ff3_tv_t2_normalized",
+                      "ff4_tv" = "matchRet_ff4_tv_t2_normalized",
                       "matchRet")
       if (!is.null(plot_data) && nrow(plot_data) > 0) {
         results[[group_type]][[analysis_type]] <- compute_outperformance(
@@ -320,6 +331,7 @@ build_table_row <- function(summaries, group_val, group_col, metrics = c("pub_oo
 }
 
 format_value_se <- function(value, se, digits = 0, latex = FALSE) {
+  if (is.null(value) || is.null(se) || length(value) == 0 || length(se) == 0) return(NA)
   if (is.na(value) || is.na(se)) return(NA)
   value_rounded <- round_zero(value, digits)
   se_rounded <- round_zero(se, digits)
@@ -435,7 +447,7 @@ create_formatted_latex_table <- function(table_data, caption = "", label = "",
       if (grepl("_Return$", cn)) {
         metric_labels <- c(metric_labels, "Return")
       } else if (grepl("_Outperformance$", cn)) {
-        metric_labels <- c(metric_labels, "Outperformance")
+        metric_labels <- c(metric_labels, "Outperf.")
       } else {
         metric_labels <- c(metric_labels, cn)
       }
@@ -529,10 +541,11 @@ build_tv_summary_table <- function(categories, groups, summaries, digits = 0) {
       format_value_se(val, se, digits, FALSE)
     }, groups, summaries, SIMPLIFY = TRUE)
   }
-  for (analysis in c("capm_tv", "ff3_tv")) {
+  for (analysis in c("capm_tv", "ff3_tv", "ff4_tv")) {
     analysis_label <- switch(analysis,
                            "capm_tv" = "CAPM",
                            "ff3_tv" = "FF3",
+                           "ff4_tv" = "FF4",
                            analysis)
     col_name <- paste0(analysis_label, "_Return")
     result_df[[col_name]] <- mapply(function(grp, cat_data) {
@@ -704,8 +717,15 @@ prepare_dm_filters <- function(candidateReturns_adj, czret, filter_type, t_thres
         n <- sum(!is.na(abnormal_ff3_tv))
         if (n > 1 && s > 0) m / s * sqrt(n) else NA_real_
       },
+      abar_ff4_tv_dm_t = if("abnormal_ff4_tv" %in% names(candidateReturns_adj)) {
+        m <- mean(abnormal_ff4_tv, na.rm = TRUE)
+        s <- sd(abnormal_ff4_tv, na.rm = TRUE)
+        n <- sum(!is.na(abnormal_ff4_tv))
+        if (n > 1 && s > 0) m / s * sqrt(n) else NA_real_
+      } else NA_real_,
       abar_capm_tv_dm = mean(abnormal_capm_tv, na.rm = TRUE),
-      abar_ff3_tv_dm = mean(abnormal_ff3_tv, na.rm = TRUE)
+      abar_ff3_tv_dm = mean(abnormal_ff3_tv, na.rm = TRUE),
+      abar_ff4_tv_dm = if("abnormal_ff4_tv" %in% names(candidateReturns_adj)) mean(abnormal_ff4_tv, na.rm = TRUE) else NA_real_
     ),
     by = .(actSignal, candSignalname)
   ]

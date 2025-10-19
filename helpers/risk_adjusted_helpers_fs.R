@@ -15,6 +15,13 @@ extract_ff3_coeffs <- function(ret, mktrf, smb, hml) {
   return(coeffs[2:4])
 }
 
+extract_ff4_coeffs <- function(ret, mktrf, smb, hml, umd) {
+  if (sum(stats::complete.cases(ret, mktrf, smb, hml, umd)) < 60) return(c(NA_real_, NA_real_, NA_real_, NA_real_))
+  model <- lm(ret ~ mktrf + smb + hml + umd)
+  coeffs <- coef(model)
+  return(coeffs[2:5])  # Returns: beta, s, h, u
+}
+
 # DM aggregation helpers ---------------------------------------------------
 normalize_and_aggregate_dm_fs <- function(dm_data, abnormal_col, suffix_name) {
   dm_normalized <- dm_data %>%
@@ -202,6 +209,7 @@ create_summary_tables_fs <- function(plot_data_list, group_mappings, table_name 
                        "ff3" = "abnormal_ff3_normalized",
                        "capm_fs" = "abnormal_capm_fs_normalized",
                        "ff3_fs" = "abnormal_ff3_fs_normalized",
+                       "ff4_fs" = "abnormal_ff4_fs_normalized",
                        "ret")
       dm_col <- switch(analysis_type,
                       "raw" = "matchRet",
@@ -209,6 +217,7 @@ create_summary_tables_fs <- function(plot_data_list, group_mappings, table_name 
                       "ff3" = "matchRet_ff3_t2_normalized",
                       "capm_fs" = "matchRet_capm_fs_t2_normalized",
                       "ff3_fs" = "matchRet_ff3_fs_t2_normalized",
+                      "ff4_fs" = "matchRet_ff4_fs_t2_normalized",
                       "matchRet")
       if (!is.null(plot_data) && nrow(plot_data) > 0) {
         results[[group_type]][[analysis_type]] <- compute_outperformance_fs(
@@ -435,7 +444,7 @@ create_formatted_latex_table_fs <- function(table_data, caption = "", label = ""
       if (grepl("_Return$", cn)) {
         metric_labels <- c(metric_labels, "Return")
       } else if (grepl("_Outperformance$", cn)) {
-        metric_labels <- c(metric_labels, "Outperformance")
+        metric_labels <- c(metric_labels, "Outperf.")
       } else {
         metric_labels <- c(metric_labels, cn)
       }
@@ -530,6 +539,7 @@ build_fs_summary_table <- function(categories, groups, summaries,
                            "raw" = "Raw",
                            "capm_fs" = "CAPM",
                            "ff3_fs" = "FF3",
+                           "ff4_fs" = "FF4",
                            analysis)
     
     # Add Return column
