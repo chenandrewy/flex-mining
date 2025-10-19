@@ -1,4 +1,4 @@
-# Risk-adjust data-mined signals using CAPM and FF3
+# Risk-adjust data-mined signals using CAPM, FF3, and FF4 (Carhart)
 # Uses matched DM signals from 2b_MatchDataMinedToPub.R
 # Computes full-sample betas (from sampstart onwards) for each DM signal
 #
@@ -57,7 +57,7 @@ candidateReturns <- candidateReturns %>%
 
 # Compute risk adjustments ------------------------------------------------
 
-print("Computing CAPM and FF3 adjustments for data-mined signals...")
+print("Computing CAPM, FF3, and FF4 adjustments for data-mined signals...")
 n_unique_dm <- length(unique(candidateReturns$candSignalname))
 n_unique_pairs <- nrow(unique(candidateReturns[, .(actSignal, candSignalname)]))
 print(paste("Number of unique DM signals:", n_unique_dm))
@@ -88,7 +88,9 @@ dm_risk_adj_full <- candidateReturns[
       # CAPM
       beta_capm = extract_beta(ret, mktrf),
       # FF3
-      ff3_coeffs = list(extract_ff3_coeffs(ret, mktrf, smb, hml))
+      ff3_coeffs = list(extract_ff3_coeffs(ret, mktrf, smb, hml)),
+      # FF4
+      ff4_coeffs = list(extract_ff4_coeffs(ret, mktrf, smb, hml, umd))
     )
   },
   by = .(actSignal, candSignalname)
@@ -110,7 +112,9 @@ dm_risk_adj_is <- candidateReturns[
       # CAPM
       beta_capm_is = extract_beta(ret, mktrf),
       # FF3
-      ff3_coeffs_is = list(extract_ff3_coeffs(ret, mktrf, smb, hml))
+      ff3_coeffs_is = list(extract_ff3_coeffs(ret, mktrf, smb, hml)),
+      # FF4
+      ff4_coeffs_is = list(extract_ff4_coeffs(ret, mktrf, smb, hml, umd))
     )
   },
   by = .(actSignal, candSignalname)
@@ -132,7 +136,9 @@ dm_risk_adj_post <- candidateReturns[
       # CAPM
       beta_capm_post = extract_beta(ret, mktrf),
       # FF3
-      ff3_coeffs_post = list(extract_ff3_coeffs(ret, mktrf, smb, hml))
+      ff3_coeffs_post = list(extract_ff3_coeffs(ret, mktrf, smb, hml)),
+      # FF4
+      ff4_coeffs_post = list(extract_ff4_coeffs(ret, mktrf, smb, hml, umd))
     )
   },
   by = .(actSignal, candSignalname)
@@ -142,27 +148,48 @@ toc <- Sys.time()
 cat("\n")
 print(paste("Risk adjustment computation time:", round(difftime(toc, tic, units = "mins"), 2), "minutes"))
 
-# Extract FF3 coefficients for all three sets
-# Full sample
+# Extract FF3 and FF4 coefficients for all three sets
+# Full sample - FF3
 dm_risk_adj_full[, c("beta_ff3", "s_ff3", "h_ff3") := {
   coeffs <- unlist(ff3_coeffs)
   list(coeffs[1], coeffs[2], coeffs[3])
 }]
 dm_risk_adj_full[, ff3_coeffs := NULL]
 
-# In-sample
+# Full sample - FF4
+dm_risk_adj_full[, c("beta_ff4", "s_ff4", "h_ff4", "u_ff4") := {
+  coeffs <- unlist(ff4_coeffs)
+  list(coeffs[1], coeffs[2], coeffs[3], coeffs[4])
+}]
+dm_risk_adj_full[, ff4_coeffs := NULL]
+
+# In-sample - FF3
 dm_risk_adj_is[, c("beta_ff3_is", "s_ff3_is", "h_ff3_is") := {
   coeffs <- unlist(ff3_coeffs_is)
   list(coeffs[1], coeffs[2], coeffs[3])
 }]
 dm_risk_adj_is[, ff3_coeffs_is := NULL]
 
-# Post-sample
+# In-sample - FF4
+dm_risk_adj_is[, c("beta_ff4_is", "s_ff4_is", "h_ff4_is", "u_ff4_is") := {
+  coeffs <- unlist(ff4_coeffs_is)
+  list(coeffs[1], coeffs[2], coeffs[3], coeffs[4])
+}]
+dm_risk_adj_is[, ff4_coeffs_is := NULL]
+
+# Post-sample - FF3
 dm_risk_adj_post[, c("beta_ff3_post", "s_ff3_post", "h_ff3_post") := {
   coeffs <- unlist(ff3_coeffs_post)
   list(coeffs[1], coeffs[2], coeffs[3])
 }]
 dm_risk_adj_post[, ff3_coeffs_post := NULL]
+
+# Post-sample - FF4
+dm_risk_adj_post[, c("beta_ff4_post", "s_ff4_post", "h_ff4_post", "u_ff4_post") := {
+  coeffs <- unlist(ff4_coeffs_post)
+  list(coeffs[1], coeffs[2], coeffs[3], coeffs[4])
+}]
+dm_risk_adj_post[, ff4_coeffs_post := NULL]
 
 # Merge all betas back to full data
 candidateReturns <- candidateReturns %>%
@@ -176,7 +203,8 @@ candidateReturns <- candidateReturns %>%
     # Full sample abnormal returns
     abnormal_capm = ret - beta_capm * mktrf,
     abnormal_ff3 = ret - (beta_ff3 * mktrf + s_ff3 * smb + h_ff3 * hml),
-    
+    abnormal_ff4 = ret - (beta_ff4 * mktrf + s_ff4 * smb + h_ff4 * hml + u_ff4 * umd),
+
     # Time-varying abnormal returns: IS betas for IS period, post-sample betas for OOS period
     # FIXED: Use sampstart/sampend-based samptype for consistency with published signals
     abnormal_capm_tv = case_when(
@@ -188,12 +216,18 @@ candidateReturns <- candidateReturns %>%
       date >= sampstart & date <= sampend ~ ret - (beta_ff3_is * mktrf + s_ff3_is * smb + h_ff3_is * hml),  # IS period: use IS betas
       date > sampend ~ ret - (beta_ff3_post * mktrf + s_ff3_post * smb + h_ff3_post * hml),  # OOS period: use post-sample betas
       TRUE ~ NA_real_
+    ),
+    abnormal_ff4_tv = case_when(
+      date >= sampstart & date <= sampend ~ ret - (beta_ff4_is * mktrf + s_ff4_is * smb + h_ff4_is * hml + u_ff4_is * umd),  # IS period: use IS betas
+      date > sampend ~ ret - (beta_ff4_post * mktrf + s_ff4_post * smb + h_ff4_post * hml + u_ff4_post * umd),  # OOS period: use post-sample betas
+      TRUE ~ NA_real_
     )
   )
 
 # Summary statistics
 print(paste("Full sample CAPM adjustments computed:", sum(!is.na(candidateReturns$beta_capm))))
 print(paste("Full sample FF3 adjustments computed:", sum(!is.na(candidateReturns$beta_ff3))))
+print(paste("Full sample FF4 adjustments computed:", sum(!is.na(candidateReturns$beta_ff4))))
 print(paste("In-sample CAPM adjustments computed:", sum(!is.na(candidateReturns$beta_capm_is))))
 print(paste("Post-sample CAPM adjustments computed:", sum(!is.na(candidateReturns$beta_capm_post))))
 
@@ -221,10 +255,10 @@ print(paste("Risk-adjusted DM returns saved to:",
 dm_coefficients <- candidateReturns %>%
   group_by(actSignal, candSignalname) %>%
   slice(1) %>%
-  select(actSignal, candSignalname, 
-         beta_capm, beta_ff3, s_ff3, h_ff3,  # Full sample
-         beta_capm_is, beta_ff3_is, s_ff3_is, h_ff3_is,  # In-sample
-         beta_capm_post, beta_ff3_post, s_ff3_post, h_ff3_post) %>%  # Post-sample
+  select(actSignal, candSignalname,
+         beta_capm, beta_ff3, s_ff3, h_ff3, beta_ff4, s_ff4, h_ff4, u_ff4,  # Full sample
+         beta_capm_is, beta_ff3_is, s_ff3_is, h_ff3_is, beta_ff4_is, s_ff4_is, h_ff4_is, u_ff4_is,  # In-sample
+         beta_capm_post, beta_ff3_post, s_ff3_post, h_ff3_post, beta_ff4_post, s_ff4_post, h_ff4_post, u_ff4_post) %>%  # Post-sample
   ungroup()
 
 saveRDS(dm_coefficients,
@@ -244,8 +278,10 @@ matched_risk_adj <- candidateReturns %>%
     matchRet_raw = mean(ret, na.rm = TRUE),
     matchRet_capm = mean(abnormal_capm, na.rm = TRUE),
     matchRet_ff3 = mean(abnormal_ff3, na.rm = TRUE),
+    matchRet_ff4 = mean(abnormal_ff4, na.rm = TRUE),          # Full-sample FF4
     matchRet_capm_tv = mean(abnormal_capm_tv, na.rm = TRUE),  # Time-varying CAPM
     matchRet_ff3_tv = mean(abnormal_ff3_tv, na.rm = TRUE),    # Time-varying FF3
+    matchRet_ff4_tv = mean(abnormal_ff4_tv, na.rm = TRUE),    # Time-varying FF4
     .groups = 'drop'
   )
 
