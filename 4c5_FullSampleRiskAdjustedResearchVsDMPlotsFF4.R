@@ -968,7 +968,8 @@ for(i in 1:length(anymodel_groups)) {
 # Export tables to CSV and LaTeX -------------------------------------------------------
 
 # Format file suffix based on t-stat threshold
-file_suffix <- paste0("_t", t_threshold)
+file_suffix <- paste0("_ff4_t", t_threshold)
+fs_file_suffix <- "_ff4_Appendix"  # Full sample tables go to appendix
 
 # Export main theory/model table in multiple formats (raw only)
 export_tables_multi_format_fs(
@@ -1048,7 +1049,7 @@ if (exists("fs_theory_data") && exists("fs_model_data")) {
   # Export full sample table
   export_tables_multi_format_fs(
     export_table_fs,
-    base_filename = paste0(results_dir, "/Table_RiskAdjusted_FullSample", file_suffix),
+    base_filename = paste0(results_dir, "/Table_RiskAdjusted_FullSample", fs_file_suffix),
     formats = c("csv", "latex"),
     latex_options = list(
       caption = "Full Sample Risk-Adjusted Returns: Theoretical Foundation and Modeling Formalism",
@@ -1080,7 +1081,7 @@ if (exists("fs_theory_data") && exists("fs_model_data")) {
     # Export full sample discipline/journal table
     export_tables_multi_format_fs(
       export_table_fs_dj,
-      base_filename = paste0(results_dir, "/Table_RiskAdjusted_FullSample_DisciplineJournal", file_suffix),
+      base_filename = paste0(results_dir, "/Table_RiskAdjusted_FullSample_DisciplineJournal", fs_file_suffix),
       formats = c("csv", "latex"),
       latex_options = list(
         caption = "Full Sample Risk-Adjusted Returns: Discipline and Journal Rank",
@@ -1174,7 +1175,7 @@ if (exists("fs_theory_data") && exists("fs_model_data")) {
     # Export full sample Any Model vs No Model table
     export_tables_multi_format_fs(
       export_table_fs_am,
-      base_filename = paste0(results_dir, "/Table_RiskAdjusted_FullSample_AnyModelVsNoModel", file_suffix),
+      base_filename = paste0(results_dir, "/Table_RiskAdjusted_FullSample_AnyModelVsNoModel", fs_file_suffix),
       formats = c("csv", "latex"),
       latex_options = list(
         caption = "Full Sample Risk-Adjusted Returns: Any Model vs No Model",

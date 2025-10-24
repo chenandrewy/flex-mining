@@ -106,8 +106,8 @@ create_full_sample_risk_adjusted_plot <- function(plot_data, pub_col, dm_col,
         }
       ) %>% print()
     
-    suffix <- paste0(tolower(adjustment_type), "_fs_t", t_threshold)
-    
+    suffix <- paste0(tolower(gsub(" ", "_", adjustment_type)), "_fs_t", t_threshold)
+
     plot_obj <- ReturnPlotsWithDM_std_errors_indicators(
       dt = plot_data %>%
         transmute(eventDate, pubname, theory,
