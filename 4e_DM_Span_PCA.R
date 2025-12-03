@@ -412,7 +412,7 @@ ret_for_plotting_cor <- czret %>%
 
 ## actually plot ----------------------------------------------
 printme = ReturnPlotsWithDM4series(
-  dt = ret_for_plotting_cor, 
+  dt = ret_for_plotting_cor,
   basepath = "../Results/Fig_DM",
   suffix = 'unspan_match_t_g_cor',
   rollmonths = 60,
@@ -423,9 +423,9 @@ printme = ReturnPlotsWithDM4series(
   legendlabels =
     c(
       paste0("Published"),
-      paste0("Adj. R2 > 0.25"),
-      paste0("Adj. R2 < 0.25 \n& t-stat > t pub"),
-      paste0("Adj. R2 < 0.25 \n& t-stat <= t pub")
+      paste0("Cor > 0.50"),
+      paste0("Cor < 0.50 \n& t-stat > t pub"),
+      paste0("Cor < 0.50 \n& t-stat <= t pub")
     ),
   legendpos = c(25,30)/100,
   fontsize = 48,
