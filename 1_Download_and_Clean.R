@@ -125,7 +125,7 @@ czsum = czret %>%
   mutate(
     nobs_postsamp = if_else(is.na(nobs_postsamp), 0L, nobs_postsamp)
   ) %>% 
-  left_join(signaldoc %>% select(signalname, sampstart, sampend, sweight, Rep_Quality
+  left_join(signaldoc %>% select(signalname, sampstart, sampend, pubdate, sweight, Rep_Quality
                                  , Authors, Year, Journal, LongDescription)
             , by = 'signalname')
 
