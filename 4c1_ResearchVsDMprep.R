@@ -117,12 +117,15 @@ plotdat0$comp_event_time <- temp$event_time
 rm(temp)
 
 ret_for_plot0 = czret %>%
-    transmute(pubname = signalname, eventDate, calendarDate = date, ret = ret_scaled, theory) %>%
+    transmute(pubname = signalname, eventDate, calendarDate = date,
+              ret_unscaled = ret * 100, ret = ret_scaled, theory) %>%
     left_join(
-        plotdat0$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean),
+        plotdat0$comp_event_time %>% transmute(pubname, eventDate,
+                                               matchRet = dm_mean,
+                                               matchRet_unscaled = dm_mean_unscaled),
         by = c("pubname", "eventDate")
     ) %>%
-    select(eventDate, calendarDate, ret, matchRet, pubname, theory) 
+    select(eventDate, calendarDate, ret, ret_unscaled, matchRet, matchRet_unscaled, pubname, theory)
 
 ## Shared data prep 2 --------------------------------------------------
 # adds to the previous ret_for_plot0

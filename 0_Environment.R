@@ -1326,6 +1326,7 @@ make_DM_event_returns <- function(
         sign,
         # scale returns
         ret_scaled = ret * sign / abs(rbar) * 100,
+        ret_unscaled = ret * sign * 100,
         # # sign returns (sanity check)
         # ret_scaled = ifelse(use_sign_info, sign*ret_scaled, ret_scaled),
         samptype = case_when(
@@ -1338,10 +1339,12 @@ make_DM_event_returns <- function(
     if (use_sign_info==FALSE){
       # remove sign_info if requested (for testing)
       eventpan[ , ret_scaled := sign*ret_scaled]
+      eventpan[ , ret_unscaled := sign*ret_unscaled]
     }
     
     # average down to one matched return per event date
-    eventsumscaled <- eventpan[, .(dm_mean = mean(ret_scaled), 
+    eventsumscaled <- eventpan[, .(dm_mean = mean(ret_scaled),
+                                   dm_mean_unscaled = mean(ret_unscaled),
                                    dm_sd = sd(ret_scaled), dm_n = .N),
                                by = c("eventDate",'samptype')
     ] %>%
