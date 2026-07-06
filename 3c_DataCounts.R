@@ -11,31 +11,162 @@ inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType,
 czsum = readRDS('../Data/Processed/czsum_allpredictors.RDS') %>% 
   select(signalname,rbar,nobs_postsamp,rbar_ok,n_ok,Keep) %>% 
   left_join(
-  fread('../Data/Raw/SignalDoc.csv')[, 1:15] %>% 
-  transmute(signalname = Acronym, Journal, Authors, Year, SampleStartYear, SampleEndYear)
+    fread('../Data/Raw/SignalDoc.csv')[, 1:15] %>% 
+      transmute(signalname = Acronym, Journal, Authors, Year, SampleStartYear, SampleEndYear)
   ) %>% 
   mutate(
     main_signal = if_else(signalname %in% inclSignals,'main', 'extra')
   )
 
 czcat = fread('DataInput/SignalsTheoryChecked.csv') %>% 
-  select(signalname, theory) %>% 
-  filter(signalname %in% inclSignals)
-  
+  filter(signalname %in% inclSignals) %>% 
+  mutate(modeltype = case_when(NoModel == 1 ~ 'No Model',
+                               Stylized == 1 ~ 'Stylized',
+                               Dynamic == 1 ~ 'Dynamic',
+                               Quantitative == 1 ~ 'Quantitative')) %>%
+  mutate(modeltype = factor(modeltype, levels = c('No Model', 'Stylized', 'Dynamic', 'Quantitative'))) %>%
+  select(signalname, theory, modeltype) 
+
+
 
 # Journal counts -------------------------------------------------------------------
 
 
-# for main paper (difficult to include automatically, copy and paste values please)
-finlist = c('JF','RFS','JFE')
-tab_risk_or_mispricing = czsum %>% 
+## for main paper: Risk/Mispricing and Model counts 
+
+### Top 3 finance
+finlist = globalSettings$top3Finance
+tab_risk_or_mispricingTop3 = czsum %>% 
   filter(rbar_ok, n_ok, main_signal == 'main') %>% 
   left_join(czcat, by = 'signalname') %>% 
   mutate(Top3 = ifelse(Journal %in% finlist, 'Top3', 'Other')) %>%
   group_by(Top3, theory) %>%
   count() %>% 
   pivot_wider(names_from = Top3, values_from = n, values_fill = 0) %>% 
-  mutate(Any = Other + Top3)
+  mutate(Any = Other + Top3) %>% 
+  select(theory, Any, Top3) %>% 
+  arrange(desc(theory))
+
+### Top 3 accounting
+acctlist = globalSettings$top3Accounting
+tab_risk_or_mispricingTop3acct = czsum %>% 
+  filter(rbar_ok, n_ok, main_signal == 'main') %>% 
+  left_join(czcat, by = 'signalname') %>% 
+  mutate(Top3Acct = ifelse(Journal %in% acctlist, 'Top3Acct', 'Other')) %>%
+  group_by(Top3Acct, theory) %>%
+  count() %>% 
+  pivot_wider(names_from = Top3Acct, values_from = n, values_fill = 0) %>% 
+  mutate(Any = Other + Top3Acct) %>% 
+  select(theory, Top3Acct) %>% 
+  arrange(desc(theory))
+
+### Finance and accounting
+tab_risk_or_mispricingJournal = czsum %>% 
+  filter(rbar_ok, n_ok, main_signal == 'main') %>% 
+  left_join(czcat, by = 'signalname') %>% 
+  mutate(JournalCat = case_when(
+    Journal %in% globalSettings$finlistAll  ~ 'Finance',
+    Journal %in% globalSettings$acctlistAll ~ 'Accounting',
+    TRUE                     ~ 'Other')) %>%
+  group_by(JournalCat, theory) %>%
+  count() %>% 
+  pivot_wider(names_from = JournalCat, values_from = n, values_fill = 0) %>% 
+  select(theory, Finance, Accounting) %>% 
+  arrange(desc(theory))
+
+## Combine the three tables and save as tex
+tab_risk_or_mispricing = tab_risk_or_mispricingTop3 %>% 
+  left_join(tab_risk_or_mispricingTop3acct, by = 'theory') %>% 
+  left_join(tab_risk_or_mispricingJournal,  by = 'theory') %>% 
+  select(theory, Any, Top3, Top3Acct, Finance, Accounting) %>% 
+  arrange(desc(theory)) %>% 
+  mutate(theory = str_to_title(theory))
+
+tab_risk_or_mispricing %>% 
+  xtable() %>% 
+  print.xtable(
+    include.rownames = FALSE, 
+    include.colnames = FALSE,
+    hline.after = NULL,
+    only.contents = TRUE,
+    file = '../Results/ApproachVsJournalsPart1.tex', sep = ',')
+
+## Model type table
+
+### Top 3 finance
+tab_modeltypeTop3 = czsum %>% 
+  filter(rbar_ok, n_ok, main_signal == 'main') %>% 
+  left_join(czcat, by = 'signalname') %>% 
+  mutate(Top3 = ifelse(Journal %in% finlist, 'Top3', 'Other')) %>%
+  group_by(Top3, modeltype) %>%
+  count() %>% 
+  pivot_wider(names_from = Top3, values_from = n, values_fill = 0) %>% 
+  mutate(Any = Other + Top3) %>% 
+  select(modeltype, Any, Top3) %>% 
+  arrange(modeltype)
+
+
+### Top 3 accounting
+tab_modeltypeTop3acct = czsum %>% 
+  filter(rbar_ok, n_ok, main_signal == 'main') %>% 
+  left_join(czcat, by = 'signalname') %>% 
+  mutate(Top3acct = ifelse(Journal %in% acctlist, 'Top3acct', 'Other')) %>%
+  group_by(Top3acct, modeltype) %>%
+  count() %>% 
+  pivot_wider(names_from = Top3acct, values_from = n, values_fill = 0) %>% 
+  select(modeltype, Top3acct) %>% 
+  arrange(modeltype)
+
+### Finance and accounting
+tab_modeltypeJournal = czsum %>% 
+  filter(rbar_ok, n_ok, main_signal == 'main') %>% 
+  left_join(czcat, by = 'signalname') %>% 
+  mutate(JournalCat = case_when(
+    Journal %in% globalSettings$finlistAll  ~ 'Finance',
+    Journal %in% globalSettings$acctlistAll ~ 'Accounting',
+    TRUE                     ~ 'Other')) %>%
+  group_by(JournalCat, modeltype) %>%
+  count() %>% 
+  pivot_wider(names_from = JournalCat, values_from = n, values_fill = 0) %>% 
+  select(modeltype, Finance, Accounting) %>% 
+  arrange(modeltype)
+
+## Combine the three tables and save as tex
+tab_modeltype = tab_modeltypeTop3 %>% 
+  left_join(tab_modeltypeTop3acct, by = 'modeltype') %>% 
+  left_join(tab_modeltypeJournal, by = 'modeltype') %>% 
+  select(modeltype, Any, Top3, Top3acct, Finance, Accounting) %>% 
+  arrange(modeltype) 
+
+tab_modeltype %>% 
+  xtable() %>% 
+  print.xtable(
+    include.rownames = FALSE, 
+    include.colnames = FALSE,
+    hline.after = NULL,
+    only.contents = TRUE,
+    file = '../Results/ApproachVsJournalsPart2.tex', sep = ',')
+
+## add totals
+tab_sum = tab_modeltype %>%
+  ungroup() %>% 
+  select(-modeltype) %>%
+  summarise(across(everything(), sum, na.rm = TRUE)) %>% 
+  mutate(modeltype = '\\textbf{Total}') %>% 
+  select(modeltype, everything())
+
+tab_sum %>% 
+  xtable() %>% 
+  print.xtable(
+    include.rownames = FALSE, 
+    include.colnames = FALSE,
+    hline.after = NULL,
+    only.contents = TRUE,
+    file = '../Results/ApproachVsJournalsPart3.tex', 
+    sep = ',',
+    sanitize.text.function = identity)
+
+# Risk vs mispricing example quotes table ---------------------------------
 
 # Create LaTeX table with actual values instead of \Sexpr commands
 cat(sprintf('%% Risk vs Mispricing Table
@@ -54,14 +185,14 @@ cat(sprintf('%% Risk vs Mispricing Table
   Total & %d & %d &   &  \\\\
   \\bottomrule
 \\end{tabular}%%',
-  filter(tab_risk_or_mispricing, theory == "risk")$Any,
-  filter(tab_risk_or_mispricing, theory == "risk")$Top3,
-  filter(tab_risk_or_mispricing, theory == "mispricing")$Any,
-  filter(tab_risk_or_mispricing, theory == "mispricing")$Top3,
-  filter(tab_risk_or_mispricing, theory == "agnostic")$Any,
-  filter(tab_risk_or_mispricing, theory == "agnostic")$Top3,
-  sum(tab_risk_or_mispricing$Any),
-  sum(tab_risk_or_mispricing$Top3)
+            filter(tab_risk_or_mispricing, theory == "risk")$Any,
+            filter(tab_risk_or_mispricing, theory == "risk")$Top3,
+            filter(tab_risk_or_mispricing, theory == "mispricing")$Any,
+            filter(tab_risk_or_mispricing, theory == "mispricing")$Top3,
+            filter(tab_risk_or_mispricing, theory == "agnostic")$Any,
+            filter(tab_risk_or_mispricing, theory == "agnostic")$Top3,
+            sum(tab_risk_or_mispricing$Any),
+            sum(tab_risk_or_mispricing$Top3)
 ), file = '../Results/table_risk_vs_mispricing.tex')
 
 
