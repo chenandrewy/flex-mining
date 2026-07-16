@@ -42,8 +42,10 @@ regData = ret_for_plot0 %>%
                         pubdate
                         )) %>% 
   # Add indicators
-  mutate(postSample = ifelse(calendarDate >= sampend & calendarDate < pubdate , 1, 0),
-         postPub    = ifelse(calendarDate >= pubdate, 1, 0)) %>% 
+  mutate(
+#    postSample = ifelse(calendarDate >= sampend & calendarDate < pubdate , 1, 0),
+    postSample = ifelse(calendarDate >= sampend, 1, 0),
+    postPub    = ifelse(calendarDate >= pubdate, 1, 0)) %>% 
   # Add outcome
   mutate(diffRet = ret - matchRet,
          diffRet_unscaled = ret_unscaled - matchRet_unscaled) %>% 
@@ -289,7 +291,7 @@ fixest::etable(
   signif.code=NA,
   depvar = FALSE,
   headers = c("Predictor Return", "Predictor Return", "DM Matched Return", "DM Matched Return", "Pred - Matched Ret", "Pred - Matched Ret"),
-  fitstat = ~ n + r2 + wr2,
+  fitstat = ~ n + r2 + wr2
   file = '../../../risk-vs-rfs-sub/latex-risk-vs/exhibits/Table_MPStyleRegsMain.tex'
 )
 
