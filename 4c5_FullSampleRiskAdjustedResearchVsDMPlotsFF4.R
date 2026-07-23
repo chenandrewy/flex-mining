@@ -1211,7 +1211,8 @@ cat(paste0("- Table_RiskAdjusted_TheoryModel", file_suffix, ".csv and .tex\n"))
 cat(paste0("- Table_RiskAdjusted_DisciplineJournal", file_suffix, ".csv and .tex\n"))
 cat(paste0("- Table_RiskAdjusted_AnyModelVsNoModel", file_suffix, ".csv and .tex\n"))
 if (exists("fs_theory_data")) {
-  cat(paste0("- Table_RiskAdjusted_FullSample", file_suffix, ".csv and .tex\n"))
+  # full-sample tables are written with fs_file_suffix, not file_suffix
+  cat(paste0("- Table_RiskAdjusted_FullSample", fs_file_suffix, ".csv and .tex\n"))
 }
 cat("\nDetailed breakdowns:\n")
 cat("- Raw/CAPM/FF4 by TheoryGroup/ModelGroup/Discipline/Journal (12 files)\n")

@@ -1,0 +1,79 @@
+\documentclass{article}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{geometry}
+\usepackage{placeins}
+\usepackage{graphicx}
+\usepackage{grffile}
+\geometry{landscape, margin=1in}
+
+\begin{document}
+
+\section*{Full Sample Risk-Adjusted Returns Analysis Tables (FF4)}
+
+% % Do not include the T-stat filter tables
+% \subsection*{T-stat Filter (t $>$ 2)}
+%
+% \input{../Results/RiskAdjusted/FullSampleTstatFilter/Table_RiskAdjusted_TheoryModel_ff4_t2.tex}
+%
+% \input{../Results/RiskAdjusted/FullSampleTstatFilter/Table_RiskAdjusted_DisciplineJournal_ff4_t2.tex}
+%
+% % \clearpage
+% \subsection*{T-stat Filter (t $>$ 2) full sample beta}
+
+% \input{../Results/RiskAdjusted/FullSampleTstatFilter/Table_RiskAdjusted_TheoryModel_ff4_t2.tex}
+
+% \input{../Results/RiskAdjusted/FullSampleTstatFilter/Table_RiskAdjusted_DisciplineJournal_ff4_t2.tex}
+
+% % Check if Any Model vs No Model table exists and include it
+% \input{../Results/RiskAdjusted/FullSampleTstatFilter/Table_RiskAdjusted_AnyModelVsNoModel_ff4_t2.tex}
+
+\FloatBarrier
+
+% Include the T-stat filter raw-returns figure (does not require betas)
+\subsection*{T-stat Filter Plots (t $>$ 2)}
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.9\textwidth]{\detokenize{../Results/RiskAdjusted/FullSampleTstatFilter/Fig_FullSampleRiskAdj_raw_returns_t2.pdf}}
+  \caption{Raw returns (t $>$ 2)}
+\end{figure}
+
+\subsection*{Full Sample Risk-Adjusted Returns Analysis (FF4)}
+% Include main full sample table (8 columns: Raw + CAPM + FF4)
+% NOTE: 4c5...FF4.R writes the full-sample tables with fs_file_suffix = "_ff4_Appendix",
+% not "_ff4_t2". The unsuffixed "_t2" names belong to the FF3 script, so inputting them
+% here silently put FF3 numbers under an FF4 heading.
+\input{../Results/RiskAdjusted/FullSampleTstatFilter/Table_RiskAdjusted_FullSample_ff4_Appendix.tex}
+
+% Include full sample discipline and journal table
+\input{../Results/RiskAdjusted/FullSampleTstatFilter/Table_RiskAdjusted_FullSample_DisciplineJournal_ff4_Appendix.tex}
+
+% Include full sample Any Model vs No Model table
+\input{../Results/RiskAdjusted/FullSampleTstatFilter/Table_RiskAdjusted_FullSample_AnyModelVsNoModel_ff4_Appendix.tex}
+
+\FloatBarrier
+
+% Include the T-stat filter plots
+\subsection*{T-stat Filter Plots (t $>$ 2)}
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.9\textwidth]{\detokenize{../Results/RiskAdjusted/FullSampleTstatFilter/Fig_FullSampleRiskAdj_raw_returns_t2.pdf}}
+  \caption{Raw returns (t $>$ 2)}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\textwidth]{\detokenize{../Results/RiskAdjusted/FullSampleTstatFilter/Fig_FullSampleRiskAdj_capm_alpha_fs_t2.pdf}}
+    \caption{CAPM alpha with full sample betas (t $>$ 2)}
+  \end{figure}
+
+  \begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\textwidth]{\detokenize{../Results/RiskAdjusted/FullSampleTstatFilter/Fig_FullSampleRiskAdj_ff4_alpha_fs_t2.pdf}}
+    \caption{FF4 alpha with full sample betas (t $>$ 2)}
+  \end{figure}
+
+\FloatBarrier
+
+\end{document}
