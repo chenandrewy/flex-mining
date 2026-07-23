@@ -143,25 +143,25 @@ cat("\n")
 print(paste("Risk adjustment computation time:", round(difftime(toc, tic, units = "mins"), 2), "minutes"))
 
 # Extract FF3 coefficients for all three sets
+# NOTE: these must extract element k from EACH pair's coefficient vector.
+# Using unlist() here flattens every pair's vector into one long vector, so
+# coeffs[1:k] picks off the first pair only and data.table recycles it to all
+# rows -- which silently made every DM signal carry one signal's loadings.
+unpack_coeffs <- function(coef_list, k) vapply(coef_list, function(z) as.numeric(z[k]), numeric(1))
+
 # Full sample
-dm_risk_adj_full[, c("beta_ff3", "s_ff3", "h_ff3") := {
-  coeffs <- unlist(ff3_coeffs)
-  list(coeffs[1], coeffs[2], coeffs[3])
-}]
+dm_risk_adj_full[, c("beta_ff3", "s_ff3", "h_ff3") :=
+  lapply(1:3, function(k) unpack_coeffs(ff3_coeffs, k))]
 dm_risk_adj_full[, ff3_coeffs := NULL]
 
 # In-sample
-dm_risk_adj_is[, c("beta_ff3_is", "s_ff3_is", "h_ff3_is") := {
-  coeffs <- unlist(ff3_coeffs_is)
-  list(coeffs[1], coeffs[2], coeffs[3])
-}]
+dm_risk_adj_is[, c("beta_ff3_is", "s_ff3_is", "h_ff3_is") :=
+  lapply(1:3, function(k) unpack_coeffs(ff3_coeffs_is, k))]
 dm_risk_adj_is[, ff3_coeffs_is := NULL]
 
 # Post-sample
-dm_risk_adj_post[, c("beta_ff3_post", "s_ff3_post", "h_ff3_post") := {
-  coeffs <- unlist(ff3_coeffs_post)
-  list(coeffs[1], coeffs[2], coeffs[3])
-}]
+dm_risk_adj_post[, c("beta_ff3_post", "s_ff3_post", "h_ff3_post") :=
+  lapply(1:3, function(k) unpack_coeffs(ff3_coeffs_post, k))]
 dm_risk_adj_post[, ff3_coeffs_post := NULL]
 
 # Merge all betas back to full data
