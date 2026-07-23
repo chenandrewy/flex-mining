@@ -37,3 +37,9 @@ Rplots.pdf
 *.nav
 *.snm
 *.vrb
+
+# Slide decks: internal, kept locally only.
+# These are responses to a named discussant and this remote is public.
+# Removed from history in 2026-07; do not re-add.
+slides_*.tex
+slides_*.pdf
