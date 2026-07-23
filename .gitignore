@@ -33,3 +33,7 @@ Rplots.pdf
 *.synctex(busy)
 *.synctex.gz(busy)
 *.synctex.gz(busy)
+# LaTeX beamer aux
+*.nav
+*.snm
+*.vrb
