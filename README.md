@@ -6,3 +6,5 @@ Monthly returns of 30,000 long-short strategies can be found at [this Google Dri
 The origins of predictability and quotes are found in [DataInput/SignalsTheoryChecked.csv](https://github.com/chenandrewy/flex-mining/blob/main/DataInput/SignalsTheoryChecked.csv)
 
 This project uses the active R installation's default library paths and does not manage a project-local package environment.
+
+Current results were produced with **R 4.5.3** and packages from the Posit P3M snapshot dated **2026-07-15**, plus `pcaMethods` from Bioconductor. See [docs/environment.md](docs/environment.md) for the package versions and how to regenerate the list.
