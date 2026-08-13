@@ -20,6 +20,9 @@ dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
 # global colors has 3 entries (MATBLUE, MATRED, MATYELLOW); 4-line panels add purple
 MATPURPLE = rgb(0.4940, 0.1840, 0.5560)
 colors4 = c(colors[1], colors[2], MATPURPLE, colors[3])
+# Aug 13 notes: lines the reader compares share a color and differ by linetype,
+# so each pub/DM pair is one hue (pub solid, DM dashed)
+colors_paired = c(colors[1], colors[1], colors[2], colors[2])
 
 fontsizeall = 28
 linesizeall = 1.5
@@ -31,9 +34,7 @@ panels = list(
   a = list(
     series = c('CAPM, Published', 'CAPM, Data-Mined',
                'FF3+Mom, Published', 'FF3+Mom, Data-Mined'),
-    colors = colors4,
-    # Spec-3 styling: pub solid, DM dashed, pairs separated by hue
-    # (grayscale-safe four-linetype variant in 4c20d)
+    colors = colors_paired,
     linetypes = c('solid', 'longdash', 'solid', 'longdash'),
     yaxislab = 'Trailing 5-Year Alpha (bps pm)',
     yl = 0, yh = 125, yh_ci = 150, legendpos = c(35, 20) / 100,
@@ -42,7 +43,7 @@ panels = list(
   b = list(
     series = c('Pub, Annual Acct Only', 'DM, Annual Acct Pubs',
                'Pub, Pre-2003 Only', 'DM, Pre-2003 Pubs'),
-    colors = colors4,
+    colors = colors_paired,
     linetypes = c('solid', 'longdash', 'solid', 'longdash'),
     yaxislab = ylaball,
     yl = 0, yh = 175, yh_ci = 200, legendpos = c(35, 20) / 100,

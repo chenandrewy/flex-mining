@@ -257,7 +257,7 @@ panels = list(
   aff3 = list(
     series = c('CAPM, Published', 'CAPM, Data-Mined',
                'FF3, Published', 'FF3, Data-Mined'),
-    colors = colors4,
+    colors = c(colors[1], colors[1], colors[2], colors[2]),
     linetypes = c('solid', 'longdash', 'solid', 'longdash'),
     yaxislab = 'Trailing 5-Year Alpha (bps pm)',
     yl = 0, yh = 125, yh_ci = 150, legendpos = c(35, 20) / 100,
@@ -266,7 +266,7 @@ panels = list(
   b2004 = list(
     series = c('Pub, Annual Acct Only', 'DM, Annual Acct Pubs',
                'Pub, Sample Ended by 2004', 'DM, Sample Ended by 2004'),
-    colors = colors4,
+    colors = c(colors[1], colors[1], colors[2], colors[2]),
     linetypes = c('solid', 'longdash', 'solid', 'longdash'),
     yaxislab = ylaball,
     yl = 0, yh = 175, yh_ci = 200, legendpos = c(35, 20) / 100,
