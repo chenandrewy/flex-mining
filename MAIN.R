@@ -25,6 +25,7 @@ run_downloads <- FALSE
 main_scripts <- c(
   "0_Environment.R",
   if (run_downloads) "1_Download_and_Clean.R",
+  "1a_ValidDenoms.R",
   "2_DataMining.R",
   "3_RiskVsMispricing.R",
   "4_ResearchVsDataMining.R",
