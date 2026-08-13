@@ -3,11 +3,6 @@ DataIntermediate/freq_obs_Annual.csv
 DataIntermediate/validDenomsCombinations.csv
 .env
 
-# renv
-renv/library/
-renv/staging/
-renv/python/
-
 # R outputs
 *.log
 Rplots.pdf

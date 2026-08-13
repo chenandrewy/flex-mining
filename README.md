@@ -4,3 +4,5 @@ Code for replicating ["Peer-reviewed theory does not help predict the cross-sect
 Monthly returns of 30,000 long-short strategies can be found at [this Google Drive link](https://drive.google.com/drive/folders/1SZe_aF4ZNvK4ZRx2jQUE1j19KQvBaqWr).
 
 The origins of predictability and quotes are found in [DataInput/SignalsTheoryChecked.csv](https://github.com/chenandrewy/flex-mining/blob/main/DataInput/SignalsTheoryChecked.csv)
+
+This project uses the active R installation's default library paths and does not manage a project-local package environment.

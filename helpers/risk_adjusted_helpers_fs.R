@@ -343,7 +343,7 @@ create_latex_table_fs <- function(table_data, caption = "", label = "",
                               column_spec = NULL, booktabs = TRUE,
                               size = "\\small", placement = "htbp") {
   if (!requireNamespace("xtable", quietly = TRUE)) {
-    stop("xtable package is required but not installed. Please install it using renv::install('xtable')")
+    stop("xtable package is required but not installed. Please install it using install.packages(\"xtable\")")
   }
   library(xtable)
   xt <- xtable(table_data, caption = caption, label = label)
@@ -726,4 +726,4 @@ load_signal_mappings <- function(signals_checked_csv, incl_signals) {
     discipline_mapping_filtered = czcat_full %>% select(signalname, discipline) %>% distinct() %>% filter(discipline %in% c("Finance", "Accounting")),
     journal_mapping_filtered = czcat_full %>% select(signalname, journal_rank) %>% distinct() %>% filter(journal_rank != "Economics")
   )
-} 
+}
