@@ -298,7 +298,7 @@ fixest::etable(
   depvar = FALSE,
   headers = c("Predictor Return", "Predictor Return", "DM Matched Return", "DM Matched Return", "Pred - Matched Ret", "Pred - Matched Ret"),
   fitstat = ~ n + r2 + wr2,
-  file = '../risk-vs-rfs-sub/latex-risk-vs/exhibits/Table_MPStyleRegsMain.tex'
+  file = '../Results/TolMatch/Table_MPStyleRegsMain.tex'
 )
 
 
@@ -333,7 +333,7 @@ fixest::etable(
   depvar = FALSE,
   headers = c("Predictor Return", "Predictor Return", "DM Matched Return", "DM Matched Return", "Pred - Matched Ret", "Pred - Matched Ret"),
   fitstat = ~ n + r2 + wr2,
-  file = '../risk-vs-rfs-sub/latex-risk-vs/exhibits/Table_MPStyleRegsMainUnscaled.tex'
+  file = '../Results/TolMatch/Table_MPStyleRegsMainUnscaled.tex'
 )
 
 
