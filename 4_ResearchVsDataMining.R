@@ -5,7 +5,13 @@ source('4b_DMCorrelationsPCASummary.R', echo = T)  # This might take around an h
 source('4c1_ResearchVsDMprep.R', echo = T)
 source('4c2_ResearchVsDMPlots.R', echo = T)
 source('4c3_ResearchVsAcctVsTicker.R', echo = T)
-source('4c4_RunBothFilters.R', echo = T) # Risk-adjusted analysis with both filter types
+
+# Risk-adjusted exhibits used in the paper
+source('4c4_RiskAdjustedResearchVsDMPlotsTVFF4.R', echo = T)
+source('4c5_FullSampleRiskAdjustedResearchVsDMPlots.R', echo = T)
+source('4c6_AccountingOnlyPlots.R', echo = T)
+source('4c7_AccountingOnlyAlphaPlots.R', echo = T)
+
 source('4d_ResearchVsDMRobustnessCorrelationsEtc.R', echo = T)
 source('4d2_InspectTables.R', echo = T)
 source('4e_DM_Span_PCA.R', echo = T)

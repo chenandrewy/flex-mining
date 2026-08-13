@@ -9,7 +9,6 @@ main_scripts <- c(
   "3_RiskVsMispricing.R",
   "4_ResearchVsDataMining.R",
   "6_TextAnalysis.R",
-  "7_Breaks.R",
   "8_DMThemes.R",
   "99_ExportDataToCsv.R"
 )
