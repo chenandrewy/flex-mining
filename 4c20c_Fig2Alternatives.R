@@ -258,7 +258,7 @@ panels = list(
     series = c('CAPM, Published', 'CAPM, Data-Mined',
                'FF3, Published', 'FF3, Data-Mined'),
     colors = colors4,
-    linetypes = c('solid', 'longdash', 'dotdash', 'dotted'),
+    linetypes = c('solid', 'longdash', 'solid', 'longdash'),
     yaxislab = 'Trailing 5-Year Alpha (bps pm)',
     yl = 0, yh = 125, yh_ci = 150, legendpos = c(35, 20) / 100,
     file = 'Fig2a_FactorAdj_FF3'
@@ -267,7 +267,7 @@ panels = list(
     series = c('Pub, Annual Acct Only', 'DM, Annual Acct Pubs',
                'Pub, Sample Ended by 2004', 'DM, Sample Ended by 2004'),
     colors = colors4,
-    linetypes = c('solid', 'longdash', 'dotdash', 'dotted'),
+    linetypes = c('solid', 'longdash', 'solid', 'longdash'),
     yaxislab = ylaball,
     yl = 0, yh = 175, yh_ci = 200, legendpos = c(35, 20) / 100,
     file = 'Fig2b_PubSampleLimits_SampEnd2004'
