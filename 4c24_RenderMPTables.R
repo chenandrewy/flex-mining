@@ -13,8 +13,10 @@ source('helpers/mp_table_helpers.R')
 exdir = '../risk-vs-rfs-sub/latex-risk-vs/exhibits/'
 
 check_stale = function(fits, name) {
-  newest_input = max(file.mtime(c('../Data/Processed/ret_for_plot0.RDS',
-                                  '../Data/Processed/plotdat0.RDS')), na.rm = TRUE)
+  files = fits$meta$input_files
+  if (is.null(files))  # legacy fits saved before input paths were recorded
+    files = c('../Data/Processed/ret_for_plot0.RDS', '../Data/Processed/plotdat0.RDS')
+  newest_input = max(file.mtime(files), na.rm = TRUE)
   if (newest_input > fits$meta$generated)
     warning(name, ' fits are STALE: data regenerated ', newest_input,
             ' after fits saved ', fits$meta$generated,

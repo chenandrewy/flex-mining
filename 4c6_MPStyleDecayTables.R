@@ -342,8 +342,8 @@ saveRDS(list(
   noFE = list(fitLM1, fitLM2_excl, fitLM3_excl, fitLM1_u, fitLM2_excl_u, fitLM3_excl_u),
   FE   = list(fitLM1a, fitLM2a_excl, fitLM3a_excl, fitLM1a_u, fitLM2a_excl_u, fitLM3a_excl_u),
   meta = list(generated = Sys.time(),
-              inputs = file.mtime(c('../Data/Processed/ret_for_plot0.RDS',
-                                    '../Data/Processed/plotdat0.RDS')))
+              input_files = c('../Data/Processed/ret_for_plot0.RDS',
+                              '../Data/Processed/plotdat0.RDS'))
 ), '../Data/Processed/mp_decay_fits_Baseline.RDS')
 
 ### Manuscript Tables 3-4 (formerly hand-assembled) ----

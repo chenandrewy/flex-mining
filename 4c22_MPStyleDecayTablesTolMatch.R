@@ -143,8 +143,9 @@ run_spec = function(nm) {
   }
   saveRDS(list(fits_s = fits_s, fits_u = fits_u,
                meta = list(generated = Sys.time(),
-                           inputs = file.mtime(c('../Data/Processed/ret_for_plot0.RDS',
-                                                 matchname)))),
+                           input_files = c('../Data/Processed/ret_for_plot0.RDS',
+                                           matchname,
+                                           '../Results/PairwiseCorrelationsActualAndMatches.RDS'))),
           paste0('../Data/Processed/mp_decay_fits_', nm, '.RDS'))
 
   # combined manuscript-layout drafts (for the in-paper spec comparison)
