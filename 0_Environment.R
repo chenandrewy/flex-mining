@@ -1687,7 +1687,7 @@ ReturnPlotsWithDM_std_errors_indicators = function(dt, suffix = '', rollmonths =
               window_data = dt_long %>%
                   filter(!is.na(return),
                         SignalType == sig_grp,
-                        eventDate > window_start,
+                        eventDate >= window_start,
                         eventDate <= window_end)
               get_clustered_se(window_data)
           },
@@ -1696,7 +1696,7 @@ ReturnPlotsWithDM_std_errors_indicators = function(dt, suffix = '', rollmonths =
               dt_long %>%
                   filter(!is.na(return),
                         SignalType == sig_grp,
-                        eventDate > window_start,
+                        eventDate >= window_start,
                         eventDate <= window_end) %>%
                   select(pubname) %>%
                   distinct() %>%
@@ -1707,7 +1707,7 @@ ReturnPlotsWithDM_std_errors_indicators = function(dt, suffix = '', rollmonths =
               dt_long %>%
                   filter(!is.na(return),
                         SignalType == sig_grp,
-                        eventDate > window_start,
+                        eventDate >= window_start,
                         eventDate <= window_end) %>%
                   select(eventDate) %>%
                   distinct() %>%
