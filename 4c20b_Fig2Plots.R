@@ -17,11 +17,8 @@ fig2_agg = readRDS('../Data/Processed/fig2_panel_agg.RDS')
 outdir = '../Results/Fig2'
 dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
 
-# global colors has 3 entries (MATBLUE, MATRED, MATYELLOW); 4-line panels add purple
-MATPURPLE = rgb(0.4940, 0.1840, 0.5560)
-colors4 = c(colors[1], colors[2], MATPURPLE, colors[3])
 # Aug 13 notes: lines the reader compares share a color and differ by linetype,
-# so each pub/DM pair is one hue (pub solid, DM dashed)
+# so each pub/DM pair is one hue (pub solid, DM dotted)
 colors_paired = c(colors[1], colors[1], colors[2], colors[2])
 
 fontsizeall = 28

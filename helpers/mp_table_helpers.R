@@ -3,7 +3,8 @@
 # models. Used by 4c6 (main Tables 3-4) and 4c22/4c23 (tolerance-spec drafts).
 
 make_combined_table = function(fits, timeFE, file) {
-  fmt  = function(x) formatC(signif(x, 3), format = 'g', digits = 3)
+  # three significant digits, keeping trailing zeros (5.04 -> "5.04", 8 -> "8.00")
+  fmt  = function(x) sub('\\.$', '', formatC(signif(x, 3), format = 'fg', flag = '#', digits = 3))
   fmt3 = function(x) formatC(x, format = 'f', digits = 3)
   cells = sapply(fits, function(f) {
     ct = fixest::coeftable(f)
