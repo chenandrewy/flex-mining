@@ -141,6 +141,12 @@ run_spec = function(nm) {
                    depvar = FALSE, headers = hdrs, fitstat = ~ n + r2 + wr2,
                    file = paste0(outdir, '/Table_MPStyleRegs', tabs[[2]], '_', nm, '.tex'))
   }
+  saveRDS(list(fits_s = fits_s, fits_u = fits_u,
+               meta = list(generated = Sys.time(),
+                           inputs = file.mtime(c('../Data/Processed/ret_for_plot0.RDS',
+                                                 matchname)))),
+          paste0('../Data/Processed/mp_decay_fits_', nm, '.RDS'))
+
   # combined manuscript-layout drafts (for the in-paper spec comparison)
   make_combined_table(c(fits_s[c(1, 3, 5)], fits_u[c(1, 3, 5)]), timeFE = FALSE,
     file = paste0('../risk-vs-rfs-sub/latex-risk-vs/exhibits/HandTable_MPStyleRegsMain_', nm, '.tex'))
