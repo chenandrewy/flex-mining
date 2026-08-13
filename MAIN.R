@@ -1,10 +1,30 @@
 # Main script to run all numbered R scripts (excluding letter-indexed scripts)
+#
+# How to run: set the working directory to flex-mining/, then
+#   Rscript MAIN.R
+#
+# Two paths, selected by run_downloads below:
+#
+#   TRUE   Full run from scratch. Runs 1_Download_and_Clean.R, which pulls
+#          fresh data from WRDS and Google Drive and OVERWRITES ../Data/Raw.
+#   FALSE  All calculations after the downloads. Skips the download stage and
+#          uses the existing ../Data/Raw as fixed, read-only input.
+#
+# WRDS is not versioned and offers no as-of retrieval, so a run with
+# run_downloads = TRUE replaces the current data vintage irreversibly, and
+# every downstream result moves with it. Archive ../Data/Raw before setting
+# this to TRUE.
+#
+# Inputs:  ../Data/Raw (both paths; re-created when run_downloads = TRUE)
+# Outputs: ../Data/Processed, ../Data/Export, ../Results
+
+run_downloads <- FALSE
 
 # Script List -------------------------------------------------------------
 
 main_scripts <- c(
   "0_Environment.R",
-  "1_Download_and_Clean.R",
+  if (run_downloads) "1_Download_and_Clean.R",
   "2_DataMining.R",
   "3_RiskVsMispricing.R",
   "4_ResearchVsDataMining.R",
