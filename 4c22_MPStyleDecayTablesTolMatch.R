@@ -11,6 +11,7 @@
 
 rm(list = ls())
 source("0_Environment.R")
+source("helpers/mp_table_helpers.R")
 
 outdir = '../Results/TolMatch'
 dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
@@ -140,6 +141,12 @@ run_spec = function(nm) {
                    depvar = FALSE, headers = hdrs, fitstat = ~ n + r2 + wr2,
                    file = paste0(outdir, '/Table_MPStyleRegs', tabs[[2]], '_', nm, '.tex'))
   }
+  # combined manuscript-layout drafts (for the in-paper spec comparison)
+  make_combined_table(c(fits_s[c(1, 3, 5)], fits_u[c(1, 3, 5)]), timeFE = FALSE,
+    file = paste0('../risk-vs-rfs-sub/latex-risk-vs/exhibits/HandTable_MPStyleRegsMain_', nm, '.tex'))
+  make_combined_table(c(fits_s[c(2, 4, 6)], fits_u[c(2, 4, 6)]), timeFE = TRUE,
+    file = paste0('../risk-vs-rfs-sub/latex-risk-vs/exhibits/HandTable_MPStyleRegsTimeFE_', nm, '.tex'))
+
   # console: no-FE and FE columns, scaled then unscaled
   print(fixest::etable(fits_s[c(1, 3, 5)], tex = FALSE, dict = etable_dict, depvar = FALSE,
                        headers = c('Pub scl', 'DM scl', 'Diff scl'), fitstat = ~n))
