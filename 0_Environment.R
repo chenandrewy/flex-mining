@@ -1677,33 +1677,43 @@ ReturnPlotsWithDM_std_errors_indicators = function(dt, suffix = '', rollmonths =
           roll_rbar = last(roll_rbar),  # take end of window value
           window_end = last(eventDate),
           window_start = window_end - rollmonths + 1,
+          # NOTE: the filter below must compare against the *group's* SignalType.
+          # Referencing first(SignalType) inside filter() resolves against
+          # dt_long's own column (always the first series, 'ret'), which made
+          # every series' SE come from the published series' rows. Capture the
+          # group value outside the filter mask instead.
           se = {
-              window_data = dt_long %>% 
+              sig_grp = SignalType[1]
+              window_data = dt_long %>%
                   filter(!is.na(return),
-                        SignalType == first(SignalType),
+                        SignalType == sig_grp,
                         eventDate > window_start,
-                        eventDate <= window_end) 
+                        eventDate <= window_end)
               get_clustered_se(window_data)
           },
-          unique_pubnames = {dt_long %>% 
+          unique_pubnames = {
+              sig_grp = SignalType[1]
+              dt_long %>%
                   filter(!is.na(return),
-                        SignalType == first(SignalType),
+                        SignalType == sig_grp,
                         eventDate > window_start,
-                        eventDate <= window_end) %>% 
-                  select(pubname) %>% 
-                  distinct() %>% 
+                        eventDate <= window_end) %>%
+                  select(pubname) %>%
+                  distinct() %>%
                   nrow()
           },
-          unique_eventdates = {dt_long %>% 
+          unique_eventdates = {
+              sig_grp = SignalType[1]
+              dt_long %>%
                   filter(!is.na(return),
-                        SignalType == first(SignalType),
+                        SignalType == sig_grp,
                         eventDate > window_start,
-                        eventDate <= window_end) %>% 
-                  select(eventDate) %>% 
-                  distinct() %>% 
+                        eventDate <= window_end) %>%
+                  select(eventDate) %>%
+                  distinct() %>%
                   nrow()
           },
-          .groups = 'drop') %>%      
+          .groups = 'drop') %>%
       # Now join back to get SE for each event date
       select(SignalType, nonoverlap_window, se, unique_pubnames, unique_eventdates) %>%
       right_join(
@@ -2169,6 +2179,35 @@ ff3_implied_category <- function(data, sampstart, sampend){
   expected_returns <- (coeffs[2] * mean_mkt +
                          coeffs[3] * mean_feature1 +
                          coeffs[4] * mean_feature2)
+  return(( expected_returns/ mean_ret))
+}
+
+# Function to compute FF4 adjustment (Carhart 4-factor with momentum)
+ff4_implied_category <- function(data, sampstart, sampend){
+  # Filter the data
+  data_reg <- data[data$date >= sampstart &
+                     data$date <= sampend & !is.na(retOrig), ]
+
+  # Calculate mean return
+  mean_ret <- mean(data_reg$retOrig, na.rm = TRUE)
+
+  # Fit a linear regression model with FF4 factors (market, size, value, momentum)
+  linear_fit <- lm(retOrig ~ mktrf + smb + hml + umd, data = data_reg)
+
+  # Calculate mean market return
+  mean_mkt <- mean(data_reg$mktrf, na.rm = TRUE)
+
+  # Calculate means of additional features
+  mean_feature1 <- mean(data_reg$smb, na.rm = TRUE)
+  mean_feature2 <- mean(data_reg$hml, na.rm = TRUE)
+  mean_feature3 <- mean(data_reg$umd, na.rm = TRUE)
+
+  # Return the modified calculation accounting for additional features
+  coeffs <- linear_fit$coefficients
+  expected_returns <- (coeffs[2] * mean_mkt +
+                         coeffs[3] * mean_feature1 +
+                         coeffs[4] * mean_feature2 +
+                         coeffs[5] * mean_feature3)
   return(( expected_returns/ mean_ret))
 }
 

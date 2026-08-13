@@ -1,0 +1,93 @@
+\documentclass{article}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{geometry}
+\usepackage{placeins}
+\usepackage{graphicx}
+\usepackage{grffile}
+\geometry{landscape, margin=1in}
+
+\begin{document}
+
+% === OOS figures (Campbell 2024 suggestion) ===
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.9\textwidth]{\detokenize{../Results/Fig_CalendarTime_PubVsDM_OOS.pdf}}
+  \caption{Published vs data-mined returns in calendar time (post-sample only). For each calendar month, we compute the equal-weighted cross-sectional average of scaled long-short returns across all published signals that are at least five years past their original-sample end date. Returns are scaled so that each signal's in-sample mean equals 100 bps per month. The data-mined line averages matched Compustat accounting strategies with $|t|>2.0$ in the original sample period, where matches are constructed separately for each published signal. The plot shows a trailing 60-month (5-year) rolling mean. Only post-sample observations are included, removing in-sample returns which are mechanically high due to signal selection. Following Campbell (2024), signals with fewer than 5 years of post-sample data are excluded, and signals in decade cohorts with fewer than 10 members are dropped.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.9\textwidth]{\detokenize{../Results/Fig_CalendarTime_Published_ByCohort_OOS.pdf}}
+  \caption{Published signal returns by sample-end decade cohort (post-sample only). Signals are grouped by the decade in which their original sample ended (e.g., ``1990s'' includes signals with sample end dates between 1990 and 1999). For each cohort and calendar month, we compute the cross-sectional average of scaled long-short returns across signals in that cohort that are at least five years past their original-sample end date. Returns are scaled so that each signal's in-sample mean equals 100 bps per month. Faded colored lines show the trailing 5-year mean return for each cohort; the bold black line shows the equal-weighted average across all signals. Only post-sample observations are included. Each cohort's line begins when its earliest signal enters the out-of-sample period. Persistent level differences between cohorts would indicate cohort effects; synchronized movements at the same calendar dates indicate time effects. Following Campbell (2024), signals with fewer than 5 years of post-sample data are excluded, and cohorts with fewer than 10 signals are dropped.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.9\textwidth]{\detokenize{../Results/Fig_CalendarTime_DM_ByCohort_OOS.pdf}}
+  \caption{Data-mined signal returns by sample-end decade cohort (post-sample only). Signals are grouped by the decade in which their original sample ended. For each cohort and calendar month, we compute the cross-sectional average of scaled returns from the matched data-mined Compustat accounting strategies with $|t|>2.0$ in the original sample period, using only observations past each signal's original-sample end date. Matches are constructed separately for each published signal. Returns are scaled so that each signal's in-sample mean equals 100 bps per month. Faded colored lines show the trailing 5-year mean return for each cohort; the bold black line shows the equal-weighted average across all signals. Only post-sample observations are included. Following Campbell (2024), signals with fewer than 5 years of post-sample data are excluded, and cohorts with fewer than 10 signals are dropped.}
+\end{figure}
+
+\FloatBarrier
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.9\textwidth]{\detokenize{../Results/Fig_CalendarTime_PubVsDM_OOS_risk.pdf}}
+  \caption{Risk-motivated signals: published vs data-mined returns in calendar time (post-sample only). For each calendar month, we compute the equal-weighted cross-sectional average of scaled long-short returns across published signals classified as ``risk'' that are at least five years past their original-sample end date. Returns are scaled so that each signal's in-sample mean equals 100 bps per month. The data-mined line averages matched Compustat accounting strategies with $|t|>2.0$ in the original sample period, where matches are constructed separately for each published signal. The plot shows a trailing 60-month (5-year) rolling mean. Following Campbell (2024), signals with fewer than 5 years of post-sample data are excluded, and signals in decade cohorts with fewer than 10 members are dropped.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.9\textwidth]{\detokenize{../Results/Fig_CalendarTime_PubVsDM_OOS_mispricing.pdf}}
+  \caption{Mispricing-motivated signals: published vs data-mined returns in calendar time (post-sample only). For each calendar month, we compute the equal-weighted cross-sectional average of scaled long-short returns across published signals classified as ``mispricing'' that are at least five years past their original-sample end date. Returns are scaled so that each signal's in-sample mean equals 100 bps per month. The data-mined line averages matched Compustat accounting strategies with $|t|>2.0$ in the original sample period, where matches are constructed separately for each published signal. The plot shows a trailing 60-month (5-year) rolling mean. Following Campbell (2024), signals with fewer than 5 years of post-sample data are excluded, and signals in decade cohorts with fewer than 10 members are dropped.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.9\textwidth]{\detokenize{../Results/Fig_CalendarTime_PubVsDM_OOS_agnostic.pdf}}
+  \caption{Agnostic signals: published vs data-mined returns in calendar time (post-sample only). For each calendar month, we compute the equal-weighted cross-sectional average of scaled long-short returns across published signals with no specific theoretical motivation (``agnostic'') that are at least five years past their original-sample end date. Returns are scaled so that each signal's in-sample mean equals 100 bps per month. The data-mined line averages matched Compustat accounting strategies with $|t|>2.0$ in the original sample period, where matches are constructed separately for each published signal. The plot shows a trailing 60-month (5-year) rolling mean. Following Campbell (2024), signals with fewer than 5 years of post-sample data are excluded, and signals in decade cohorts with fewer than 10 members are dropped.}
+\end{figure}
+
+\FloatBarrier
+
+% === Full sample figures (commented out) ===
+
+% \begin{figure}[htbp]
+%   \centering
+%   \includegraphics[width=0.9\textwidth]{\detokenize{../Results/Fig_CalendarTime_PubVsDM.pdf}}
+%   \caption{Published vs data-mined returns in calendar time (including in-sample). For each calendar month, we compute the equal-weighted cross-sectional average of scaled long-short returns across all published signals with data in that month. Returns are scaled so that each signal's in-sample mean equals 100 bps per month. The data-mined line averages matched Compustat accounting strategies with $|t|>2.0$ in the original sample period, where matches are constructed separately for each published signal. The plot shows a trailing 60-month (5-year) rolling mean. Unlike the paper's main event-time figures, the x-axis is actual calendar dates, so signals with different original-sample end dates contribute to different parts of the timeline. Both in-sample and post-sample observations are included. Following Campbell (2024), signals with fewer than 5 years of post-sample data are excluded, and signals in decade cohorts with fewer than 10 members are dropped.}
+% \end{figure}
+
+% \begin{figure}[htbp]
+%   \centering
+%   \includegraphics[width=0.9\textwidth]{\detokenize{../Results/Fig_CalendarTime_Published_ByCohort.pdf}}
+%   \caption{Published signal returns by sample-end decade cohort (including in-sample). Signals are grouped by the decade in which their original sample ended (e.g., ``1990s'' includes signals with sample end dates between 1990 and 1999). Faded colored lines show the trailing 5-year mean return for each cohort; the bold black line shows the equal-weighted average across all signals. Cohorts with fewer than 10 signals are excluded. Following Campbell (2024), signals with fewer than 5 years of post-sample data are excluded. Both in-sample and post-sample observations are included. If cohort lines move together at the same calendar dates, this indicates a common time effect (e.g., arbitrage capital changes) rather than a cohort-specific effect.}
+% \end{figure}
+
+% \begin{figure}[htbp]
+%   \centering
+%   \includegraphics[width=0.9\textwidth]{\detokenize{../Results/Fig_CalendarTime_DM_ByCohort.pdf}}
+%   \caption{Data-mined signal returns by sample-end decade cohort. Signals are grouped by the decade in which their original sample ended. For each cohort and calendar month, we compute the cross-sectional average of scaled returns from the matched data-mined Compustat accounting strategies with $|t|>2.0$ in the original sample period. Matches are constructed separately for each published signal. Returns are scaled so that each signal's in-sample mean equals 100 bps per month. Faded colored lines show the trailing 5-year mean return for each cohort; the bold black line shows the equal-weighted average across all signals. Cohorts with fewer than 10 signals are excluded. Following Campbell (2024), signals with fewer than 5 years of post-sample data are excluded. Both in-sample and post-sample observations are included.}
+% \end{figure}
+
+% \begin{figure}[htbp]
+%   \centering
+%   \includegraphics[width=0.9\textwidth]{\detokenize{../Results/Fig_CalendarTime_PubVsDM_risk.pdf}}
+%   \caption{Risk-motivated signals: published vs data-mined returns in calendar time (including in-sample).}
+% \end{figure}
+
+% \begin{figure}[htbp]
+%   \centering
+%   \includegraphics[width=0.9\textwidth]{\detokenize{../Results/Fig_CalendarTime_PubVsDM_mispricing.pdf}}
+%   \caption{Mispricing-motivated signals: published vs data-mined returns in calendar time (including in-sample).}
+% \end{figure}
+
+% \begin{figure}[htbp]
+%   \centering
+%   \includegraphics[width=0.9\textwidth]{\detokenize{../Results/Fig_CalendarTime_PubVsDM_agnostic.pdf}}
+%   \caption{Agnostic signals: published vs data-mined returns in calendar time (including in-sample).}
+% \end{figure}
+
+\end{document}
