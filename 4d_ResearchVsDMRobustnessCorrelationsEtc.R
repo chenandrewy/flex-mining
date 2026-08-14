@@ -43,6 +43,16 @@ rm(tmp)
 candidateReturns = candidateReturns %>% 
   filter(actSignal %in% (czsum %>% filter(Keep) %>% pull(signalname)))
 
+# 60-month in-sample history floor (globalSettings$match_nmonth_min), pair-level:
+# equivalent to 2b's in-matcher screen until MatchPub.RData is regenerated
+candidateReturns = candidateReturns %>%
+  inner_join(candidateReturns %>%
+               filter(samptype == 'insamp') %>%
+               count(actSignal, candSignalname, name = 'nm') %>%
+               filter(nm >= globalSettings$match_nmonth_min) %>%
+               select(actSignal, candSignalname),
+             by = c('actSignal', 'candSignalname'))
+
 # Normalize candidate returns
 
 # In-sample means
