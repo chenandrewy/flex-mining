@@ -65,6 +65,39 @@ options(stringsAsFactors = FALSE)
 # chapter drivers.
 source('config.R', local = TRUE)
 
+# Sanity-check the requested worker count against system RAM. Chapter 3 helpers
+# budget roughly 5 GB per worker (see docs/runtimes_and_ram.md). Linux and macOS
+# are checked; other platforms report that the check was skipped. This never
+# blocks a run: any detection failure is treated as "unknown" and skipped.
+local({
+  gb_per_worker <- 5
+  sysname <- Sys.info()[["sysname"]]
+  total_gb <- tryCatch({
+    if (sysname == "Linux") {
+      line <- grep("^MemTotal:", readLines("/proc/meminfo"), value = TRUE)
+      as.numeric(sub("^MemTotal:\\s*([0-9]+).*$", "\\1", line)) / 1024^2
+    } else if (sysname == "Darwin") {
+      as.numeric(system2("sysctl", c("-n", "hw.memsize"), stdout = TRUE)) / 1024^3
+    } else {
+      message("num_cores RAM check skipped: only Linux and macOS are checked (this is ",
+              sysname, ").")
+      NA_real_
+    }
+  }, error = function(e) NA_real_)
+
+  if (!is.na(total_gb)) {
+    needed_gb <- globalSettings$num_cores * gb_per_worker
+    if (needed_gb > total_gb) {
+      warning(sprintf(
+        paste0("globalSettings$num_cores = %d budgets ~%.0f GB (%d x %d GB/worker) ",
+               "but only ~%.0f GB RAM detected; consider lowering num_cores to ",
+               "avoid an out-of-memory kill."),
+        globalSettings$num_cores, needed_gb, globalSettings$num_cores,
+        gb_per_worker, total_gb), call. = FALSE)
+    }
+  }
+})
+
 # Yan-Zheng numerator and denominator names
 # YZ list MKTCAP in Table B.1, which we call me_datadate  mkvalt is not available earlier in the data
 
