@@ -1,6 +1,13 @@
 # Appendix exhibit: full-sample risk-adjusted data-mining comparisons.
 # Based on 4c4_RiskAdjustedResearchVsDMPlotsTV.R but with full sample CAPM and FF3 adjustments
 # This file compares raw vs full sample risk-adjusted returns for published vs data-mined signals
+# How to run: set the working directory to flex-mining/, then
+#   Rscript Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R
+# Inputs: processed published/data-mined returns, risk-adjustment caches, and
+#         DataInput/SignalsTheoryChecked.csv
+# Outputs: Figure IA.1 CAPM/FF3 PDFs at top-level ../Results and detailed plot
+#          outputs under ../Results/RiskAdjusted/FullSampleTstatFilter
+# Grouped full-sample tables are owned by S4b_RVsDM_ByGroup.R.
 #
 # FIXED: Full sample beta/alpha consistency between published and DM signals
 # - Published signals use full sample betas (from sampstart onwards)
@@ -9,6 +16,7 @@
 
 # Setup ----------------------------------------------------------------
 rm(list = ls())
+pdf(NULL)
 source("0_Environment.R")
 source("helpers/risk_adjusted_helpers_fs.R")
 
@@ -378,6 +386,12 @@ if("abnormal_capm" %in% names(candidateReturns_adj) && "abnormal_ff3" %in% names
     "Trailing 5-Year CAPM Alpha",
     filter_type = filter_type
   )
+  ggsave(
+    filename = file.path(
+      "../Results", paste0("Fig_FullSampleRiskAdj_capm_alpha_fs_t", t_threshold, ".pdf")
+    ),
+    printme_capm_fs_t2, width = 10, height = 8
+  )
   
   # FF3 full sample filtering (t-stat only)
   cat("\n=== FF3 FULL SAMPLE (t > ", t_threshold, ") STATISTICS ===\n")
@@ -417,6 +431,12 @@ if("abnormal_capm" %in% names(candidateReturns_adj) && "abnormal_ff3" %in% names
     t_threshold,
     "Trailing 5-Year FF3 Alpha",
     filter_type = filter_type
+  )
+  ggsave(
+    filename = file.path(
+      "../Results", paste0("Fig_FullSampleRiskAdj_ff3_alpha_fs_t", t_threshold, ".pdf")
+    ),
+    printme_ff3_fs_t2, width = 10, height = 8
   )
   
   # Create Full Sample Alpha Summary Tables
@@ -1051,21 +1071,7 @@ if (exists("fs_theory_data") && exists("fs_model_data")) {
     digits = 0
   )
   
-  # Export full sample table
-  export_tables_multi_format_fs(
-    export_table_fs,
-    base_filename = paste0(results_dir, "/Table_RiskAdjusted_FullSample", file_suffix),
-    formats = c("csv", "latex"),
-    latex_options = list(
-      caption = "Full Sample Risk-Adjusted Returns: Theoretical Foundation and Modeling Formalism",
-      label = "tab:risk_adjusted_fs",
-      group_headers = list(
-        list(title = "Raw", span = 2),
-        list(title = "CAPM", span = 2),
-        list(title = "FF3", span = 2)
-      )
-    )
-  )
+  # S4b_RVsDM_ByGroup.R owns the full-sample grouped table exports.
   
   # Export full sample discipline/journal table if data exists
   if (exists("fs_discipline_data") && exists("fs_journal_data")) {
@@ -1083,21 +1089,7 @@ if (exists("fs_theory_data") && exists("fs_model_data")) {
       digits = 0
     )
     
-    # Export full sample discipline/journal table
-    export_tables_multi_format_fs(
-      export_table_fs_dj,
-      base_filename = paste0(results_dir, "/Table_RiskAdjusted_FullSample_DisciplineJournal", file_suffix),
-      formats = c("csv", "latex"),
-      latex_options = list(
-        caption = "Full Sample Risk-Adjusted Returns: Discipline and Journal Rank",
-        label = "tab:risk_adjusted_fs_dj",
-        group_headers = list(
-          list(title = "Raw", span = 2),
-          list(title = "CAPM", span = 2),
-          list(title = "FF3", span = 2)
-        )
-      )
-    )
+    # S4b_RVsDM_ByGroup.R owns the discipline/journal table export.
   }
   
   # Export full sample Any Model vs No Model table if data exists
@@ -1177,21 +1169,7 @@ if (exists("fs_theory_data") && exists("fs_model_data")) {
       digits = 0
     )
     
-    # Export full sample Any Model vs No Model table
-    export_tables_multi_format_fs(
-      export_table_fs_am,
-      base_filename = paste0(results_dir, "/Table_RiskAdjusted_FullSample_AnyModelVsNoModel", file_suffix),
-      formats = c("csv", "latex"),
-      latex_options = list(
-        caption = "Full Sample Risk-Adjusted Returns: Any Model vs No Model",
-        label = "tab:risk_adjusted_fs_anymodel",
-        group_headers = list(
-          list(title = "Raw", span = 2),
-          list(title = "CAPM", span = 2),
-          list(title = "FF3", span = 2)
-        )
-      )
-    )
+    # S4b_RVsDM_ByGroup.R owns the pooled Any Model table export.
   }
 }
 
@@ -1215,9 +1193,7 @@ cat("\nMain summary tables:\n")
 cat(paste0("- Table_RiskAdjusted_TheoryModel", file_suffix, ".csv and .tex\n"))
 cat(paste0("- Table_RiskAdjusted_DisciplineJournal", file_suffix, ".csv and .tex\n"))
 cat(paste0("- Table_RiskAdjusted_AnyModelVsNoModel", file_suffix, ".csv and .tex\n"))
-if (exists("fs_theory_data")) {
-  cat(paste0("- Table_RiskAdjusted_FullSample", file_suffix, ".csv and .tex\n"))
-}
+cat("- Full-sample grouped tables: owned by S4b_RVsDM_ByGroup.R\n")
 cat("\nDetailed breakdowns:\n")
 cat("- Raw/CAPM/FF3 by TheoryGroup/ModelGroup/Discipline/Journal (12 files)\n")
 cat("\nPlots generated:\n")

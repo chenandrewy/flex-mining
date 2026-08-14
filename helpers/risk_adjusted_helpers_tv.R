@@ -718,6 +718,34 @@ build_tv_summary_table <- function(categories, groups, summaries, digits = 0) {
   return(result_df)
 }
 
+build_full_sample_summary_table <- function(categories, groups, summaries,
+                                            digits = 0) {
+  result_df <- data.frame(
+    Category = categories,
+    Group = groups,
+    stringsAsFactors = FALSE
+  )
+  metric_specs <- list(
+    Raw_Return = c("raw_pub_oos", "raw_pub_oos_se"),
+    Raw_Outperformance = c("raw_outperform", "raw_outperform_se"),
+    CAPM_Return = c("capm_fs_pub_oos", "capm_fs_pub_oos_se"),
+    CAPM_Outperformance = c("capm_fs_outperform", "capm_fs_outperform_se"),
+    FF3_Return = c("ff3_fs_pub_oos", "ff3_fs_pub_oos_se"),
+    FF3_Outperformance = c("ff3_fs_outperform", "ff3_fs_outperform_se")
+  )
+  for (column in names(metric_specs)) {
+    fields <- metric_specs[[column]]
+    result_df[[column]] <- vapply(
+      summaries,
+      function(summary) {
+        format_value_se(summary[[fields[1]]], summary[[fields[2]]], digits, FALSE)
+      },
+      character(1)
+    )
+  }
+  result_df
+}
+
 build_summary_table <- function(categories, groups, summaries,
                                analysis_types = c("raw", "capm", "ff3"),
                                metrics_config = list(
@@ -824,6 +852,187 @@ export_audit_tabular <- function(table_data, base_filename, group_headers) {
   }
   writeLines(latex_lines[first:last], tex_file)
   invisible(c(csv = csv_file, tex = tex_file))
+}
+
+# Render the paper-facing versions of Tables 6, 7, and IA.10. These functions
+# take the unrounded summary lists rather than the formatted audit data frames,
+# so the paper and audit outputs share estimands but own separate presentation.
+paper_summary_cells <- function(summary, adjustment = c("time_varying", "full_sample")) {
+  adjustment <- match.arg(adjustment)
+  adjusted_metrics <- if (adjustment == "time_varying") {
+    c("capm_tv", "ff4_tv")
+  } else {
+    c("capm_fs", "ff3_fs")
+  }
+  metric_names <- c(
+    "raw_pub_oos", "raw_outperform",
+    paste0(adjusted_metrics[1], c("_pub_oos", "_outperform")),
+    paste0(adjusted_metrics[2], c("_pub_oos", "_outperform"))
+  )
+  se_names <- paste0(metric_names, "_se")
+  list(
+    values = as.character(round(unlist(summary[metric_names], use.names = FALSE))),
+    ses = paste0("(", round(unlist(summary[se_names], use.names = FALSE)), ")")
+  )
+}
+
+paper_table_header <- function(main_paper = TRUE, third_adjustment = "FF4",
+                               outperformance_label = "Outperf.") {
+  if (main_paper) {
+    c(
+      "\\begin{tabular}{lcccccc}",
+      "   \\toprule",
+      "   & \\multicolumn{2}{c}{Long-Short Return} & \\multicolumn{2}{c}{CAPM Alpha} & \\multicolumn{2}{c}{FF3 + Mom Alpha} \\\\",
+      "   \\cmidrule(lr){2-3}\\cmidrule(lr){4-5}\\cmidrule(lr){6-7}",
+      "   & Post- & \\multicolumn{1}{c}{Versus} & Post- & \\multicolumn{1}{c}{Versus} & Post- & \\multicolumn{1}{c}{Versus} \\\\",
+      "   & Sample & \\multicolumn{1}{c}{Data Mining} & Sample & \\multicolumn{1}{c}{Data Mining} & Sample & \\multicolumn{1}{c}{Data Mining} \\\\",
+      "   \\midrule"
+    )
+  } else {
+    c(
+      "\\begin{tabular}{lcccccc}",
+      "   \\toprule",
+      paste0(
+        "   & \\multicolumn{2}{c}{Raw} & \\multicolumn{2}{c}{CAPM} & ",
+        "\\multicolumn{2}{c}{", third_adjustment, "} \\\\"
+      ),
+      "   \\cmidrule(lr){2-3}\\cmidrule(lr){4-5}\\cmidrule(lr){6-7}",
+      paste0(
+        "   & Return & ", outperformance_label,
+        " & Return & ", outperformance_label,
+        " & Return & ", outperformance_label, " \\\\"
+      ),
+      "   \\midrule"
+    )
+  }
+}
+
+paper_standard_row <- function(label, summary, bold = FALSE,
+                               adjustment = "time_varying") {
+  cells <- paper_summary_cells(summary, adjustment)
+  shown_label <- if (bold) paste0("\\textbf{", label, "}") else label
+  c(
+    paste0("   ", shown_label, " & ", paste(cells$values, collapse = " & "), " \\\\"),
+    paste0("   & ", paste(cells$ses, collapse = " & "), " \\\\")
+  )
+}
+
+write_paper_theory_model_tabular <- function(theory, model, overall, file) {
+  lines <- c(
+    paper_table_header(TRUE),
+    "   \\multicolumn{7}{l}{\\textbf{Theoretical Foundation}} \\\\",
+    paper_standard_row("Agnostic", theory[["Agnostic"]]),
+    paper_standard_row("Mispricing", theory[["Mispricing"]]),
+    paper_standard_row("Risk", theory[["Risk"]]),
+    "   \\addlinespace",
+    "   \\multicolumn{7}{l}{\\textbf{Equilibrium Modeling}} \\\\",
+    paper_standard_row("No Model", model[["No Model"]]),
+    paper_standard_row("Stylized", model[["Stylized"]])
+  )
+  dynamic <- paper_summary_cells(model[["Dynamic or Quantitative"]])
+  lines <- c(
+    lines,
+    paste0("   Dynamic or & ", paste(dynamic$values, collapse = " & "), " \\\\"),
+    paste0("   Quantitative & ", paste(dynamic$ses, collapse = " & "), " \\\\"),
+    "   \\addlinespace",
+    paper_standard_row("Overall", overall, bold = TRUE),
+    "   \\bottomrule",
+    "\\end{tabular}"
+  )
+  writeLines(lines, file)
+  invisible(file)
+}
+
+write_paper_discipline_journal_tabular <- function(discipline, journal, file) {
+  lines <- c(
+    paper_table_header(TRUE),
+    "   \\multicolumn{7}{l}{\\textbf{Discipline}} \\\\",
+    paper_standard_row("Finance", discipline[["Finance"]]),
+    paper_standard_row("Accounting", discipline[["Accounting"]]),
+    "   \\addlinespace",
+    "   \\multicolumn{7}{l}{\\textbf{Journal Rank}} \\\\",
+    paper_standard_row("JF, JFE, RFS", journal[["JF, JFE, RFS"]]),
+    paper_standard_row("AR, JAR, JAE", journal[["AR, JAR, JAE"]]),
+    paper_standard_row("Other", journal[["Other"]]),
+    "   \\bottomrule",
+    "\\end{tabular}"
+  )
+  writeLines(lines, file)
+  invisible(file)
+}
+
+write_paper_anymodel_tabular <- function(anymodel, file) {
+  lines <- c(
+    paper_table_header(FALSE),
+    paper_standard_row("No Model", anymodel[["No Model"]]),
+    paper_standard_row("Any Model", anymodel[["Any Model"]]),
+    "   \\bottomrule",
+    "\\end{tabular}"
+  )
+  writeLines(lines, file)
+  invisible(file)
+}
+
+write_paper_fullsample_theory_model_tabular <- function(theory, model, overall, file) {
+  row <- function(label, summary) {
+    paper_standard_row(label, summary, adjustment = "full_sample")
+  }
+  lines <- c(
+    paper_table_header(FALSE, third_adjustment = "FF3"),
+    "   \\multicolumn{7}{l}{\\textbf{Theoretical Explanation}} \\\\",
+    row("Risk", theory[["Risk"]]),
+    row("Mispricing", theory[["Mispricing"]]),
+    row("Agnostic", theory[["Agnostic"]]),
+    "   \\addlinespace",
+    "   \\multicolumn{7}{l}{\\textbf{Modeling Formalism}} \\\\",
+    row("No Model", model[["No Model"]]),
+    row("Stylized", model[["Stylized"]]),
+    row("Dynamic or Quantitative", model[["Dynamic or Quantitative"]]),
+    "   \\addlinespace",
+    "   \\multicolumn{7}{l}{\\textbf{Overall}} \\\\",
+    row("All", overall),
+    "   \\bottomrule",
+    "\\end{tabular}"
+  )
+  writeLines(lines, file)
+  invisible(file)
+}
+
+write_paper_fullsample_discipline_journal_tabular <- function(discipline, journal, file) {
+  row <- function(label, summary) {
+    paper_standard_row(label, summary, adjustment = "full_sample")
+  }
+  lines <- c(
+    paper_table_header(FALSE, third_adjustment = "FF3"),
+    "   \\multicolumn{7}{l}{\\textbf{Discipline}} \\\\",
+    row("Finance", discipline[["Finance"]]),
+    row("Accounting", discipline[["Accounting"]]),
+    "   \\addlinespace",
+    "   \\multicolumn{7}{l}{\\textbf{Journal Rank}} \\\\",
+    row("JF, JFE, RFS", journal[["JF, JFE, RFS"]]),
+    row("AR, JAR, JAE", journal[["AR, JAR, JAE"]]),
+    row("Other", journal[["Other"]]),
+    "   \\bottomrule",
+    "\\end{tabular}"
+  )
+  writeLines(lines, file)
+  invisible(file)
+}
+
+write_paper_fullsample_anymodel_tabular <- function(anymodel, file) {
+  lines <- c(
+    paper_table_header(FALSE, third_adjustment = "FF3"),
+    paper_standard_row(
+      "No Model", anymodel[["No Model"]], adjustment = "full_sample"
+    ),
+    paper_standard_row(
+      "Any Model", anymodel[["Any Model"]], adjustment = "full_sample"
+    ),
+    "   \\bottomrule",
+    "\\end{tabular}"
+  )
+  writeLines(lines, file)
+  invisible(file)
 }
 
 compute_overall_summary <- function(plot_data, ret_col, dm_col) {
