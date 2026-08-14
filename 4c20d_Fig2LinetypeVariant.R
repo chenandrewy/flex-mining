@@ -1,7 +1,7 @@
 # Grayscale-safe variant of Figure 2 panels (a) and (b): four distinct
 # linetypes so the two pub (and two DM) lines stay distinguishable without
 # hue. The primary 4c20b versions use Andrew's Spec-3 styling (pub solid,
-# DM dashed, pairs separated by hue; docs/journal/260717a,exhibit-reorg.md
+# DM dotted, one hue per pub/DM pair; docs/journal/260717a,exhibit-reorg.md
 # in the writing repo), adopted 2026-08-12. Panels (c)/(d) have one linetype
 # per series either way, so only (a)/(b) get variants.
 #

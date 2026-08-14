@@ -1225,7 +1225,10 @@ SelectDMStrats <- function(insampsum, settings) {
   
   # add derivative statistics
   insampsum <- insampsum %>%
-    group_by(sweight, sampstart, sampend) %>%
+    # rank within each paper's own comparison universe; without pubname,
+    # papers sharing an exact sample window get pooled and absolute-rank
+    # cutoffs (maxDMpredictors) pick far fewer strategies than intended
+    group_by(pubname, sweight, sampstart, sampend) %>%
     arrange(desc(abs(tstat))) %>%
     mutate(rank_tstat = row_number()) %>%
     arrange(desc(abs(rbar))) %>%
@@ -1240,8 +1243,8 @@ SelectDMStrats <- function(insampsum, settings) {
   matchcur <- insampsum[
     diff_rbar <= settings$r_tol &
       diff_tstat <= settings$t_tol &
-      diff_rbar / rbar_op <= settings$r_reltol &
-      diff_tstat / tstat_op <= settings$t_reltol &
+      diff_rbar / abs(rbar_op) <= settings$r_reltol &
+      diff_tstat / abs(tstat_op) <= settings$t_reltol &
       min_nstock_long >= settings$minNumStocks/2 &
       min_nstock_short >= settings$minNumStocks/2 &
       abs(tstat) > settings$t_min &
@@ -1687,7 +1690,7 @@ ReturnPlotsWithDM_std_errors_indicators = function(dt, suffix = '', rollmonths =
               window_data = dt_long %>%
                   filter(!is.na(return),
                         SignalType == sig_grp,
-                        eventDate > window_start,
+                        eventDate >= window_start,
                         eventDate <= window_end)
               get_clustered_se(window_data)
           },
@@ -1696,7 +1699,7 @@ ReturnPlotsWithDM_std_errors_indicators = function(dt, suffix = '', rollmonths =
               dt_long %>%
                   filter(!is.na(return),
                         SignalType == sig_grp,
-                        eventDate > window_start,
+                        eventDate >= window_start,
                         eventDate <= window_end) %>%
                   select(pubname) %>%
                   distinct() %>%
@@ -1707,7 +1710,7 @@ ReturnPlotsWithDM_std_errors_indicators = function(dt, suffix = '', rollmonths =
               dt_long %>%
                   filter(!is.na(return),
                         SignalType == sig_grp,
-                        eventDate > window_start,
+                        eventDate >= window_start,
                         eventDate <= window_end) %>%
                   select(eventDate) %>%
                   distinct() %>%

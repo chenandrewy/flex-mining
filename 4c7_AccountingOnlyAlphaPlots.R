@@ -76,7 +76,7 @@ czacct = czacct %>%
   mutate(
     drop = FALSE
     , drop = if_else(grepl('quarter', Def), TRUE, drop)
-    , drop = if_else(grepl('analyst|meanest|earningssurprise', Def), TRUE, drop)
+    , drop = if_else(grepl('analyst|meanest|earningssurprise', paste(tolower(signalname), Def)), TRUE, drop)
     , drop = if_else(Cat.Form == 'discrete', TRUE, drop)
     , drop = if_else(signalname %in% c('ShareIss1Y', 'ShareIss5Y'), TRUE, drop)
   ) %>%

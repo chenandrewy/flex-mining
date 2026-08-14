@@ -6,6 +6,7 @@
 
 rm(list = ls())
 source("0_Environment.R")
+source("helpers/mp_table_helpers.R")
 library(doParallel)
 
 # Load and prep Data -------------------------------------------
@@ -297,7 +298,7 @@ fixest::etable(
   depvar = FALSE,
   headers = c("Predictor Return", "Predictor Return", "DM Matched Return", "DM Matched Return", "Pred - Matched Ret", "Pred - Matched Ret"),
   fitstat = ~ n + r2 + wr2,
-  file = '../risk-vs-rfs-sub/latex-risk-vs/exhibits/Table_MPStyleRegsMain.tex'
+  file = '../Results/TolMatch/Table_MPStyleRegsMain.tex'
 )
 
 
@@ -332,9 +333,32 @@ fixest::etable(
   depvar = FALSE,
   headers = c("Predictor Return", "Predictor Return", "DM Matched Return", "DM Matched Return", "Pred - Matched Ret", "Pred - Matched Ret"),
   fitstat = ~ n + r2 + wr2,
-  file = '../risk-vs-rfs-sub/latex-risk-vs/exhibits/Table_MPStyleRegsMainUnscaled.tex'
+  file = '../Results/TolMatch/Table_MPStyleRegsMainUnscaled.tex'
 )
 
+
+### Save fitted models so tables can be re-rendered without re-estimating ----
+saveRDS(list(
+  noFE = list(fitLM1, fitLM2_excl, fitLM3_excl, fitLM1_u, fitLM2_excl_u, fitLM3_excl_u),
+  FE   = list(fitLM1a, fitLM2a_excl, fitLM3a_excl, fitLM1a_u, fitLM2a_excl_u, fitLM3a_excl_u),
+  meta = list(generated = Sys.time(),
+              input_files = c('../Data/Processed/ret_for_plot0.RDS',
+                              '../Data/Processed/plotdat0.RDS'))
+), '../Data/Processed/mp_decay_fits_Baseline.RDS')
+
+### Manuscript Tables 3-4 (formerly hand-assembled) ----
+# Writes the combined 6-column layout the manuscript \inputs directly:
+# (1)-(3) scaled pub/DM/diff, (4)-(6) unscaled, one file per FE setting.
+
+make_combined_table(
+  list(fitLM1, fitLM2_excl, fitLM3_excl, fitLM1_u, fitLM2_excl_u, fitLM3_excl_u),
+  timeFE = FALSE,
+  file = '../risk-vs-rfs-sub/latex-risk-vs/exhibits/HandTable_MPStyleRegsMain.tex')
+
+make_combined_table(
+  list(fitLM1a, fitLM2a_excl, fitLM3a_excl, fitLM1a_u, fitLM2a_excl_u, fitLM3a_excl_u),
+  timeFE = TRUE,
+  file = '../risk-vs-rfs-sub/latex-risk-vs/exhibits/HandTable_MPStyleRegsTimeFE.tex')
 
 rm(dm_means_excl); gc()
 # Note: regData_excl kept alive for the Theory Interaction Regressions section below.

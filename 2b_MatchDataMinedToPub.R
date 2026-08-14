@@ -150,8 +150,8 @@ candidateReturns =  foreach(pubi = 1:dim(czsum)[1],
                                 pubname == pubcur$signalname
                                 & diff_rbar <= r_tol
                                 & diff_tstat <= t_tol
-                                & diff_rbar / rbar_op <= r_reltol
-                                & diff_tstat / tstat_op <= t_reltol    
+                                & diff_rbar / abs(rbar_op) <= r_reltol
+                                & diff_tstat / abs(tstat_op) <= t_reltol    
                                 & min_nstock_long  >= minNumStocks/2
                                 & min_nstock_short >= minNumStocks/2
                                 & nlastyear == 12

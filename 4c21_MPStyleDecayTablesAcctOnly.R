@@ -37,7 +37,7 @@ czacct = readRDS('../Data/Processed/czsum_allpredictors.RDS') %>%
   mutate(
     drop = FALSE
     , drop = if_else(grepl('quarter', Def), TRUE, drop)
-    , drop = if_else(grepl('analyst|meanest|earningssurprise', Def), TRUE, drop)
+    , drop = if_else(grepl('analyst|meanest|earningssurprise', paste(tolower(signalname), Def)), TRUE, drop)
     , drop = if_else(Cat.Form == 'discrete', TRUE, drop)
     , drop = if_else(signalname %in% c('ShareIss1Y', 'ShareIss5Y'), TRUE, drop)
   )
@@ -180,7 +180,7 @@ fixest::etable(
   depvar = FALSE,
   headers = c("Predictor Return", "Predictor Return", "DM Matched Return", "DM Matched Return", "Pred - Matched Ret", "Pred - Matched Ret"),
   fitstat = ~ n + r2 + wr2,
-  file = '../risk-vs-rfs-sub/latex-risk-vs/exhibits/Table_MPStyleRegsMain_AcctOnly.tex'
+  file = '../Results/TolMatch/Table_MPStyleRegsMain_AcctOnly.tex'
 )
 
 ## Unscaled (excl correlated) ----
@@ -212,7 +212,7 @@ fixest::etable(
   depvar = FALSE,
   headers = c("Predictor Return", "Predictor Return", "DM Matched Return", "DM Matched Return", "Pred - Matched Ret", "Pred - Matched Ret"),
   fitstat = ~ n + r2 + wr2,
-  file = '../risk-vs-rfs-sub/latex-risk-vs/exhibits/Table_MPStyleRegsMainUnscaled_AcctOnly.tex'
+  file = '../Results/TolMatch/Table_MPStyleRegsMainUnscaled_AcctOnly.tex'
 )
 
 # Console summary for quick reading -----------------------------------------
