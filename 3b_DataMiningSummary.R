@@ -11,7 +11,6 @@
 
 # Load environment
 source('0_Environment.R')
-render_legacy <- FALSE
 
 # Settings ---------------------------------------------------------------------
 var_types <- c('vw', 'ew')
@@ -124,89 +123,4 @@ for (var_type in var_types) {
   fwrite(test$sumsignal_oos_pre_2003,  glue::glue('../Data/Processed/sumsignal_oos_30y_pre_2003_{str_to_add}_unit_level.csv'))
   fwrite(test$sumsignal_oos_post_2003,  glue::glue('../Data/Processed/sumsignal_oos_30y_post_2003_{str_to_add}_unit_level.csv'))
   
-}
-
-
-# Legacy renderer --------------------------------------------------------
-# Kept temporarily for result-equivalence checks. The precompute driver does
-# not enable it; S2b_DataMiningSummaryTables.R owns these exhibits.
-
-if (render_legacy) {
-
-# To LaTeX ----------------------------------------------------
-
-# to TeX
-fs_ew = read_csv('../Data/Processed/sumsignal_oos_30y_ew_unit_level.csv')
-fs_vw = read_csv('../Data/Processed/sumsignal_oos_30y_vw_unit_level.csv')
-
-fs_ew = fs_ew %>% 
-  transmute(bin = as.integer(bin),
-            empty1 = NA_character_,
-            rbar_is = round(100*rbar_is, 1),
-            avg_tstat_is = round(avg_tstat_is, 2),
-            empty2 = NA_character_,
-            rbar_oos = round(100*rbar_oos, 1),
-            Decay = ifelse(bin !=4, 
-                           round(100*(1 - rbar_oos/rbar_is), 1),
-                           NA_real_),
-            empty3 = NA_character_
-  )
-
-fs_vw = fs_vw %>% 
-  transmute(rbar_isvw = round(100*rbar_is, 1),
-            avg_tstat_isvw = round(avg_tstat_is, 2),
-            empty1vw = NA_character_,
-            rbar_oosvw = round(100*rbar_oos, 1),
-            Decayvw = ifelse(bin !=4, 
-                             round(100*(1 - rbar_oos/rbar_is), 1),
-                             NA_real_)
-  )
-
-bind_cols(fs_ew, fs_vw) %>% 
-  xtable(digits = c(0, 0, 0, 1, 2,0, 1, 1, 0, 1, 2, 0, 1, 1)) %>% 
-  print(
-    include.rownames = FALSE,
-    include.colnames = FALSE,
-    hline.after = NULL,
-    only.contents = TRUE,
-    file = paste0('../Results/dm-sortsFull.tex')
-  )
-
-# post 2003
-fs_ew = read_csv('../Data/Processed/sumsignal_oos_30y_post_2003_ew_unit_level.csv')
-fs_vw = read_csv('../Data/Processed/sumsignal_oos_30y_post_2003_vw_unit_level.csv')
-
-fs_ew = fs_ew %>% 
-  transmute(bin = as.integer(bin),
-            empty1 = NA_character_,
-            rbar_is = round(100*rbar_is, 1),
-            avg_tstat_is = round(avg_tstat_is, 2),
-            empty2 = NA_character_,
-            rbar_oos = round(100*rbar_oos, 1),
-            Decay = ifelse(bin !=4, 
-                           round(100*(1 - rbar_oos/rbar_is), 1),
-                           NA_real_),
-            empty3 = NA_character_
-  )
-
-fs_vw = fs_vw %>% 
-  transmute(rbar_isvw = round(100*rbar_is, 1),
-            avg_tstat_isvw = round(avg_tstat_is, 2),
-            empty1vw = NA_character_,
-            rbar_oosvw = round(100*rbar_oos, 1),
-            Decayvw = ifelse(bin !=4, 
-                             round(100*(1 - rbar_oos/rbar_is), 1),
-                             NA_real_)
-  )
-
-bind_cols(fs_ew, fs_vw) %>% 
-  xtable(digits = c(0, 0, 0, 1, 2,0, 1, 1, 0, 1, 2, 0, 1, 1)) %>% 
-  print(
-    include.rownames = FALSE,
-    include.colnames = FALSE,
-    hline.after = NULL,
-    only.contents = TRUE,
-    file = paste0('../Results/dm-sortsPost2003.tex')
-  )
-
 }

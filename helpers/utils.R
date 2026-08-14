@@ -40,16 +40,6 @@ lsos <- function(..., n=10) {
 
 
 
-# Function for reading fst and auto-converting yearmon variables
-# for some reason fst format saves yearmon as a rounded decimal
-
-read_fst_yearm = function(filename, yearm_names = c('yearm')){
-  dat = setDT(read_fst(filename))
-  dat[ , yearm_names := lapply(yearm_names, as.yearmon), .SDcols = yearm_names ]
-  return(dat)
-}
-
-
 # Convenience function for round numbers in strings
 round_numbers_in_strings <- function(strings_with_numbers) {
   regex_pattern <- "\\d+\\.?\\d*" # matches any number with or without decimal point
@@ -71,4 +61,3 @@ round_numbers_in_strings <- function(strings_with_numbers) {
   
   return(rounded_strings)
 }
-

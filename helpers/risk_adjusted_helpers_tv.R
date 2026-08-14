@@ -63,17 +63,6 @@ create_filtered_plot_data <- function(ret_for_plot0_adj, signals_list, dm_aggreg
   return(plot_data)
 }
 
-aggregate_dm_no_norm <- function(dm_data, abnormal_col, suffix_name) {
-  dm_aggregated <- dm_data %>%
-    group_by(actSignal, eventDate) %>%
-    summarise(
-      !!sym(paste0("matchRet_", suffix_name)) := mean(.data[[abnormal_col]], na.rm = TRUE),
-      !!sym(paste0("n_matches_", suffix_name)) := n_distinct(candSignalname),
-      .groups = 'drop'
-    )
-  return(dm_aggregated)
-}
-
 # Plotting helper ----------------------------------------------------------
 create_risk_adjusted_plot <- function(plot_data, pub_col, dm_col,
                                      adjustment_type, t_threshold,

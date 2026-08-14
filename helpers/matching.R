@@ -377,23 +377,6 @@ make_DM_event_returns <- function(
   return(event_dm_scaled)
 } # end MakeMatchedPanel
 
-# Define a function to handle repeated tasks with different conditions
-process_event_time_returns <- function(dm_name, match_strats, npubmax, czsum, use_sign_info) {
-  start_time <- Sys.time()
-  event_time <- make_DM_event_returns(
-    DMname = dm_name,
-    match_strats = match_strats,
-    npubmax = npubmax,
-    czsum = czsum,
-    use_sign_info = use_sign_info
-  )
-  stop_time <- Sys.time()
-  print(stop_time - start_time)
-  
-  return(event_time)
-}
-
-
 adj_R2_with_PPCA <- function(
     DMname = paste0('../Data/Processed/',
                     globalSettings$dataVersion, 
@@ -664,4 +647,3 @@ import_docs = function(){
   return(dm_linktable)
   
 } # end import_docs
-

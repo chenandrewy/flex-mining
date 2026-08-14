@@ -96,7 +96,6 @@ separate copy.
 | `3e_DMSpanPCA.R` | 6× `make_DM_event_returns` + 1× `adj_R2_with_PPCA` | fork, shared panel (heaviest) | yes |
 | `3a_ResearchVsDMPrep.R` | 3× `make_DM_event_returns` | fork, shared panel | yes |
 | `3d_Fig2Data.R` | 2× `make_DM_event_returns` | fork, shared panel | yes |
-| `4c3_ResearchVsAcctVsTicker.R` | 2× `make_DM_event_returns` | fork, shared panel | no |
 | `2a_CompustatToLongshort.R` | `foreach` over 29,315 signals | own PSOCK cluster, Compustat/CRSP panel | yes |
 | `2b_MatchDataMinedToPub.R` | two `foreach` loops over the mined-return panel | own PSOCK cluster | yes |
 | `3c_DMCorrelationsPCA.R` | `parLapply` over correlation pairs | own `makeCluster` | yes |

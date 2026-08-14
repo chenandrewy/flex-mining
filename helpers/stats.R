@@ -1,65 +1,10 @@
-# Statistical helpers: shrinkage, summary stats, EZ-theme sorts, PCA.
+# Statistical helpers: summary stats, EZ-theme sorts, and PCA.
 #
 # Sourced by 0_Environment.R after packages and config.R. These functions
 # rely on objects from the sourcing environment (e.g. globalSettings and
 # chapter-local data frames); do not source this file in isolation.
 
 
-
-# Function for calculating alpha and shrinkage
-
-calculate_alpha_shrinkage = function(dt, train_start, train_end, test_start, test_end) {
-  
-  #' @param dt Table with columns signalname, date and ret
-  #' @param train_start Start year for training sample, analogously for other parameters
-  
-  # add sample indicators
-  retdat = dt %>% 
-    mutate(
-      samp = case_when(
-        year(date) >= train_start & year(date) <= train_end ~ 'train'
-        , year(date) >= test_start & year(date) <= test_end ~ 'test'
-      )
-    ) %>% 
-    filter(!is.na(ret), !is.na(samp))  %>% 
-    setDT()
-  
-  
-  # find alphas
-  stratsum = retdat[
-    , list(
-      alpha = summary(lm(ret ~ 1))$coefficients['(Intercept)' , 'Estimate']
-      , tstat = summary(lm(ret ~ 1))$coefficients['(Intercept)' , 't value']
-    )
-    , by = .(signalname, samp)
-  ] 
-  
-  # find shrinkage
-  sampsum = stratsum %>% 
-    group_by(samp) %>% 
-    summarize(
-      shrinkage = min((mean(tstat^2, na.rm = TRUE))^(-1), 1.0) # var(tstat, na.rm = TRUE)^-1
-    )
-  
-  # shrink strat summary
-  stratshrink = stratsum %>% 
-    left_join(sampsum) %>% 
-    mutate(
-      alpha = alpha*(1-shrinkage)
-      , tstat = tstat*(1-shrinkage)
-    ) %>% 
-    select(-shrinkage)
-  
-  # Combine classical and shrink strat summaries
-  stratSumAll = stratshrink %>% 
-    mutate(stattype = 'stein_ez') %>% 
-    bind_rows(stratsum %>% 
-                mutate(stattype = 'classical')
-    )
-  
-  return(stratSumAll)
-  
-}
 
 f.custom.t <- function(x){
   if(length(x[!is.na(x)]) > 1 & sd(x[!is.na(x)] > 1e-8)){
@@ -73,35 +18,6 @@ f.custom.t <- function(x){
 
 f.sharp <- function(x, na.rm = TRUE){
   return(mean(x, na.rm = na.rm)*sqrt(12)/sd(x, na.rm = na.rm))
-}
-
-
-# Describe function
-
-f.describe_numeric <- function(.x) {
-  if(!is.numeric(.x)) stop(".x must be a numeric vector!")
-  if(!is.atomic(.x)) stop(".x must be an atomic vector!")
-  describe_functions <- list(
-    N = function(.x, ...) length(.x),
-    mean = function(.x, ...) mean(.x, ...),
-    median = function(.x, ...) median(.x, ...),
-    sd = function(.x, ...) stats::sd(.x, ...),
-    min = function(.x, ...) min(.x, ...),
-    q1 = function(.x, ...) stats::quantile(.x, probs = 0.01, ...),
-    q5 = function(.x, ...) stats::quantile(.x, probs = 0.02, ...),
-    q10 = function(.x, ...) stats::quantile(.x, probs = 0.10, ...),
-    q25 = function(.x, ...) stats::quantile(.x, probs = 0.25, ...),
-    q50 = function(.x, ...) stats::median(.x, ...),
-    q75 = function(.x, ...) stats::quantile(.x, probs = 0.75, ...),
-    q90 = function(.x, ...) stats::quantile(.x, probs = 0.90, ...),
-    q95 = function(.x, ...) stats::quantile(.x, probs = 0.95, ...),
-    q99 = function(.x, ...) stats::quantile(.x, probs = 0.99, ...),
-    max = function(.x, ...) max(.x, ...)
-  )
-  return(as.data.frame(lapply(describe_functions,
-                              function(.f) .f(.x, na.rm = TRUE)),
-                       row.names = "1",
-                       stringsAsFactors = FALSE))
 }
 
 
@@ -195,4 +111,3 @@ compute_pca = function(ret1){
   
   return(pcadat)
 } # end compute_pca 
-

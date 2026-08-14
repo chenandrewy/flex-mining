@@ -12,6 +12,13 @@ provenance now lives here rather than in a lockfile.
 - Packages resolve from the R installation's default library paths. There is no
   project-local library.
 
+`pcaMethods` is not on P3M/CRAN; install it from Bioconductor:
+
+```r
+if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
+BiocManager::install("pcaMethods")
+```
+
 The snapshot date is the pin: it fixes package versions the way a lockfile
 would, and it also covers the system libraries a lockfile cannot (the
 `systemfonts` build needs `libfontconfig-dev`, `libjpeg-dev`, and

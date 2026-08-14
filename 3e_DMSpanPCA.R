@@ -13,7 +13,6 @@
 rm(list = ls())
 source("0_Environment.R")
 library(doParallel)
-render_legacy <- FALSE
 
 
 ## User Settings ------------------------------------------------
@@ -63,12 +62,6 @@ plotdat$matchset <- list(
   t_rankpct_min = globalSettings$t_rankpct_min, # top x% of data mined t-stats, 100% for off
   minNumStocks = globalSettings$minNumStocks
 )
-
-# aesthetic settings
-fontsizeall = 28
-legposall = c(30,15)/100
-ylaball = 'Trailing 5-Year Return (bps pm)'
-linesizeall = 1.5
 
 ## Load data ----------------------------------------------------
 
@@ -224,15 +217,12 @@ dm_rets = dm_rets[id %in% stratlist$id]
 
 library(pcaMethods)
 
-source('0_Environment.R')
-
 print("Running span against PCA")
 print("Takes about 2 hours using 4 cores")
 print("It can probably be way faster")
 pca_span_dt <- adj_R2_with_PPCA(  DMname = dmcomp$name,
                                   nsampmax = Inf)
 saveRDS(pca_span_dt, "../Data/Processed/dm_pca_span_classification.RDS")
-source('0_Environment.R')
 pca_span_dt[, spanned_pca :=  ifelse(N_pca > 30 & adj_r2 > 0.25, TRUE, FALSE)]
 
 pca_span_dt[, spanned_pca_ever_end := any(spanned_pca), by = .(sweight, dmname)]
@@ -318,30 +308,6 @@ ret_for_plotting_pca <- czret %>%
   # keep only rows where both matchrets are observed
   filter(!is.na(matchRet) & !is.na(matchRetAlt))
 
-## Legacy renderer retained for equivalence checks only -------
-if (render_legacy) {
-printme = ReturnPlotsWithDM4series(
-  dt = ret_for_plotting_pca, 
-  basepath = "../Results/Fig_DM",
-  suffix = 'unspan_match_t_g_PCA',
-  rollmonths = 60,
-  colors = c(colors, "#7E2F8E"),
-  labelmatch = FALSE,
-  yl = -0,
-  yh = 125,
-  legendlabels =
-    c(
-      paste0("Published"),
-      paste0("Adj. R2 > 0.25"),
-      paste0("Adj. R2 < 0.25 \n& t-stat > t pub"),
-      paste0("Adj. R2 < 0.25 \n& t-stat <= t pub")
-    ),
-  legendpos = c(25,30)/100,
-  fontsize = 48,
-  yaxislab = ylaball,
-  linesize = 2
-)
-}
 #####################################
 # Corrs
 #####################################
@@ -410,31 +376,6 @@ ret_for_plotting_cor <- czret %>%
   # keep only rows where both matchrets are observed
   filter(!is.na(matchRet) & !is.na(matchRetAlt))
 
-## Legacy renderer retained for equivalence checks only -------
-if (render_legacy) {
-printme = ReturnPlotsWithDM4series(
-  dt = ret_for_plotting_cor,
-  basepath = "../Results/Fig_DM",
-  suffix = 'unspan_match_t_g_cor',
-  rollmonths = 60,
-  colors = c(colors, "#7E2F8E"),
-  labelmatch = FALSE,
-  yl = -0,
-  yh = 125,
-  legendlabels =
-    c(
-      paste0("Published"),
-      paste0("Cor > 0.50"),
-      paste0("Cor < 0.50 \n& t-stat > t pub"),
-      paste0("Cor < 0.50 \n& t-stat <= t pub")
-    ),
-  legendpos = c(25,30)/100,
-  fontsize = 48,
-  yaxislab = ylaball,
-  linesize = 2
-)
-}
-
 # Describe spanning over time -----------------------------------
 # Convert sampendlist to Date objects assuming all dates are the first of the month
 # make list of samples
@@ -481,65 +422,6 @@ for (sampend_loop in sampendlist %>% as.character()) {
 
 # Convert sampend to Date format
 tab_span2$sampend <- dmy(paste("01", tab_span2$sampend))
-
-tab_span2
-# Melt the data frame for ggplot
-library(reshape2)
-
-# Melt the data frame for ggplot
-tab_span2_melt <- melt(tab_span2, id.vars = "sampend") %>% setDT()
-tab_span2_melt <- tab_span2_melt[variable != 'pct_unspan']
-# Change the variable names for the plot
-tab_span2_melt$variable <- factor(tab_span2_melt$variable, 
-                                  levels = c("n_dm_tg2", "n_span", "n_unspan"), 
-                                  labels = c("Cummulative Number of Matched DM Portfolios",
-                                             "Number of Spanned DM Portfolios",
-                                             "Number of Unspanned DM Portfolios"))
-
-# Create the ggplot
-plot <- ggplot(tab_span2_melt, aes(x = sampend, y = value, color = variable)) +
-  geom_line(aes(group = variable), linewidth = 1.1) +
-  geom_point() +
-  labs(x = "",
-       y = "N",
-       color = "") +
-  theme_minimal() +
-  scale_color_manual(values = colors)+
-  theme_light(base_size = fontsizeall)+
-  theme(legend.position = c(0.05, 0.95),
-        legend.justification = c(0, 1),
-        legend.spacing.y = unit(0.1, units = 'cm'),
-        legend.background = element_rect(fill = 'transparent'),
-        legend.key.width = unit(1.5, units = 'cm')
-  )
-# Save the plot to a PDF file
-if (render_legacy) {
-  ggsave("../Results/Fig_spanned_over_time.pdf", plot = plot, device = "pdf", width = 15, height = 12)
-}
-
-library(xtable)
-table_latex <- xtable(tab_span2, caption = "Spanning of Strategies Over Time", label = "tab:spanning")
-# Set the table alignment and format
-xtable::align(table_latex) <- "llllll"
-digits(table_latex) <- c(0, 0, 0, 0, 0, 1)  # Adjust the number of digits for each column
-
-# Print the LaTeX code
-print(table_latex, type = "latex", include.rownames = FALSE, caption.placement = "top", 
-      hline.after = seq(from = 0, to = nrow(tab_span2), by = 1))
-
-
-
-
-tab_span = dmpred$matched %>%
-  distinct(sampend, sweight, dmname, spanned_ever) %>%
-  .[ , .(n_dm_tg2 = .N, n_span = sum(spanned_ever)
-          , n_unspan = sum(!spanned_ever)
-          , pct_unspan = 100*mean(!spanned_ever))
-    , by = c('sampend')] %>%
-  arrange(sampend)
-
-# # tbc: make a nice table pls
-tab_span %>% as_tibble() %>% print(n = 100)
 
 #####################################
 # PCA
@@ -589,45 +471,8 @@ for (sampend_loop in sampendlist %>% as.character()) {
 }
 
 
-tab_span_pca
 # Convert sampend to Date format
 tab_span_pca$sampend <- dmy(paste("01", tab_span_pca$sampend))
-
-# Melt the data frame for ggplot
-tab_span2_melt <- melt(tab_span_pca, id.vars = "sampend") %>% setDT()
-tab_span2_melt <- tab_span2_melt[variable != 'pct_unspan']
-
-# Melt the data frame for ggplot
-library(reshape2)
-
-# Change the variable names for the plot
-tab_span2_melt$variable <- factor(tab_span2_melt$variable, 
-                                  levels = c("n_dm_tg2", "n_span", "n_unspan"), 
-                                  labels = c("Cummulative Number of Matched DM Portfolios",
-                                             "Number of Spanned DM Portfolios",
-                                             "Number of Unspanned DM Portfolios"))
-
-# Create the ggplot
-plot <- ggplot(tab_span2_melt, aes(x = sampend, y = value, color = variable)) +
-  geom_line(aes(group = variable), linewidth = 1.1) +
-  geom_point() +
-  labs(x = "",
-       y = "N",
-       color = "") +
-  theme_minimal() +
-  scale_color_manual(values = colors)+
-  theme_light(base_size = fontsizeall)+
-  theme(legend.position = c(0.05, 0.95),
-        legend.justification = c(0, 1),
-    legend.spacing.y = unit(0.1, units = 'cm'),
-    legend.background = element_rect(fill = 'transparent'),
-    legend.key.width = unit(1.5, units = 'cm')
-  )
-plot
-# Save the plot to a PDF file
-if (render_legacy) {
-  ggsave("../Results/Fig_spanned_over_time_pca.pdf", plot = plot, device = "pdf", width = 15, height = 12)
-}
 
 saveRDS(
   list(

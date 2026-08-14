@@ -237,8 +237,6 @@ czsum %>%
 
 # For DM counts ---------------------------------------------------------------
 
-source('0_Environment.R')
-
 # Define n1 and n2 from compnames for data counts
 n1 <- length(compnames$yz.numer)
 n2 <- length(compnames$yz.denom)
@@ -298,4 +296,3 @@ print(paste0('Number of distinct ratios where the numerator is also a valid deno
 print(paste0('Number of ratios dropped (n2*n2 - choose(n2,2)): ',n2*n2 - choose(n2,2)))
 
 sink()
-

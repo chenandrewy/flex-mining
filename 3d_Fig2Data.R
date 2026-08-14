@@ -14,7 +14,7 @@
 # Panel sources: (a) follows 4c4_RiskAdjustedResearchVsDMPlotsTV(FF4).R, (b) follows
 # Appendices/SA08_AccountingOnlyPlots.R, (c) follows
 # Appendices/SA10_ResearchVsDMRobustnessCorrelationsEtc.R,
-# (d) follows 4c3_ResearchVsAcctVsTicker.R. This script only assembles the long
+# (d) follows the accounting-vs-ticker comparison. This script only assembles the long
 # per-signal series and aggregates them; S2e_Fig2Plots.R renders the figures.
 #
 rm(list = ls())
@@ -93,7 +93,7 @@ fig2_long$b = bind_rows(
 ) %>% mutate(panel = 'b')
 
 # Panel (d): alternative mining methods -----------------------------------
-# Top 5% |t| accounting + top 5% |t| tickers (pipeline copied from 4c3_ResearchVsAcctVsTicker.R)
+# Top 5% |t| accounting + top 5% |t| tickers
 
 dmcomp <- readRDS('../Data/Processed/dmcomp_sumstats.RDS')
 dmtic  <- readRDS('../Data/Processed/dmtic_sumstats.RDS')
@@ -103,7 +103,7 @@ matchset <- list(
   r_tol = globalSettings$r_tol,
   t_reltol = globalSettings$t_reltol,
   r_reltol = globalSettings$r_reltol,
-  t_min = 0,               # pure top-x% screen, as in 4c3's t_rankpct_min block
+  t_min = 0,               # pure top-x% screen (t_rankpct_min block)
   t_max = globalSettings$t_max,
   t_rankpct_min = 5,
   minNumStocks = globalSettings$minNumStocks

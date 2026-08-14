@@ -15,7 +15,6 @@
 
 rm(list = ls())
 source("0_Environment.R")
-render_legacy <- FALSE
 library(doParallel)
 
 # Load and prep Data -------------------------------------------
@@ -295,25 +294,6 @@ fitLM3a_excl = fixest::feols(diffRet_excl ~ postSample + postPub | pubname + cal
                              data = regData_excl %>% filter(calendarDate >= sampstart),
                              cluster = ~pubname+calendarDate)
 
-### Main Table ----
-if (render_legacy) {
-fixest::etable(
-  list(fitLM1, fitLM1a, fitLM2_excl, fitLM2a_excl, fitLM3_excl, fitLM3a_excl),
-  tex = TRUE,
-  dict = etable_dict,
-  style.tex = fixest::style.tex('aer'),
-  digits = 3,
-  digits.stats = "r3",
-  signif.code=NA,
-  depvar = FALSE,
-  headers = c("Predictor Return", "Predictor Return", "DM Matched Return", "DM Matched Return", "Pred - Matched Ret", "Pred - Matched Ret"),
-  fitstat = ~ n + r2 + wr2,
-  file = '../Results/Table_MPStyleRegsMain.tex'
-)
-}
-
-
-
 ## --- Unscaled regressions (excl correlated) ----
 fitLM2_excl_u = fixest::feols(matchRet_unscaled_excl ~ postSample + postPub | pubname,
                               data = regData_excl %>% filter(calendarDate >= sampstart),
@@ -330,24 +310,6 @@ fitLM3_excl_u = fixest::feols(diffRet_unscaled_excl ~ postSample + postPub | pub
 fitLM3a_excl_u = fixest::feols(diffRet_unscaled_excl ~ postSample + postPub | pubname + calendarDate,
                                data = regData_excl %>% filter(calendarDate >= sampstart),
                                cluster = ~pubname+calendarDate)
-
-
-### Supporting Table: Unscaled ----
-if (render_legacy) {
-fixest::etable(
-  list(fitLM1_u, fitLM1a_u, fitLM2_excl_u, fitLM2a_excl_u, fitLM3_excl_u, fitLM3a_excl_u),
-  tex = TRUE,
-  dict = etable_dict,
-  style.tex = fixest::style.tex('aer'),
-  digits = 3,
-  digits.stats = "r3",
-  signif.code=NA,
-  depvar = FALSE,
-  headers = c("Predictor Return", "Predictor Return", "DM Matched Return", "DM Matched Return", "Pred - Matched Ret", "Pred - Matched Ret"),
-  fitstat = ~ n + r2 + wr2,
-  file = '../Results/Table_MPStyleRegsMainUnscaled.tex'
-)
-}
 
 
 rm(dm_means_excl); gc()
@@ -451,37 +413,6 @@ fitDM2 = fixest::feols(ret_unscaled ~ postSample + postPub | dmname,
 
 fitDM2a = fixest::feols(ret_unscaled ~ postSample + postPub | dmname + calendarDate,
                         data = dmPanel, cluster = ~dmname+calendarDate)
-
-## Save table ----
-if (render_legacy) {
-fixest::etable(
-  list(fitDM1, fitDM1a, fitDM2, fitDM2a),
-  tex = FALSE,
-  dict = etable_dict,
-  depvar = FALSE,
-  # headers = list(
-  #   "Scaled" = 1:2,
-  #   "Unscaled" = 3:4
-  # ),
-  headers = c('Scaled ret', 'Scaled ret', 'Unscaled ret', 'Unscaled ret'),
-  fitstat = ~ n + r2 + wr2
-)
-
-
-fixest::etable(
-  list(fitDM1, fitDM1a, fitDM2, fitDM2a),
-  tex = TRUE,
-  dict = etable_dict,
-  style.tex = fixest::style.tex('aer'),
-  digits = 3,
-  digits.stats = "r3",
-  signif.code=NA,
-  depvar = FALSE,
-  headers = c('Scaled returns', 'Scaled returns', 'Unscaled returns', 'Unscaled returns'),
-  fitstat = ~ n + r2 + wr2,
-  file = '../Results/Table_MPStyleRegsIndividualDM.tex'
-)
-}
 
 saveRDS(
   list(

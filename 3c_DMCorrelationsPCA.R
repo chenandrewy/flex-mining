@@ -12,7 +12,6 @@
 # Environment ------------------------
 source('0_Environment.R')
 library(doParallel)
-render_legacy <- FALSE
 
 # settings
 ncores <- globalSettings$num_cores
@@ -226,34 +225,6 @@ for (weights in c('vw', 'ew')) {
 # Save the plot/table-ready summary for chapter 4.
 saveRDS(quantilesCorDM, "../Data/Processed/dm_correlation_quantiles.RDS")
 
-# Legacy renderer retained for equivalence checks only.
-if (render_legacy) {
-quantilesCorDM %>% 
-  mutate(Kind = ifelse(weight == 'ew', 'Equal-Weighted', 'Value-Weighted')) %>% 
-  transmute(Kind,
-            empty1 = NA_character_,
-            Q1,
-            Q5,
-            Q10,
-            Q25,
-            Q50,
-            Q75,
-            Q90,
-            Q95,
-            Q99) %>% 
-  arrange(Kind) %>% 
-  xtable(digits = c(0, 0, 2, 2 , 2, 2, 2, 2, 2, 2, 2, 2)) %>% 
-  print(
-    include.rownames = FALSE,
-    include.colnames = FALSE,
-    hline.after = NULL,
-    only.contents = TRUE,
-    file = "../Results/quantilesCorDM.tex"  
-  )
-}
-
-
-
 # PCA  -------------------------------------------------------------------------
 
 # fix sample 
@@ -291,31 +262,3 @@ tab = pca_ew %>% transmute(n_pc, pct_exp_ew = cum_pct_exp) %>%
   t() 
 
 saveRDS(tab, "../Data/Processed/dm_pca_table.RDS")
-
-alignment = paste0('cl', rep('c', ncol(tab)-1) %>% paste(collapse = ''))
-
-# Legacy renderer retained for equivalence checks only.
-if (render_legacy) {
-# initialize latex table
-library(xtable)
-xtable(tab, align = alignment) %>% 
-  print(include.colnames = FALSE, floating = FALSE
-        , booktabs = TRUE) %>% 
-  cat(file = '../Results/DM_pca.tex')
-
-# read in tex and edit
-texline = readLines('../Results/DM_pca.tex')
-
-texline = append(texline, paste0(
-  ' & \\multicolumn{'
-  , nchar(alignment)-2
-  , '}{c}{Panel (b): PCA Explained Variance (\\%)} \\\\'
-), after = 4)
-texline = append(texline,  '\\midrule', after = 7)
-
-texline = str_replace(texline, fixed('n\\_pc'), 'Number of PCs') %>% 
-  str_replace(fixed('pct\\_exp\\_ew'), 'Equal-Weighted') %>%
-  str_replace(fixed('pct\\_exp\\_vw'), 'Value-Weighted') 
-
-writeLines(texline, '../Results/DM_pca.tex')
-}

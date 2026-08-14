@@ -78,49 +78,6 @@ make_signal_list = function(signal_form, xvars, scale_vars, validDenoms = NULL) 
 
 
 
-# function for creating Yan-Zheng's 18,113 signal list
-make_signal_list_yz = function(signal_form, x1list, x2list, signalnum, seed){
-  
-  # ac: this works to replicate yz strat list
-  # first make 240*76 = 18,240 combinations
-  # use yz.denom for me_datadate, yz.denom_alt for me (most recent)
-  signal_list = expand.grid(
-    signal_form = signal_form
-    , v1 = x1list
-    , v2 = x2list
-    , stringsAsFactors = F
-  ) %>% 
-    mutate(
-      v2 = if_else(signal_form == 'pdiff(v1)', NA_character_, v2)
-    ) %>% 
-    distinct(across(everything()), .keep_all = T) %>% 
-    # remove 13 vboth x 5 two variable fun where v1 == v2 leads to constant signals  
-    mutate(
-      dropme = v1 %in% intersect(x1list, x2list) 
-      & signal_form != 'pdiff(v1)' 
-      &  v1 == v2 
-    ) %>% 
-    # remove selected strategies (2 vodd x 31 pd_var funs) based on yz sas data
-    mutate(
-      dropme2 = v1 %in% c('rdip', 'txndbr')  
-      & signal_form %in% c('pdiff(v1/v2)','pdiff(v1)','pdiff(v1)-pdiff(v2)')
-    ) %>%
-    filter(!(dropme | dropme2)) %>% 
-    select(-starts_with('drop')) %>% 
-    as_tibble()
-  
-  
-  # sample and add id
-  set.seed(seed)
-  signal_list = signal_list %>% 
-    sample_n(min(dim(signal_list)[1],signalnum)) %>% 
-    arrange(across(everything())) %>% 
-    mutate(signalid = row_number()) %>% 
-    select(signalid, everything())    
-}
-
-
-
 # function for turning xused into a signal
 dataset_to_signal = function(form, dt, v1, v2){
   
@@ -355,88 +312,6 @@ make_many_ls = function(){
   
 } # make_many_ls
 
-### Form nchoose2 long-short strategies by going long-short every ntile combination
-nchoose2ports <- function(n, big_trade_months = 6) { 
-  # n=50 will lead to 50*50/2 - 50 = 1200 long-short portfolios. 
-  
-  # change date notation (this should be done earlier)
-  CCM = CCM %>% 
-    mutate(
-      date = as.Date(paste0(as.character(yyyymm), '28'), format='%Y%m%d')
-    )
-  
-  # have signals update only on big_trade_months  
-  # - note: filling early here helps ensures signal isn't super stale, as long
-  #         as the signal data is constructed nicely
-  signal = CCM %>% 
-    mutate(
-      signal = if_else(month %in% big_trade_months, signal, NA_character_)
-    ) %>% 
-    arrange(permno,date) %>% 
-    group_by(permno) %>% 
-    fill(signal)
-  
-  # sort stocks into bins, change date notation
-  signal = signal %>% 
-    group_by(date) %>% 
-    mutate(bin1 = ntile(signal, n)) %>% 
-    ungroup() %>% 
-    transmute(permno, signal_avail = date, bin1, signal)
-  
-  # merge last month's signal on current month's return
-  ret = CCM %>% 
-    select(permno,yyyymm,date,ret,lag_me) %>% 
-    left_join(
-      signal %>% mutate( date  =  signal_avail %m+% months(1) ) 
-      ,  by = c('permno','date')
-    )
-  
-  # find portfolio returns
-  portfolio_returns <- ret %>%
-    group_by(yyyymm, bin1) %>% 
-    dplyr::summarize(ew_mean = mean(ret, na.rm=TRUE),
-                     vw_mean = weighted.mean(ret, lag_me, na.rm=TRUE),
-                     N = n()) %>% 
-    filter(is.na(bin1) == FALSE) %>% 
-    ungroup()
-  
-  ### generate long-short portfolios of all possible combinations
-  
-  for (ii in 1:n) {
-    portfolio_returns <- portfolio_returns %>% 
-      group_by(yyyymm) %>% 
-      mutate("ew_ls_x.{ii}":= ew_mean - ew_mean[ii],
-             "vw_ls_x.{ii}":= vw_mean - vw_mean[ii])
-  }  
-  
-  ### reshape to long
-  portfolio_returns_ew <- portfolio_returns %>% 
-    ungroup() %>% 
-    select(yyyymm, bin1, starts_with("ew_ls"), ) %>% 
-    pivot_longer(cols = starts_with("ew_ls"),
-                 names_to = "bin2", 
-                 values_to = "return_ew") %>% 
-    mutate(bin2 = as.numeric(substr(bin2, 9, 11))) %>% 
-    filter(bin1 < bin2) %>%  # drop whenever return is always 0 and whenever long short return of one portfolio is the negative return of another portfolio
-    unite(bin, bin1:bin2, sep=",")
-  
-  portfolio_returns_vw <- portfolio_returns %>% 
-    ungroup() %>% 
-    select(yyyymm, bin1, starts_with("vw_ls"), ) %>% 
-    pivot_longer(cols = starts_with("vw_ls"),
-                 names_to = "bin2", 
-                 values_to = "return_vw") %>% 
-    mutate(bin2 = as.numeric(substr(bin2, 9, 11))) %>% 
-    filter(bin1 < bin2) %>%  # drop whenever return is always 0 and whenever long short return of one portfolio is the negative return of another portfolio
-    unite(bin, bin1:bin2, sep=",")  
-  
-  output <- full_join(portfolio_returns_ew, portfolio_returns_vw, by = c("bin", "yyyymm"))
-  return(output)
-  
-} # end function
-
-
-
 # "form portfolios based on the first, second, and third letters of the ticker symbol"
 tic_kth_letter_port <- function(k) {
   # create portfolio assignments
@@ -459,4 +334,3 @@ tic_kth_letter_port <- function(k) {
   
   return(port)
 } # end tic_kth_letter_port
-
