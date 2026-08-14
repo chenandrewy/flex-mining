@@ -17,6 +17,12 @@
 #
 # Inputs:  ../Data/Raw (both paths; re-created when run_downloads = TRUE)
 # Outputs: ../Data/Processed, ../Data/Export, ../Results
+#
+# Paper contract: running this rebuilds every exhibit \input/\includegraphics'd
+# by ../risk-vs-writing/latex-risk-vs (53 files), except the two
+# HandTable_MPStyleRegs*.tex, which are hand-transcribed from the
+# Table_MPStyleRegs{Main,Unscaled} tables that 4c6_MPStyleDecayTables.R writes.
+# See docs/journal/260813c,map,exhibits.md for the script -> exhibit map.
 
 run_downloads <- FALSE
 
