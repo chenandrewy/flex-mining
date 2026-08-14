@@ -51,8 +51,8 @@ Related findings from tonight:
 1. **Map** script -> outputs -> exhibit, read-only. Grep each script for what
    it writes; cross-check against `../Results` timestamps and the run log.
    This is the artifact that makes the repo legible, and it must exist before
-   anything is deleted.
-2. **Cut** scripts that reach none of the 54.
+   anything is deleted. ✅
+2. **Cut** scripts that reach none of the 54. ✅
 3. **Split** MAIN.R into two stages rather than merely reordering:
    - Stage A, build: `2a`-`2d`, the expensive data construction, writing
      `../Data/Processed`. Hours. Rerun when data changes.
@@ -61,8 +61,9 @@ Related findings from tonight:
    AC's framing was "heavy computations first" — already roughly true, `2a`
    ate 2h02m of the first 2h38m. The property actually wanted is the cache
    boundary, so a table tweak does not cost a two-hour rebuild.
-4. **Commit** the refactor.
-5. **Then** test and fix errors, which is where `260813a` started.
+4. **rationalize settings**: focus on settings for the long-running scripts.
+5. **Commit** the refactor.
+6. **Then** test and fix errors, which is where `260813a` started.
 
 ## Tonight's run
 
