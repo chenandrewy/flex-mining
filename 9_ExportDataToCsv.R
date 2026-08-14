@@ -1,6 +1,7 @@
-# Export mined-strategy data as CSV for sharing.
+# Chapter 9: export mined-strategy data as CSV for sharing.
 #
-# How to run: normally run through 4_Exhibits.R from flex-mining/.
+# How to run: set the working directory to flex-mining/, then
+#   Rscript 9_ExportDataToCsv.R
 # Inputs:  chapter-2 Compustat and ticker strategy caches
 # Outputs: ../Data/Export/{EW,VW,SignalList}.csv and ticker equivalents
 

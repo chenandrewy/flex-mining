@@ -1,135 +1,142 @@
 # Script runtimes and memory
 
 How long each script in the `MAIN.R` chain takes and how much RAM it needs, so
-you can tell a slow stage from a hung one, and size `ncores` before a run dies
-three hours in.
+you can tell a slow stage from a hung one and size parallel work safely.
 
-Measured on a run started 2026-08-13 17:48 EDT with `run_downloads = FALSE`,
-on 24 cores / 62 GB RAM / **no swap**, `globalSettings$num_cores = 10`,
-`dataVersion = 'CZ-style-v8b'`. Timings come from output-file mtimes and the
-`source()` lines in the run log, not from instrumentation, so treat them as
-±1 minute. The run was OOM-killed in `4c1`, so anything after it is unmeasured.
+The measurements below come from a run started 2026-08-13 17:48 EDT on 24
+cores / 62 GB RAM / **no swap**, with `globalSettings$num_cores = 10` and
+`dataVersion = 'CZ-style-v8b'`. Timings came from output-file mtimes and the
+run log rather than instrumentation, so treat them as ±1 minute.
+
+That run used the pipeline structure that preceded the current Chapters 1-9.
+The names below map the measured work onto the current scripts. The run was
+OOM-killed during the work now performed by `3a_ResearchVsDMPrep.R`, so later
+work remains unmeasured. The OOM mechanism has since been mitigated; see
+[Memory](#memory).
+
+## Current pipeline
+
+`MAIN.R` starts every chapter as a separate `Rscript` process. Chapters 2-8
+also start every child script as a separate process. Consequently, memory is
+returned to the operating system at both chapter and child-script boundaries.
+
+| Chapter | Job | Runtime evidence |
+|---|---|---|
+| `1_Download_and_Clean.R` | Download and clean a new data vintage | Not measured; skipped in the benchmark run. |
+| `2_DataMining.R` | Construct, match, and risk-adjust mined strategies | **2h 13m measured**. |
+| `3_Precompute.R` | Build reusable summaries, event panels, PCA results, and regression caches | Partially measured; details below. |
+| `4_ResearchVsDataMining.R` | Introduction and Section 2 exhibits | Not measured after the refactor. Reads upstream data without modifying processed caches. |
+| `5_Learning.R` | Section 3 learning tables | Not measured after the refactor. Renders cached regression models. |
+| `6_Heterogeneity.R` | Section 4 exhibits | Not measured after the refactor. |
+| `7_BestPredictors.R` | Section 4b inspect tables | Not measured after the refactor. |
+| `8_Appendices.R` | Appendix-only exhibits and diagnostics | Not measured after the refactor. |
+| `9_ExportDataToCsv.R` | Shared-data CSV exports | Not measured. |
 
 ## Runtimes
 
-| Script | Runtime | Notes |
-|---|---|---|
-| `0_Environment.R` | < 1 min | Definitions only. Sourced repeatedly by other scripts. |
-| `1_Download_and_Clean.R` | not measured | Skipped at `run_downloads = FALSE`. WRDS + Google Drive. |
-| `1a_ValidDenoms.R` | ~2 min | Reads `CompustatAnnual.RData`; writes the two `DataIntermediate` CSVs. |
-| **`2_DataMining.R`** | **2h 13m** | 17:50 → 20:03. Dominates everything. |
-| ↳ `2a_CompustatToLongshort.R` | **2h 02m** | 17:50 → 19:52. See breakdown below. |
-| ↳ `2b_MatchDataMinedToPub.R` | ~3 min | → `MatchPub.RData` (380 MB). |
-| ↳ `2c_TickerToLongshort.R` | ~2 min | → `ticker_Harvey2017JF.RDS`. |
-| ↳ `2d_RiskAdjustDataMinedSignals.R` | ~6 min | → `MatchPubRiskAdjusted.RData` (2.35 GB). |
-| **`3_RiskVsMispricing.R`** | **~2 min** | All of `3a`–`3g`. Cheap because stage 2 did the work. |
-| **`4_ResearchVsDataMining.R`** | **partial** | Crashed in `4c1`. |
-| ↳ `4a_DataMiningSummary.R` | ~20 min | Emits CSVs only. Slow but not a cache producer. |
-| ↳ `4b_DMCorrelationsPCASummary.R` | ~11 min | Its in-code comment says "around an hour or so" — stale. Produces `DM_pca.tex`, a used exhibit. |
-| ↳ `4c1_ResearchVsDMprep.R` | ~4 min | **OOM-killed** this run; the 4 min figure is from an earlier run the same day. Not slow, but spikes hard. |
-| ↳ `4c2` … `4e` | unmeasured | Never reached. |
-| `6_TextAnalysis.R` | unmeasured | Never reached. |
-| `8_DMThemes.R` | unmeasured | Never reached. |
-| `99_ExportDataToCsv.R` | unmeasured | Never reached. |
+| Current script | Runtime | Notes |
+|---|---:|---|
+| `0_Environment.R` | < 1 min | Definitions only; sourced separately by many scripts. |
+| `1_Download_and_Clean.R` | not measured | Network-dependent and deliberately skipped in the benchmark run. |
+| `1a_ValidDenoms.R` | ~2 min | Reads `CompustatAnnual.RData`; writes two `DataIntermediate` CSVs. |
+| **`2_DataMining.R`** | **2h 13m** | 17:50 → 20:03. Dominates the measured runtime. |
+| ↳ `2a_CompustatToLongshort.R` | **2h 02m** | 17:50 → 19:52. See the phase breakdown below. |
+| ↳ `2b_MatchDataMinedToPub.R` | ~3 min | Writes `MatchPub.RData` (380 MB in the measured vintage). |
+| ↳ `2c_TickerToLongshort.R` | ~2 min | Writes `ticker_Harvey2017JF.RDS`. |
+| ↳ `2d_RiskAdjustDataMinedSignals.R` | ~6 min | Writes `MatchPubRiskAdjusted.RData` (2.35 GB in the measured vintage). |
+| **`3_Precompute.R`** | partial | The benchmark run died during work now assigned to `3a`. |
+| ↳ `3a_ResearchVsDMPrep.R` | ~4 min on an earlier run | Previously `4c1_ResearchVsDMprep.R`; the benchmark run was OOM-killed here. Runtime under the current process and multicore design is not yet measured. |
+| ↳ `3b_DataMiningSummary.R` | ~20 min | Previously the calculation half of `4a_DataMiningSummary.R`. |
+| ↳ `3c_DMCorrelationsPCA.R` | ~11 min | Previously `4b_DMCorrelationsPCASummary.R`; the old “around an hour” comment was stale. |
+| ↳ `3d_Fig2Data.R` | not measured | Builds the Figure 2 cache. |
+| ↳ `3e_DMSpanPCA.R` | not measured | Runs PCA/spanning and several event-return calculations. |
+| ↳ `3f_MPStyleDecayModels.R` | not measured | Estimates the MP-style regressions cached for Chapter 5. |
+| **Chapters 4-8** | not measured | Rendering chapters; each child gets a fresh R process. |
+| **`9_ExportDataToCsv.R`** | not measured | Reads chapter-2 caches and writes `../Data/Export`. |
 
 ### Inside `2a_CompustatToLongshort.R`
 
 | Phase | Runtime |
-|---|---|
-| `foreach` over 29,315 signals (10 workers) | ~89 min, ~3.1 min per 1000 signals |
-| `.combine = rbind` + compressed `saveRDS` | ~33 min |
+|---|---:|
+| `foreach` over 29,315 signals (10 workers) | ~89 min, or ~3.1 min per 1,000 signals |
+| `.combine = rbind` plus compressed `saveRDS` | ~33 min |
 
-Worth knowing: after the progress log in `../Data/make_many_ls.log` stops at
-the final signal, there is still half an hour of silent, single-threaded work
-before the script returns. That is normal, not a hang. Confirm with `ps` — the
-master should be at ~100% of one core.
+After the progress log in `../Data/make_many_ls.log` reaches the final signal,
+there can still be roughly half an hour of silent, single-threaded combine and
+save work. That was normal in the measured run, not a hang. Confirm with `ps`:
+the master should use roughly one full core during this phase.
 
 ## Memory
 
-The 2026-08-13 run was **OOM-killed** in `4c1_ResearchVsDMprep.R`: exit code
-137 (SIGKILL), `oom_kill 1` in `/sys/fs/cgroup/memory.events`, `memory.peak`
-61.6 GiB against 62 GB with no swap. The victim was the master R process, not
-a worker. Full write-up: `docs/journal/0813d,ram-issues.md`.
+### Historical OOM
 
-### A high floor plus a spike, not a leak
+The benchmark run was OOM-killed in the predecessor of
+`3a_ResearchVsDMPrep.R`: exit code 137 (SIGKILL), `oom_kill 1` in
+`/sys/fs/cgroup/memory.events`, and a 61.6 GiB peak on a 62 GB machine with no
+swap. The old pipeline kept one R process alive across all stages, so it
+carried a 19.9 GB allocator high-water mark out of `2a`. It then used a
+10-worker PSOCK cluster that serialized a multi-GB mined-return panel to every
+worker. Full historical diagnosis:
+`docs/journal/0813d,ram-issues.md`.
 
-Master RSS was flat at **19.9 GB** across four stage transitions (+23 MB over
-an hour), so nothing was accumulating. Two separate effects:
+### Current mitigations
 
-- **The floor.** `2a` grows the R heap to service its peak. `rm(list = ls())`
-  at the top of `2b` and `2d` frees the objects, but R does not reliably
-  return pages to the OS, so RSS stays at the high-water mark for the life of
-  the process. Because `MAIN.R` `source()`s everything into one long-lived R
-  session, every later script inherits `2a`'s ~20 GB floor.
-- **The spike.** `make_DM_event_returns()` (`0_Environment.R:1264`) starts a
-  PSOCK cluster. PSOCK workers are separate processes, not forks, so there is
-  no copy-on-write sharing: `foreach` serializes a full copy of the return
-  panel to each worker. Ten workers on a 42 GB headroom is roughly 4 GB each,
-  and it lost.
+The current code addresses all three contributors to that failure:
 
-### Sizing `ncores`
+1. `MAIN.R` launches each chapter with `Rscript`, and Chapters 2-8 launch each
+   child the same way. A later stage no longer inherits `2a`'s memory floor.
+2. On Unix, `make_DM_event_returns()` and `adj_R2_with_PPCA()` use the multicore
+   backend, allowing workers to share the read-only mined-return panel through
+   copy-on-write. On non-Unix systems they retain a PSOCK fallback capped at
+   two workers.
+3. Both helpers deserialize the large mined-strategy RDS once, extract the
+   needed members, and remove the enclosing object. The old code deserialized
+   the file twice.
 
-**Choose `ncores` from available RAM, not from core count.** The machine has
-24 cores, but cores are not the binding constraint — copies of the return
-panel are.
+These changes remove the basis for the old “~5 GB per worker plus a 20 GB
+floor” sizing table. That table should not be used for the current Linux
+pipeline. Forked workers can still allocate private memory while joining and
+aggregating data, so the fix reduces the dominant duplication but does not
+make memory use free.
 
-Budget **~5 GB per worker** for anything that calls
-`make_DM_event_returns()` or `adj_R2_with_PPCA()`:
+### Scripts to monitor
 
-| Workers | RAM needed | Fits in 62 GB with a 20 GB floor? |
-|---|---|---|
-| 4 | **~20 GB** | yes, ~22 GB slack — **recommended** |
-| 6 | ~30 GB | tight |
-| 10 | ~50 GB | no — this is what died |
+The following current scripts call the large-panel helpers:
 
-So: **4 workers, implying about 20 GB of RAM.** On a machine with more free
-memory, scale up proportionally; on a smaller one, down. The per-worker figure
-is derived from the crash, not measured — one `object.size(dm_rets)` would
-replace the estimate with a fact.
-
-Cost of the reduction is small: `4c1` is ~4 min at 10 workers, expect ~8–10 at
-4. Irrelevant next to a crashed run.
-
-**Do not lower `globalSettings$num_cores` globally.** That is the knob `2a`
-uses, and `2a` is memory-light by design — it writes `../Data/tmpAllDat.fst`
-so workers read slices from disk instead of receiving copies
-(`2a_CompustatToLongshort.R:238`). Dropping the global setting would add real
-time to the two-hour script for no benefit. Set the lower value on the
-`ncores` default of the affected helpers instead.
-
-### Which scripts carry the risk
-
-Grepping stage B for `readRDS(...LongShort)`, `makePSOCKcluster`,
-`make_DM_event_returns`, and `adj_R2_with_PPCA`:
-
-| Hits | Script |
+| Script | Large-panel work |
 |---|---|
-| 7 | `4e_DM_Span_PCA.R` |
-| 3 | `4c20a_Fig2Data.R` |
-| 2 | `4c3_ResearchVsAcctVsTicker.R` |
-| 1 | `4c2_ResearchVsDMPlots.R` |
-| 1 | `4c1_ResearchVsDMprep.R` (the one that crashed) |
+| `3a_ResearchVsDMPrep.R` | Three `make_DM_event_returns()` calls. |
+| `3d_Fig2Data.R` | Two `make_DM_event_returns()` calls. |
+| `3e_DMSpanPCA.R` | One `adj_R2_with_PPCA()` call and six `make_DM_event_returns()` calls. |
 
-None of the others touch the pattern. Changing the default in the shared
-helper covers all five at once.
+`4c3_ResearchVsAcctVsTicker.R` also calls `make_DM_event_returns()`, but it is
+not in the default `MAIN.R` chain.
 
-### Durable fixes
+The current defaults use `globalSettings$num_cores`. On this Linux sandbox,
+do not lower that setting solely because of the historical PSOCK estimate.
+Instead, measure peak memory under the current fork-based implementation. If a
+specific helper still approaches the machine limit, pass it a smaller
+`ncores` value locally so the two-hour `2a` stage is not slowed unnecessarily.
 
-1. Adopt the `fst` pattern from `2a:238` in `make_DM_event_returns()` so
-   workers read slices instead of receiving copies. Makes cost independent of
-   core count.
-2. Run each chapter as its own `Rscript` process rather than `source()`ing
-   into one session. Memory resets at every boundary, so `4c1` would start
-   from ~1 GB instead of inheriting `2a`'s 20 GB — with ~60 GB of headroom,
-   even 10 workers would fit.
-3. Collapse the double `readRDS(DMname)` in `make_DM_event_returns()`, which
-   deserializes the entire `stratdat` list twice to pull two elements.
+For a clean elapsed-time measurement, run one script in a fresh process, for
+example:
+
+```bash
+time Rscript 3a_ResearchVsDMPrep.R
+```
+
+Peak RSS requires separate process monitoring in the current container because
+GNU `/usr/bin/time` is not installed. When recording new memory measurements,
+do not combine them with the historical long-lived-process figures above.
 
 ## Rules of thumb
 
-- `2a` is ~77% of a full run. Everything else together is well under an hour.
-- Nothing prints during `2a`'s combine/save phase or `4c1`'s parallel section.
-  Silence is not failure; check `ps` before concluding anything.
+- `2a` is the only firmly measured multi-hour script and dominates the known
+  runtime.
+- Silence during `2a`'s combine/save phase or a parallel event-return section
+  is not by itself evidence of a hang; check the process before stopping it.
 - `../Data/make_many_ls.log` carries `2a`'s own progress and ETA.
-- With no swap, there is no thrashing phase to warn you. The run works, then
-  it is gone.
+- Chapters 4-8 can be run independently for paper iteration, provided their
+  upstream caches exist.
+- With no swap, memory exhaustion has no slow thrashing phase: monitor peak
+  RSS during the still-unmeasured Chapter 3 scripts.

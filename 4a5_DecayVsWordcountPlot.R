@@ -1,6 +1,6 @@
 # Plot out-of-sample return against the risk-to-mispricing classification.
 #
-# How to run: source from 4_Exhibits.R with the working directory set to
+# How to run: normally run through 8_Appendices.R with the working directory set to
 #   flex-mining/.
 # Inputs:  DataIntermediate/TextClassification.csv
 #          ../Data/Processed/czret_keeponly.RDS
@@ -170,4 +170,3 @@ ggplot(aes(log_risk_misprice, diff_ret), data = plotme) +
   coord_cartesian(xlim = c(-4,4))
 
 ggsave('../Results/Fig_DecayVsWords_Names2.pdf', width = 10, height = 8)
-

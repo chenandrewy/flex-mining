@@ -3,14 +3,19 @@
 # How to run: set the working directory to flex-mining/, then
 #   Rscript MAIN.R
 #
-# Four chapters separated at explicit cache boundaries:
+# Nine chapters separated at explicit cache and paper-section boundaries:
 #
 #   1_Download_and_Clean  External acquisition and cleaning; new data vintage.
 #   2_DataMining          Construct and match mined strategies; about two hours.
 #   3_Precompute          Reusable correlations, PCA, panels, and summaries.
-#   4_Exhibits            Read caches and render PDFs, TeX, and exports.
+#   4_ResearchVsDataMining  Introduction and Section 2 exhibits.
+#   5_Learning              Section 3 regression tables.
+#   6_Heterogeneity         Section 4 exhibits.
+#   7_BestPredictors        Section 4b exhibits.
+#   8_Appendices            Appendix-only exhibits.
+#   9_ExportDataToCsv       Shared-data CSV exports.
 #
-# Iterating on an exhibit normally means running chapter 4 alone. Changes to
+# Iterating on an exhibit normally means running only its chapter. Changes to
 # matching or statistical analysis require chapter 3; changes to mined signals
 # require chapter 2.
 #
@@ -23,16 +28,20 @@
 # Inputs:  ../Data/Raw (re-created when run_download_and_clean = TRUE)
 # Outputs: ../Data/Processed, ../Data/Export, ../Results
 #
-# Paper contract: a full run rebuilds every exhibit
-# \input/\includegraphics'd by ../risk-vs-writing/latex-risk-vs (53 files),
-# except the two HandTable_MPStyleRegs*.tex, which are hand-transcribed from the
-# Table_MPStyleRegs{Main,Unscaled} tables that 4c8_MPStyleDecayTables.R writes.
+# Paper contract: Chapters 4-8 rebuild paper exhibits from upstream caches.
+# Chapter 5 renders the cached MP regressions; the Section 3 presentation tables
+# are being migrated from hand formatting to direct R output.
 # See docs/journal/0813c,map,exhibits.md for the script -> exhibit map.
 
-run_download_and_clean <- FALSE  # Re-pull ../Data/Raw; changes the vintage
-run_data_mining        <- FALSE  # Chapter 2; hours
-run_precompute         <- TRUE   # Chapter 3; slow reusable analysis
-run_exhibits           <- TRUE   # Chapter 4; cache-only rendering
+run_download_and_clean       <- FALSE  # Re-pull ../Data/Raw; changes the vintage
+run_data_mining              <- FALSE  # Chapter 2; hours
+run_precompute               <- TRUE   # Chapter 3; slow reusable analysis
+run_research_vs_data_mining  <- TRUE   # Chapter 4; intro and Section 2
+run_learning                 <- TRUE   # Chapter 5; Section 3
+run_heterogeneity            <- TRUE   # Chapter 6; Section 4
+run_best_predictors          <- TRUE   # Chapter 7; Section 4b
+run_appendices               <- TRUE   # Chapter 8
+run_export_data_to_csv       <- TRUE   # Chapter 9
 
 run_script <- function(path) {
   message("\n=== Running ", path, " ===")
@@ -61,8 +70,38 @@ if (run_precompute) {
   run_script("3_Precompute.R")
 }
 
-# Chapter 4: paper exhibits ----------------------------------------------
+# Chapter 4: research versus data mining ---------------------------------
 
-if (run_exhibits) {
-  run_script("4_Exhibits.R")
+if (run_research_vs_data_mining) {
+  run_script("4_ResearchVsDataMining.R")
+}
+
+# Chapter 5: learning -----------------------------------------------------
+
+if (run_learning) {
+  run_script("5_Learning.R")
+}
+
+# Chapter 6: heterogeneity ------------------------------------------------
+
+if (run_heterogeneity) {
+  run_script("6_Heterogeneity.R")
+}
+
+# Chapter 7: best predictors ---------------------------------------------
+
+if (run_best_predictors) {
+  run_script("7_BestPredictors.R")
+}
+
+# Chapter 8: appendices ---------------------------------------------------
+
+if (run_appendices) {
+  run_script("8_Appendices.R")
+}
+
+# Chapter 9: data exports -------------------------------------------------
+
+if (run_export_data_to_csv) {
+  run_script("9_ExportDataToCsv.R")
 }

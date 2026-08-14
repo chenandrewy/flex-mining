@@ -1,6 +1,6 @@
 # Render correlation-quantile and PCA tables from chapter-3 caches.
 #
-# How to run: source from 4_Exhibits.R with the working directory set to
+# How to run: normally run through 4_ResearchVsDataMining.R with the working directory set to
 #   flex-mining/.
 # Inputs:  ../Data/Processed/dm_correlation_quantiles.RDS
 #          ../Data/Processed/dm_pca_table.RDS

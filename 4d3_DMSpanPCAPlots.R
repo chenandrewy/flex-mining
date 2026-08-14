@@ -1,6 +1,6 @@
 # Render the correlation- and PCA-spanning exhibits from chapter-3 caches.
 #
-# How to run: source from 4_Exhibits.R with the working directory set to
+# How to run: normally run through 8_Appendices.R with the working directory set to
 #   flex-mining/.
 # Inputs:  ../Data/Processed/dm_span_analysis.RDS
 # Outputs: ../Results/Fig_DM_unspan_match_t_g_PCA.pdf

@@ -19,9 +19,16 @@ for each chapter:
    roughly two hours.
 3. `3_Precompute.R` builds reusable correlations, PCA results, summary data,
    and plot panels under `../Data/Processed`.
-4. `4_Exhibits.R` treats processed data as read-only and renders PDFs and TeX
-   under `../Results`.
+4. `4_ResearchVsDataMining.R` renders the introduction figure and Section 2
+   exhibits.
+5. `5_Learning.R` renders the Section 3 learning tables from cached regression
+   models.
+6. `6_Heterogeneity.R` renders the Section 4 heterogeneity exhibits.
+7. `7_BestPredictors.R` renders the Section 4b predictor examples.
+8. `8_Appendices.R` renders appendix-only exhibits.
+9. `9_ExportDataToCsv.R` exports the mined-strategy data for sharing.
 
-For a formatting-only figure or table change, run chapter 4 alone. Chapter 1
-overwrites `../Data/Raw` with a new, non-recoverable WRDS/Google Drive vintage,
-so its `MAIN.R` switch is off by default and should be enabled deliberately.
+Chapters 4-8 treat processed data as read-only. For a formatting-only figure
+or table change, run only the corresponding chapter. Chapter 1 overwrites
+`../Data/Raw` with a new, non-recoverable WRDS/Google Drive vintage, so its
+`MAIN.R` switch is off by default and should be enabled deliberately.

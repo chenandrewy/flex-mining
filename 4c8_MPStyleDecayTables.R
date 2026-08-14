@@ -1,6 +1,6 @@
 # Render MP-style decay tables from cached chapter-3 regression models.
 #
-# How to run: source from 4_Exhibits.R with the working directory set to
+# How to run: normally run through 5_Learning.R with the working directory set to
 #   flex-mining/.
 # Inputs:  ../Data/Processed/mp_style_decay_models.RDS
 # Outputs: ../Results/Table_MPStyleRegsMain.tex
