@@ -2,13 +2,23 @@
 #
 # How to run: set the working directory to flex-mining/, then
 #   Rscript 5_Learning.R
-# Inputs:  ../Data/Processed/mp_style_decay_models.RDS
+# Inputs:  chapter-2 mined strategies and chapter-3 panels (ret_for_plot0.RDS,
+#          plotdat0.RDS, and the versioned LongShort.RData)
 # Outputs: MP-style regression tables under ../Results
 #
-# The regression models, including fixed-effect specifications, are estimated
-# by 3f_MPStyleDecayModels.R. This chapter only renders their table outputs.
+# 5a_MPStyleDecayModels.R estimates the regression models (including
+# fixed-effect specifications); 5b_MPStyleDecayTables.R renders their tables.
 
-required_files <- "../Data/Processed/mp_style_decay_models.RDS"
+settings_env <- new.env(parent = globalenv())
+sys.source("config.R", envir = settings_env)
+version_prefix <- file.path("../Data/Processed", settings_env$globalSettings$dataVersion)
+required_files <- c(
+  "../Data/Processed/ret_for_plot0.RDS",
+  "../Data/Processed/plotdat0.RDS",
+  paste0(version_prefix, " LongShort.RData")
+)
+rm(settings_env)
+
 missing_files <- required_files[!file.exists(required_files)]
 if (length(missing_files) > 0) {
   stop(
@@ -25,4 +35,5 @@ run_script <- function(path) {
   }
 }
 
-run_script("4c8_MPStyleDecayTables.R")
+run_script("5a_MPStyleDecayModels.R")
+run_script("5b_MPStyleDecayTables.R")

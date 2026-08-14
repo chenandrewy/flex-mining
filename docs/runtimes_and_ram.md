@@ -30,14 +30,13 @@ Measured at `num_cores = 4`.
 | ↳ `2b_MatchDataMinedToPub.R` | ~4 min | Writes `MatchPub.RData` and `PairwiseCorrelationsActualAndMatches.RDS`. |
 | ↳ `2c_TickerToLongshort.R` | ~1-2 min | Writes `ticker_Harvey2017JF.RDS`. |
 | ↳ `2d_RiskAdjustDataMinedSignals.R` | ~6 min | Writes `MatchPubRiskAdjusted.RData` (2.2 GB in this vintage). |
-| **`3_Precompute.R`** | **~1h 46m** | The memory-critical chapter; completes without OOM. |
+| **`3_Precompute.R`** | **~1h 44m** | The memory-critical chapter; completes without OOM. |
 | ↳ `3a_ResearchVsDMPrep.R` | ~12 min | Three `make_DM_event_returns()` calls. |
 | ↳ `3b_DataMiningSummary.R` | ~24 min | |
 | ↳ `3c_DMCorrelationsPCA.R` | ~15 min | Writes `PairwiseCorrelationsDM_{ew,vw}.RDS`. |
 | ↳ `3d_Fig2Data.R` | ~3 min | Two `make_DM_event_returns()` calls; writes the Figure 2 cache. |
 | ↳ `3e_DMSpanPCA.R` | **~51 min** | Heaviest Chapter-3 script: one `adj_R2_with_PPCA()` and six `make_DM_event_returns()` calls. |
-| ↳ `3f_MPStyleDecayModels.R` | ~2 min | Writes `mp_style_decay_models.RDS` (~1 GB) for Chapter 5. |
-| **Chapters 4-8** | **~5 min combined** | Rendering chapters; each child is a fresh R process reading upstream caches. Chapter 8 (Appendices) is the longest. |
+| **Chapters 4-8** | **~7 min combined** | Rendering chapters; each child is a fresh R process reading upstream caches. Chapter 5 also estimates the MP-style decay models in `5a_MPStyleDecayModels.R` (~2 min; writes `mp_style_decay_models.RDS`, ~1 GB), then `5b_MPStyleDecayTables.R` renders them. Chapter 8 (Appendices) is the longest. |
 | **`9_ExportDataToCsv.R`** | ~1 min | Reads chapter-2 caches; writes `../Data/Export`. |
 
 ### Inside `2a_CompustatToLongshort.R`
