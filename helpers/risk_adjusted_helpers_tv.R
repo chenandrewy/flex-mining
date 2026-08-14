@@ -63,17 +63,6 @@ create_filtered_plot_data <- function(ret_for_plot0_adj, signals_list, dm_aggreg
   return(plot_data)
 }
 
-aggregate_dm_no_norm <- function(dm_data, abnormal_col, suffix_name) {
-  dm_aggregated <- dm_data %>%
-    group_by(actSignal, eventDate) %>%
-    summarise(
-      !!sym(paste0("matchRet_", suffix_name)) := mean(.data[[abnormal_col]], na.rm = TRUE),
-      !!sym(paste0("n_matches_", suffix_name)) := n_distinct(candSignalname),
-      .groups = 'drop'
-    )
-  return(dm_aggregated)
-}
-
 # Plotting helper ----------------------------------------------------------
 create_risk_adjusted_plot <- function(plot_data, pub_col, dm_col,
                                      adjustment_type, t_threshold,
@@ -346,7 +335,7 @@ create_latex_table <- function(table_data, caption = "", label = "",
                               column_spec = NULL, booktabs = TRUE,
                               size = "\\small", placement = "htbp") {
   if (!requireNamespace("xtable", quietly = TRUE)) {
-    stop("xtable package is required but not installed. Please install it using renv::install('xtable')")
+    stop("xtable package is required but not installed. Please install it using install.packages(\"xtable\")")
   }
   library(xtable)
   xt <- xtable(table_data, caption = caption, label = label)
@@ -779,4 +768,4 @@ load_signal_mappings <- function(signals_checked_csv, incl_signals) {
     discipline_mapping_filtered = czcat_full %>% select(signalname, discipline) %>% distinct() %>% filter(discipline %in% c("Finance", "Accounting")),
     journal_mapping_filtered = czcat_full %>% select(signalname, journal_rank) %>% distinct() %>% filter(journal_rank != "Economics")
   )
-} 
+}

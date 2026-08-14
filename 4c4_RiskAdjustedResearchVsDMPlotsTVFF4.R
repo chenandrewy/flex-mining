@@ -40,9 +40,15 @@ DMshortname = DMname %>%
 risk_adj_file <- paste0('../Data/Processed/', DMshortname, ' MatchPubRiskAdjusted.RData')
 summary_file <- paste0('../Data/Processed/', DMshortname, ' MatchedRiskAdjSummary.RData')
 
-if (!file.exists(risk_adj_file) | !file.exists(summary_file)) {
-  cat("Risk-adjusted DM files not found. Running 2d_RiskAdjustDataMinedSignals.R...\n")
-  source("2d_RiskAdjustDataMinedSignals.R")
+missing_risk_files <- c(risk_adj_file, summary_file)[
+  !file.exists(c(risk_adj_file, summary_file))
+]
+if (length(missing_risk_files) > 0) {
+  stop(
+    "Missing chapter-2 risk-adjustment cache(s): ",
+    paste(missing_risk_files, collapse = ", "),
+    ". Run 2_DataMining.R before generating exhibits."
+  )
 }
 
 # Helper functions -----------------------------------------------------
@@ -1610,4 +1616,3 @@ if (length(plot_files) == 0) {
 } else {
   cat(paste0("- ", plot_files, "\n"), sep = "")
 }
-

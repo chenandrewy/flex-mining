@@ -1,5 +1,9 @@
-# Alternative script for matching (for robustness figures that match on t-stats and mean returns)
-# Output is used in 4e_ResearchVsDMRobustnessCorrelationsEtc.R
+# Match mined strategies to published predictors on t-statistics and returns.
+#
+# How to run: normally run through 2_DataMining.R from flex-mining/.
+# Inputs:  chapter-1 published returns and chapter-2 mined strategies
+# Outputs: ../Data/Processed/<dataVersion> MatchPub.RData
+#          ../Data/Processed/PairwiseCorrelationsActualAndMatches.RDS
 
 rm(list = ls())
 tic0 = Sys.time()
@@ -150,8 +154,8 @@ candidateReturns =  foreach(pubi = 1:dim(czsum)[1],
                                 pubname == pubcur$signalname
                                 & diff_rbar <= r_tol
                                 & diff_tstat <= t_tol
-                                & diff_rbar / rbar_op <= r_reltol
-                                & diff_tstat / tstat_op <= t_reltol    
+                                & diff_rbar / abs(rbar_op) <= r_reltol
+                                & diff_tstat / abs(tstat_op) <= t_reltol
                                 & min_nstock_long  >= minNumStocks/2
                                 & min_nstock_short >= minNumStocks/2
                                 & nlastyear == 12
@@ -246,5 +250,4 @@ for (act in unique(tmpCands$actSignal)) {
   
 }
 
-saveRDS(allRhos, '../Results/PairwiseCorrelationsActualAndMatches.RDS')
-
+saveRDS(allRhos, '../Data/Processed/PairwiseCorrelationsActualAndMatches.RDS')

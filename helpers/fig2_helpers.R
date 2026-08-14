@@ -1,5 +1,5 @@
 # Helpers for the reorganized Figure 2 (Spec 3, meeting notes 2026-07-23)
-# Used by 4c20a_Fig2Data.R / 4c20b_Fig2Plots.R.
+# Used by 3d_Fig2Data.R / S2e_Fig2Plots.R.
 #
 # Generalizes ReturnPlotsWithDM_std_errors_indicators (0_Environment.R) to any
 # number of overlaid series by splitting it in two: fig2_aggregate_series()
@@ -48,7 +48,7 @@ fig2_aggregate_series = function(dt_long, rollmonths = 60) {
   windows$se = mapply(
     function(lab, ws, we) {
       get_clustered_se(dt_long %>%
-                         filter(label == lab, eventDate > ws, eventDate <= we))
+                         filter(label == lab, eventDate >= ws, eventDate <= we))
     },
     windows$label, windows$window_start, windows$window_end
   )
