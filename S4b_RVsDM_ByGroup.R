@@ -1,14 +1,55 @@
-# Risk-Adjusted Data-mining comparisons
-# Based on 4c4_RiskAdjustedResearchVsDMPlotsTV.R but with FF4 (Carhart 4-factor) adjustments
-# This file compares raw vs risk-adjusted returns using CAPM and FF4 models
+# Render the sample-specific risk-adjusted by-group tables for Section 4 and
+# Table IA.10.
+#
+# How to run: set the working directory to flex-mining/, then
+#   Rscript S4b_RVsDM_ByGroup.R
+# Inputs:  czsum_allpredictors.RDS, czret_keeponly.RDS, ret_for_plot0.RDS,
+#          the versioned MatchPubRiskAdjusted.RData cache, Fama-French factors,
+#          and DataInput/SignalsTheoryChecked.csv
+# Outputs: Table_RiskAdjusted_TimeVarying_ff4_t2.{csv,tex},
+#          Table_RiskAdjusted_TimeVarying_DisciplineJournal_ff4_t2.{csv,tex},
+#          and Table_RiskAdjusted_TimeVarying_AnyModelVsNoModel_ff4_t2.{csv,tex}
+#          under ../Results/RiskAdjusted/TstatFilter; corrected full-sample
+#          audit tables under ../Results/RiskAdjusted/FullSampleTstatFilter;
+#          and six paper-facing table fragments at top-level ../Results
+#
+# This calculation path was moved from
+# 4c4_RiskAdjustedResearchVsDMPlotsTVFF4.R and now uses the phase-two estimands:
+# predictor-month means, month/predictor clustered inference, and paired
+# published-minus-data-mined differences.
 #
 # FIXED: Time-varying beta/alpha consistency between published and DM signals
 # - Published signals now use sampstart/sampend periods (not eventDate-based)
 # - DM signals use sampstart/sampend periods (consistent with published)
 # - Both use same IS/OOS period definitions for adjustments
 
+# Preflight -------------------------------------------------------------
+settings_env <- new.env(parent = globalenv())
+sys.source("config.R", envir = settings_env)
+version <- settings_env$globalSettings$dataVersion
+rm(settings_env)
+
+risk_adj_file <- paste0(
+  "../Data/Processed/", version, " MatchPubRiskAdjusted.RData"
+)
+required_files <- c(
+  "../Data/Processed/czsum_allpredictors.RDS",
+  "../Data/Processed/czret_keeponly.RDS",
+  "../Data/Processed/ret_for_plot0.RDS",
+  risk_adj_file,
+  "../Data/Raw/FamaFrenchFactors.RData",
+  "DataInput/SignalsTheoryChecked.csv"
+)
+missing_files <- required_files[!file.exists(required_files)]
+if (length(missing_files) > 0) {
+  stop(
+    "Missing Section 4 risk-adjustment input(s): ",
+    paste(missing_files, collapse = ", "),
+    ". Run the required upstream chapter first."
+  )
+}
+
 # Setup ----------------------------------------------------------------
-rm(list = ls())
 source("0_Environment.R")
 source("helpers/risk_adjusted_helpers_tv.R")
 
@@ -20,6 +61,7 @@ filter_type <- "tstat"
 # Create results subfolder for risk-adjusted analysis
 base_results_dir <- "../Results/RiskAdjusted"
 results_dir <- file.path(base_results_dir, "TstatFilter")
+full_sample_results_dir <- file.path(base_results_dir, "FullSampleTstatFilter")
 
 if (!dir.exists(results_dir)) {
   dir.create(results_dir, recursive = TRUE)
@@ -27,28 +69,8 @@ if (!dir.exists(results_dir)) {
 } else {
   cat("Using existing directory:", results_dir, "\n")
 }
-
-# Check if risk-adjusted DM files exist
-DMname = paste0('../Data/Processed/',
-                globalSettings$dataVersion, 
-                ' LongShort.RData')
-
-DMshortname = DMname %>% 
-  str_remove('../Data/Processed/') %>% 
-  str_remove(' LongShort.RData')
-
-risk_adj_file <- paste0('../Data/Processed/', DMshortname, ' MatchPubRiskAdjusted.RData')
-summary_file <- paste0('../Data/Processed/', DMshortname, ' MatchedRiskAdjSummary.RData')
-
-missing_risk_files <- c(risk_adj_file, summary_file)[
-  !file.exists(c(risk_adj_file, summary_file))
-]
-if (length(missing_risk_files) > 0) {
-  stop(
-    "Missing chapter-2 risk-adjustment cache(s): ",
-    paste(missing_risk_files, collapse = ", "),
-    ". Run 2_DataMining.R before generating exhibits."
-  )
+if (!dir.exists(full_sample_results_dir)) {
+  dir.create(full_sample_results_dir, recursive = TRUE)
 }
 
 # Helper functions -----------------------------------------------------
@@ -65,16 +87,16 @@ if (length(missing_risk_files) > 0) {
 ## Load Global Data -------------------------------------------
 
 # these are treated as globals (don't modify pls)
-inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType, 
+inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType,
                                   topT = globalSettings$topT)
 
 czsum <- readRDS("../Data/Processed/czsum_allpredictors.RDS") %>%
-  filter(Keep) %>% 
-  filter(signalname %in% inclSignals) %>% 
+  filter(Keep) %>%
+  filter(signalname %in% inclSignals) %>%
   setDT()
 
 czcat <- fread("DataInput/SignalsTheoryChecked.csv") %>%
-    select(signalname, Year, theory, Journal) %>% 
+    select(signalname, Year, theory, Journal) %>%
     filter(signalname %in% inclSignals)
 
 czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
@@ -82,7 +104,7 @@ czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
   mutate(
     retOrig = ret,
     ret_scaled = ret / rbar * 100
-  ) %>% 
+  ) %>%
   filter(signalname %in% inclSignals)
 
 # Ensure samptype exists on published data for consistent IS/OOS split
@@ -108,7 +130,7 @@ if (!"samptype" %in% names(candidateReturns_adj)) {
 FamaFrenchFactors <- readRDS('../Data/Raw/FamaFrenchFactors.RData') %>%
   rename(date = yearm)
 
-czret <- czret %>% 
+czret <- czret %>%
   left_join(FamaFrenchFactors, by = c('date'))
 
 ret_for_plot0 <- ret_for_plot0 %>%
@@ -169,7 +191,7 @@ cat("UMD available:", sum(!is.na(czret$umd)), "observations\n")
 czret[date >= sampstart & date <= sampend, `:=`(
   rbar_t = {
     m <- mean(ret, na.rm = TRUE)
-    s <- sd(ret, na.rm = TRUE) 
+    s <- sd(ret, na.rm = TRUE)
     n <- sum(!is.na(ret))
     if (n > 1 && s > 0) m / s * sqrt(n) else NA_real_
   }
@@ -232,14 +254,66 @@ czret[, abar_ff4_tv := nafill(abar_ff4_tv, 'locf'), by = .(signalname)]
 czret[, abar_ff4_tv_t := nafill(abar_ff4_tv_t, 'locf'), by = .(signalname)]
 czret[, abnormal_ff4_tv_normalized := ifelse(abs(abar_ff4_tv) > 1e-10, 100 * abnormal_ff4_tv / abar_ff4_tv, NA_real_)]
 
+# Compute published-side full-sample CAPM/FF3 betas and normalized alphas.
+# Full-sample betas use all observations from the original sample start onward.
+betas_capm_fs <- czret[date >= sampstart & !is.na(ret) & !is.na(mktrf),
+  .(beta_capm_fs = extract_beta(ret, mktrf)), by = signalname]
+czret <- merge(czret, betas_capm_fs, by = "signalname", all.x = TRUE)
+czret[, abnormal_capm_fs := ret - beta_capm_fs * mktrf]
+czret[date >= sampstart & date <= sampend, `:=`(
+  abar_capm_fs = mean(abnormal_capm_fs, na.rm = TRUE),
+  abar_capm_fs_t = {
+    m <- mean(abnormal_capm_fs, na.rm = TRUE)
+    s <- sd(abnormal_capm_fs, na.rm = TRUE)
+    n <- sum(!is.na(abnormal_capm_fs))
+    if (n > 1 && s > 0) m / s * sqrt(n) else NA_real_
+  }
+), by = signalname]
+czret[, abar_capm_fs := nafill(abar_capm_fs, "locf"), by = signalname]
+czret[, abar_capm_fs_t := nafill(abar_capm_fs_t, "locf"), by = signalname]
+czret[, abnormal_capm_fs_normalized := ifelse(
+  abs(abar_capm_fs) > 1e-10, 100 * abnormal_capm_fs / abar_capm_fs, NA_real_
+)]
+
+ff3_fs <- czret[
+  date >= sampstart & !is.na(ret) & !is.na(mktrf) & !is.na(smb) & !is.na(hml),
+  {
+    coeffs <- extract_ff3_coeffs(ret, mktrf, smb, hml)
+    .(beta_ff3_fs = coeffs[1], s_ff3_fs = coeffs[2], h_ff3_fs = coeffs[3])
+  },
+  by = signalname
+]
+czret <- merge(czret, ff3_fs, by = "signalname", all.x = TRUE)
+czret[, abnormal_ff3_fs := ret - (
+  beta_ff3_fs * mktrf + s_ff3_fs * smb + h_ff3_fs * hml
+)]
+czret[date >= sampstart & date <= sampend, `:=`(
+  abar_ff3_fs = mean(abnormal_ff3_fs, na.rm = TRUE),
+  abar_ff3_fs_t = {
+    m <- mean(abnormal_ff3_fs, na.rm = TRUE)
+    s <- sd(abnormal_ff3_fs, na.rm = TRUE)
+    n <- sum(!is.na(abnormal_ff3_fs))
+    if (n > 1 && s > 0) m / s * sqrt(n) else NA_real_
+  }
+), by = signalname]
+czret[, abar_ff3_fs := nafill(abar_ff3_fs, "locf"), by = signalname]
+czret[, abar_ff3_fs_t := nafill(abar_ff3_fs_t, "locf"), by = signalname]
+czret[, abnormal_ff3_fs_normalized := ifelse(
+  abs(abar_ff3_fs) > 1e-10, 100 * abnormal_ff3_fs / abar_ff3_fs, NA_real_
+)]
+
 # Compute normalized DM abnormal returns ---------------------------------
 
 # First, create the risk-adjusted data for plotting by joining with `czret`
 ret_for_plot0_adj <- ret_for_plot0 %>%
   left_join(
-    czret %>% select(signalname, eventDate,
-                      abnormal_capm_tv, abnormal_ff4_tv,
-                      abnormal_capm_tv_normalized, abnormal_ff4_tv_normalized),
+    czret %>% select(
+      signalname, eventDate,
+      abnormal_capm_tv, abnormal_ff4_tv,
+      abnormal_capm_tv_normalized, abnormal_ff4_tv_normalized,
+      abnormal_capm_fs, abnormal_ff3_fs,
+      abnormal_capm_fs_normalized, abnormal_ff3_fs_normalized
+    ),
     by = c("pubname" = "signalname", "eventDate" = "eventDate")
   )
 
@@ -247,63 +321,14 @@ ret_for_plot0_adj <- ret_for_plot0 %>%
 fontsizeall = 28
 ylaball = 'Trailing 5-Year Return (bps pm)'
 linesizeall = 1.5
-global_xl = -360  
-global_xh = 300   
+global_xl = -360
+global_xh = 300
 
 print("Risk adjustments computed successfully!")
 print(paste("Number of signals with time-varying CAPM adjustments:", sum(!is.na(czret$beta_capm_tv))))
 print(paste("Number of signals with time-varying FF4 adjustments:", sum(!is.na(czret$beta_ff4_tv))))
-
-# Risk-Adjusted Plots ----------------------------------------------------
-
-## 1. Raw Returns (baseline from 4c2) ------------------------------------
-# Filter published signals by raw t-stat threshold for raw plot
-signals_raw_t2_plot <- unique(czret[rbar_t > t_threshold]$signalname)
-tempsuffix = paste0("raw_returns_t", t_threshold)
-
-printme_raw = ReturnPlotsWithDM_std_errors_indicators(
-  dt = ret_for_plot0 %>% filter(!is.na(matchRet), pubname %in% signals_raw_t2_plot) %>% 
-      transmute(eventDate, pubname, theory, ret, matchRet) %>%
-      left_join(czret %>% select(signalname, eventDate, date) %>% distinct(), by = c("pubname" = "signalname", "eventDate" = "eventDate")) %>%
-      rename(calendarDate = date),
-  basepath = "../Results/temp_",
-  suffix = tempsuffix,
-  rollmonths = 60,
-  colors = colors,
-  labelmatch = FALSE,
-  yl = -0,
-  yh = 125,
-  xl = global_xl,
-  xh = global_xh,
-  legendlabels =
-    c(
-      paste0("Published (Raw, t>", t_threshold, ")"),
-      paste0("Data-Mined (Raw, t>", t_threshold, ")"),
-      'N/A'
-    ),
-  legendpos = c(35,20)/100,
-  fontsize = fontsizeall,
-  yaxislab = ylaball,
-  linesize = linesizeall
-)
-
-ggsave(filename = paste0(results_dir, "/Fig_RiskAdj_", tempsuffix, '.pdf'), 
-       printme_raw, width = 10, height = 8)
-
-# Print summary statistics (filtered by raw t)
-cat("\n=== RAW RETURNS PLOT STATISTICS (t > ", t_threshold, ") ===\n", sep = "")
-ret_for_plot0 %>% 
-  filter(!is.na(matchRet), pubname %in% signals_raw_t2_plot) %>%
-  summarise(
-    # FIXED: Use sampstart/sampend-based periods for consistency
-    pub_mean_insamp = mean(ret[date >= sampstart & date <= sampend], na.rm = TRUE),
-    pub_mean_oos = mean(ret[date > sampend], na.rm = TRUE),
-    dm_mean_insamp = mean(matchRet[date >= sampstart & date <= sampend], na.rm = TRUE),
-    dm_mean_oos = mean(matchRet[date > sampend], na.rm = TRUE)
-  ) %>% print()
-
-cat("\nNumber of signals:", length(unique(ret_for_plot0$pubname[!is.na(ret_for_plot0$matchRet) & ret_for_plot0$pubname %in% signals_raw_t2_plot])), "\n")
-
+print(paste("Number of signals with full-sample CAPM adjustments:", sum(!is.na(czret$beta_capm_fs))))
+print(paste("Number of signals with full-sample FF3 adjustments:", sum(!is.na(czret$beta_ff3_fs))))
 
 # Filtered versions (t-stat or return) -----------------------------------------------
 
@@ -361,7 +386,7 @@ groups_model <- c("No Model", "Stylized", "Dynamic or Quantitative")
 
 # Check if time-varying columns exist in the data
 if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff4_tv" %in% names(candidateReturns_adj)) {
-  
+
   # Compute statistics for time-varying abnormal returns with proper NA handling
   # FIXED: Use sampstart/sampend-based periods for consistency with published signals
   dm_stats_tv <- candidateReturns_adj[
@@ -384,15 +409,15 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff4_tv" %in%
     ),
     by = .(actSignal, candSignalname)
   ]
-  
+
   # NEW: Define published signal sets using alpha stats (t-stat only)
   signals_capm_tv_t2 <- unique(czret[abar_capm_tv_t > t_threshold]$signalname)
   signals_ff4_tv_t2  <- unique(czret[abar_ff4_tv_t  > t_threshold]$signalname)
-  
+
   # Additionally require published signals to pass the raw filter for comparability
   signals_capm_tv_t2 <- intersect(signals_capm_tv_t2, signals_raw_t2)
   signals_ff4_tv_t2  <- intersect(signals_ff4_tv_t2, signals_raw_t2)
-  
+
   # CAPM time-varying filtering (t-stat only)
   cat("\n=== CAPM TIME-VARYING (t > ", t_threshold, ") STATISTICS ===\n")
   dm_filtered_capm_tv <- candidateReturns_adj %>%
@@ -400,14 +425,18 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff4_tv" %in%
       dm_stats_tv %>% filter(abar_capm_tv_dm_t > t_threshold),
       by = c("actSignal", "candSignalname")
     )
-  
+  assert_dm_screen(
+    dm_filtered_capm_tv, dm_stats_tv, "abar_capm_tv_dm_t",
+    t_threshold, "CAPM"
+  )
+
   # Normalize and aggregate
   dm_capm_tv_aggregated <- normalize_and_aggregate_dm(
-    dm_filtered_capm_tv, 
-    "abnormal_capm_tv", 
+    dm_filtered_capm_tv,
+    "abnormal_capm_tv",
     "capm_tv_t2_normalized"
   )
-  
+
   # Create filtered plot data
   ret_for_plot0_capm_tv_t2 <- create_filtered_plot_data(
     ret_for_plot0_adj,
@@ -417,22 +446,11 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff4_tv" %in%
     "matchRet_capm_tv_t2_normalized",
     "capm_tv_t2_normalized"
   )
-  
+
   cat("Published signals with CAPM t > ", t_threshold, ":", length(signals_capm_tv_t2), "\n")
   cat("Published signals with filtered DM matches (time-varying):", length(unique(ret_for_plot0_capm_tv_t2$pubname)), "\n")
   cat("DM signals with time-varying CAPM t > ", t_threshold, ":", sum(dm_stats_tv$abar_capm_tv_dm_t > t_threshold, na.rm = TRUE), "\n")
-  
-  # Create and save plot
-  printme_capm_tv_t2 <- create_risk_adjusted_plot(
-    ret_for_plot0_capm_tv_t2,
-    "abnormal_capm_tv_normalized",
-    "matchRet_capm_tv_t2_normalized",
-    "CAPM Alpha",
-    t_threshold,
-    "Trailing 5-Year CAPM Alpha",
-    filter_type = filter_type
-  )
-  
+
   # FF4 time-varying filtering (t-stat only)
   cat("\n=== FF4 TIME-VARYING (t > ", t_threshold, ") STATISTICS ===\n")
   dm_filtered_ff4_tv <- candidateReturns_adj %>%
@@ -440,14 +458,18 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff4_tv" %in%
       dm_stats_tv %>% filter(abar_ff4_tv_dm_t > t_threshold),
       by = c("actSignal", "candSignalname")
     )
-  
+  assert_dm_screen(
+    dm_filtered_ff4_tv, dm_stats_tv, "abar_ff4_tv_dm_t",
+    t_threshold, "FF4"
+  )
+
   # Normalize and aggregate
   dm_ff4_tv_aggregated <- normalize_and_aggregate_dm(
-    dm_filtered_ff4_tv, 
-    "abnormal_ff4_tv", 
+    dm_filtered_ff4_tv,
+    "abnormal_ff4_tv",
     "ff4_tv_t2_normalized"
   )
-  
+
   # Create filtered plot data
   ret_for_plot0_ff4_tv_t2 <- create_filtered_plot_data(
     ret_for_plot0_adj,
@@ -457,44 +479,75 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff4_tv" %in%
     "matchRet_ff4_tv_t2_normalized",
     "ff4_tv_t2_normalized"
   )
-  
+
   cat("Published signals with FF4 t > ", t_threshold, ":", length(signals_ff4_tv_t2), "\n")
   cat("Published signals with filtered DM matches (time-varying):", length(unique(ret_for_plot0_ff4_tv_t2$pubname)), "\n")
   cat("DM signals with time-varying FF4 t > ", t_threshold, ":", sum(dm_stats_tv$abar_ff4_tv_dm_t > t_threshold, na.rm = TRUE), "\n")
-  
-  # Create and save plot
-  printme_ff4_tv_t2 <- create_risk_adjusted_plot(
-    ret_for_plot0_ff4_tv_t2,
-    "abnormal_ff4_tv_normalized",
-    "matchRet_ff4_tv_t2_normalized",
-    "FF4 Alpha",
-    t_threshold,
-    "Trailing 5-Year FF4 Alpha",
-    filter_type = filter_type
-  )
-  
+
   # Create Time-Varying Alpha Summary Tables
   cat("\n\n=== TIME-VARYING ALPHA SUMMARY TABLES ===\n")
-  
+
   # Prepare data for alpha summary tables
   tv_plot_data <- list()
-  
+
   # Add raw data for comparison (filtered by the same signals) - t-stat only
-  tv_plot_data[["raw"]] <- ret_for_plot0 %>% 
+  tv_plot_data[["raw"]] <- ret_for_plot0 %>%
     filter(!is.na(matchRet)) %>%
-    left_join(czret %>% select(signalname, rbar_t) %>% distinct(), 
+    left_join(czret %>% select(signalname, rbar_t) %>% distinct(),
               by = c("pubname" = "signalname")) %>%
     filter(rbar_t > t_threshold)
-  
+
   tv_plot_data[["capm_tv"]] <- ret_for_plot0_capm_tv_t2
   tv_plot_data[["ff4_tv"]] <- ret_for_plot0_ff4_tv_t2
-  
+
+  expected_raw_signals <- unique(czret[rbar_t > t_threshold]$signalname)
+  expected_capm_signals <- intersect(
+    unique(czret[abar_capm_tv_t > t_threshold]$signalname), expected_raw_signals
+  )
+  expected_ff4_signals <- intersect(
+    unique(czret[abar_ff4_tv_t > t_threshold]$signalname), expected_raw_signals
+  )
+  if (!setequal(signals_raw_t2, expected_raw_signals)) {
+    stop("Raw published screen differs from rbar_t > ", t_threshold)
+  }
+  if (!setequal(signals_capm_tv_t2, expected_capm_signals)) {
+    stop("CAPM published screen differs from alpha-t/raw intersection")
+  }
+  if (!setequal(signals_ff4_tv_t2, expected_ff4_signals)) {
+    stop("FF4 published screen differs from alpha-t/raw intersection")
+  }
+  sample_diagnostics <- bind_rows(
+    audit_analysis_sample(tv_plot_data[["raw"]], "ret", "matchRet", "Raw"),
+    audit_analysis_sample(
+      tv_plot_data[["capm_tv"]], "abnormal_capm_tv_normalized",
+      "matchRet_capm_tv_t2_normalized", "CAPM"
+    ),
+    audit_analysis_sample(
+      tv_plot_data[["ff4_tv"]], "abnormal_ff4_tv_normalized",
+      "matchRet_ff4_tv_t2_normalized", "FF4"
+    )
+  )
+  print(sample_diagnostics)
+  cat(
+    "Published screens: raw=", length(expected_raw_signals),
+    "; CAPM alpha/raw=", length(unique(czret[abar_capm_tv_t > t_threshold]$signalname)),
+    "/", length(expected_capm_signals),
+    "; FF4 alpha/raw=", length(unique(czret[abar_ff4_tv_t > t_threshold]$signalname)),
+    "/", length(expected_ff4_signals), "\n", sep = ""
+  )
+  cat(
+    "Data-mined screens: CAPM=",
+    sum(dm_stats_tv$abar_capm_tv_dm_t > t_threshold, na.rm = TRUE),
+    "; FF4=", sum(dm_stats_tv$abar_ff4_tv_dm_t > t_threshold, na.rm = TRUE),
+    " candidate signal pairs\n", sep = ""
+  )
+
   # Create mappings (reuse existing ones from main analysis)
   tv_mappings <- list(
     theory = theory_mapping,
     model = model_mapping
   )
-  
+
   # Create alpha summaries
   tv_summaries <- create_summary_tables(
     tv_plot_data,
@@ -502,7 +555,7 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff4_tv" %in%
     table_name = "Alpha Analysis",
     filter_desc = paste0("t > ", t_threshold)
   )
-  
+
   # Print alpha summary by theory
   print_summary_table(
     tv_summaries[["theory"]],
@@ -512,7 +565,7 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff4_tv" %in%
     analysis_types = c("raw", "capm_tv", "ff4_tv"),
     analysis_labels = c("Raw", "CAPM", "FF4")
   )
-  
+
   # Print alpha summary by model
   print_summary_table(
     tv_summaries[["model"]],
@@ -522,15 +575,108 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff4_tv" %in%
     analysis_types = c("raw", "capm_tv", "ff4_tv"),
     analysis_labels = c("Raw", "CAPM", "FF4")
   )
-  
-  # Export alpha tables
-  export_filename <- paste0(results_dir, "/tv_alpha_summary_", paste0("t", t_threshold), ".csv")
-export_summary_tables(tv_summaries, export_filename, 
-                        filter_desc = paste0("T-stat > ", t_threshold))
-  
+
 } else {
   cat("\nTime-varying abnormal returns not available in the data.\n")
   cat("Please run 2d_RiskAdjustDataMinedSignals.R with the updated code to generate these columns.\n")
+}
+
+# The filtered candidate panels are much larger than the predictor-month
+# panels retained for inference. Release them before constructing the
+# full-sample screens so the two adjustment families run sequentially.
+rm(
+  dm_filtered_capm_tv, dm_filtered_ff4_tv,
+  dm_capm_tv_aggregated, dm_ff4_tv_aggregated,
+  dm_stats_tv, tv_plot_data, tv_summaries
+)
+invisible(gc())
+
+# Full-sample abnormal returns (one beta from sample start onward) --------
+if (all(c("abnormal_capm", "abnormal_ff3") %in% names(candidateReturns_adj))) {
+  cat("\n\n=== FULL-SAMPLE ABNORMAL RETURNS ===\n")
+  dm_stats_fs <- candidateReturns_adj[
+    date >= sampstart & date <= sampend & !is.na(abnormal_capm),
+    .(
+      abar_capm_fs_dm_t = {
+        m <- mean(abnormal_capm, na.rm = TRUE)
+        s <- sd(abnormal_capm, na.rm = TRUE)
+        n <- sum(!is.na(abnormal_capm))
+        if (n > 1 && s > 0) m / s * sqrt(n) else NA_real_
+      },
+      abar_ff3_fs_dm_t = {
+        m <- mean(abnormal_ff3, na.rm = TRUE)
+        s <- sd(abnormal_ff3, na.rm = TRUE)
+        n <- sum(!is.na(abnormal_ff3))
+        if (n > 1 && s > 0) m / s * sqrt(n) else NA_real_
+      }
+    ),
+    by = .(actSignal, candSignalname)
+  ]
+
+  signals_capm_fs_t2 <- intersect(
+    unique(czret[abar_capm_fs_t > t_threshold]$signalname), signals_raw_t2
+  )
+  signals_ff3_fs_t2 <- intersect(
+    unique(czret[abar_ff3_fs_t > t_threshold]$signalname), signals_raw_t2
+  )
+
+  dm_filtered_capm_fs <- candidateReturns_adj %>%
+    inner_join(
+      dm_stats_fs %>% filter(abar_capm_fs_dm_t > t_threshold),
+      by = c("actSignal", "candSignalname")
+    )
+  assert_dm_screen(
+    dm_filtered_capm_fs, dm_stats_fs, "abar_capm_fs_dm_t", t_threshold, "Full-sample CAPM"
+  )
+  dm_capm_fs_aggregated <- normalize_and_aggregate_dm(
+    dm_filtered_capm_fs, "abnormal_capm", "capm_fs_t2_normalized"
+  )
+  ret_for_plot0_capm_fs_t2 <- create_filtered_plot_data(
+    ret_for_plot0_adj,
+    signals_capm_fs_t2,
+    dm_capm_fs_aggregated,
+    "abnormal_capm_fs_normalized",
+    "matchRet_capm_fs_t2_normalized",
+    "capm_fs_t2_normalized"
+  )
+  rm(dm_filtered_capm_fs, dm_capm_fs_aggregated)
+  invisible(gc())
+
+  dm_filtered_ff3_fs <- candidateReturns_adj %>%
+    inner_join(
+      dm_stats_fs %>% filter(abar_ff3_fs_dm_t > t_threshold),
+      by = c("actSignal", "candSignalname")
+    )
+  assert_dm_screen(
+    dm_filtered_ff3_fs, dm_stats_fs, "abar_ff3_fs_dm_t", t_threshold, "Full-sample FF3"
+  )
+  dm_ff3_fs_aggregated <- normalize_and_aggregate_dm(
+    dm_filtered_ff3_fs, "abnormal_ff3", "ff3_fs_t2_normalized"
+  )
+  ret_for_plot0_ff3_fs_t2 <- create_filtered_plot_data(
+    ret_for_plot0_adj,
+    signals_ff3_fs_t2,
+    dm_ff3_fs_aggregated,
+    "abnormal_ff3_fs_normalized",
+    "matchRet_ff3_fs_t2_normalized",
+    "ff3_fs_t2_normalized"
+  )
+  rm(dm_filtered_ff3_fs, dm_ff3_fs_aggregated)
+  invisible(gc())
+
+  fs_sample_diagnostics <- bind_rows(
+    audit_analysis_sample(
+      ret_for_plot0_capm_fs_t2, "abnormal_capm_fs_normalized",
+      "matchRet_capm_fs_t2_normalized", "Full-sample CAPM"
+    ),
+    audit_analysis_sample(
+      ret_for_plot0_ff3_fs_t2, "abnormal_ff3_fs_normalized",
+      "matchRet_ff3_fs_t2_normalized", "Full-sample FF3"
+    )
+  )
+  print(fs_sample_diagnostics)
+} else {
+  stop("Full-sample abnormal_capm/abnormal_ff3 columns are missing from the risk-adjustment cache")
 }
 
 # Generic Summary Table Functions ----------------------------------------------
@@ -546,9 +692,9 @@ cat("\n\n=== FULL-SAMPLE SUMMARY TABLES FOR RAW RETURNS (FILTERED) ===\n")
 fs_plot_data <- list()
 
 # Add raw filtered data (t-stat only)
-fs_plot_data[["raw"]] <- ret_for_plot0 %>% 
+fs_plot_data[["raw"]] <- ret_for_plot0 %>%
   filter(!is.na(matchRet)) %>%
-  left_join(czret %>% select(signalname, rbar_t) %>% distinct(), 
+  left_join(czret %>% select(signalname, rbar_t) %>% distinct(),
             by = c("pubname" = "signalname")) %>%
   filter(rbar_t > t_threshold)
 
@@ -595,7 +741,7 @@ cat("\n\n=== SUMMARY TABLE WITH T > ", t_threshold, " FILTER ===\n")
 raw_t2_summary_theory <- compute_outperformance(
   ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
     left_join(czret %>% select(signalname, rbar_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
-    filter(rbar_t > t_threshold), 
+    filter(rbar_t > t_threshold),
   "ret", "matchRet", theory_mapping, "theory_group"
 )
 
@@ -605,7 +751,7 @@ raw_t2_summary_theory <- compute_outperformance(
 raw_t2_summary_model <- compute_outperformance(
   ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
     left_join(czret %>% select(signalname, rbar_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
-    filter(rbar_t > t_threshold), 
+    filter(rbar_t > t_threshold),
   "ret", "matchRet", model_mapping, "modeltype_grouped"
 )
 
@@ -629,62 +775,113 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_
     ret_for_plot0_capm_tv_t2,
     "abnormal_capm_tv_normalized", "matchRet_capm_tv_t2_normalized", theory_mapping, "theory_group"
   )
-  
+
   # FF4 time-varying t > t_threshold filtered (by theory)
   ff4_tv_t2_summary_theory <- compute_outperformance(
     ret_for_plot0_ff4_tv_t2,
     "abnormal_ff4_tv_normalized", "matchRet_ff4_tv_t2_normalized", theory_mapping, "theory_group"
   )
-  
+
   # CAPM time-varying t > t_threshold filtered (by model)
   capm_tv_t2_summary_model <- compute_outperformance(
     ret_for_plot0_capm_tv_t2,
     "abnormal_capm_tv_normalized", "matchRet_capm_tv_t2_normalized", model_mapping, "modeltype_grouped"
   )
-  
+
   # FF4 time-varying t > t_threshold filtered (by model)
   ff4_tv_t2_summary_model <- compute_outperformance(
     ret_for_plot0_ff4_tv_t2,
     "abnormal_ff4_tv_normalized", "matchRet_ff4_tv_t2_normalized", model_mapping, "modeltype_grouped"
   )
-  
+
   # CAPM time-varying t > t_threshold filtered (by discipline)
   capm_tv_t2_summary_discipline <- compute_outperformance(
     ret_for_plot0_capm_tv_t2,
     "abnormal_capm_tv_normalized", "matchRet_capm_tv_t2_normalized", discipline_mapping_filtered, "discipline"
   )
-  
+
   # FF4 time-varying t > t_threshold filtered (by discipline)
   ff4_tv_t2_summary_discipline <- compute_outperformance(
     ret_for_plot0_ff4_tv_t2,
     "abnormal_ff4_tv_normalized", "matchRet_ff4_tv_t2_normalized", discipline_mapping_filtered, "discipline"
   )
-  
+
   # CAPM time-varying t > t_threshold filtered (by journal)
   capm_tv_t2_summary_journal <- compute_outperformance(
     ret_for_plot0_capm_tv_t2,
     "abnormal_capm_tv_normalized", "matchRet_capm_tv_t2_normalized", journal_mapping_filtered, "journal_rank"
   )
-  
+
   # FF4 time-varying t > t_threshold filtered (by journal)
   ff4_tv_t2_summary_journal <- compute_outperformance(
     ret_for_plot0_ff4_tv_t2,
     "abnormal_ff4_tv_normalized", "matchRet_ff4_tv_t2_normalized", journal_mapping_filtered, "journal_rank"
   )
-  
+
   # Overall time-varying summaries
   overall_t2_summary_capm_tv <- compute_overall_summary(
     plot_data = ret_for_plot0_capm_tv_t2,
     ret_col = "abnormal_capm_tv_normalized",
     dm_col = "matchRet_capm_tv_t2_normalized"
   )
-  
+
   overall_t2_summary_ff4_tv <- compute_overall_summary(
     plot_data = ret_for_plot0_ff4_tv_t2,
     ret_col = "abnormal_ff4_tv_normalized",
     dm_col = "matchRet_ff4_tv_t2_normalized"
   )
 }
+
+# Full-sample CAPM/FF3 summaries use the same predictor-month and paired,
+# two-way-clustered inference contract as the sample-specific tables.
+capm_fs_t2_summary_theory <- compute_outperformance(
+  ret_for_plot0_capm_fs_t2,
+  "abnormal_capm_fs_normalized", "matchRet_capm_fs_t2_normalized",
+  theory_mapping, "theory_group"
+)
+ff3_fs_t2_summary_theory <- compute_outperformance(
+  ret_for_plot0_ff3_fs_t2,
+  "abnormal_ff3_fs_normalized", "matchRet_ff3_fs_t2_normalized",
+  theory_mapping, "theory_group"
+)
+capm_fs_t2_summary_model <- compute_outperformance(
+  ret_for_plot0_capm_fs_t2,
+  "abnormal_capm_fs_normalized", "matchRet_capm_fs_t2_normalized",
+  model_mapping, "modeltype_grouped"
+)
+ff3_fs_t2_summary_model <- compute_outperformance(
+  ret_for_plot0_ff3_fs_t2,
+  "abnormal_ff3_fs_normalized", "matchRet_ff3_fs_t2_normalized",
+  model_mapping, "modeltype_grouped"
+)
+capm_fs_t2_summary_discipline <- compute_outperformance(
+  ret_for_plot0_capm_fs_t2,
+  "abnormal_capm_fs_normalized", "matchRet_capm_fs_t2_normalized",
+  discipline_mapping_filtered, "discipline"
+)
+ff3_fs_t2_summary_discipline <- compute_outperformance(
+  ret_for_plot0_ff3_fs_t2,
+  "abnormal_ff3_fs_normalized", "matchRet_ff3_fs_t2_normalized",
+  discipline_mapping_filtered, "discipline"
+)
+capm_fs_t2_summary_journal <- compute_outperformance(
+  ret_for_plot0_capm_fs_t2,
+  "abnormal_capm_fs_normalized", "matchRet_capm_fs_t2_normalized",
+  journal_mapping_filtered, "journal_rank"
+)
+ff3_fs_t2_summary_journal <- compute_outperformance(
+  ret_for_plot0_ff3_fs_t2,
+  "abnormal_ff3_fs_normalized", "matchRet_ff3_fs_t2_normalized",
+  journal_mapping_filtered, "journal_rank"
+)
+overall_t2_summary_capm_fs <- compute_overall_summary(
+  ret_for_plot0_capm_fs_t2,
+  "abnormal_capm_fs_normalized", "matchRet_capm_fs_t2_normalized"
+)
+overall_t2_summary_ff3_fs <- compute_overall_summary(
+  ret_for_plot0_ff3_fs_t2,
+  "abnormal_ff3_fs_normalized", "matchRet_ff3_fs_t2_normalized"
+)
 
 # Helper functions moved to helpers/risk_adjusted_helpers.R
 
@@ -727,8 +924,19 @@ anymodel_mapping <- czcat_full %>%
 raw_t2_summary_anymodel <- compute_outperformance(
   ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
     left_join(czret %>% select(signalname, rbar_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
-    filter(rbar_t > t_threshold), 
+    filter(rbar_t > t_threshold),
   "ret", "matchRet", anymodel_mapping, "model_binary"
+)
+
+capm_fs_t2_summary_anymodel <- compute_outperformance(
+  ret_for_plot0_capm_fs_t2,
+  "abnormal_capm_fs_normalized", "matchRet_capm_fs_t2_normalized",
+  anymodel_mapping, "model_binary"
+)
+ff3_fs_t2_summary_anymodel <- compute_outperformance(
+  ret_for_plot0_ff3_fs_t2,
+  "abnormal_ff3_fs_normalized", "matchRet_ff3_fs_t2_normalized",
+  anymodel_mapping, "model_binary"
 )
 
 
@@ -740,15 +948,15 @@ cat("                Raw\n")
 for(group in c("No Model", "Any Model")) {
   # Post-sample returns
   raw_ret <- round(get_values(raw_t2_summary_anymodel, "model_binary", group, "pub_oos"))
-  
+
   # Outperformance
   raw_out <- round(get_values(raw_t2_summary_anymodel, "model_binary", group, "outperform"))
-  
-  # Standard errors  
+
+  # Standard errors
   raw_se <- round(get_values(raw_t2_summary_anymodel, "model_binary", group, "pub_oos_se"))
-  
+
   raw_out_se <- round(get_values(raw_t2_summary_anymodel, "model_binary", group, "outperform_se"))
-  
+
   cat(sprintf("%-12s %4s   %4s\n",
               group, raw_ret, raw_out))
   cat(sprintf("%-12s (%2s)   (%2s)\n",
@@ -776,32 +984,32 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_
     ret_for_plot0_capm_tv_t2,
     "abnormal_capm_tv_normalized", "matchRet_capm_tv_t2_normalized", anymodel_mapping, "model_binary"
   )
-  
+
   # FF4 time-varying t > t_threshold filtered (by model binary)
   ff4_tv_t2_summary_anymodel <- compute_outperformance(
     ret_for_plot0_ff4_tv_t2,
     "abnormal_ff4_tv_normalized", "matchRet_ff4_tv_t2_normalized", anymodel_mapping, "model_binary"
   )
-  
+
   cat("\nTime-Varying Results:\n")
   cat("                       CAPM  FF4        CAPM  FF4\n")
-  
+
   for(group in c("No Model", "Any Model")) {
     # Post-sample returns
-    capm_tv_ret <- round(get_values(capm_tv_t2_summary_anymodel, "model_binary", group, "pub_oos"))  
+    capm_tv_ret <- round(get_values(capm_tv_t2_summary_anymodel, "model_binary", group, "pub_oos"))
     ff4_tv_ret <- round(get_values(ff4_tv_t2_summary_anymodel, "model_binary", group, "pub_oos"))
-    
+
     # Outperformance
     capm_tv_out <- round(get_values(capm_tv_t2_summary_anymodel, "model_binary", group, "outperform"))
     ff4_tv_out <- round(get_values(ff4_tv_t2_summary_anymodel, "model_binary", group, "outperform"))
-    
-    # Standard errors  
+
+    # Standard errors
     capm_tv_se <- round(get_values(capm_tv_t2_summary_anymodel, "model_binary", group, "pub_oos_se"))
     ff4_tv_se <- round(get_values(ff4_tv_t2_summary_anymodel, "model_binary", group, "pub_oos_se"))
-    
+
     capm_tv_out_se <- round(get_values(capm_tv_t2_summary_anymodel, "model_binary", group, "outperform_se"))
     ff4_tv_out_se <- round(get_values(ff4_tv_t2_summary_anymodel, "model_binary", group, "outperform_se"))
-    
+
     cat(sprintf("%-12s           %4s     %4s          %4s     %4s\n",
                 group, capm_tv_ret, ff4_tv_ret, capm_tv_out, ff4_tv_out))
     cat(sprintf("%-12s           (%2s)    (%2s)          (%2s)    (%2s)\n",
@@ -815,61 +1023,61 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_
   cat("\nPost-Sample Return (t>", t_threshold, ")     Outperformance vs Data-Mining (t>", t_threshold, ")\n")
   cat("                       CAPM  FF4        CAPM  FF4\n")
   cat("Theoretical Foundation\n")
-  
+
   for(group in groups_theory) {
     # Post-sample returns
-    capm_tv_ret <- round(get_values(capm_tv_t2_summary_theory, "theory_group", group, "pub_oos"))  
+    capm_tv_ret <- round(get_values(capm_tv_t2_summary_theory, "theory_group", group, "pub_oos"))
     ff4_tv_ret <- round(get_values(ff4_tv_t2_summary_theory, "theory_group", group, "pub_oos"))
-    
+
     # Outperformance
     capm_tv_out <- round(get_values(capm_tv_t2_summary_theory, "theory_group", group, "outperform"))
     ff4_tv_out <- round(get_values(ff4_tv_t2_summary_theory, "theory_group", group, "outperform"))
-    
-    # Standard errors  
+
+    # Standard errors
     capm_tv_se <- round(get_values(capm_tv_t2_summary_theory, "theory_group", group, "pub_oos_se"))
     ff4_tv_se <- round(get_values(ff4_tv_t2_summary_theory, "theory_group", group, "pub_oos_se"))
-    
+
     capm_tv_out_se <- round(get_values(capm_tv_t2_summary_theory, "theory_group", group, "outperform_se"))
     ff4_tv_out_se <- round(get_values(ff4_tv_t2_summary_theory, "theory_group", group, "outperform_se"))
-    
+
     cat(sprintf("%-12s           %4s     %4s          %4s     %4s\n",
                 group, capm_tv_ret, ff4_tv_ret, capm_tv_out, ff4_tv_out))
     cat(sprintf("%-12s           (%2s)    (%2s)          (%2s)    (%2s)\n",
                 "", capm_tv_se, ff4_tv_se, capm_tv_out_se, ff4_tv_out_se))
   }
-  
+
   cat("\nModeling Formalism\n")
   groups_model <- c("No Model", "Stylized", "Dynamic or Quantitative")
   for(group in groups_model) {
     # Post-sample returns
     capm_tv_ret <- round(get_values(capm_tv_t2_summary_model, "modeltype_grouped", group, "pub_oos"))
     ff4_tv_ret <- round(get_values(ff4_tv_t2_summary_model, "modeltype_grouped", group, "pub_oos"))
-    
+
     # Outperformance
     capm_tv_out <- round(get_values(capm_tv_t2_summary_model, "modeltype_grouped", group, "outperform"))
     ff4_tv_out <- round(get_values(ff4_tv_t2_summary_model, "modeltype_grouped", group, "outperform"))
-    
+
     # Standard errors
     capm_tv_se <- round(get_values(capm_tv_t2_summary_model, "modeltype_grouped", group, "pub_oos_se"))
     ff4_tv_se <- round(get_values(ff4_tv_t2_summary_model, "modeltype_grouped", group, "pub_oos_se"))
-    
+
     capm_tv_out_se <- round(get_values(capm_tv_t2_summary_model, "modeltype_grouped", group, "outperform_se"))
     ff4_tv_out_se <- round(get_values(ff4_tv_t2_summary_model, "modeltype_grouped", group, "outperform_se"))
-    
+
     cat(sprintf("%-23s    %4s     %4s          %4s     %4s\n",
                 group, capm_tv_ret, ff4_tv_ret, capm_tv_out, ff4_tv_out))
     cat(sprintf("%-23s    (%2s)    (%2s)          (%2s)    (%2s)\n",
                 "", capm_tv_se, ff4_tv_se, capm_tv_out_se, ff4_tv_out_se))
   }
-  
+
   # Overall
   cat(sprintf("%-12s           %4s     %4s          %4s     %4s\n",
               "All", round(overall_t2_summary_capm_tv$pub_oos), round(overall_t2_summary_ff4_tv$pub_oos),
               round(overall_t2_summary_capm_tv$outperform), round(overall_t2_summary_ff4_tv$outperform)))
   cat(sprintf("%-12s           (%2s)    (%2s)          (%2s)    (%2s)\n",
-              "", round(overall_t2_summary_capm_tv$pub_oos_se), round(overall_t2_summary_ff4_tv$pub_oos_se), 
+              "", round(overall_t2_summary_capm_tv$pub_oos_se), round(overall_t2_summary_ff4_tv$pub_oos_se),
               round(overall_t2_summary_capm_tv$outperform_se), round(overall_t2_summary_ff4_tv$outperform_se)))
-  
+
   # Store time-varying data for LaTeX export
   tv_theory_data <- list()
   for(i in 1:length(groups_theory)) {
@@ -880,13 +1088,13 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_
       raw_pub_oos_se = get_values(raw_t2_summary_theory, "theory_group", group, "pub_oos_se"),
       raw_outperform = get_values(raw_t2_summary_theory, "theory_group", group, "outperform"),
       raw_outperform_se = get_values(raw_t2_summary_theory, "theory_group", group, "outperform_se"),
-      
+
       # CAPM
       capm_tv_pub_oos = get_values(capm_tv_t2_summary_theory, "theory_group", group, "pub_oos"),
       capm_tv_pub_oos_se = get_values(capm_tv_t2_summary_theory, "theory_group", group, "pub_oos_se"),
       capm_tv_outperform = get_values(capm_tv_t2_summary_theory, "theory_group", group, "outperform"),
       capm_tv_outperform_se = get_values(capm_tv_t2_summary_theory, "theory_group", group, "outperform_se"),
-      
+
       # FF4
       ff4_tv_pub_oos = get_values(ff4_tv_t2_summary_theory, "theory_group", group, "pub_oos"),
       ff4_tv_pub_oos_se = get_values(ff4_tv_t2_summary_theory, "theory_group", group, "pub_oos_se"),
@@ -894,7 +1102,7 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_
       ff4_tv_outperform_se = get_values(ff4_tv_t2_summary_theory, "theory_group", group, "outperform_se")
     )
   }
-  
+
   tv_model_data <- list()
   for(i in 1:length(groups_model)) {
     group <- groups_model[i]
@@ -904,13 +1112,13 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_
       raw_pub_oos_se = get_values(raw_t2_summary_model, "modeltype_grouped", group, "pub_oos_se"),
       raw_outperform = get_values(raw_t2_summary_model, "modeltype_grouped", group, "outperform"),
       raw_outperform_se = get_values(raw_t2_summary_model, "modeltype_grouped", group, "outperform_se"),
-      
+
       # CAPM
       capm_tv_pub_oos = get_values(capm_tv_t2_summary_model, "modeltype_grouped", group, "pub_oos"),
       capm_tv_pub_oos_se = get_values(capm_tv_t2_summary_model, "modeltype_grouped", group, "pub_oos_se"),
       capm_tv_outperform = get_values(capm_tv_t2_summary_model, "modeltype_grouped", group, "outperform"),
       capm_tv_outperform_se = get_values(capm_tv_t2_summary_model, "modeltype_grouped", group, "outperform_se"),
-      
+
       # FF4
       ff4_tv_pub_oos = get_values(ff4_tv_t2_summary_model, "modeltype_grouped", group, "pub_oos"),
       ff4_tv_pub_oos_se = get_values(ff4_tv_t2_summary_model, "modeltype_grouped", group, "pub_oos_se"),
@@ -918,7 +1126,7 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_
       ff4_tv_outperform_se = get_values(ff4_tv_t2_summary_model, "modeltype_grouped", group, "outperform_se")
     )
   }
-  
+
   # Add overall results
   tv_overall_data <- list(
     # Raw
@@ -926,80 +1134,50 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_
     raw_pub_oos_se = overall_t2_summary_raw$pub_oos_se,
     raw_outperform = overall_t2_summary_raw$outperform,
     raw_outperform_se = overall_t2_summary_raw$outperform_se,
-    
+
     # CAPM
     capm_tv_pub_oos = overall_t2_summary_capm_tv$pub_oos,
     capm_tv_pub_oos_se = overall_t2_summary_capm_tv$pub_oos_se,
     capm_tv_outperform = overall_t2_summary_capm_tv$outperform,
     capm_tv_outperform_se = overall_t2_summary_capm_tv$outperform_se,
-    
+
     # FF4
     ff4_tv_pub_oos = overall_t2_summary_ff4_tv$pub_oos,
     ff4_tv_pub_oos_se = overall_t2_summary_ff4_tv$pub_oos_se,
     ff4_tv_outperform = overall_t2_summary_ff4_tv$outperform,
     ff4_tv_outperform_se = overall_t2_summary_ff4_tv$outperform_se
   )
-  
+
   # PRE-COMPUTE RAW DISCIPLINE AND JOURNAL SUMMARIES FOR TABLES
   # Filter data to exclude Economics discipline
   discipline_mapping_filtered <- discipline_mapping %>% filter(discipline %in% c("Finance", "Accounting"))
-  
+
   # Create data with discipline column (t-stat only)
   discipline_data <- ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
     left_join(czret %>% select(signalname, rbar_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
     filter(rbar_t > t_threshold) %>%
     inner_join(discipline_mapping_filtered, by = c("pubname" = "signalname"))
-  
+
   # Raw returns with t > t_threshold filter (by discipline) - excluding Economics
-  raw_t2_summary_discipline <- discipline_data %>%
-    group_by(discipline) %>%
-    summarise(
-      n_signals = n_distinct(pubname),
-      # FIXED: Use sampstart/sampend-based periods for consistency
-      pub_oos = mean(ret[date > sampend], na.rm = TRUE),
-      pub_oos_se = {
-        n <- sum(date > sampend & !is.na(ret))
-        if (n > 1) sd(ret[date > sampend], na.rm = TRUE) / sqrt(n) else NA_real_
-      },
-      dm_oos = mean(matchRet[date > sampend], na.rm = TRUE),
-      dm_oos_se = {
-        n <- sum(date > sampend & !is.na(matchRet))
-        if (n > 1) sd(matchRet[date > sampend], na.rm = TRUE) / sqrt(n) else NA_real_
-      },
-      outperform = pub_oos - dm_oos,
-      outperform_se = sqrt(pub_oos_se^2 + dm_oos_se^2),
-      .groups = 'drop'
-    )
-  
+  raw_t2_summary_discipline <- compute_outperformance(
+    discipline_data %>% select(-discipline),
+    "ret", "matchRet", discipline_mapping_filtered, "discipline"
+  )
+
   # Filter data to exclude Economics journals
   journal_mapping_filtered <- journal_mapping %>% filter(journal_rank != "Economics")
-  
+
   # Raw returns filter (by journal) - excluding Economics (t-stat only)
   journal_data <- ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
     left_join(czret %>% select(signalname, rbar_t) %>% distinct(), by = c("pubname" = "signalname")) %>%
     filter(rbar_t > t_threshold) %>%
     inner_join(journal_mapping_filtered, by = c("pubname" = "signalname"))
-  
-  raw_t2_summary_journal <- journal_data %>%
-    group_by(journal_rank) %>%
-    summarise(
-      n_signals = n_distinct(pubname),
-      # FIXED: Use sampstart/sampend-based periods for consistency
-      pub_oos = mean(ret[date > sampend], na.rm = TRUE),
-      pub_oos_se = {
-        n <- sum(date > sampend & !is.na(ret))
-        if (n > 1) sd(ret[date > sampend], na.rm = TRUE) / sqrt(n) else NA_real_
-      },
-      dm_oos = mean(matchRet[date > sampend], na.rm = TRUE),
-      dm_oos_se = {
-        n <- sum(date > sampend & !is.na(matchRet))
-        if (n > 1) sd(matchRet[date > sampend], na.rm = TRUE) / sqrt(n) else NA_real_
-      },
-      outperform = pub_oos - dm_oos,
-      outperform_se = sqrt(pub_oos_se^2 + dm_oos_se^2),
-      .groups = 'drop'
-    )
-  
+
+  raw_t2_summary_journal <- compute_outperformance(
+    journal_data %>% select(-journal_rank),
+    "ret", "matchRet", journal_mapping_filtered, "journal_rank"
+  )
+
   # Collect time-varying discipline data (if summaries exist)
   if (exists("capm_tv_t2_summary_discipline") && exists("ff4_tv_t2_summary_discipline")) {
     tv_discipline_data <- list()
@@ -1012,13 +1190,13 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_
         raw_pub_oos_se = get_values(raw_t2_summary_discipline, "discipline", group, "pub_oos_se"),
         raw_outperform = get_values(raw_t2_summary_discipline, "discipline", group, "outperform"),
         raw_outperform_se = get_values(raw_t2_summary_discipline, "discipline", group, "outperform_se"),
-        
+
         # CAPM
         capm_tv_pub_oos = get_values(capm_tv_t2_summary_discipline, "discipline", group, "pub_oos"),
         capm_tv_pub_oos_se = get_values(capm_tv_t2_summary_discipline, "discipline", group, "pub_oos_se"),
         capm_tv_outperform = get_values(capm_tv_t2_summary_discipline, "discipline", group, "outperform"),
         capm_tv_outperform_se = get_values(capm_tv_t2_summary_discipline, "discipline", group, "outperform_se"),
-        
+
         # FF4
         ff4_tv_pub_oos = get_values(ff4_tv_t2_summary_discipline, "discipline", group, "pub_oos"),
         ff4_tv_pub_oos_se = get_values(ff4_tv_t2_summary_discipline, "discipline", group, "pub_oos_se"),
@@ -1027,7 +1205,7 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_
       )
     }
   }
-  
+
   # Collect time-varying journal data (if summaries exist)
   if (exists("capm_tv_t2_summary_journal") && exists("ff4_tv_t2_summary_journal")) {
     tv_journal_data <- list()
@@ -1040,13 +1218,13 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_
         raw_pub_oos_se = get_values(raw_t2_summary_journal, "journal_rank", group, "pub_oos_se"),
         raw_outperform = get_values(raw_t2_summary_journal, "journal_rank", group, "outperform"),
         raw_outperform_se = get_values(raw_t2_summary_journal, "journal_rank", group, "outperform_se"),
-        
+
         # CAPM
         capm_tv_pub_oos = get_values(capm_tv_t2_summary_journal, "journal_rank", group, "pub_oos"),
         capm_tv_pub_oos_se = get_values(capm_tv_t2_summary_journal, "journal_rank", group, "pub_oos_se"),
         capm_tv_outperform = get_values(capm_tv_t2_summary_journal, "journal_rank", group, "outperform"),
         capm_tv_outperform_se = get_values(capm_tv_t2_summary_journal, "journal_rank", group, "outperform_se"),
-        
+
         # FF4
         ff4_tv_pub_oos = get_values(ff4_tv_t2_summary_journal, "journal_rank", group, "pub_oos"),
         ff4_tv_pub_oos_se = get_values(ff4_tv_t2_summary_journal, "journal_rank", group, "pub_oos_se"),
@@ -1055,7 +1233,7 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_
       )
     }
   }
-  
+
   # Collect time-varying Any Model vs No Model data (if model summaries exist)
   if (exists("capm_tv_t2_summary_model") && exists("ff4_tv_t2_summary_model")) {
     tv_anymodel_data <- list(
@@ -1064,90 +1242,33 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_
       raw_pub_oos_se = get_values(raw_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos_se"),
       raw_outperform = get_values(raw_t2_summary_model, "modeltype_grouped", "No Model", "outperform"),
       raw_outperform_se = get_values(raw_t2_summary_model, "modeltype_grouped", "No Model", "outperform_se"),
-      
+
       capm_tv_pub_oos = get_values(capm_tv_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos"),
       capm_tv_pub_oos_se = get_values(capm_tv_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos_se"),
       capm_tv_outperform = get_values(capm_tv_t2_summary_model, "modeltype_grouped", "No Model", "outperform"),
       capm_tv_outperform_se = get_values(capm_tv_t2_summary_model, "modeltype_grouped", "No Model", "outperform_se"),
-      
+
       ff4_tv_pub_oos = get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos"),
       ff4_tv_pub_oos_se = get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "No Model", "pub_oos_se"),
       ff4_tv_outperform = get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "No Model", "outperform"),
       ff4_tv_outperform_se = get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "No Model", "outperform_se")
     )
-    
-    # For Any Model, combine Stylized and Dynamic/Quantitative
-    anymodel_capm_tv_pub_oos <- mean(c(
-      get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"),
-      get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos")
-    ), na.rm = TRUE)
-    
-    anymodel_capm_tv_outperform <- mean(c(
-      get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"),
-      get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform")
-    ), na.rm = TRUE)
-    
-    anymodel_ff4_tv_pub_oos <- mean(c(
-      get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"),
-      get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos")
-    ), na.rm = TRUE)
-    
-    anymodel_ff4_tv_outperform <- mean(c(
-      get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"),
-      get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform")
-    ), na.rm = TRUE)
-    
-    # Approximate standard errors for Any Model (using pooled variance)
-    anymodel_capm_tv_pub_oos_se <- sqrt(mean(c(
-      get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos_se")^2,
-      get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos_se")^2
-    ), na.rm = TRUE))
-    
-    anymodel_capm_tv_outperform_se <- sqrt(mean(c(
-      get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Stylized", "outperform_se")^2,
-      get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform_se")^2
-    ), na.rm = TRUE))
-    
-    anymodel_ff4_tv_pub_oos_se <- sqrt(mean(c(
-      get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos_se")^2,
-      get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos_se")^2
-    ), na.rm = TRUE))
-    
-    anymodel_ff4_tv_outperform_se <- sqrt(mean(c(
-      get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Stylized", "outperform_se")^2,
-      get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform_se")^2
-    ), na.rm = TRUE))
-    
+
+    # Any Model is estimated on the pooled signal-month panel. It is not an
+    # equal-weighted average of the two displayed model subgroups.
     tv_anymodel_any <- list(
-      # Raw
-      raw_pub_oos = mean(c(
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"),
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos")
-      ), na.rm = TRUE),
-      raw_pub_oos_se = sqrt(mean(c(
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos_se")^2,
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos_se")^2
-      ), na.rm = TRUE)),
-      raw_outperform = mean(c(
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"),
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform")
-      ), na.rm = TRUE),
-      raw_outperform_se = sqrt(mean(c(
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "outperform_se")^2,
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform_se")^2
-      ), na.rm = TRUE)),
-      
-      # CAPM
-      capm_tv_pub_oos = anymodel_capm_tv_pub_oos,
-      capm_tv_pub_oos_se = anymodel_capm_tv_pub_oos_se,
-      capm_tv_outperform = anymodel_capm_tv_outperform,
-      capm_tv_outperform_se = anymodel_capm_tv_outperform_se,
-      
-      # FF4
-      ff4_tv_pub_oos = anymodel_ff4_tv_pub_oos,
-      ff4_tv_pub_oos_se = anymodel_ff4_tv_pub_oos_se,
-      ff4_tv_outperform = anymodel_ff4_tv_outperform,
-      ff4_tv_outperform_se = anymodel_ff4_tv_outperform_se
+      raw_pub_oos = get_values(raw_t2_summary_anymodel, "model_binary", "Any Model", "pub_oos"),
+      raw_pub_oos_se = get_values(raw_t2_summary_anymodel, "model_binary", "Any Model", "pub_oos_se"),
+      raw_outperform = get_values(raw_t2_summary_anymodel, "model_binary", "Any Model", "outperform"),
+      raw_outperform_se = get_values(raw_t2_summary_anymodel, "model_binary", "Any Model", "outperform_se"),
+      capm_tv_pub_oos = get_values(capm_tv_t2_summary_anymodel, "model_binary", "Any Model", "pub_oos"),
+      capm_tv_pub_oos_se = get_values(capm_tv_t2_summary_anymodel, "model_binary", "Any Model", "pub_oos_se"),
+      capm_tv_outperform = get_values(capm_tv_t2_summary_anymodel, "model_binary", "Any Model", "outperform"),
+      capm_tv_outperform_se = get_values(capm_tv_t2_summary_anymodel, "model_binary", "Any Model", "outperform_se"),
+      ff4_tv_pub_oos = get_values(ff4_tv_t2_summary_anymodel, "model_binary", "Any Model", "pub_oos"),
+      ff4_tv_pub_oos_se = get_values(ff4_tv_t2_summary_anymodel, "model_binary", "Any Model", "pub_oos_se"),
+      ff4_tv_outperform = get_values(ff4_tv_t2_summary_anymodel, "model_binary", "Any Model", "outperform"),
+      ff4_tv_outperform_se = get_values(ff4_tv_t2_summary_anymodel, "model_binary", "Any Model", "outperform_se")
     )
   }
 }
@@ -1165,25 +1286,10 @@ discipline_data <- ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
   inner_join(discipline_mapping_filtered, by = c("pubname" = "signalname"))
 
 # Raw returns with t > t_threshold filter (by discipline) - excluding Economics
-raw_t2_summary_discipline <- discipline_data %>%
-  group_by(discipline) %>%
-  summarise(
-    n_signals = n_distinct(pubname),
-    # FIXED: Use sampstart/sampend-based periods for consistency
-    pub_oos = mean(ret[date > sampend], na.rm = TRUE),
-    pub_oos_se = {
-      n <- sum(date > sampend & !is.na(ret))
-      if (n > 1) sd(ret[date > sampend], na.rm = TRUE) / sqrt(n) else NA_real_
-    },
-    dm_oos = mean(matchRet[date > sampend], na.rm = TRUE),
-    dm_oos_se = {
-      n <- sum(date > sampend & !is.na(matchRet))
-      if (n > 1) sd(matchRet[date > sampend], na.rm = TRUE) / sqrt(n) else NA_real_
-    },
-    outperform = pub_oos - dm_oos,
-    outperform_se = sqrt(pub_oos_se^2 + dm_oos_se^2),
-    .groups = 'drop'
-  )
+raw_t2_summary_discipline <- compute_outperformance(
+  discipline_data %>% select(-discipline),
+  "ret", "matchRet", discipline_mapping_filtered, "discipline"
+)
 
 
 
@@ -1198,25 +1304,10 @@ journal_data <- ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
   filter(rbar_t > t_threshold) %>%
   inner_join(journal_mapping_filtered, by = c("pubname" = "signalname"))
 
-raw_t2_summary_journal <- journal_data %>%
-  group_by(journal_rank) %>%
-  summarise(
-    n_signals = n_distinct(pubname),
-    # FIXED: Use sampstart/sampend-based periods for consistency
-    pub_oos = mean(ret[date > sampend], na.rm = TRUE),
-    pub_oos_se = {
-      n <- sum(date > sampend & !is.na(ret))
-      if (n > 1) sd(ret[date > sampend], na.rm = TRUE) / sqrt(n) else NA_real_
-    },
-    dm_oos = mean(matchRet[date > sampend], na.rm = TRUE),
-    dm_oos_se = {
-      n <- sum(date > sampend & !is.na(matchRet))
-      if (n > 1) sd(matchRet[date > sampend], na.rm = TRUE) / sqrt(n) else NA_real_
-    },
-    outperform = pub_oos - dm_oos,
-    outperform_se = sqrt(pub_oos_se^2 + dm_oos_se^2),
-    .groups = 'drop'
-  )
+raw_t2_summary_journal <- compute_outperformance(
+  journal_data %>% select(-journal_rank),
+  "ret", "matchRet", journal_mapping_filtered, "journal_rank"
+)
 
 
 
@@ -1227,19 +1318,19 @@ cat("\nPost-Sample Return (t>", t_threshold, ")     Outperformance vs Data-Minin
 cat("                Raw\n")
 cat("Discipline\n")
 
-groups_discipline <- c("Finance", "Accounting") 
+groups_discipline <- c("Finance", "Accounting")
 for(group in groups_discipline) {
   # Post-sample returns
   raw_ret <- round(get_values(raw_t2_summary_discipline, "discipline", group, "pub_oos"))
-  
+
   # Outperformance
   raw_out <- round(get_values(raw_t2_summary_discipline, "discipline", group, "outperform"))
-  
-  # Standard errors  
+
+  # Standard errors
   raw_se <- round(get_values(raw_t2_summary_discipline, "discipline", group, "pub_oos_se"))
-  
+
   raw_out_se <- round(get_values(raw_t2_summary_discipline, "discipline", group, "outperform_se"))
-  
+
   cat(sprintf("%-12s %4s   %4s\n",
               group, raw_ret, raw_out))
   cat(sprintf("%-12s (%2s)   (%2s)\n",
@@ -1251,178 +1342,99 @@ groups_journal <- c("JF, JFE, RFS", "AR, JAR, JAE", "Other")
 for(group in groups_journal) {
   # Post-sample returns
   raw_ret <- round(get_values(raw_t2_summary_journal, "journal_rank", group, "pub_oos"))
-  
+
   # Outperformance
   raw_out <- round(get_values(raw_t2_summary_journal, "journal_rank", group, "outperform"))
-  
-  # Standard errors  
+
+  # Standard errors
   raw_se <- round(get_values(raw_t2_summary_journal, "journal_rank", group, "pub_oos_se"))
-  
+
   raw_out_se <- round(get_values(raw_t2_summary_journal, "journal_rank", group, "outperform_se"))
-  
+
   cat(sprintf("%-12s %4s   %4s\n",
               group, raw_ret, raw_out))
   cat(sprintf("%-12s (%2s)   (%2s)\n",
               "", raw_se, raw_out_se))
 }
 
-# Export tables to CSV and LaTeX -------------------------------------------------------
-
-# REFACTORED TABLE CREATION USING NEW HELPER FUNCTIONS
-
-# Build main summary table using refactored approach
-main_groups <- c("Risk", "Mispricing", "Agnostic", "No Model", "Stylized", "Dynamic or Quantitative")
-main_categories <- c(rep("Theoretical Foundation", 3), rep("Modeling Formalism", 3))
-
-# Collect theory summaries
-theory_summaries <- list(
-  raw = raw_t2_summary_theory
-)
-
-# Collect model summaries
-model_summaries <- list(
-  raw = raw_t2_summary_model
-)
-
-# Build data for each group
-main_table_data <- list()
-for (i in 1:length(main_groups)) {
-  group <- main_groups[i]
-  
-  if (i <= 3) {
-    # Theory groups
-    main_table_data[[i]] <- build_table_row(theory_summaries, group, "theory_group")
-  } else {
-    # Model groups
-    model_group <- main_groups[i]
-    main_table_data[[i]] <- build_table_row(model_summaries, model_group, "modeltype_grouped")
-  }
+# Assemble unrounded full-sample summaries for audit and paper renderers.
+bundle_group_summaries <- function(raw, capm, ff3, group_col, group) {
+  list(
+    raw_pub_oos = get_values(raw, group_col, group, "pub_oos"),
+    raw_pub_oos_se = get_values(raw, group_col, group, "pub_oos_se"),
+    raw_outperform = get_values(raw, group_col, group, "outperform"),
+    raw_outperform_se = get_values(raw, group_col, group, "outperform_se"),
+    capm_fs_pub_oos = get_values(capm, group_col, group, "pub_oos"),
+    capm_fs_pub_oos_se = get_values(capm, group_col, group, "pub_oos_se"),
+    capm_fs_outperform = get_values(capm, group_col, group, "outperform"),
+    capm_fs_outperform_se = get_values(capm, group_col, group, "outperform_se"),
+    ff3_fs_pub_oos = get_values(ff3, group_col, group, "pub_oos"),
+    ff3_fs_pub_oos_se = get_values(ff3, group_col, group, "pub_oos_se"),
+    ff3_fs_outperform = get_values(ff3, group_col, group, "outperform"),
+    ff3_fs_outperform_se = get_values(ff3, group_col, group, "outperform_se")
+  )
 }
 
-# Add overall row
-overall_data <- list(
+fs_theory_data <- setNames(lapply(groups_theory, function(group) {
+  bundle_group_summaries(
+    raw_t2_summary_theory, capm_fs_t2_summary_theory,
+    ff3_fs_t2_summary_theory, "theory_group", group
+  )
+}), groups_theory)
+fs_model_data <- setNames(lapply(groups_model, function(group) {
+  bundle_group_summaries(
+    raw_t2_summary_model, capm_fs_t2_summary_model,
+    ff3_fs_t2_summary_model, "modeltype_grouped", group
+  )
+}), groups_model)
+fs_discipline_data <- setNames(lapply(groups_discipline, function(group) {
+  bundle_group_summaries(
+    raw_t2_summary_discipline, capm_fs_t2_summary_discipline,
+    ff3_fs_t2_summary_discipline, "discipline", group
+  )
+}), groups_discipline)
+fs_journal_data <- setNames(lapply(groups_journal, function(group) {
+  bundle_group_summaries(
+    raw_t2_summary_journal, capm_fs_t2_summary_journal,
+    ff3_fs_t2_summary_journal, "journal_rank", group
+  )
+}), groups_journal)
+fs_anymodel_data <- setNames(lapply(anymodel_groups, function(group) {
+  bundle_group_summaries(
+    raw_t2_summary_anymodel, capm_fs_t2_summary_anymodel,
+    ff3_fs_t2_summary_anymodel, "model_binary", group
+  )
+}), anymodel_groups)
+fs_overall_data <- list(
   raw_pub_oos = overall_t2_summary_raw$pub_oos,
   raw_pub_oos_se = overall_t2_summary_raw$pub_oos_se,
   raw_outperform = overall_t2_summary_raw$outperform,
-  raw_outperform_se = overall_t2_summary_raw$outperform_se
+  raw_outperform_se = overall_t2_summary_raw$outperform_se,
+  capm_fs_pub_oos = overall_t2_summary_capm_fs$pub_oos,
+  capm_fs_pub_oos_se = overall_t2_summary_capm_fs$pub_oos_se,
+  capm_fs_outperform = overall_t2_summary_capm_fs$outperform,
+  capm_fs_outperform_se = overall_t2_summary_capm_fs$outperform_se,
+  ff3_fs_pub_oos = overall_t2_summary_ff3_fs$pub_oos,
+  ff3_fs_pub_oos_se = overall_t2_summary_ff3_fs$pub_oos_se,
+  ff3_fs_outperform = overall_t2_summary_ff3_fs$outperform,
+  ff3_fs_outperform_se = overall_t2_summary_ff3_fs$outperform_se
 )
 
-main_categories <- c(main_categories, "Overall")
-main_groups <- c(main_groups, "All")
-main_table_data[[length(main_table_data) + 1]] <- overall_data
-
-# Create the main table using the new build_summary_table function
-export_table_main <- build_summary_table(
-  categories = main_categories,
-  groups = main_groups,
-  summaries = main_table_data,
-  analysis_types = c("raw"),
-  format_latex = TRUE,
-  digits = 0
+fs_theory_model_table <- build_full_sample_summary_table(
+  c(rep("Theoretical Explanation", 3), rep("Modeling Formalism", 3), "Overall"),
+  c(groups_theory, groups_model, "All"),
+  c(fs_theory_data, fs_model_data, list(fs_overall_data))
+)
+fs_discipline_journal_table <- build_full_sample_summary_table(
+  c(rep("Discipline", 2), rep("Journal Rank", 3)),
+  c(groups_discipline, groups_journal),
+  c(fs_discipline_data, fs_journal_data)
+)
+fs_anymodel_table <- build_full_sample_summary_table(
+  c("", ""), anymodel_groups, fs_anymodel_data
 )
 
-# Build discipline/journal table using refactored approach
-discipline_groups <- c("Finance", "Accounting")
-discipline_categories <- rep("Discipline", 2)
-
-journal_groups <- c("JF, JFE, RFS", "AR, JAR, JAE", "Other")
-journal_categories <- rep("Journal Ranking", 3)
-
-# Collect discipline summaries
-discipline_summaries <- list(
-  raw = raw_t2_summary_discipline
-)
-
-# Collect journal summaries  
-journal_summaries <- list(
-  raw = raw_t2_summary_journal
-)
-
-# Build discipline data
-discipline_table_data <- list()
-for (i in 1:length(discipline_groups)) {
-  discipline_table_data[[i]] <- build_table_row(discipline_summaries, discipline_groups[i], "discipline")
-}
-
-# Build journal data
-for (i in 1:length(journal_groups)) {
-  discipline_table_data[[length(discipline_table_data) + 1]] <- build_table_row(journal_summaries, journal_groups[i], "journal_rank")
-}
-
-# Create the discipline/journal table
-export_table_discipline <- build_summary_table(
-  categories = c(discipline_categories, journal_categories),
-  groups = c(discipline_groups, journal_groups),
-  summaries = discipline_table_data,
-  analysis_types = c("raw"),
-  format_latex = TRUE,
-  digits = 0
-)
-
-# [Old repetitive code with 66+ format_with_se(get_values(...)) calls removed]
-# Now using the refactored build_summary_table() function above 
-# Export to CSV and LaTeX using new multi-format function
-# Format file suffix based on t-stat threshold
-file_suffix <- paste0("_ff4_t", t_threshold)
-
-# Export main theory/model table in multiple formats
-export_tables_multi_format(
-  export_table_main,
-  base_filename = paste0(results_dir, "/Table_RiskAdjusted_TheoryModel", file_suffix),
-  formats = c("csv", "latex"),
-  latex_options = list(
-    caption = "Risk-Adjusted Returns: Theoretical Foundation and Modeling Formalism",
-    label = "tab:risk_adjusted_theory_model",
-    group_headers = list(
-      list(title = "Post-Sample Return", span = 1),
-      list(title = "Outperformance vs Data-Mining", span = 1)
-    )
-  )
-)
-
-# Export discipline/journal table in multiple formats  
-export_tables_multi_format(
-  export_table_discipline,
-  base_filename = paste0(results_dir, "/Table_RiskAdjusted_DisciplineJournal", file_suffix),
-  formats = c("csv", "latex"),
-  latex_options = list(
-    caption = "Risk-Adjusted Returns: Discipline and Journal Rankings",
-    label = "tab:risk_adjusted_discipline_journal",
-    group_headers = list(
-      list(title = "Post-Sample Return", span = 1),
-      list(title = "Outperformance vs Data-Mining", span = 1)
-    )
-  )
-)
-
-# Create and export the Any Model vs No Model table
-if (exists("anymodel_table_data")) {
-  export_table_anymodel <- build_summary_table(
-    categories = rep("", length(anymodel_groups)),  # No categories for this table
-    groups = anymodel_groups,
-    summaries = anymodel_table_data,
-    analysis_types = c("raw"),
-    format_latex = TRUE,
-    digits = 0
-  )
-  
-  # Export Any Model vs No Model table in multiple formats
-  export_tables_multi_format(
-    export_table_anymodel %>% select(-Category),  # Remove empty Category column
-    base_filename = paste0(results_dir, "/Table_RiskAdjusted_AnyModelVsNoModel", file_suffix),
-    formats = c("csv", "latex"),
-    latex_options = list(
-      caption = "Risk-Adjusted Returns: Any Model vs No Model",
-      label = "tab:risk_adjusted_anymodel",
-      group_headers = list(
-        list(title = "Post-Sample Return", span = 1),
-        list(title = "Outperformance vs Data-Mining", span = 1)
-      )
-    )
-  )
-}
-
-# Export time-varying tables if they exist
+# Build the three retained time-varying tables in memory, then render below.
 if (exists("tv_theory_data") && exists("tv_model_data")) {
   # Combine theory and model data
   tv_categories <- c(rep("Theoretical Foundation", length(groups_theory)),
@@ -1430,7 +1442,7 @@ if (exists("tv_theory_data") && exists("tv_model_data")) {
                      "Overall")
   tv_groups <- c(groups_theory, groups_model, "All")
   tv_all_data <- c(tv_theory_data, tv_model_data, list(tv_overall_data))
-  
+
   # Create time-varying table
   export_table_tv <- build_tv_summary_table(
     categories = tv_categories,
@@ -1438,31 +1450,16 @@ if (exists("tv_theory_data") && exists("tv_model_data")) {
     summaries = tv_all_data,
     digits = 0
   )
-  
+
   # Export time-varying table (remove FF3 columns for FF4 analysis)
   export_table_tv_ff4 <- export_table_tv %>% select(-matches("^FF3_"))
-  export_tables_multi_format(
-    export_table_tv_ff4,
-    base_filename = paste0(results_dir, "/Table_RiskAdjusted_TimeVarying", file_suffix),
-    formats = c("csv", "latex"),
-    latex_options = list(
-      caption = "Risk-Adjusted Returns: Theoretical Foundation and Modeling Formalism",
-      label = "tab:risk_adjusted_tv",
-      group_headers = list(
-        list(title = "Raw", span = 2),
-        list(title = "CAPM", span = 2),
-        list(title = "FF4", span = 2)
-      )
-    )
-  )
-  
   # Export time-varying discipline/journal table if data exists
   if (exists("tv_discipline_data") && exists("tv_journal_data")) {
     # Combine discipline and journal data
     tv_dj_categories <- c(rep("Discipline", 2), rep("Journal Rank", 3))
     tv_dj_groups <- c("Finance", "Accounting", "JF, JFE, RFS", "AR, JAR, JAE", "Other")
     tv_dj_all_data <- c(tv_discipline_data, tv_journal_data)
-    
+
     # Create time-varying discipline/journal table
     export_table_tv_dj <- build_tv_summary_table(
       categories = tv_dj_categories,
@@ -1470,149 +1467,137 @@ if (exists("tv_theory_data") && exists("tv_model_data")) {
       summaries = tv_dj_all_data,
       digits = 0
     )
-    
+
     # Export time-varying discipline/journal table (remove FF3 columns for FF4 analysis)
     export_table_tv_dj_ff4 <- export_table_tv_dj %>% select(-matches("^FF3_"))
-    export_tables_multi_format(
-      export_table_tv_dj_ff4,
-      base_filename = paste0(results_dir, "/Table_RiskAdjusted_TimeVarying_DisciplineJournal", file_suffix),
-      formats = c("csv", "latex"),
-      latex_options = list(
-        caption = "Risk-Adjusted Returns: Discipline and Journal Rank",
-        label = "tab:risk_adjusted_tv_dj",
-        group_headers = list(
-          list(title = "Raw", span = 2),
-          list(title = "CAPM", span = 2),
-          list(title = "FF4", span = 2)
-        )
-      )
-    )
   }
-  
+
   # Export time-varying Any Model vs No Model table if data exists
   if (exists("tv_anymodel_data")) {
-    # Create time-varying Any Model vs No Model table
-    tv_am_categories <- c("")
-    tv_am_groups <- c("No Model")
-    tv_am_all_data <- list(tv_anymodel_data)
-    
-    # Add Any Model data 
-    # Calculate Any Model averages from Stylized and Dynamic or Quantitative
-    tv_anymodel_any <- list(
-      # Raw
-      raw_pub_oos = mean(c(
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"),
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos")
-      ), na.rm = TRUE),
-      raw_pub_oos_se = sqrt(mean(c(
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos_se")^2,
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos_se")^2
-      ), na.rm = TRUE)),
-      raw_outperform = mean(c(
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"),
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform")
-      ), na.rm = TRUE),
-      raw_outperform_se = sqrt(mean(c(
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "outperform_se")^2,
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform_se")^2
-      ), na.rm = TRUE)),
-      
-      # CAPM
-      capm_tv_pub_oos = mean(c(
-        get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"),
-        get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos")
-      ), na.rm = TRUE),
-      capm_tv_pub_oos_se = sqrt(mean(c(
-        get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos_se")^2,
-        get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos_se")^2
-      ), na.rm = TRUE)),
-      capm_tv_outperform = mean(c(
-        get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"),
-        get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform")
-      ), na.rm = TRUE),
-      capm_tv_outperform_se = sqrt(mean(c(
-        get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Stylized", "outperform_se")^2,
-        get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform_se")^2
-      ), na.rm = TRUE)),
-      
-      # FF4
-      ff4_tv_pub_oos = mean(c(
-        get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"),
-        get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos")
-      ), na.rm = TRUE),
-      ff4_tv_pub_oos_se = sqrt(mean(c(
-        get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos_se")^2,
-        get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos_se")^2
-      ), na.rm = TRUE)),
-      ff4_tv_outperform = mean(c(
-        get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"),
-        get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform")
-      ), na.rm = TRUE),
-      ff4_tv_outperform_se = sqrt(mean(c(
-        get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Stylized", "outperform_se")^2,
-        get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform_se")^2
-      ), na.rm = TRUE))
-    )
-    
     tv_am_categories <- c("", "")
     tv_am_groups <- c("No Model", "Any Model")
     tv_am_all_data <- list(tv_anymodel_data, tv_anymodel_any)
-    
+
     export_table_tv_am <- build_tv_summary_table(
       categories = tv_am_categories,
       groups = tv_am_groups,
       summaries = tv_am_all_data,
       digits = 0
     )
-    
+
     # Export time-varying Any Model vs No Model table (remove FF3 columns for FF4 analysis)
     export_table_tv_am_ff4 <- export_table_tv_am %>% select(-matches("^FF3_"))
-    export_tables_multi_format(
-      export_table_tv_am_ff4,
-      base_filename = paste0(results_dir, "/Table_RiskAdjusted_TimeVarying_AnyModelVsNoModel", file_suffix),
-      formats = c("csv", "latex"),
-      latex_options = list(
-        caption = "Risk-Adjusted Returns: Any Model vs No Model",
-        label = "tab:risk_adjusted_tv_anymodel",
-        group_headers = list(
-          list(title = "Raw", span = 2),
-          list(title = "CAPM", span = 2),
-          list(title = "FF4", span = 2)
-        )
-      )
-    )
   }
 }
 
-# Also export the raw summary data for reference (CSV only for raw data)
-# Using a loop to reduce repetition
-summary_data_list <- list(
-  list(data = raw_t2_summary_theory, name = "Raw_TheoryGroup"),
-  list(data = raw_t2_summary_model, name = "Raw_ModelGroup"),
-  list(data = raw_t2_summary_discipline, name = "Raw_Discipline"),
-  list(data = raw_t2_summary_journal, name = "Raw_Journal")
+# Render the retained output contract ----------------------------------
+file_suffix <- paste0("_ff4_t", t_threshold)
+headers <- list(
+  list(title = "Raw", span = 2),
+  list(title = "CAPM", span = 2),
+  list(title = "FF4", span = 2)
 )
 
-# Export all summary data efficiently
-for (item in summary_data_list) {
-  write.csv(item$data, paste0(results_dir, "/", item$name, file_suffix, ".csv"), row.names = FALSE)
-}
+export_audit_tabular(
+  export_table_tv_ff4,
+  file.path(results_dir, paste0("Table_RiskAdjusted_TimeVarying", file_suffix)),
+  headers
+)
 
-cat("\n=== EXPORTED TABLES ===\n")
-cat(paste("All files saved in:", results_dir, "\n"))
-cat("\nMain summary tables:\n")
-cat(paste0("- Table_RiskAdjusted_TheoryModel", file_suffix, ".csv and .tex\n"))
-cat(paste0("- Table_RiskAdjusted_DisciplineJournal", file_suffix, ".csv and .tex\n"))
-cat(paste0("- Table_RiskAdjusted_AnyModelVsNoModel", file_suffix, ".csv and .tex\n"))
-if (exists("tv_theory_data")) {
-  cat(paste0("- Table_RiskAdjusted_TimeVarying", file_suffix, ".csv and .tex\n"))
-}
-cat("\nDetailed breakdowns:\n")
-cat("- Raw/CAPM/FF4 by TheoryGroup/ModelGroup/Discipline/Journal (12 files)\n")
-cat("\nPlots generated:\n")
-plot_files <- list.files(results_dir, pattern = "^Fig_RiskAdj_.*\\.pdf$", full.names = FALSE)
-if (length(plot_files) == 0) {
-  cat("- None found\n")
-} else {
-  cat(paste0("- ", plot_files, "\n"), sep = "")
-}
+# Paper-facing fragments preserve the manuscript's headings and row order.
+# Name the unrounded summaries here so the renderer never parses audit files.
+names(tv_theory_data) <- groups_theory
+names(tv_model_data) <- groups_model
+names(tv_discipline_data) <- c("Finance", "Accounting")
+names(tv_journal_data) <- c("JF, JFE, RFS", "AR, JAR, JAE", "Other")
+tv_anymodel_named <- list(
+  "No Model" = tv_anymodel_data,
+  "Any Model" = tv_anymodel_any
+)
+
+write_paper_theory_model_tabular(
+  tv_theory_data,
+  tv_model_data,
+  tv_overall_data,
+  file.path("../Results", paste0("Table_RiskAdjusted_TimeVarying", file_suffix, ".tex"))
+)
+write_paper_discipline_journal_tabular(
+  tv_discipline_data,
+  tv_journal_data,
+  file.path(
+    "../Results",
+    paste0("Table_RiskAdjusted_TimeVarying_DisciplineJournal", file_suffix, ".tex")
+  )
+)
+write_paper_anymodel_tabular(
+  tv_anymodel_named,
+  file.path(
+    "../Results",
+    paste0("Table_RiskAdjusted_TimeVarying_AnyModelVsNoModel", file_suffix, ".tex")
+  )
+)
+export_audit_tabular(
+  export_table_tv_dj_ff4,
+  file.path(
+    results_dir,
+    paste0("Table_RiskAdjusted_TimeVarying_DisciplineJournal", file_suffix)
+  ),
+  headers
+)
+export_audit_tabular(
+  export_table_tv_am_ff4,
+  file.path(
+    results_dir,
+    paste0("Table_RiskAdjusted_TimeVarying_AnyModelVsNoModel", file_suffix)
+  ),
+  headers
+)
+
+full_sample_suffix <- paste0("_t", t_threshold)
+full_sample_headers <- list(
+  list(title = "Raw", span = 2),
+  list(title = "CAPM", span = 2),
+  list(title = "FF3", span = 2)
+)
+export_audit_tabular(
+  fs_theory_model_table,
+  file.path(
+    full_sample_results_dir,
+    paste0("Table_RiskAdjusted_FullSample", full_sample_suffix)
+  ),
+  full_sample_headers
+)
+export_audit_tabular(
+  fs_discipline_journal_table,
+  file.path(
+    full_sample_results_dir,
+    paste0("Table_RiskAdjusted_FullSample_DisciplineJournal", full_sample_suffix)
+  ),
+  full_sample_headers
+)
+export_audit_tabular(
+  fs_anymodel_table,
+  file.path(
+    full_sample_results_dir,
+    paste0("Table_RiskAdjusted_FullSample_AnyModelVsNoModel", full_sample_suffix)
+  ),
+  full_sample_headers
+)
+
+write_paper_fullsample_theory_model_tabular(
+  fs_theory_data,
+  fs_model_data,
+  fs_overall_data,
+  "../Results/Table_RiskAdjusted_FullSample_Appendix.tex"
+)
+write_paper_fullsample_discipline_journal_tabular(
+  fs_discipline_data,
+  fs_journal_data,
+  "../Results/Table_RiskAdjusted_FullSample_DisciplineJournal_Appendix.tex"
+)
+write_paper_fullsample_anymodel_tabular(
+  fs_anymodel_data,
+  "../Results/Table_RiskAdjusted_FullSample_AnyModelVsNoModel_Appendix.tex"
+)
+
+message("Wrote source artifacts for Tables 6, 7, IA.6, IA.7, IA.10, and IA.11.")

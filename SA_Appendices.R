@@ -23,6 +23,10 @@ if (length(missing_files) > 0) {
     ". Run the required upstream chapter first."
   )
 }
+if ("--preflight-only" %in% commandArgs(trailingOnly = TRUE)) {
+  message("Appendix preflight passed.")
+  quit(save = "no", status = 0)
+}
 
 run_script <- function(path) {
   message("\n--- Appendices: ", path, " ---")
