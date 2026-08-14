@@ -19,9 +19,11 @@ DMname = paste0('../Data/Processed/',
 t_tol = globalSettings$t_tol
 r_tol = globalSettings$r_tol
 
-# tolerance relative to op stat
-t_reltol = 0.1
-r_reltol = 0.3
+# Relative tolerances for the canonical matched-uncorr benchmark. Chapter 2
+# constructs the candidate pair set; Chapter 3 adds its history/correlation
+# screens once and caches the common panel used by Figure 2(c) and Tables 3--4.
+t_reltol = globalSettings$matched_uncorr_t_reltol
+r_reltol = globalSettings$matched_uncorr_r_reltol
 
 minNumStocks = globalSettings$minNumStocks
 ncores = globalSettings$num_cores

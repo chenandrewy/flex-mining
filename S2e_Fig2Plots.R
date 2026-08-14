@@ -4,7 +4,7 @@
 #
 # How to run: normally run through S2_ResearchVsDataMining.R from flex-mining/.
 # Inputs:  ../Data/Processed/fig2_panel_agg.RDS
-# Outputs (../Results/Fig2/):
+# Outputs (../Results/):
 #   Fig2a_FactorAdj.pdf            Fig2a_FactorAdj_CI.pdf
 #   Fig2b_PubSampleLimits.pdf      Fig2b_PubSampleLimits_CI.pdf
 #   Fig2c_MatchedExclCorr.pdf      Fig2c_MatchedExclCorr_CI.pdf
@@ -16,7 +16,8 @@ source('helpers/fig2_helpers.R')
 
 fig2_agg = readRDS('../Data/Processed/fig2_panel_agg.RDS')
 
-outdir = '../Results/Fig2'
+# An override permits figure validation without touching ../Results.
+outdir = Sys.getenv('FIG2_OUTPUT_DIR', unset = '../Results')
 dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
 
 # Lines intended for direct comparison share a hue and differ by linetype:
@@ -73,7 +74,8 @@ for (pk in names(panels)) {
   p = panels[[pk]]
   agg = fig2_agg %>% filter(panel == pk)
 
-  for (civ in c('none', 'all')) {
+  ci_variants = if (is.null(p$ci_variants)) c('none', 'all') else p$ci_variants
+  for (civ in ci_variants) {
     # CI ribbons extend above the lines; give them extra headroom where set
     yh_used = if (civ == 'all' && !is.null(p$yh_ci)) p$yh_ci else p$yh
     plt = fig2_overlay_plot(
