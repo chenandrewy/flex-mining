@@ -6,7 +6,7 @@
 # Outputs: Section 4b inspect-*.tex tables under ../Results
 
 settings_env <- new.env(parent = globalenv())
-sys.source("0_Environment.R", envir = settings_env)
+sys.source("config.R", envir = settings_env)
 version_prefix <- file.path(
   "../Data/Processed", settings_env$globalSettings$dataVersion
 )

@@ -33,15 +33,9 @@
 # are being migrated from hand formatting to direct R output.
 # See docs/journal/0813c,map,exhibits.md for the script -> exhibit map.
 
-run_download_and_clean       <- FALSE  # Re-pull ../Data/Raw; changes the vintage
-run_data_mining              <- FALSE  # Chapter 2; hours
-run_precompute               <- TRUE   # Chapter 3; slow reusable analysis
-run_research_vs_data_mining  <- TRUE   # Chapter 4; intro and Section 2
-run_learning                 <- TRUE   # Chapter 5; Section 3
-run_heterogeneity            <- TRUE   # Chapter 6; Section 4
-run_best_predictors          <- TRUE   # Chapter 7; Section 4b
-run_appendices               <- TRUE   # Chapter 8
-run_export_data_to_csv       <- TRUE   # Chapter 9
+# Stage switches live in config.R (runStages). Source it directly; this avoids
+# loading the analysis packages just to decide which chapters to run.
+source("config.R")
 
 run_script <- function(path) {
   message("\n=== Running ", path, " ===")
@@ -53,55 +47,55 @@ run_script <- function(path) {
 
 # Chapter 1: acquisition and cleaning ------------------------------------
 
-if (run_download_and_clean) {
+if (runStages$download_and_clean) {
   run_script("1_Download_and_Clean.R")
   run_script("1a_ValidDenoms.R")
 }
 
 # Chapter 2: mined-strategy construction ---------------------------------
 
-if (run_data_mining) {
+if (runStages$data_mining) {
   run_script("2_DataMining.R")
 }
 
 # Chapter 3: reusable analysis caches ------------------------------------
 
-if (run_precompute) {
+if (runStages$precompute) {
   run_script("3_Precompute.R")
 }
 
 # Chapter 4: research versus data mining ---------------------------------
 
-if (run_research_vs_data_mining) {
+if (runStages$research_vs_data_mining) {
   run_script("4_ResearchVsDataMining.R")
 }
 
 # Chapter 5: learning -----------------------------------------------------
 
-if (run_learning) {
+if (runStages$learning) {
   run_script("5_Learning.R")
 }
 
 # Chapter 6: heterogeneity ------------------------------------------------
 
-if (run_heterogeneity) {
+if (runStages$heterogeneity) {
   run_script("6_Heterogeneity.R")
 }
 
 # Chapter 7: best predictors ---------------------------------------------
 
-if (run_best_predictors) {
+if (runStages$best_predictors) {
   run_script("7_BestPredictors.R")
 }
 
 # Chapter 8: appendices ---------------------------------------------------
 
-if (run_appendices) {
+if (runStages$appendices) {
   run_script("8_Appendices.R")
 }
 
 # Chapter 9: data exports -------------------------------------------------
 
-if (run_export_data_to_csv) {
+if (runStages$export_data_to_csv) {
   run_script("9_ExportDataToCsv.R")
 }
