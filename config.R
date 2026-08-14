@@ -55,7 +55,7 @@ globalSettings = list(
 
   # debugging
   prep_data = T,
-  num_cores = round(.4*parallel::detectCores()),  # Adjust number of cores used as you see fit (use num_cores = 1 for serial)
+  num_cores = 4,  # Note: ~5 GB RAM per core required.
   shortlist = F,
   interactive_mode = FALSE,  # Set to TRUE for interactive execution
 
