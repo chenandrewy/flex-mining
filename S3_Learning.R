@@ -2,8 +2,8 @@
 #
 # How to run: set the working directory to flex-mining/, then
 #   Rscript S3_Learning.R
-# Inputs:  chapter-2 mined strategies and chapter-3 panels (ret_for_plot0.RDS,
-#          plotdat0.RDS, and the versioned LongShort.RData)
+# Inputs:  chapter-3 matched_uncorr_benchmark.RDS and the versioned
+#          LongShort.RData
 # Outputs: component and manuscript-layout MP-style regression tables under
 #          ../Results
 #
@@ -14,8 +14,7 @@ settings_env <- new.env(parent = globalenv())
 sys.source("config.R", envir = settings_env)
 version_prefix <- file.path("../Data/Processed", settings_env$globalSettings$dataVersion)
 required_files <- c(
-  "../Data/Processed/ret_for_plot0.RDS",
-  "../Data/Processed/plotdat0.RDS",
+  "../Data/Processed/matched_uncorr_benchmark.RDS",
   paste0(version_prefix, " LongShort.RData")
 )
 rm(settings_env)

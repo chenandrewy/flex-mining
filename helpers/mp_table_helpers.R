@@ -72,10 +72,8 @@ make_combined_table <- function(fits, timeFE, file) {
 }
 
 # Convert etable's adjacent no-time-FE/time-FE ordering into the manuscript
-# ordering, then write the pair of presentation tables. This applies unchanged
-# to baseline and tolerance variants when both scaled and unscaled fits exist.
-write_combined_mp_tables <- function(scaled_fits, unscaled_fits, output_dir,
-                                     suffix = "") {
+# ordering, then write the two official presentation tables.
+write_combined_mp_tables <- function(scaled_fits, unscaled_fits, output_dir) {
   if (length(scaled_fits) != 6L || length(unscaled_fits) != 6L) {
     stop("Each MP table variant requires six scaled and six unscaled models.")
   }
@@ -83,11 +81,11 @@ write_combined_mp_tables <- function(scaled_fits, unscaled_fits, output_dir,
   make_combined_table(
     c(scaled_fits[c(1, 3, 5)], unscaled_fits[c(1, 3, 5)]),
     timeFE = FALSE,
-    file = file.path(output_dir, paste0("Table_MPStyleRegsNoTimeFE", suffix, ".tex"))
+    file = file.path(output_dir, "Table_MPStyleRegsNoTimeFE.tex")
   )
   make_combined_table(
     c(scaled_fits[c(2, 4, 6)], unscaled_fits[c(2, 4, 6)]),
     timeFE = TRUE,
-    file = file.path(output_dir, paste0("Table_MPStyleRegsTimeFE", suffix, ".tex"))
+    file = file.path(output_dir, "Table_MPStyleRegsTimeFE.tex")
   )
 }

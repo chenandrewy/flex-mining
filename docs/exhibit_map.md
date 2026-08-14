@@ -2,10 +2,12 @@
 
 Which script builds each paper exhibit, and whether `MAIN.R` rebuilds it.
 
-- **Contract:** the paper source repository currently has 62 files in its
-  `exhibits/` directory. Its `sections/*.tex` files reference 56 of them. The
-  ten `Table_MPStyleRegs{NoTimeFE,TimeFE}*` files are R-generated; six Tol10
-  and/or floor variants are present but unused.
+- **Contract:** the paper source repository has 53 files in its `exhibits/`
+  directory, all referenced by `sections/*.tex`. The sections reference 56
+  exhibit basenames in total: the other three are time-varying risk-adjusted
+  tables read from `../Results`. The two official
+  `Table_MPStyleRegs{NoTimeFE,TimeFE}.tex` files and the individual-DM appendix
+  table are R-generated.
 - **Producer:** the script whose write target (`ggsave`, `writeLines`,
   `saveRDS`, `kbl`, …) matches the exhibit basename.
 - **In chain:** run by `MAIN.R` at the default `runStages` (config.R): stages
@@ -21,7 +23,8 @@ emits no exhibit.
 MAIN.R  (reads runStages from config.R)
   1_Download_and_Clean.R, 1a_ValidDenoms.R          [chapter 1; off by default]
   2_DataMining.R            -> 2a 2b 2c 2d           [chapter 2; off by default]
-  3_Precompute.R            -> 3a 3b 3c 3d 3e        (prep caches; no exhibits)
+  3_Precompute.R            -> 3a 3b 3c 3d_MatchedUncorr 3d_Fig2 3e
+                                                        (prep caches; no exhibits)
   S2_ResearchVsDataMining.R -> S2a S2b S2c S2d S2e
   S3_Learning.R             -> S3a S3b
   S4_Heterogeneity.R        -> S4a
@@ -33,9 +36,10 @@ MAIN.R  (reads runStages from config.R)
 `4c4_RiskAdjustedResearchVsDMPlotsTVFF4.R` is **not** run by any stage (out of
 chain); it is only used to hand-copy Tables 6, 7, and IA.10.
 
-`3d_Fig2Data.R` precomputes the standard Figure 2 series and the active Tol10
-draft comparison; `S2e_Fig2Plots.R` renders their PDFs directly into
-`../Results/`.
+`3d_MatchedUncorrData.R` builds the canonical matched-uncorr pair set and
+signal-month panel used by both `3d_Fig2Data.R` and
+`S3a_MPStyleDecayModels.R`. `S2e_Fig2Plots.R` renders the four Figure 2 panels
+and appendix confidence-interval variants into `../Results/`.
 
 ## Exhibit → producer
 
@@ -46,13 +50,11 @@ already encode their section (`IA.*` = internet appendix, `B.*` = appendix B)
 so take no prefix. Each row points to a single exhibit; Tab 1 and Fig B.2 recur
 because several producers feed one exhibit.
 
-The four `n/a`/`n/a*` rows have numbers pasted directly into the paper `.tex`,
-so their first column gives a LaTeX label rather than a file. `In chain? = n/a`
-means there is no R producer; `n/a*` additionally flags that the source-number
-producer (`4c4`) is out of chain. The `4c4` rows copy from `_ff4_t2` outputs
-under `../Results/RiskAdjusted/TstatFilter/`; Tab IA.9 comes from a spreadsheet.
-The tolerance-matched MP tables are generated artifacts too, but their former
-Tol10/Tol30 model builders and caches are not part of the refactored pipeline.
+The `n/a` row has numbers pasted directly into the paper `.tex`, so its first
+column gives a LaTeX label rather than a file. `In chain? = n/a` means there is
+no R producer. The three `4c4` rows are generated under
+`../Results/RiskAdjusted/TstatFilter/` but are out of the `MAIN.R` chain; Tab
+IA.9 comes from a spreadsheet.
 
 ### Main text
 
@@ -63,14 +65,11 @@ Tol10/Tol30 model builders and caches are not part of the refactored pipeline.
 | DM_pca.tex                                                   | Sec. 2 Tab 1                  | S2c_DMCorrelationsPCATables.R                       | yes       |
 | theme_ez_decay.tex                                           | Sec. 2 Tab 2                  | S2d_EZThemes.R                                      | yes       |
 | Fig2a/b/c/d (4)                                              | Sec. 2 Fig 2                  | S2e_Fig2Plots.R                                     | yes       |
-| Fig2c_MatchedExclCorr_Tol10.pdf                              | Sec. 2 Fig 2 draft comparison | S2e_Fig2Plots.R                                     | yes       |
 | Table_MPStyleRegsNoTimeFE.tex                                | Sec. 3 Tab 3                  | S3b_MPStyleDecayTables.R                            | yes       |
-| Table_MPStyleRegsNoTimeFE_Tol30.tex                          | Sec. 3 draft "Tab 3b"         | removed 4c22 + mp_table_helpers.R                   | no        |
 | Table_MPStyleRegsTimeFE.tex                                  | Sec. 3 Tab 4                  | S3b_MPStyleDecayTables.R                            | yes       |
-| Table_MPStyleRegsTimeFE_Tol30.tex                            | Sec. 3 draft "Tab 4b"         | removed 4c22 + mp_table_helpers.R                   | no        |
 | ApproachVsJournalsPart1/2/3.tex                              | Sec. 4 Tab 5                  | S4a_DataCounts.R                                    | yes       |
-| tab:hetero-bytheory (inline; hand-copied)                    | Sec. 4 Tab 6                  | 4c4 -> Table_RiskAdjusted_TheoryModel_ff4_t2        | n/a*      |
-| tab:hetero-byjournal (inline; hand-copied)                   | Sec. 4 Tab 7                  | 4c4 -> Table_RiskAdjusted_DisciplineJournal_ff4_t2  | n/a*      |
+| Table_RiskAdjusted_TimeVarying_ff4_t2.tex                   | Sec. 4 Tab 6                  | 4c4_RiskAdjustedResearchVsDMPlotsTVFF4.R            | no        |
+| Table_RiskAdjusted_TimeVarying_DisciplineJournal_ff4_t2.tex | Sec. 4 Tab 7                  | 4c4_RiskAdjustedResearchVsDMPlotsTVFF4.R            | no        |
 | inspect-BMdec.tex                                            | Sec. 5 Tab 8                  | S5a_InspectTables.R                                 | yes       |
 | inspect-Mom12m.tex                                           | Sec. 5 Tab 9                  | S5a_InspectTables.R                                 | yes       |
 | inspect-Size.tex                                             | Sec. 5 Tab 10                 | S5a_InspectTables.R                                 | yes       |
@@ -96,7 +95,7 @@ Tol10/Tol30 model builders and caches are not part of the refactored pipeline.
 | Table_RiskAdjusted_FullSample_DisciplineJournal_Appendix.tex | Tab IA.7                      | Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R | yes       |
 | SignalsByTheoryAndJournal.tex                                | Tab IA.8                      | S4a_DataCounts.R                                    | yes       |
 | tab:mp-theory-no-reg (inline; hand-copied)                   | Tab IA.9                      | Excel2LaTeX (sheet "MP theory")                     | n/a       |
-| tab:hetero-model (inline; hand-copied)                       | Tab IA.10                     | 4c4 -> Table_RiskAdjusted_AnyModelVsNoModel_ff4_t2  | n/a*      |
+| Table_RiskAdjusted_TimeVarying_AnyModelVsNoModel_ff4_t2.tex | Tab IA.10                     | 4c4_RiskAdjustedResearchVsDMPlotsTVFF4.R            | no        |
 | Table_RiskAdjusted_FullSample_AnyModelVsNoModel_Appendix.tex | Tab IA.11                     | Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R | yes       |
 | samp_split_summary.tex                                       | Tab IA.12                     | Appendices/SA03_StructuralBreak.R                   | yes       |
 | Fig_FullSampleRiskAdj_capm/ff3_alpha_fs_t2.pdf               | Fig IA.1                      | Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R | yes       |
@@ -107,29 +106,22 @@ Tol10/Tol30 model builders and caches are not part of the refactored pipeline.
 
 ## Gaps
 
-At its default stages, `MAIN.R` rebuilds the source outputs for all 52 regular
-generated exhibits plus the two generated baseline MP tables. It does **not**
+At its default stages, `MAIN.R` rebuilds the source outputs for all regular
+generated exhibits, including the two official matched-uncorr MP tables. It does **not**
 install those outputs into a writing-repository `exhibits/` directory; that
 directory is outside this repo and its location is deliberately unspecified.
 
-The six paper tables it does **not** produce are:
+The four paper tables it does **not** produce are:
 
-1. The two draft tolerance-matched comparisons for Tables 3 and 4. They were
-   generated by the former `4c22` workflow, whose fits are not in the current
-   S3a cache. The checked-in files remain generated artifacts, not hand copies.
-2. Tables 6, 7, IA.10 — copied by hand from out-of-chain `4c4`'s `_ff4_t2`
-   output (`4c4` is not run by any stage).
-3. Table IA.9 — from an Excel sheet; no R script.
+1. Tables 6, 7, IA.10 — generated by out-of-chain `4c4` and read from
+   `../Results` (`4c4` is not run by any stage).
+2. Table IA.9 — from an Excel sheet; no R script.
 
 ## Notes
 
-- `4c4` = `4c4_RiskAdjustedResearchVsDMPlotsTVFF4.R`. With the remaining
-  hand-copied inline rows included, every float in the compiled paper is
-  accounted for. (Fig. B.5a/B.5b are the two panels of Fig. B.5, already
-  listed.)
-- Of the 62 files currently in the paper's `exhibits/` directory, the six not
-  referenced by `sections/*.tex` are the NoTimeFE/TimeFE pairs with suffixes
-  `_Tol10`, `_Tol10Floor`, and `_Tol30Floor`.
+- `4c4` = `4c4_RiskAdjustedResearchVsDMPlotsTVFF4.R`. Every float in the
+  compiled paper is accounted for. (Fig. B.5a/B.5b are the two panels of
+  Fig. B.5, already listed.)
 - In-chain scripts that produce no exhibit are upstream prep: chapter 2
   (`2a`–`2d`), chapter 3 (`3a`–`3e`, reusable caches), and
   `Appendices/SA02`/`Appendices/SA05` (decay

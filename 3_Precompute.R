@@ -43,5 +43,6 @@ run_script <- function(path) {
 run_script("3a_ResearchVsDMPrep.R")
 run_script("3b_DataMiningSummary.R")
 run_script("3c_DMCorrelationsPCA.R")
+run_script("3d_MatchedUncorrData.R")
 run_script("3d_Fig2Data.R")
 run_script("3e_DMSpanPCA.R")

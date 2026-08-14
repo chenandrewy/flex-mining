@@ -9,7 +9,6 @@
 #   Fig2b_PubSampleLimits.pdf      Fig2b_PubSampleLimits_CI.pdf
 #   Fig2c_MatchedExclCorr.pdf      Fig2c_MatchedExclCorr_CI.pdf
 #   Fig2d_AltMining.pdf            Fig2d_AltMining_CI.pdf
-#   Fig2c_MatchedExclCorr_Tol10.pdf (active draft comparison)
 
 rm(list = ls())
 source('0_Environment.R')
@@ -17,7 +16,8 @@ source('helpers/fig2_helpers.R')
 
 fig2_agg = readRDS('../Data/Processed/fig2_panel_agg.RDS')
 
-outdir = '../Results'
+# An override permits figure validation without touching ../Results.
+outdir = Sys.getenv('FIG2_OUTPUT_DIR', unset = '../Results')
 dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
 
 # Lines intended for direct comparison share a hue and differ by linetype:
@@ -58,16 +58,6 @@ panels = list(
     yaxislab = ylaball,
     yl = -50, yh = 170, legendpos = c(40, 22) / 100,
     file = 'Fig2c_MatchedExclCorr'
-  ),
-  c10 = list(
-    series = c('Published', 'Matched, 10% t-stat and mean return',
-               'Matched and excluding correlated'),
-    colors = colors,
-    linetypes = c('solid', 'longdash', 'dashed'),
-    yaxislab = ylaball,
-    yl = -50, yh = 170, legendpos = c(40, 22) / 100,
-    file = 'Fig2c_MatchedExclCorr_Tol10',
-    ci_variants = 'none'
   ),
   d = list(
     series = c('Published', 'Top 5% |t| Mining Accounting',
