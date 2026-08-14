@@ -68,40 +68,32 @@ the master should use roughly one full core during this phase.
 
 ## Memory
 
-### Historical OOM
+Chapter 3 is the memory-critical part of the pipeline. An earlier design that
+kept a single R process alive across all stages peaked near the machine limit
+(about 62 GB) and was terminated by the out-of-memory killer during the work
+now in `3a_ResearchVsDMPrep.R`. The current design keeps memory bounded in three
+ways:
 
-The benchmark run was OOM-killed in the predecessor of
-`3a_ResearchVsDMPrep.R`: exit code 137 (SIGKILL), `oom_kill 1` in
-`/sys/fs/cgroup/memory.events`, and a 61.6 GiB peak on a 62 GB machine with no
-swap. The old pipeline kept one R process alive across all stages, so it
-carried a 19.9 GB allocator high-water mark out of `2a`. It then used a
-10-worker PSOCK cluster that serialized a multi-GB mined-return panel to every
-worker. Full historical diagnosis:
-`docs/journal/0813d,ram-issues.md`.
-
-### Current mitigations
-
-The current code addresses all three contributors to that failure:
-
-1. `MAIN.R` launches each chapter with `Rscript`, and Chapters 2-8 launch each
-   child the same way. A later stage no longer inherits `2a`'s memory floor.
+1. `MAIN.R` launches each chapter as a separate `Rscript` process, and
+   Chapters 2-8 launch each child script the same way. Memory returns to the
+   operating system at every chapter and child boundary, so a later stage never
+   inherits an earlier stage's allocator high-water mark.
 2. On Unix, `make_DM_event_returns()` and `adj_R2_with_PPCA()` use the multicore
-   backend, allowing workers to share the read-only mined-return panel through
-   copy-on-write. On non-Unix systems they retain a PSOCK fallback capped at
-   two workers.
+   (fork) backend, so workers share the read-only mined-return panel through
+   copy-on-write instead of each holding a copy. On non-Unix systems they fall
+   back to a PSOCK cluster capped at two workers.
 3. Both helpers deserialize the large mined-strategy RDS once, extract the
-   needed members, and remove the enclosing object. The old code deserialized
-   the file twice.
+   members they need, and drop the enclosing object.
 
-These changes remove the basis for the old “~5 GB per worker plus a 20 GB
-floor” sizing table. That table should not be used for the current Linux
-pipeline. Forked workers can still allocate private memory while joining and
-aggregating data, so the fix reduces the dominant duplication but does not
-make memory use free.
+Forked workers can still allocate private memory while joining and aggregating
+data, so these measures reduce the dominant duplication but do not make memory
+use free. See [Sizing parallelism](#sizing-parallelism) for how to choose
+`num_cores` against available RAM.
 
 ### Scripts to monitor
 
-The following current scripts call the large-panel helpers:
+These scripts call the large-panel helpers and are the ones to watch for peak
+memory:
 
 | Script | Large-panel work |
 |---|---|
@@ -109,25 +101,36 @@ The following current scripts call the large-panel helpers:
 | `3d_Fig2Data.R` | Two `make_DM_event_returns()` calls. |
 | `3e_DMSpanPCA.R` | One `adj_R2_with_PPCA()` call and six `make_DM_event_returns()` calls. |
 
-`4c3_ResearchVsAcctVsTicker.R` also calls `make_DM_event_returns()`, but it is
-not in the default `MAIN.R` chain.
+`4c3_ResearchVsAcctVsTicker.R` also calls `make_DM_event_returns()` but is not
+in the default `MAIN.R` chain.
 
-The current defaults use `globalSettings$num_cores`. On this Linux sandbox,
-do not lower that setting solely because of the historical PSOCK estimate.
-Instead, measure peak memory under the current fork-based implementation. If a
-specific helper still approaches the machine limit, pass it a smaller
-`ncores` value locally so the two-hour `2a` stage is not slowed unnecessarily.
+### Sizing parallelism
 
-For a clean elapsed-time measurement, run one script in a fresh process, for
-example:
+Parallel work uses `globalSettings$num_cores`. A conservative planning heuristic
+is to budget roughly 5 GB of RAM per worker and keep the total within available
+memory: for example, 4 workers on a machine with about 20 GB free. The default
+`num_cores = 4` follows this rule.
+
+Treat this as an upper-bound rule of thumb rather than a measured requirement.
+Under the Unix fork backend the large read-only panel is shared across workers
+instead of copied, so actual per-worker use is often lower; the budget mainly
+covers the private memory a worker allocates while joining and aggregating.
+
+Rather than lowering `num_cores` further pre-emptively, measure peak memory
+under the current fork-based implementation and reduce parallelism only where a
+specific helper approaches the machine limit, by passing a smaller `ncores` to
+that helper. This keeps the multi-hour `2a` stage at full core count.
+
+To measure, run one script in a fresh process:
 
 ```bash
 time Rscript 3a_ResearchVsDMPrep.R
 ```
 
-Peak RSS requires separate process monitoring in the current container because
-GNU `/usr/bin/time` is not installed. When recording new memory measurements,
-do not combine them with the historical long-lived-process figures above.
+`time` reports elapsed time; peak resident memory needs a separate monitor
+(for example `/usr/bin/time -v` where available, or sampling the process while
+it runs). Record new memory figures against the current process-per-chapter
+design rather than the earlier single-process numbers.
 
 ## Rules of thumb
 

@@ -60,7 +60,7 @@ Related findings from tonight:
      Minutes. Rerun freely while iterating on a figure.
    AC's framing was "heavy computations first" — already roughly true, `2a`
    ate 2h02m of the first 2h38m. The property actually wanted is the cache
-   boundary, so a table tweak does not cost a two-hour rebuild.
+   boundary, so a table tweak does not cost a two-hour rebuild. ✅
 4. **rationalize settings**: focus on settings for the long-running scripts.
 5. **Commit** the refactor.
 6. **Then** test and fix errors, which is where `260813a` started.
