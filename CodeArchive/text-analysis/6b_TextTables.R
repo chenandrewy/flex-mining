@@ -311,4 +311,3 @@ print(x_summ, include.rownames = FALSE, include.colnames = FALSE,
       booktabs = TRUE, sanitize.text.function = function(x){x},
       only.contents = FALSE)
 fwrite(summary_text, '../Results/summary_text.csv')
-

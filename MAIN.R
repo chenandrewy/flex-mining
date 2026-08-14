@@ -11,7 +11,7 @@
 #                     Constructs the ../Data/Processed cache from ../Data/Raw.
 #                     Hours (2a alone was ~2h of a 2h38m full run). Rerun only
 #                     when the underlying data changes.
-#   Stage B, exhibits (run_exhibits)  3, 4, 6, 8, 99
+#   Stage B, exhibits (run_exhibits)  3, 4, 8, 99
 #                     Reads that cache and emits every paper exhibit to
 #                     ../Results (chapter 4 also writes its own cheap prep RDS).
 #                     Rerun freely while iterating on an exhibit.
@@ -49,7 +49,6 @@ build_scripts <- c(
 exhibit_scripts <- c(
   "3_RiskVsMispricing.R",
   "4_ResearchVsDataMining.R",
-  "6_TextAnalysis.R",
   "8_DMThemes.R",
   "99_ExportDataToCsv.R"
 )
