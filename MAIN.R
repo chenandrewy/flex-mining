@@ -1,5 +1,4 @@
-# Main script to run the numbered R scripts (letter-indexed scripts are sourced
-# from within them).
+# Main script for rebuilding the data and paper exhibits.
 #
 # How to run: set the working directory to flex-mining/, then
 #   Rscript MAIN.R
@@ -34,36 +33,30 @@
 # Table_MPStyleRegs{Main,Unscaled} tables that 4c6_MPStyleDecayTables.R writes.
 # See docs/journal/260813c,map,exhibits.md for the script -> exhibit map.
 
-run_downloads <- FALSE   # Stage A: re-pull ../Data/Raw (overwrites it)
-run_build     <- TRUE    # Stage A: build the ../Data/Processed cache
-run_exhibits  <- TRUE    # Stage B: read the cache and emit the paper exhibits
+run_downloads <- FALSE  # Re-pull ../Data/Raw (overwrites it)
+run_build     <- TRUE   # Build the ../Data/Processed cache
+run_exhibits  <- TRUE   # Read the cache and emit the paper exhibits
 
-# Stage lists -------------------------------------------------------------
+# Environment -------------------------------------------------------------
 
-build_scripts <- c(
-  if (run_downloads) "1_Download_and_Clean.R",
-  "1a_ValidDenoms.R",
-  "2_DataMining.R"
-)
-
-exhibit_scripts <- c(
-  "3_RiskVsMispricing.R",
-  "4_ResearchVsDataMining.R",
-  "8_DMThemes.R",
-  "99_ExportDataToCsv.R"
-)
-
-main_scripts <- c(
-  if (run_build)    build_scripts,
-  if (run_exhibits) exhibit_scripts
-)
-
-# Run each script in order ------------------------------------------------
-
-# 0_Environment.R (paths, packages, helpers) is sourced by every script below,
-# so each stage stands alone; run it up front too for a bare interactive start.
 source("0_Environment.R", echo = TRUE)
 
-for (script in main_scripts) {
-    source(script, echo = TRUE)
+# Stage A: build the processed-data cache ---------------------------------
+
+if (run_build) {
+  if (run_downloads) {
+    source("1_Download_and_Clean.R", echo = TRUE)
+  }
+
+  source("1a_ValidDenoms.R", echo = TRUE)
+  source("2_DataMining.R", echo = TRUE)
+}
+
+# Stage B: generate the paper exhibits -----------------------------------
+
+if (run_exhibits) {
+  source("3_RiskVsMispricing.R", echo = TRUE)
+  source("4_ResearchVsDataMining.R", echo = TRUE)
+  source("8_DMThemes.R", echo = TRUE)
+  source("99_ExportDataToCsv.R", echo = TRUE)
 }
