@@ -2,13 +2,21 @@
 #
 # How to run: set the working directory to flex-mining/, then
 #   Rscript S4_Heterogeneity.R
-# Inputs:  cleaned published-predictor data and chapter-2 mined strategies
+# Inputs:  cleaned published-predictor data, the chapter-1 denominator cache,
+#          and chapter-2 mined strategies
 # Outputs: Section 4 category and journal tables under ../Results
 
+settings_env <- new.env(parent = globalenv())
+sys.source("config.R", envir = settings_env)
+version_prefix <- file.path("../Data/Processed", settings_env$globalSettings$dataVersion)
 required_files <- c(
   "../Data/Processed/czsum_allpredictors.RDS",
-  "../Data/Processed/czret_keeponly.RDS"
+  "../Data/Processed/czret_keeponly.RDS",
+  paste0(version_prefix, " LongShort.RData"),
+  "DataIntermediate/freq_obs_1963.csv"
 )
+rm(settings_env)
+
 missing_files <- required_files[!file.exists(required_files)]
 if (length(missing_files) > 0) {
   stop(
