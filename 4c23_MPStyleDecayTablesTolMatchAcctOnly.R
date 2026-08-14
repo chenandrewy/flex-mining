@@ -1,5 +1,5 @@
 # Annual-accounting-only version of 4c22: Tables 3-4 under the
-# tolerance-matched DM benchmark, restricted to the 67 annual-Compustat
+# tolerance-matched DM benchmark, restricted to the annual-Compustat
 # predictors (Fig2 panel (b) selection, as 4c21). Two specs:
 #   Tol30: 2b pairs (|t| within 10%, mean return within 30% of the pub)
 #   Tol10: 2b pairs additionally within 10% on mean return (4c20c screen)
