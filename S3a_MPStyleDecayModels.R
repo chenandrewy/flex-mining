@@ -55,9 +55,9 @@ regData = ret_for_plot0 %>%
                         sampend,
                         pubdate
                         )) %>% 
-  # Add indicators
+  # Add cumulative indicators. postPub is the additional post-publication
+  # effect after accounting for the post-sample effect.
   mutate(
-#    postSample = ifelse(calendarDate >= sampend & calendarDate < pubdate , 1, 0),
     postSample = ifelse(calendarDate >= sampend, 1, 0),
     postPub    = ifelse(calendarDate >= pubdate, 1, 0)) %>% 
   # Add outcome
@@ -390,10 +390,10 @@ dmPanel[pubdates, on = "pubname", `:=`(
   sampstart = i.sampstart, sampend = i.sampend, pubdate = i.pubdate
 )]
 rm(pubdates)
-# Non-overlapping postSample/postPub dummies, matching regData (line 45)
-# so that fitDM coefficients are directly comparable to fitLM2/fitLM3.
+# Cumulative postSample/postPub dummies, matching regData above. postPub is an
+# additional post-publication effect on top of the post-sample effect.
 dmPanel[, `:=`(
-  postSample = fifelse(calendarDate >= sampend & calendarDate < pubdate, 1, 0),
+  postSample = fifelse(calendarDate >= sampend, 1, 0),
   postPub    = fifelse(calendarDate >= pubdate, 1, 0)
 )]
 dmPanel <- dmPanel[calendarDate >= sampstart]

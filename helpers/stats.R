@@ -7,10 +7,12 @@
 
 
 f.custom.t <- function(x){
-  if(length(x[!is.na(x)]) > 1 & sd(x[!is.na(x)] > 1e-8)){
-    return(t.test(x, na.action = na.omit)$statistic)
+  observed <- x[!is.na(x)]
+  observed_sd <- sd(observed)
+
+  if(length(observed) > 1 && is.finite(observed_sd) && observed_sd > 1e-8){
+    return(t.test(observed)$statistic)
   }else{return(NaN)}
-  
 }
 
 
