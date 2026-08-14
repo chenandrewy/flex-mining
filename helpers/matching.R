@@ -220,7 +220,10 @@ SelectDMStrats <- function(insampsum, settings) {
   
   # add derivative statistics
   insampsum <- insampsum %>%
-    group_by(sweight, sampstart, sampend) %>%
+    # The same mining universe is repeated for every publication sharing a
+    # sample window. Rank each publication's copy separately so absolute-rank
+    # restrictions retain the intended number of mined predictors per paper.
+    group_by(pubname, sweight, sampstart, sampend) %>%
     arrange(desc(abs(tstat))) %>%
     mutate(rank_tstat = row_number()) %>%
     arrange(desc(abs(rbar))) %>%
@@ -235,8 +238,8 @@ SelectDMStrats <- function(insampsum, settings) {
   matchcur <- insampsum[
     diff_rbar <= settings$r_tol &
       diff_tstat <= settings$t_tol &
-      diff_rbar / rbar_op <= settings$r_reltol &
-      diff_tstat / tstat_op <= settings$t_reltol &
+      diff_rbar / abs(rbar_op) <= settings$r_reltol &
+      diff_tstat / abs(tstat_op) <= settings$t_reltol &
       min_nstock_long >= settings$minNumStocks/2 &
       min_nstock_short >= settings$minNumStocks/2 &
       abs(tstat) > settings$t_min &

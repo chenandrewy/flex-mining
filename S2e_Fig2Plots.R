@@ -19,9 +19,9 @@ fig2_agg = readRDS('../Data/Processed/fig2_panel_agg.RDS')
 outdir = '../Results/Fig2'
 dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
 
-# global colors has 3 entries (MATBLUE, MATRED, MATYELLOW); 4-line panels add purple
-MATPURPLE = rgb(0.4940, 0.1840, 0.5560)
-colors4 = c(colors[1], colors[2], MATPURPLE, colors[3])
+# Lines intended for direct comparison share a hue and differ by linetype:
+# published is solid and its data-mined benchmark is dotted.
+colors_paired = c(colors[1], colors[1], colors[2], colors[2])
 
 fontsizeall = 28
 linesizeall = 1.5
@@ -33,10 +33,9 @@ panels = list(
   a = list(
     series = c('CAPM, Published', 'CAPM, Data-Mined',
                'FF3+Mom, Published', 'FF3+Mom, Data-Mined'),
-    colors = colors4,
-    # Spec-3 styling: pub solid, DM dashed, pairs separated by hue
-    # (grayscale-safe four-linetype variant retained outside the main chain)
-    linetypes = c('solid', 'longdash', 'solid', 'longdash'),
+    colors = colors_paired,
+    # Spec-3 styling: each published/data-mined pair shares a hue.
+    linetypes = c('solid', 'dotted', 'solid', 'dotted'),
     yaxislab = 'Trailing 5-Year Alpha (bps pm)',
     yl = 0, yh = 125, yh_ci = 150, legendpos = c(35, 20) / 100,
     file = 'Fig2a_FactorAdj'
@@ -44,8 +43,8 @@ panels = list(
   b = list(
     series = c('Pub, Annual Acct Only', 'DM, Annual Acct Pubs',
                'Pub, Pre-2003 Only', 'DM, Pre-2003 Pubs'),
-    colors = colors4,
-    linetypes = c('solid', 'longdash', 'solid', 'longdash'),
+    colors = colors_paired,
+    linetypes = c('solid', 'dotted', 'solid', 'dotted'),
     yaxislab = ylaball,
     yl = 0, yh = 175, yh_ci = 200, legendpos = c(35, 20) / 100,
     file = 'Fig2b_PubSampleLimits'

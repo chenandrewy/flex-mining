@@ -48,7 +48,7 @@ fig2_aggregate_series = function(dt_long, rollmonths = 60) {
   windows$se = mapply(
     function(lab, ws, we) {
       get_clustered_se(dt_long %>%
-                         filter(label == lab, eventDate > ws, eventDate <= we))
+                         filter(label == lab, eventDate >= ws, eventDate <= we))
     },
     windows$label, windows$window_start, windows$window_end
   )
