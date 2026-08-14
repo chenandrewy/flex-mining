@@ -2,6 +2,8 @@
 DataIntermediate/freq_obs_Annual.csv
 DataIntermediate/validDenomsCombinations.csv
 .env
+/CLAUDE.md
+/AGENTS.md
 
 # R outputs
 *.log
