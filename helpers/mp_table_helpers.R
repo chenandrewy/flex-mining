@@ -83,11 +83,11 @@ write_combined_mp_tables <- function(scaled_fits, unscaled_fits, output_dir,
   make_combined_table(
     c(scaled_fits[c(1, 3, 5)], unscaled_fits[c(1, 3, 5)]),
     timeFE = FALSE,
-    file = file.path(output_dir, paste0("HandTable_MPStyleRegsMain", suffix, ".tex"))
+    file = file.path(output_dir, paste0("Table_MPStyleRegsNoTimeFE", suffix, ".tex"))
   )
   make_combined_table(
     c(scaled_fits[c(2, 4, 6)], unscaled_fits[c(2, 4, 6)]),
     timeFE = TRUE,
-    file = file.path(output_dir, paste0("HandTable_MPStyleRegsTimeFE", suffix, ".tex"))
+    file = file.path(output_dir, paste0("Table_MPStyleRegsTimeFE", suffix, ".tex"))
   )
 }

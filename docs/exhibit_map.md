@@ -2,10 +2,10 @@
 
 Which script builds each paper exhibit, and whether `MAIN.R` rebuilds it.
 
-- **Contract:** the paper source repository currently has 58 files in its
+- **Contract:** the paper source repository currently has 62 files in its
   `exhibits/` directory. Its `sections/*.tex` files reference 56 of them. The
-  six `HandTable_MPStyleRegs*` files are R-generated despite their historical
-  names; two Tol10 variants are present but unused.
+  ten `Table_MPStyleRegs{NoTimeFE,TimeFE}*` files are R-generated; six Tol10
+  and/or floor variants are present but unused.
 - **Producer:** the script whose write target (`ggsave`, `writeLines`,
   `saveRDS`, `kbl`, …) matches the exhibit basename.
 - **In chain:** run by `MAIN.R` at the default `runStages` (config.R): stages
@@ -60,10 +60,10 @@ Tol10/Tol30 model builders and caches are not part of the refactored pipeline.
 | theme_ez_decay.tex                                           | Sec. 2 Tab 2                  | S2d_EZThemes.R                                      | yes       |
 | Fig2a/b/c/d (4)                                              | Sec. 2 Fig 2                  | S2e_Fig2Plots.R                                     | yes       |
 | Fig2c_MatchedExclCorr_Tol10.pdf                              | Sec. 2 Fig 2 draft comparison | S2e_Fig2Plots.R                                     | yes       |
-| HandTable_MPStyleRegsMain.tex                                | Sec. 3 Tab 3                  | S3b_MPStyleDecayTables.R                            | yes       |
-| HandTable_MPStyleRegsMain_Tol30.tex                          | Sec. 3 draft "Tab 3b"         | historical 4c22 + mp_table_helpers.R                | no        |
-| HandTable_MPStyleRegsTimeFE.tex                              | Sec. 3 Tab 4                  | S3b_MPStyleDecayTables.R                            | yes       |
-| HandTable_MPStyleRegsTimeFE_Tol30.tex                        | Sec. 3 draft "Tab 4b"         | historical 4c22 + mp_table_helpers.R                | no        |
+| Table_MPStyleRegsNoTimeFE.tex                                | Sec. 3 Tab 3                  | S3b_MPStyleDecayTables.R                            | yes       |
+| Table_MPStyleRegsNoTimeFE_Tol30.tex                          | Sec. 3 draft "Tab 3b"         | removed 4c22 + mp_table_helpers.R                   | no        |
+| Table_MPStyleRegsTimeFE.tex                                  | Sec. 3 Tab 4                  | S3b_MPStyleDecayTables.R                            | yes       |
+| Table_MPStyleRegsTimeFE_Tol30.tex                            | Sec. 3 draft "Tab 4b"         | removed 4c22 + mp_table_helpers.R                   | no        |
 | ApproachVsJournalsPart1/2/3.tex                              | Sec. 4 Tab 5                  | S4a_DataCounts.R                                    | yes       |
 | tab:hetero-bytheory (inline; hand-copied)                    | Sec. 4 Tab 6                  | 4c4 -> Table_RiskAdjusted_TheoryModel_ff4_t2        | n/a*      |
 | tab:hetero-byjournal (inline; hand-copied)                   | Sec. 4 Tab 7                  | 4c4 -> Table_RiskAdjusted_DisciplineJournal_ff4_t2  | n/a*      |
@@ -123,9 +123,9 @@ The six paper tables it does **not** produce are:
   hand-copied inline rows included, every float in the compiled paper is
   accounted for. (Fig. B.5a/B.5b are the two panels of Fig. B.5, already
   listed.)
-- Of the 58 files currently in the paper's `exhibits/` directory, the two not
-  referenced by `sections/*.tex` are `HandTable_MPStyleRegsMain_Tol10.tex` and
-  `HandTable_MPStyleRegsTimeFE_Tol10.tex`.
+- Of the 62 files currently in the paper's `exhibits/` directory, the six not
+  referenced by `sections/*.tex` are the NoTimeFE/TimeFE pairs with suffixes
+  `_Tol10`, `_Tol10Floor`, and `_Tol30Floor`.
 - In-chain scripts that produce no exhibit are upstream prep: chapter 2
   (`2a`–`2d`), chapter 3 (`3a`–`3e`, reusable caches), and
   `Appendices/SA02`/`Appendices/SA05` (decay

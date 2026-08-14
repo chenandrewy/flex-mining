@@ -25,8 +25,8 @@ output_dir <- tempfile("mp-table-helper-test-")
 dir.create(output_dir)
 write_combined_mp_tables(fits, fits, output_dir, suffix = "_Tol30")
 
-main_path <- file.path(output_dir, "HandTable_MPStyleRegsMain_Tol30.tex")
-time_path <- file.path(output_dir, "HandTable_MPStyleRegsTimeFE_Tol30.tex")
+main_path <- file.path(output_dir, "Table_MPStyleRegsNoTimeFE_Tol30.tex")
+time_path <- file.path(output_dir, "Table_MPStyleRegsTimeFE_Tol30.tex")
 stopifnot(file.exists(main_path), file.exists(time_path))
 
 main_lines <- readLines(main_path)

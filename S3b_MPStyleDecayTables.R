@@ -3,11 +3,11 @@
 # How to run: normally run through S3_Learning.R with the working directory set to
 #   flex-mining/.
 # Inputs:  ../Data/Processed/mp_style_decay_models.RDS
-# Outputs: ../Results/Table_MPStyleRegsMain.tex
-#          ../Results/Table_MPStyleRegsMainUnscaled.tex
+# Outputs: ../Results/Table_MPStyleRegsComponentsScaled.tex
+#          ../Results/Table_MPStyleRegsComponentsUnscaled.tex
 #          ../Results/Table_MPStyleRegsIndividualDM.tex
-#          ../Results/HandTable_MPStyleRegsMain.tex
-#          ../Results/HandTable_MPStyleRegsTimeFE.tex
+#          ../Results/Table_MPStyleRegsNoTimeFE.tex
+#          ../Results/Table_MPStyleRegsTimeFE.tex
 
 source("0_Environment.R")
 source("helpers/mp_table_helpers.R")
@@ -46,12 +46,12 @@ main_headers <- c(
 write_mp_table(
   models$main_scaled,
   main_headers,
-  file.path(output_dir, "Table_MPStyleRegsMain.tex")
+  file.path(output_dir, "Table_MPStyleRegsComponentsScaled.tex")
 )
 write_mp_table(
   models$main_unscaled,
   main_headers,
-  file.path(output_dir, "Table_MPStyleRegsMainUnscaled.tex")
+  file.path(output_dir, "Table_MPStyleRegsComponentsUnscaled.tex")
 )
 write_mp_table(
   models$individual_dm,
