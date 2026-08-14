@@ -51,6 +51,20 @@ Rscript MAIN.R > docs/journal/logs/main_<n>.log 2>&1
 - [ ] Final clean end-to-end run for confirmation.
 - [ ] Commit the patches (separate commits per fix where sensible).
 
+## Also on the list (branch goal: clean up MAIN.R)
+
+- [ ] Rationalize the `4c6` name collision. Two unrelated scripts share the
+      prefix: `4c6_AccountingOnlyPlots.R` (in the `4_` chain) and
+      `4c6_MPStyleDecayTables.R` (not in any chain). Rename one.
+- [ ] Get `4c6_MPStyleDecayTables.R` into MAIN.R. It generates
+      `Table_MPStyleRegsMain.tex` / `...Unscaled.tex`, which the paper's
+      `HandTable_MPStyleRegsMain.tex` and `HandTable_MPStyleRegsTimeFE.tex`
+      are hand-transcribed from (columns 1/3/5 and 2/4/6 of the two).
+      Downstream of that: emit the hand tables directly from the regression
+      objects so the transcription step disappears.
+- [ ] Audit the rest of the `4c*` scripts — MAIN.R sources 13 of ~40. Decide
+      per script: in the chain, or explicitly out.
+
 ## Failures and fixes
 
 (none yet)
