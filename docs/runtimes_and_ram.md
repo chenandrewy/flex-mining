@@ -36,7 +36,7 @@ Measured at `num_cores = 4`.
 | ↳ `3c_DMCorrelationsPCA.R` | ~15 min | Writes `PairwiseCorrelationsDM_{ew,vw}.RDS`. |
 | ↳ `3d_Fig2Data.R` | ~3 min | Two `make_DM_event_returns()` calls; writes the Figure 2 cache. |
 | ↳ `3e_DMSpanPCA.R` | **~51 min** | Heaviest Chapter-3 script: one `adj_R2_with_PPCA()` and six `make_DM_event_returns()` calls. |
-| **Chapters 4-8** | **~7 min combined** | Rendering chapters; each child is a fresh R process reading upstream caches. Chapter 5 also estimates the MP-style decay models in `5a_MPStyleDecayModels.R` (~2 min; writes `mp_style_decay_models.RDS`, ~1 GB), then `5b_MPStyleDecayTables.R` renders them. Chapter 8 (Appendices) is the longest. |
+| **Sections S2-SA** | **~7 min combined** | Exhibit stages; each child is a fresh R process reading upstream caches. Section 3 also estimates the MP-style decay models in `S3a_MPStyleDecayModels.R` (~2 min; writes `mp_style_decay_models.RDS`, ~1 GB), then `S3b_MPStyleDecayTables.R` renders them. `SA_Appendices.R` is the longest. |
 | **`9_ExportDataToCsv.R`** | ~1 min | Reads chapter-2 caches; writes `../Data/Export`. |
 
 ### Inside `2a_CompustatToLongshort.R`
@@ -103,7 +103,7 @@ separate copy.
 
 On non-Unix systems the fork helpers fall back to a PSOCK cluster capped at two
 workers, each copying the panel, so the top-group scripts are far more
-memory-hungry off Unix. `4a4_StructuralBreak.R` uses `foreach` syntax but runs
+memory-hungry off Unix. `SA03_StructuralBreak.R` uses `foreach` syntax but runs
 sequentially (`%do%`), so it is not parallel.
 
 ### Sizing parallelism
@@ -149,7 +149,7 @@ it runs).
   master using ~1 core mean it is working.
 - `../Data/make_many_ls.log` carries `2a`'s dispatch progress and ETA, but the
   ETA reaches zero ~30 min before `2a` actually finishes (straggler + save).
-- Chapters 4-8 can be run independently for paper iteration, provided their
+- Sections S2-SA can be run independently for paper iteration, provided their
   upstream caches exist; together they take only a few minutes.
 - With effectively no swap, memory exhaustion has no slow thrashing phase.
   Chapter 3 stays at 23-27 GB at `num_cores = 4`, but it is still the stretch to

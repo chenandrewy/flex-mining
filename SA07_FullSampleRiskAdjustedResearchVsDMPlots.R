@@ -1,4 +1,4 @@
-# Full Sample Risk-Adjusted Data-mining comparisons 
+# Render Appendix full-sample risk-adjusted data-mining comparisons.
 # Based on 4c4_RiskAdjustedResearchVsDMPlotsTV.R but with full sample CAPM and FF3 adjustments
 # This file compares raw vs full sample risk-adjusted returns for published vs data-mined signals
 #
@@ -221,7 +221,7 @@ print(paste("Number of signals with full sample FF3 adjustments:", sum(!is.na(cz
 
 # Full Sample Risk-Adjusted Plots ----------------------------------------------------
 
-## 1. Raw Returns (baseline from 4c2) ------------------------------------
+## 1. Raw Returns (baseline from S2a) ------------------------------------
 # Filter published signals by raw t-stat threshold for raw plot
 signals_raw_t2_plot <- unique(czret[rbar_t > t_threshold]$signalname)
 tempsuffix = paste0("raw_returns_t", t_threshold)

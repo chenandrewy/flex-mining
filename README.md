@@ -12,23 +12,23 @@ Current results were produced with **R 4.5.3** and packages from the Posit P3M s
 ## Pipeline
 
 Run scripts from the repository root. `MAIN.R` exposes an independent switch
-for each chapter:
+for each data stage and paper section:
 
 1. `1_Download_and_Clean.R` acquires a new external-data vintage and cleans it.
 2. `2_DataMining.R` constructs and matches the mined strategies; this takes
    roughly two hours.
 3. `3_Precompute.R` builds reusable correlations, PCA results, summary data,
    and plot panels under `../Data/Processed`.
-4. `4_ResearchVsDataMining.R` renders the introduction figure and Section 2
+4. `S2_ResearchVsDataMining.R` renders the introduction figure and Section 2
    exhibits.
-5. `5_Learning.R` renders the Section 3 learning tables from cached regression
+5. `S3_Learning.R` renders the Section 3 learning tables from cached regression
    models.
-6. `6_Heterogeneity.R` renders the Section 4 heterogeneity exhibits.
-7. `7_BestPredictors.R` renders the Section 4b predictor examples.
-8. `8_Appendices.R` renders appendix-only exhibits.
+6. `S4_Heterogeneity.R` renders the Section 4 heterogeneity exhibits.
+7. `S5_BestPredictors.R` renders the Section 5 predictor examples.
+8. `SA_Appendices.R` renders appendix-only exhibits.
 9. `9_ExportDataToCsv.R` exports the mined-strategy data for sharing.
 
-Chapters 4-8 treat processed data as read-only. For a formatting-only figure
-or table change, run only the corresponding chapter. Chapter 1 overwrites
+The paper-section stages treat processed data as read-only. For a formatting-only
+figure or table change, run only the corresponding section. Chapter 1 overwrites
 `../Data/Raw` with a new, non-recoverable WRDS/Google Drive vintage, so its
 `MAIN.R` switch is off by default and should be enabled deliberately.

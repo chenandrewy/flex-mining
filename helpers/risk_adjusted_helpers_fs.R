@@ -676,7 +676,7 @@ prepare_dm_filters_fs <- function(candidateReturns_adj, czret, filter_type, t_th
     ),
     by = .(actSignal, candSignalname)
   ]
-  # Only need raw signals list for 4c5
+  # Only need raw signals list for SA07
   signals_raw <- unique(czret[rbar_t > t_threshold]$signalname)
   list(
     dm_stats = dm_stats,

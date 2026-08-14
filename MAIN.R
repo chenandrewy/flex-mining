@@ -3,19 +3,19 @@
 # How to run: set the working directory to flex-mining/, then
 #   Rscript MAIN.R
 #
-# Nine chapters separated at explicit cache and paper-section boundaries:
+# Data stages, paper-section exhibit stages, and exports:
 #
 #   1_Download_and_Clean  External acquisition and cleaning; new data vintage.
 #   2_DataMining          Construct and match mined strategies; about two hours.
 #   3_Precompute          Reusable correlations, PCA, panels, and summaries.
-#   4_ResearchVsDataMining  Introduction and Section 2 exhibits.
-#   5_Learning              Section 3 regression tables.
-#   6_Heterogeneity         Section 4 exhibits.
-#   7_BestPredictors        Section 4b exhibits.
-#   8_Appendices            Appendix-only exhibits.
+#   S2_ResearchVsDataMining Introduction and Section 2 exhibits.
+#   S3_Learning             Section 3 regression tables.
+#   S4_Heterogeneity        Section 4 exhibits.
+#   S5_BestPredictors       Section 5 exhibits.
+#   SA_Appendices           Appendix-only exhibits.
 #   9_ExportDataToCsv       Shared-data CSV exports.
 #
-# Iterating on an exhibit normally means running only its chapter. Changes to
+# Iterating on an exhibit normally means running only its section. Changes to
 # matching or statistical analysis require chapter 3; changes to mined signals
 # require chapter 2.
 #
@@ -28,20 +28,20 @@
 # Inputs:  ../Data/Raw (re-created when run_download_and_clean = TRUE)
 # Outputs: ../Data/Processed, ../Data/Export, ../Results
 #
-# Paper contract: Chapters 4-8 rebuild paper exhibits from upstream caches.
-# Chapter 5 renders the cached MP regressions; the Section 3 presentation tables
+# Paper contract: S2 through S5 and SA rebuild paper exhibits from upstream caches.
+# S3 renders the cached MP regressions; the Section 3 presentation tables
 # are being migrated from hand formatting to direct R output.
-# See docs/journal/0813c,map,exhibits.md for the script -> exhibit map.
+# See docs/exhibit_map.md for the script -> exhibit map.
 
 # Stage switches live in config.R (runStages). Source it directly; this avoids
-# loading the analysis packages just to decide which chapters to run.
+# loading the analysis packages just to decide which stages to run.
 source("config.R")
 
 run_script <- function(path) {
   message("\n=== Running ", path, " ===")
   status <- system2(file.path(R.home("bin"), "Rscript"), path)
   if (!identical(status, 0L)) {
-    stop("Pipeline chapter failed (exit ", status, "): ", path)
+    stop("Pipeline stage failed (exit ", status, "): ", path)
   }
 }
 
@@ -64,34 +64,34 @@ if (runStages$precompute) {
   run_script("3_Precompute.R")
 }
 
-# Chapter 4: research versus data mining ---------------------------------
+# Section 2: research versus data mining ---------------------------------
 
 if (runStages$research_vs_data_mining) {
-  run_script("4_ResearchVsDataMining.R")
+  run_script("S2_ResearchVsDataMining.R")
 }
 
-# Chapter 5: learning -----------------------------------------------------
+# Section 3: learning -----------------------------------------------------
 
 if (runStages$learning) {
-  run_script("5_Learning.R")
+  run_script("S3_Learning.R")
 }
 
-# Chapter 6: heterogeneity ------------------------------------------------
+# Section 4: heterogeneity ------------------------------------------------
 
 if (runStages$heterogeneity) {
-  run_script("6_Heterogeneity.R")
+  run_script("S4_Heterogeneity.R")
 }
 
-# Chapter 7: best predictors ---------------------------------------------
+# Section 5: best predictors ---------------------------------------------
 
 if (runStages$best_predictors) {
-  run_script("7_BestPredictors.R")
+  run_script("S5_BestPredictors.R")
 }
 
-# Chapter 8: appendices ---------------------------------------------------
+# Appendices --------------------------------------------------------------
 
 if (runStages$appendices) {
-  run_script("8_Appendices.R")
+  run_script("SA_Appendices.R")
 }
 
 # Chapter 9: data exports -------------------------------------------------

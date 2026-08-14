@@ -1,6 +1,6 @@
-# Inspect matched strategies and render the paper's example-match tables.
+# Inspect matched strategies and render the Section 5 example-match tables.
 #
-# How to run: normally run through 7_BestPredictors.R with the working directory set to
+# How to run: normally run through S5_BestPredictors.R with the working directory set to
 #   flex-mining/.
 # Inputs:  ../Data/Processed/<dataVersion> MatchPub.RData
 #          ../Data/Processed/<dataVersion> LongShort.RData
@@ -272,5 +272,3 @@ tab = readxl::read_xlsx(paste0(outpath,'InspectMatch.xlsx'), sheet = 'realestate
 write_tex_from_tab(tab, id1 = 1:10, id2 = 101:105, 
                    signalnamelong = 'Real Estate (Tuzel 2010)',
                    filename = 'inspect-realestate.tex')
-
-

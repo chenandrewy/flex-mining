@@ -1,4 +1,4 @@
-# counts dropped predictors, journals, data summary stuff.
+# Render Section 4 predictor-count and journal exhibits.
 # also counts dm stuff
 
 # Predictor Counts -------------------------------------------------------------------
@@ -298,5 +298,4 @@ print(paste0('Number of distinct ratios where the numerator is also a valid deno
 print(paste0('Number of ratios dropped (n2*n2 - choose(n2,2)): ',n2*n2 - choose(n2,2)))
 
 sink()
-
 

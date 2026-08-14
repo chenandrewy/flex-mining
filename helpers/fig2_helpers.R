@@ -1,5 +1,5 @@
 # Helpers for the reorganized Figure 2 (Spec 3, meeting notes 2026-07-23)
-# Used by 3d_Fig2Data.R / 4c9_Fig2Plots.R.
+# Used by 3d_Fig2Data.R / S2e_Fig2Plots.R.
 #
 # Generalizes ReturnPlotsWithDM_std_errors_indicators (0_Environment.R) to any
 # number of overlaid series by splitting it in two: fig2_aggregate_series()

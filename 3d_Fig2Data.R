@@ -12,9 +12,9 @@
 #   (d) Alternative mining methods: pub + top 5% |t| accounting + top 5% |t| tickers (3 lines)
 #
 # Panel sources: (a) follows 4c4_RiskAdjustedResearchVsDMPlotsTV(FF4).R, (b) follows
-# 4c6_AccountingOnlyPlots.R, (c) follows 4d_ResearchVsDMRobustnessCorrelationsEtc.R,
+# SA08_AccountingOnlyPlots.R, (c) follows SA10_ResearchVsDMRobustnessCorrelationsEtc.R,
 # (d) follows 4c3_ResearchVsAcctVsTicker.R. This script only assembles the long
-# per-signal series and aggregates them; 4c9_Fig2Plots.R renders the figures.
+# per-signal series and aggregates them; S2e_Fig2Plots.R renders the figures.
 #
 rm(list = ls())
 source('0_Environment.R')
@@ -49,7 +49,7 @@ caldate = czret %>% select(signalname, eventDate, date) %>% distinct()
 fig2_long = list()
 
 # Panel (b): publication sample limits ------------------------------------
-# Annual-accounting-only published signals (selection copied from 4c6_AccountingOnlyPlots.R)
+# Annual-accounting-only published signals (selection copied from SA08_AccountingOnlyPlots.R)
 
 czacct = readRDS('../Data/Processed/czsum_allpredictors.RDS') %>%
   left_join(fread('../Data/Raw/SignalDoc.csv') %>%

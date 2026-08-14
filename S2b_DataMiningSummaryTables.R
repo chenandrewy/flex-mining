@@ -1,6 +1,6 @@
-# Render the data-mining summary tables from chapter-3 caches.
+# Render the Section 2 data-mining summary tables from chapter-3 caches.
 #
-# How to run: normally run through 4_ResearchVsDataMining.R with the working directory set to
+# How to run: normally run through S2_ResearchVsDataMining.R with the working directory set to
 #   flex-mining/.
 # Inputs:  ../Data/Processed/sumsignal_oos_30y_{ew,vw}_unit_level.csv
 #          ../Data/Processed/sumsignal_oos_30y_post_2003_{ew,vw}_unit_level.csv

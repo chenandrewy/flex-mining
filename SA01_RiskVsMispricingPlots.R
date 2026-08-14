@@ -1,4 +1,4 @@
-# Setup -------------------------------------------------------------------
+# Render Appendix risk-versus-mispricing plots.
 rm(list = ls())
 source('0_Environment.R')
 extract_beta <- function(x, y) {
@@ -422,4 +422,3 @@ pcount = czret %>%
     scale_y_continuous(breaks = seq(0,50,10))
     
 ggsave('../Results/Fig_NSignalEventTime.pdf', pcount, width = 10, height = 8)    
-

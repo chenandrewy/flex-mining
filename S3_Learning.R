@@ -1,13 +1,13 @@
-# Chapter 5 driver: learning exhibits.
+# Section 3 driver: learning exhibits.
 #
 # How to run: set the working directory to flex-mining/, then
-#   Rscript 5_Learning.R
+#   Rscript S3_Learning.R
 # Inputs:  chapter-2 mined strategies and chapter-3 panels (ret_for_plot0.RDS,
 #          plotdat0.RDS, and the versioned LongShort.RData)
 # Outputs: MP-style regression tables under ../Results
 #
-# 5a_MPStyleDecayModels.R estimates the regression models (including
-# fixed-effect specifications); 5b_MPStyleDecayTables.R renders their tables.
+# S3a_MPStyleDecayModels.R estimates the regression models (including
+# fixed-effect specifications); S3b_MPStyleDecayTables.R renders their tables.
 
 settings_env <- new.env(parent = globalenv())
 sys.source("config.R", envir = settings_env)
@@ -22,18 +22,18 @@ rm(settings_env)
 missing_files <- required_files[!file.exists(required_files)]
 if (length(missing_files) > 0) {
   stop(
-    "Missing Chapter 5 input(s): ", paste(missing_files, collapse = ", "),
+    "Missing Section 3 input(s): ", paste(missing_files, collapse = ", "),
     ". Run 3_Precompute.R first."
   )
 }
 
 run_script <- function(path) {
-  message("\n--- Chapter 5: ", path, " ---")
+  message("\n--- Section 3: ", path, " ---")
   status <- system2(file.path(R.home("bin"), "Rscript"), path)
   if (!identical(status, 0L)) {
-    stop("Chapter 5 script failed (exit ", status, "): ", path)
+    stop("Section 3 script failed (exit ", status, "): ", path)
   }
 }
 
-run_script("5a_MPStyleDecayModels.R")
-run_script("5b_MPStyleDecayTables.R")
+run_script("S3a_MPStyleDecayModels.R")
+run_script("S3b_MPStyleDecayTables.R")

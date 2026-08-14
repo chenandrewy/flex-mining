@@ -1,8 +1,8 @@
-# Render the reorganized Figure 2 (Spec 3, meeting notes 2026-07-23) from the
+# Render the reorganized Section 2 Figure 2 (Spec 3, meeting notes 2026-07-23) from the
 # series built by 3d_Fig2Data.R. Main version has no confidence intervals;
 # the appendix variant shades one clustered SE around every series.
 #
-# How to run: normally run through 4_ResearchVsDataMining.R from flex-mining/.
+# How to run: normally run through S2_ResearchVsDataMining.R from flex-mining/.
 # Inputs:  ../Data/Processed/fig2_panel_agg.RDS
 # Outputs (../Results/Fig2/):
 #   Fig2a_FactorAdj.pdf            Fig2a_FactorAdj_CI.pdf

@@ -7,7 +7,7 @@
 #          ../Data/Processed/dm_correlation_quantiles.RDS
 #          ../Data/Processed/dm_pca_table.RDS
 #
-# Exhibit rendering is owned by 4b2_DMCorrelationsPCATables.R.
+# Exhibit rendering is owned by S2c_DMCorrelationsPCATables.R.
 
 # Environment ------------------------
 source('0_Environment.R')

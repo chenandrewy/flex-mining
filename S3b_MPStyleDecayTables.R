@@ -1,6 +1,6 @@
-# Render MP-style decay tables from the cached regression models.
+# Render Section 3 MP-style decay tables from the cached regression models.
 #
-# How to run: normally run through 5_Learning.R with the working directory set to
+# How to run: normally run through S3_Learning.R with the working directory set to
 #   flex-mining/.
 # Inputs:  ../Data/Processed/mp_style_decay_models.RDS
 # Outputs: ../Results/Table_MPStyleRegsMain.tex
@@ -11,7 +11,7 @@ source("0_Environment.R")
 
 cache_path <- "../Data/Processed/mp_style_decay_models.RDS"
 if (!file.exists(cache_path)) {
-  stop("Missing MP-style model cache: ", cache_path, ". Run 5a_MPStyleDecayModels.R first.")
+  stop("Missing MP-style model cache: ", cache_path, ". Run S3a_MPStyleDecayModels.R first.")
 }
 models <- readRDS(cache_path)
 

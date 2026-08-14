@@ -1,7 +1,7 @@
-# Chapter 8 driver: appendix-only exhibits and diagnostics.
+# Appendix driver: appendix-only exhibits and diagnostics.
 #
 # How to run: set the working directory to flex-mining/, then
-#   Rscript 8_Appendices.R
+#   Rscript SA_Appendices.R
 # Inputs:  cleaned data and chapter-2/3 caches
 # Outputs: appendix PDFs and TeX under ../Results
 #
@@ -19,28 +19,28 @@ required_files <- c(
 missing_files <- required_files[!file.exists(required_files)]
 if (length(missing_files) > 0) {
   stop(
-    "Missing Chapter 8 input(s): ", paste(missing_files, collapse = ", "),
+    "Missing appendix input(s): ", paste(missing_files, collapse = ", "),
     ". Run the required upstream chapter first."
   )
 }
 
 run_script <- function(path) {
-  message("\n--- Chapter 8: ", path, " ---")
+  message("\n--- Appendices: ", path, " ---")
   status <- system2(file.path(R.home("bin"), "Rscript"), path)
   if (!identical(status, 0L)) {
-    stop("Chapter 8 script failed (exit ", status, "): ", path)
+    stop("Appendix script failed (exit ", status, "): ", path)
   }
 }
 
-run_script("4a1_RiskVsMispricingPlots.R")
-run_script("4a2_RegDecayTable.R")
-run_script("4a4_StructuralBreak.R")
-run_script("4a5_DecayVsWordcountPlot.R")
-run_script("4a6_DecayVsModelcountPlot.R")
-run_script("4a7_DecayVsJournal.R")
-run_script("4c5_FullSampleRiskAdjustedResearchVsDMPlots.R")
-run_script("4c6_AccountingOnlyPlots.R")
-run_script("4c7_AccountingOnlyAlphaPlots.R")
-run_script("4d1_ResearchVsDMRobustnessCorrelationsEtc.R")
-run_script("4d3_DMSpanPCAPlots.R")
-run_script("4e2_EZThemesRobustness.R")
+run_script("SA01_RiskVsMispricingPlots.R")
+run_script("SA02_RegDecayTable.R")
+run_script("SA03_StructuralBreak.R")
+run_script("SA04_DecayVsWordcountPlot.R")
+run_script("SA05_DecayVsModelcountPlot.R")
+run_script("SA06_DecayVsJournal.R")
+run_script("SA07_FullSampleRiskAdjustedResearchVsDMPlots.R")
+run_script("SA08_AccountingOnlyPlots.R")
+run_script("SA09_AccountingOnlyAlphaPlots.R")
+run_script("SA10_ResearchVsDMRobustnessCorrelationsEtc.R")
+run_script("SA11_DMSpanPCAPlots.R")
+run_script("SA12_EZThemesRobustness.R")

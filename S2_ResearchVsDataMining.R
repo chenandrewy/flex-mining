@@ -1,7 +1,7 @@
-# Chapter 4 driver: research versus data mining exhibits.
+# Section 2 driver: research versus data mining exhibits.
 #
 # How to run: set the working directory to flex-mining/, then
-#   Rscript 4_ResearchVsDataMining.R
+#   Rscript S2_ResearchVsDataMining.R
 # Inputs:  cleaned data and chapter-3 caches under ../Data/Processed
 # Outputs: the introduction figure and Section 2 PDFs/TeX under ../Results
 #
@@ -27,23 +27,23 @@ required_files <- c(
 missing_files <- required_files[!file.exists(required_files)]
 if (length(missing_files) > 0) {
   stop(
-    "Missing Chapter 4 input(s): ", paste(missing_files, collapse = ", "),
+    "Missing Section 2 input(s): ", paste(missing_files, collapse = ", "),
     ". Run the required upstream chapter first."
   )
 }
 
 run_script <- function(path) {
-  message("\n--- Chapter 4: ", path, " ---")
+  message("\n--- Section 2: ", path, " ---")
   status <- system2(file.path(R.home("bin"), "Rscript"), path)
   if (!identical(status, 0L)) {
-    stop("Chapter 4 script failed (exit ", status, "): ", path)
+    stop("Section 2 script failed (exit ", status, "): ", path)
   }
 }
 
 # The headline comparison is displayed in the introduction but belongs to the
 # research-versus-data-mining empirical chapter.
-run_script("4c2_ResearchVsDMPlots.R")
-run_script("4b1_DataMiningSummaryTables.R")
-run_script("4b2_DMCorrelationsPCATables.R")
-run_script("4e1_EZThemes.R")
-run_script("4c9_Fig2Plots.R")
+run_script("S2a_ResearchVsDMPlots.R")
+run_script("S2b_DataMiningSummaryTables.R")
+run_script("S2c_DMCorrelationsPCATables.R")
+run_script("S2d_EZThemes.R")
+run_script("S2e_Fig2Plots.R")

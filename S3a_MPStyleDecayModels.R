@@ -1,11 +1,11 @@
-# Precompute MP-style decay regressions.
+# Precompute Section 3 MP-style decay regressions.
 #
-# How to run: source from 5_Learning.R with the working directory set to
+# How to run: source from S3_Learning.R with the working directory set to
 #   flex-mining/.
 # Inputs:  chapter-2 mined strategies and chapter-3 matched-return panels
 # Outputs: ../Data/Processed/mp_style_decay_models.RDS
 #
-# 5b_MPStyleDecayTables.R renders the cached models into TeX.
+# S3b_MPStyleDecayTables.R renders the cached models into TeX.
 #
 # This file estimates regressions of the form
 # return = constant + post-sample + post-publication + fixed effects 

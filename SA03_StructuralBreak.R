@@ -1,4 +1,4 @@
-# 4zz-structural-break.r
+# Render Appendix structural-break exhibits.
 # Created 2024 10: Motivation:
 
 # Theme from the NBER Summer Institute: What if the economic ideas do help predict returns, but publicizing them makes them, in the end, similar to data mining?
@@ -195,5 +195,3 @@ tempnoise <- rnorm(nrow(breakdat2), 0, 0.5) # noise makes it easier to see the o
         coord_cartesian(xlim = c(1960, 2020), ylim = c(1960, 2020))
 ) %>%
     ggsave(filename = "../Results/break_vs_sampend.pdf", width = 10, height = 8, device = cairo_pdf, scale = 0.8)
-
-

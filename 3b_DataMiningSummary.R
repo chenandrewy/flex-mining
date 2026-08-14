@@ -7,7 +7,7 @@
 #          ../Data/Processed/sumsignal_oos_30y_*.csv
 #
 # This script intentionally does not render exhibits. The corresponding tables
-# are written by 4b1_DataMiningSummaryTables.R.
+# are written by S2b_DataMiningSummaryTables.R.
 
 # Load environment
 source('0_Environment.R')
@@ -129,7 +129,7 @@ for (var_type in var_types) {
 
 # Legacy renderer --------------------------------------------------------
 # Kept temporarily for result-equivalence checks. The precompute driver does
-# not enable it; 4b1_DataMiningSummaryTables.R owns these exhibits.
+# not enable it; S2b_DataMiningSummaryTables.R owns these exhibits.
 
 if (render_legacy) {
 

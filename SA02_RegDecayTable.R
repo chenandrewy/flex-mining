@@ -1,4 +1,4 @@
-# Setup -------------------------------------------------------------------
+# Render Appendix regression-decay tables.
 rm(list = ls())
 source('0_Environment.R')
 library(multcomp) # for glht. Not loaded by default in environment because of conflicts (?)

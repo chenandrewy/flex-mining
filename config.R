@@ -2,9 +2,9 @@
 #
 # How to run: this file is data only -- no packages, no functions. It is sourced
 #   by 0_Environment.R (so every chapter script inherits globalSettings) and by
-#   MAIN.R (which reads runStages to decide which chapters to run). The two
-#   chapter drivers that only need a versioned path (3_Precompute.R,
-#   7_BestPredictors.R) source it directly to read globalSettings$dataVersion.
+#   MAIN.R (which reads runStages to decide which stages to run). The two
+#   drivers that only need a versioned path (3_Precompute.R,
+#   S5_BestPredictors.R) source it directly to read globalSettings$dataVersion.
 # Inputs:  none.
 # Outputs: defines globalSettings, runStages; sets the RNG seed.
 #
@@ -13,16 +13,16 @@
 # session bootstrap live in 0_Environment.R.
 
 # Pipeline stage switches (read by MAIN.R) ---------------------------------
-# Each chapter runs as its own Rscript subprocess; see MAIN.R.
+# Each stage runs as its own Rscript subprocess; see MAIN.R.
 runStages <- list(
   download_and_clean       = FALSE,  # Re-pull ../Data/Raw; changes the vintage
   data_mining              = FALSE,  # Chapter 2; hours
   precompute               = TRUE,   # Chapter 3; slow reusable analysis
-  research_vs_data_mining  = TRUE,   # Chapter 4; intro and Section 2
-  learning                 = TRUE,   # Chapter 5; Section 3
-  heterogeneity            = TRUE,   # Chapter 6; Section 4
-  best_predictors          = TRUE,   # Chapter 7; Section 4b
-  appendices               = TRUE,   # Chapter 8
+  research_vs_data_mining  = TRUE,   # Section 2, plus the introduction figure
+  learning                 = TRUE,   # Section 3
+  heterogeneity            = TRUE,   # Section 4
+  best_predictors          = TRUE,   # Section 5
+  appendices               = TRUE,   # Appendices
   export_data_to_csv       = TRUE    # Chapter 9
 )
 

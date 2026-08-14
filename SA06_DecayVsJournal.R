@@ -1,4 +1,4 @@
-# Setup -------------------------------------------------------------------
+# Render Appendix decay-versus-journal plots.
 source('0_Environment.R')
 
 inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType, 

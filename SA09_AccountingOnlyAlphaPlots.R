@@ -1,4 +1,4 @@
-# Accounting Only Alpha Plots - Controlling for Data Source with Risk Adjustment
+# Render Appendix accounting-only alpha plots with risk adjustment.
 # Creates parallel exhibits using CAPM and FF4 alphas (TIME-VARYING betas)
 # Restricted to published signals using Compustat Annual Accounting
 # Consistent with 4c4 approach: IS betas for IS period, OOS betas for OOS period
@@ -192,7 +192,7 @@ signals_capm_acct = intersect(
   acct_signals,
   unique(czret[abar_capm_tv_t > t_threshold]$signalname)
 )
-# Additionally require raw t-stat filter for consistency with 4c5
+# Additionally require raw t-stat filter for consistency with SA07
 signals_capm_acct = intersect(signals_capm_acct, signals_raw_t2)
 print(paste0("Accounting signals with CAPM alpha t>", t_threshold, " AND raw t>", t_threshold, ": ", length(signals_capm_acct)))
 
@@ -273,7 +273,7 @@ signals_ff4_acct = intersect(
   acct_signals,
   unique(czret[abar_ff4_tv_t > t_threshold]$signalname)
 )
-# Additionally require raw t-stat filter for consistency with 4c5
+# Additionally require raw t-stat filter for consistency with SA07
 signals_ff4_acct = intersect(signals_ff4_acct, signals_raw_t2)
 print(paste0("Accounting signals with FF4 alpha t>", t_threshold, " AND raw t>", t_threshold, ": ", length(signals_ff4_acct)))
 

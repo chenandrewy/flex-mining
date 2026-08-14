@@ -1,6 +1,6 @@
-# Render robustness comparisons between published and matched mined returns.
+# Render Appendix robustness comparisons between published and matched mined returns.
 #
-# How to run: normally run through 8_Appendices.R from flex-mining/.
+# How to run: normally run through SA_Appendices.R from flex-mining/.
 # Inputs:  chapter-2 matched returns/correlations and cleaned published returns
 # Outputs: ../Results/Fig_PublicationsVsDataMining_*.pdf
 

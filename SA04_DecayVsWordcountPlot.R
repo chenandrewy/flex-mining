@@ -1,6 +1,6 @@
-# Plot out-of-sample return against the risk-to-mispricing classification.
+# Plot Appendix out-of-sample return against the risk-to-mispricing classification.
 #
-# How to run: normally run through 8_Appendices.R with the working directory set to
+# How to run: normally run through SA_Appendices.R with the working directory set to
 #   flex-mining/.
 # Inputs:  DataIntermediate/TextClassification.csv
 #          ../Data/Processed/czret_keeponly.RDS

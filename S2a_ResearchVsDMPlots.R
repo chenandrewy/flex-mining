@@ -1,4 +1,4 @@
-# Data-mining comparisons 
+# Section 2 data-mining comparisons.
 # These are the new main plots as of 2024 04.
 # This file is extremely slow unless you have a lot of RAM, it seems.
 
