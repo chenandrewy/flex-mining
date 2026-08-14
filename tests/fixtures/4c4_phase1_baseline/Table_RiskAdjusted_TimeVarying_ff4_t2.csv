@@ -1,0 +1,8 @@
+"Category","Group","Raw_Return","Raw_Outperformance","CAPM_Return","CAPM_Outperformance","FF4_Return","FF4_Outperformance"
+"Theoretical Foundation","Risk","43 (8)","5 (8)","38 (8)","-4 (8)","44 (6)","-6 (7)"
+"Theoretical Foundation","Mispricing","55 (4)","4 (4)","60 (4)","6 (4)","61 (4)","-3 (4)"
+"Theoretical Foundation","Agnostic","65 (8)","9 (8)","79 (8)","23 (8)","105 (7)","36 (8)"
+"Modeling Formalism","No Model","56 (3)","5 (3)","62 (3)","9 (3)","69 (3)","6 (4)"
+"Modeling Formalism","Stylized","63 (12)","15 (13)","49 (13)","-5 (14)","50 (7)","-13 (9)"
+"Modeling Formalism","Dynamic or Quantitative","34 (14)","-2 (14)","50 (14)","4 (19)","32 (16)","-13 (17)"
+"Overall","All","56 (3)","5 (3)","60 (3)","8 (3)","67 (3)","4 (3)"
