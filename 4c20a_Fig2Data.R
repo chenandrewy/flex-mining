@@ -140,6 +140,19 @@ candidateReturns = tmp$candidateReturns %>%
   filter(actSignal %in% czsum$signalname)
 rm(tmp); gc()
 
+# 60-month in-sample history floor (globalSettings$match_nmonth_min), applied
+# pair-level: equivalent to 2b's in-matcher screen until MatchPub.RData is
+# regenerated. floor_pairs is reused for the risk-adjusted panel (a) DM side.
+floor_pairs = candidateReturns %>%
+  filter(samptype == 'insamp') %>%
+  count(actSignal, candSignalname, name = 'nmonth_insamp') %>%
+  filter(nmonth_insamp >= globalSettings$match_nmonth_min) %>%
+  select(actSignal, candSignalname)
+print(paste0('Pairs passing the ', globalSettings$match_nmonth_min,
+             '-month floor: ', nrow(floor_pairs)))
+candidateReturns = candidateReturns %>%
+  inner_join(floor_pairs, by = c('actSignal', 'candSignalname'))
+
 # matched DM, no correlation screen
 rbar_pair = candidateReturns %>%
   filter(samptype == 'insamp') %>%
@@ -268,6 +281,8 @@ risk_adj_file <- paste0('../Data/Processed/', globalSettings$dataVersion,
 print('Loading risk-adjusted DM returns (large file)...')
 candidateReturns_adj <- readRDS(risk_adj_file)
 setDT(candidateReturns_adj)
+# same 60-month floor as the raw tolerance pairs
+candidateReturns_adj <- candidateReturns_adj[floor_pairs, on = c('actSignal', 'candSignalname'), nomatch = 0]
 
 dm_stats_tv <- candidateReturns_adj[
   (date >= sampstart & date <= sampend) & !is.na(abnormal_capm_tv),

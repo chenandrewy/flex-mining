@@ -78,6 +78,15 @@ candidateReturns = tmp$candidateReturns %>%
   filter(actSignal %in% czsum$signalname)
 rm(tmp); gc()
 
+# 60-month floor (match_nmonth_min), pair-level as in 4c20a
+candidateReturns = candidateReturns %>%
+  inner_join(candidateReturns %>%
+               filter(samptype == 'insamp') %>%
+               count(actSignal, candSignalname, name = 'nm') %>%
+               filter(nm >= globalSettings$match_nmonth_min) %>%
+               select(actSignal, candSignalname),
+             by = c('actSignal', 'candSignalname'))
+
 rbar_pair = candidateReturns %>%
   filter(samptype == 'insamp') %>%
   group_by(actSignal, candSignalname) %>%

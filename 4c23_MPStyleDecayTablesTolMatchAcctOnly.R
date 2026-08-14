@@ -68,7 +68,8 @@ rm(tmp); gc()
 
 # per-pair in-sample mean and the extra 10% mean-return screen (as 4c20c)
 rbar_pair = candidateReturns[samptype == 'insamp',
-                             .(rbar_insampMatched = mean(ret)),
+                             .(rbar_insampMatched = mean(ret),
+                               nmonth_insamp = sum(!is.na(ret))),
                              by = .(actSignal, candSignalname)] %>%
   left_join(czsum %>% transmute(actSignal = signalname, rbar_op = rbar),
             by = 'actSignal') %>%
@@ -104,8 +105,10 @@ cat('Median pairs per pub: Tol30corr', median(diag_pairs$pairs_corr),
 # DM event-time series per spec ----------------------------------------------
 
 pairsets = list(
-  Tol30 = rbar_pair[keep_corr == TRUE, .(actSignal, candSignalname, rbar_insampMatched)],
-  Tol10 = rbar_pair[tight == TRUE & keep_corr == TRUE,
+  # match_nmonth_min floor is standing spec (decided 2026-08-13)
+  Tol30 = rbar_pair[keep_corr == TRUE & nmonth_insamp >= globalSettings$match_nmonth_min,
+                    .(actSignal, candSignalname, rbar_insampMatched)],
+  Tol10 = rbar_pair[tight == TRUE & keep_corr == TRUE & nmonth_insamp >= globalSettings$match_nmonth_min,
                     .(actSignal, candSignalname, rbar_insampMatched)]
 )
 
