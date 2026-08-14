@@ -68,6 +68,7 @@ globalSettings = list(
   
   # signal choices
   minNumStocks   = 20, # Minimum number of stocks in any month over the in-sample period to include a DM strategy for matching to published strategies (ie minNumStocks/2 in each leg)
+  match_nmonth_min = 60, # Minimum months of in-sample history for a DM strategy to qualify as a benchmark (both matchers; was hardcoded 5*12 in SelectDMStrats only)
   signalnum      = Inf, # number of signals to sample or Inf for all
   form           = c('v1/v2', 'diff(v1)/lag(v2)'), # 'pdiff(v1/v2)', 'pdiff(v1)', 'diff(v1/v2)', 'pdiff(v1)-pdiff(v2)')
   denom_min_fobs = 0.25, # minimum fraction of non-missing observations in 1963
@@ -1250,8 +1251,8 @@ SelectDMStrats <- function(insampsum, settings) {
       abs(tstat) > settings$t_min &
       abs(tstat) < settings$t_max &
       rank_tstat / n_dm_tot <= settings$t_rankpct_min / 100 &
-      nlastyear == 12 &   # tbc: make flexible
-      nmonth >= 5*12 # tbc: make flexible
+      nlastyear == 12 &
+      nmonth >= globalSettings$match_nmonth_min
   ]
   
   print("summary of matching:")

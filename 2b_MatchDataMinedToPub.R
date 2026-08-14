@@ -85,6 +85,7 @@ dm_insamp = foreach(sampi = 1:dim(samplist)[1],
                           rbar = mean(ret), tstat = mean(ret)/sd(ret)*sqrt(.N)
                           , min_nstock_long  = min(nstock_long)
                           , min_nstock_short = min(nstock_short)
+                          , nmonth = .N
                         )
                         , by = c('sweight','dmname')
                       ] 
@@ -135,6 +136,9 @@ matchsum = czsum %>% transmute(
 setDT(czret)
 
 tic = Sys.time()
+nmonth_min = globalSettings$match_nmonth_min
+# NOTE: the saved '... MatchPub.RData' on disk predates this screen; pair-level
+# post-filtering (4c25) is equivalent until the next full 2b rerun.
 cl <- makePSOCKcluster(ncores)
 registerDoParallel(cl)
 candidateReturns =  foreach(pubi = 1:dim(czsum)[1], 
@@ -154,6 +158,7 @@ candidateReturns =  foreach(pubi = 1:dim(czsum)[1],
                                 & diff_tstat / abs(tstat_op) <= t_reltol    
                                 & min_nstock_long  >= minNumStocks/2
                                 & min_nstock_short >= minNumStocks/2
+                                & nmonth >= nmonth_min
                                 & nlastyear == 12
                               ] %>%
                                 transmute(sweight, dmname, sign = sign(rbar))
