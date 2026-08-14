@@ -3,15 +3,10 @@
 # How to run: set the working directory to flex-mining/, then
 #   Rscript SA_Appendices.R
 # Inputs:  cleaned data and chapter-2/3 caches
-# Outputs: appendix PDFs, audit CSVs, and TeX under ../Results
+# Outputs: appendix PDFs and TeX under ../Results
 #
 # Appendix variants emitted alongside a main-text exhibit remain owned by that
 # main-text chapter and are not rerun here.
-
-settings_env <- new.env(parent = globalenv())
-sys.source("config.R", envir = settings_env)
-version_prefix <- file.path("../Data/Processed", settings_env$globalSettings$dataVersion)
-rm(settings_env)
 
 required_files <- c(
   "../Data/Processed/czsum_allpredictors.RDS",
@@ -19,10 +14,7 @@ required_files <- c(
   "../Data/Processed/ret_for_plot0.RDS",
   "../Data/Processed/ret_for_plot1.RDS",
   "../Data/Processed/dm_span_analysis.RDS",
-  "../Data/Processed/PairwiseCorrelationsActualAndMatches.RDS",
-  paste0(version_prefix, " MatchPubRiskAdjusted.RData"),
-  "../Data/Raw/FamaFrenchFactors.RData",
-  "DataInput/SignalsTheoryChecked.csv"
+  "../Data/Processed/PairwiseCorrelationsActualAndMatches.RDS"
 )
 missing_files <- required_files[!file.exists(required_files)]
 if (length(missing_files) > 0) {
@@ -56,4 +48,3 @@ run_script("Appendices/SA09_AccountingOnlyAlphaPlots.R")
 run_script("Appendices/SA10_ResearchVsDMRobustnessCorrelationsEtc.R")
 run_script("Appendices/SA11_DMSpanPCAPlots.R")
 run_script("Appendices/SA12_EZThemesRobustness.R")
-run_script("Appendices/SA13_RVsDM_AnyModel.R")

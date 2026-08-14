@@ -26,14 +26,13 @@ MAIN.R  (reads runStages from config.R)
   S3_Learning.R             -> S3a S3b
   S4_Heterogeneity.R        -> S4a S4b
   S5_BestPredictors.R       -> S5a
-  SA_Appendices.R           -> Appendices/SA01 through Appendices/SA13
+  SA_Appendices.R           -> Appendices/SA01 through Appendices/SA12
   9_ExportDataToCsv.R
 ```
 
-`S4b_RVsDM_ByGroup.R` owns the Table 6 and Table 7 source artifacts, and
-`Appendices/SA13_RVsDM_AnyModel.R` owns the Table IA.10 source artifacts. Both
-use the frozen calculation in `helpers/risk_adjusted_by_group_frozen.R` and are
-in the default pipeline.
+`S4b_RVsDM_ByGroup.R` owns the source artifacts for Tables 6, 7, and IA.10 and
+is in the default Section 4 pipeline. Keeping the three tables together avoids
+running their shared sample-specific risk-adjustment calculation twice.
 
 ## Exhibit → producer
 
@@ -102,7 +101,7 @@ Abbreviations used below to keep the columns narrow:
 | Tab_RA_FS_DisciplineJournal_Appendix.tex         | Tab IA.7  | Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R | yes       |
 | SignalsByTheoryAndJournal.tex                    | Tab IA.8  | S4a_DataCounts.R                                          | yes       |
 | tab:mp-theory-no-reg (inline)                    | Tab IA.9  | Excel2LaTeX (sheet "MP theory")                           | n/a       |
-| tab:hetero-model (inline)                        | Tab IA.10 | Appendices/SA13 -> Table_RiskAdjusted_TimeVarying_AnyModelVsNoModel_ff4_t2 | yes |
+| tab:hetero-model (inline)                        | Tab IA.10 | S4b -> Table_RiskAdjusted_TimeVarying_AnyModelVsNoModel_ff4_t2 | yes |
 | Tab_RA_FS_AnyModelVsNoModel_Appendix.tex         | Tab IA.11 | Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R | yes       |
 | samp_split_summary.tex                           | Tab IA.12 | Appendices/SA03_StructuralBreak.R                         | yes       |
 | Fig_FullSampleRiskAdj_capm/ff3_alpha_fs_t2.pdf   | Fig IA.1  | Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R | yes       |
