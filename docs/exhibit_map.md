@@ -68,54 +68,54 @@ Abbreviations used below to keep the columns narrow:
 
 ### Main text
 
-| Exhibit | Paper # | Producer | Calculation? | Paper artifact? | Wired? |
-| --- | --- | --- | --- | --- | --- |
-| Fig_DM_t_min_2_se_indicators_calendar.pdf | §1 Fig 1 | S2a_ResearchVsDMPlots.R | yes | yes | yes |
-| dm-sortsFull.tex | §2 Tab 1 | S2b_DataMiningSummaryTables.R | yes | yes | yes |
-| DM_pca.tex | §2 Tab 1 | S2c_DMCorrelationsPCATables.R | yes | yes | yes |
-| theme_ez_decay.tex | §2 Tab 2 | S2d_EZThemes.R | yes | yes | yes |
-| Fig2a/b/c/d (4) | §2 Fig 2 | S2e_Fig2Plots.R | yes | yes | yes |
-| Fig2c_MatchedExclCorr_Tol10.pdf | §2 Fig 2 draft cmp | S2e_Fig2Plots.R | yes | yes | yes |
-| HandTable_MPStyleRegsMain.tex | §3 Tab 3 | hand-transcribed from S3b output | yes | no | yes |
-| HandTable_MPStyleRegsMain_Tol30.tex | §3 draft Tab 3b | hand-transcribed from S3b output | yes | no | yes |
-| HandTable_MPStyleRegsTimeFE.tex | §3 Tab 4 | hand-transcribed from S3b output | yes | no | yes |
-| HandTable_MPStyleRegsTimeFE_Tol30.tex | §3 draft Tab 4b | hand-transcribed from S3b output | yes | no | yes |
-| ApproachVsJournalsPart1/2/3.tex | §4 Tab 5 | S4a_DataCounts.R | yes | yes | yes |
-| Table_RiskAdjusted_TimeVarying_ff4_t2.tex | §4 Tab 6 | S4b_RVsDM_ByGroup.R | yes | yes | yes |
-| Table_RiskAdjusted_TimeVarying_DisciplineJournal_ff4_t2.tex | §4 Tab 7 | S4b_RVsDM_ByGroup.R | yes | yes | yes |
-| inspect-BMdec.tex | §5 Tab 8 | S5a_InspectTables.R | yes | yes | yes |
-| inspect-Mom12m.tex | §5 Tab 9 | S5a_InspectTables.R | yes | yes | yes |
-| inspect-Size.tex | §5 Tab 10 | S5a_InspectTables.R | yes | yes | yes |
+| Exhibit                                                     | Paper #            | Producer                         | Calculation? | Paper artifact? | Wired? |
+| ----------------------------------------------------------- | ------------------ | -------------------------------- | ------------ | --------------- | ------ |
+| Fig_DM_t_min_2_se_indicators_calendar.pdf                   | §1 Fig 1           | S2a_ResearchVsDMPlots.R          | yes          | yes             | yes    |
+| dm-sortsFull.tex                                            | §2 Tab 1           | S2b_DataMiningSummaryTables.R    | yes          | yes             | yes    |
+| DM_pca.tex                                                  | §2 Tab 1           | S2c_DMCorrelationsPCATables.R    | yes          | yes             | yes    |
+| theme_ez_decay.tex                                          | §2 Tab 2           | S2d_EZThemes.R                   | yes          | yes             | yes    |
+| Fig2a/b/c/d (4)                                             | §2 Fig 2           | S2e_Fig2Plots.R                  | yes          | yes             | yes    |
+| Fig2c_MatchedExclCorr_Tol10.pdf                             | §2 Fig 2 draft cmp | S2e_Fig2Plots.R                  | yes          | yes             | yes    |
+| HandTable_MPStyleRegsMain.tex                               | §3 Tab 3           | hand-transcribed from S3b output | yes          | no              | yes    |
+| HandTable_MPStyleRegsMain_Tol30.tex                         | §3 draft Tab 3b    | hand-transcribed from S3b output | yes          | no              | yes    |
+| HandTable_MPStyleRegsTimeFE.tex                             | §3 Tab 4           | hand-transcribed from S3b output | yes          | no              | yes    |
+| HandTable_MPStyleRegsTimeFE_Tol30.tex                       | §3 draft Tab 4b    | hand-transcribed from S3b output | yes          | no              | yes    |
+| ApproachVsJournalsPart1/2/3.tex                             | §4 Tab 5           | S4a_DataCounts.R                 | yes          | yes             | yes    |
+| Table_RiskAdjusted_TimeVarying_ff4_t2.tex                   | §4 Tab 6           | S4b_RVsDM_ByGroup.R              | yes          | yes             | yes    |
+| Table_RiskAdjusted_TimeVarying_DisciplineJournal_ff4_t2.tex | §4 Tab 7           | S4b_RVsDM_ByGroup.R              | yes          | yes             | yes    |
+| inspect-BMdec.tex                                           | §5 Tab 8           | S5a_InspectTables.R              | yes          | yes             | yes    |
+| inspect-Mom12m.tex                                          | §5 Tab 9           | S5a_InspectTables.R              | yes          | yes             | yes    |
+| inspect-Size.tex                                            | §5 Tab 10          | S5a_InspectTables.R              | yes          | yes             | yes    |
 
 ### Appendices
 
-| Exhibit | Paper # | Producer | Calculation? | Paper artifact? | Wired? |
-| --- | --- | --- | --- | --- | --- |
-| Table_MPStyleRegsIndividualDM.tex | Tab B.1 | S3b_MPStyleDecayTables.R | yes | yes | yes |
-| Fig2a/b/c/d_CI (4) | Fig B.1 | S2e_Fig2Plots.R | yes | yes | yes |
-| Fig_DM_t_top5Pct_AccountingOnly_CalendarSE.pdf | Fig B.2 | S2a + Appendices/SA08_AccountingOnlyPlots.R | yes | yes | yes |
-| Fig_DM_t_min_2_AccountingOnly_CalendarSE.pdf | Fig B.2 | Appendices/SA08_AccountingOnlyPlots.R | yes | yes | yes |
-| Fig_DM_CAPM/FF4_tv_AccountingOnly_CalendarSE.pdf | Fig B.2 | Appendices/SA09_AccountingOnlyAlphaPlots.R | yes | yes | yes |
-| Fig_PublicationsVsDataMining_*_Correlation10 (4) | Fig B.3 | Appendices/SA10_ResearchVsDMRobustnessCorrelationsEtc.R | yes | yes | yes |
-| Fig_PublicationsVsDataMining_*_d_mean_0.1 (4) | Fig B.4 | Appendices/SA10_ResearchVsDMRobustnessCorrelationsEtc.R | yes | yes | yes |
-| Fig_DM_unspan_match_t_g_PCA/cor.pdf | Fig B.5 | Appendices/SA11_DMSpanPCAPlots.R | yes | yes | yes |
-| dm-sortsPost2003.tex | Tab IA.1 | S2b_DataMiningSummaryTables.R | yes | yes | yes |
-| quantilesCorDM.tex | Tab IA.2 | S2c_DMCorrelationsPCATables.R | yes | yes | yes |
-| theme_ez_decayinSampEnd1990.tex | Tab IA.3 | Appendices/SA12_EZThemesRobustness.R | yes | yes | yes |
-| theme_ez_decayinSampEnd2000.tex | Tab IA.4 | Appendices/SA12_EZThemesRobustness.R | yes | yes | yes |
-| theme_ez_decayinSampEnd2010.tex | Tab IA.5 | Appendices/SA12_EZThemesRobustness.R | yes | yes | yes |
-| Tab_RA_FS_Appendix.tex | Tab IA.6 | S4b_RVsDM_ByGroup.R | yes | yes | yes |
-| Tab_RA_FS_DisciplineJournal_Appendix.tex | Tab IA.7 | S4b_RVsDM_ByGroup.R | yes | yes | yes |
-| SignalsByTheoryAndJournal.tex | Tab IA.8 | S4a_DataCounts.R | yes | yes | yes |
-| tab:mp-theory-no-reg (inline) | Tab IA.9 | Excel2LaTeX (sheet "MP theory") | no | no | inline |
-| Table_RiskAdjusted_TimeVarying_AnyModelVsNoModel_ff4_t2.tex | Tab IA.10 | S4b_RVsDM_ByGroup.R | yes | yes | yes |
-| Tab_RA_FS_AnyModelVsNoModel_Appendix.tex | Tab IA.11 | S4b_RVsDM_ByGroup.R | yes | yes | yes |
-| samp_split_summary.tex | Tab IA.12 | Appendices/SA03_StructuralBreak.R | yes | yes | yes |
-| Fig_FullSampleRiskAdj_capm/ff3_alpha_fs_t2.pdf | Fig IA.1 | Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R | yes | yes | yes |
-| Fig_DecayVsWords_Names2.pdf | Fig IA.2 | Appendices/SA04_DecayVsWordcountPlot.R | yes | yes | yes |
-| Fig_Risk_via_CAPM/FF3/FF5.pdf | Fig IA.3 | Appendices/SA01_RiskVsMispricingPlots.R | yes | yes | yes |
-| Fig_DecayVsJournal_Means.pdf | Fig IA.4 | Appendices/SA06_DecayVsJournal.R | yes | yes | yes |
-| break_vs_sampend.pdf | Fig IA.5 | Appendices/SA03_StructuralBreak.R | yes | yes | yes |
+| Exhibit                                                     | Paper #   | Producer                                                  | Calculation? | Paper artifact? | Wired? |
+| ----------------------------------------------------------- | --------- | --------------------------------------------------------- | ------------ | --------------- | ------ |
+| Table_MPStyleRegsIndividualDM.tex                           | Tab B.1   | S3b_MPStyleDecayTables.R                                  | yes          | yes             | yes    |
+| Fig2a/b/c/d_CI (4)                                          | Fig B.1   | S2e_Fig2Plots.R                                           | yes          | yes             | yes    |
+| Fig_DM_t_top5Pct_AccountingOnly_CalendarSE.pdf              | Fig B.2   | S2a + Appendices/SA08_AccountingOnlyPlots.R               | yes          | yes             | yes    |
+| Fig_DM_t_min_2_AccountingOnly_CalendarSE.pdf                | Fig B.2   | Appendices/SA08_AccountingOnlyPlots.R                     | yes          | yes             | yes    |
+| Fig_DM_CAPM/FF4_tv_AccountingOnly_CalendarSE.pdf            | Fig B.2   | Appendices/SA09_AccountingOnlyAlphaPlots.R                | yes          | yes             | yes    |
+| Fig_PublicationsVsDataMining_*_Correlation10 (4)            | Fig B.3   | Appendices/SA10_ResearchVsDMRobustnessCorrelationsEtc.R   | yes          | yes             | yes    |
+| Fig_PublicationsVsDataMining_*_d_mean_0.1 (4)               | Fig B.4   | Appendices/SA10_ResearchVsDMRobustnessCorrelationsEtc.R   | yes          | yes             | yes    |
+| Fig_DM_unspan_match_t_g_PCA/cor.pdf                         | Fig B.5   | Appendices/SA11_DMSpanPCAPlots.R                          | yes          | yes             | yes    |
+| dm-sortsPost2003.tex                                        | Tab IA.1  | S2b_DataMiningSummaryTables.R                             | yes          | yes             | yes    |
+| quantilesCorDM.tex                                          | Tab IA.2  | S2c_DMCorrelationsPCATables.R                             | yes          | yes             | yes    |
+| theme_ez_decayinSampEnd1990.tex                             | Tab IA.3  | Appendices/SA12_EZThemesRobustness.R                      | yes          | yes             | yes    |
+| theme_ez_decayinSampEnd2000.tex                             | Tab IA.4  | Appendices/SA12_EZThemesRobustness.R                      | yes          | yes             | yes    |
+| theme_ez_decayinSampEnd2010.tex                             | Tab IA.5  | Appendices/SA12_EZThemesRobustness.R                      | yes          | yes             | yes    |
+| Tab_RA_FS_Appendix.tex                                      | Tab IA.6  | S4b_RVsDM_ByGroup.R                                       | yes          | yes             | yes    |
+| Tab_RA_FS_DisciplineJournal_Appendix.tex                    | Tab IA.7  | S4b_RVsDM_ByGroup.R                                       | yes          | yes             | yes    |
+| SignalsByTheoryAndJournal.tex                               | Tab IA.8  | S4a_DataCounts.R                                          | yes          | yes             | yes    |
+| tab:mp-theory-no-reg (inline)                               | Tab IA.9  | Excel2LaTeX (sheet "MP theory")                           | no           | no              | inline |
+| Table_RiskAdjusted_TimeVarying_AnyModelVsNoModel_ff4_t2.tex | Tab IA.10 | S4b_RVsDM_ByGroup.R                                       | yes          | yes             | yes    |
+| Tab_RA_FS_AnyModelVsNoModel_Appendix.tex                    | Tab IA.11 | S4b_RVsDM_ByGroup.R                                       | yes          | yes             | yes    |
+| samp_split_summary.tex                                      | Tab IA.12 | Appendices/SA03_StructuralBreak.R                         | yes          | yes             | yes    |
+| Fig_FullSampleRiskAdj_capm/ff3_alpha_fs_t2.pdf              | Fig IA.1  | Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R | yes          | yes             | yes    |
+| Fig_DecayVsWords_Names2.pdf                                 | Fig IA.2  | Appendices/SA04_DecayVsWordcountPlot.R                    | yes          | yes             | yes    |
+| Fig_Risk_via_CAPM/FF3/FF5.pdf                               | Fig IA.3  | Appendices/SA01_RiskVsMispricingPlots.R                   | yes          | yes             | yes    |
+| Fig_DecayVsJournal_Means.pdf                                | Fig IA.4  | Appendices/SA06_DecayVsJournal.R                          | yes          | yes             | yes    |
+| break_vs_sampend.pdf                                        | Fig IA.5  | Appendices/SA03_StructuralBreak.R                         | yes          | yes             | yes    |
 
 ## Gaps
 
