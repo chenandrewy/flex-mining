@@ -1,4 +1,11 @@
-# Build the plotted series for the reorganized Figure 2 (Spec 3, meeting notes 2026-07-23):
+# Build the plotted series for the reorganized Figure 2.
+#
+# How to run: normally run through 3_Precompute.R from flex-mining/.
+# Inputs:  chapter-2 matches/risk adjustments and earlier chapter-3 panels
+# Outputs: ../Data/Processed/fig2_panel_long.RDS
+#          ../Data/Processed/fig2_panel_agg.RDS
+#
+# Figure specification (meeting notes 2026-07-23):
 #   (a) Factor adjustments: CAPM pub/DM + FF3+Mom pub/DM (4 lines)
 #   (b) Publication sample limits: annual-accounting-only pub/DM + pre-2003 pub/DM (4 lines)
 #   (c) Controlling for sum-stats, excluding corr: pub + matched DM + matched & cor<=0.10 (3 lines)
@@ -7,11 +14,8 @@
 # Panel sources: (a) follows 4c4_RiskAdjustedResearchVsDMPlotsTV(FF4).R, (b) follows
 # 4c6_AccountingOnlyPlots.R, (c) follows 4d_ResearchVsDMRobustnessCorrelationsEtc.R,
 # (d) follows 4c3_ResearchVsAcctVsTicker.R. This script only assembles the long
-# per-signal series and aggregates them; 4c20b_Fig2Plots.R renders the figures.
+# per-signal series and aggregates them; 4c9_Fig2Plots.R renders the figures.
 #
-# Outputs: ../Data/Processed/fig2_panel_long.RDS  (label-level obs, for reaggregation)
-#          ../Data/Processed/fig2_panel_agg.RDS   (rolling means + clustered SEs)
-
 rm(list = ls())
 source('0_Environment.R')
 source('helpers/risk_adjusted_helpers_tv.R')
@@ -153,7 +157,7 @@ matched_all = candidateReturns %>%
   summarise(matchRet = mean(ret_norm, na.rm = TRUE), .groups = 'drop')
 
 # matched DM, dropping pairs with correlation above 0.10
-allRhos = readRDS('../Results/PairwiseCorrelationsActualAndMatches.RDS')
+allRhos = readRDS('../Data/Processed/PairwiseCorrelationsActualAndMatches.RDS')
 
 corCandidateReturns = candidateReturns %>%
   left_join(allRhos,

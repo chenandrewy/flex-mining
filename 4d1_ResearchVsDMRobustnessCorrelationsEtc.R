@@ -1,5 +1,8 @@
-# Data-mining comparisons --------------------------------------
-# this used to be the main figures, back in the day
+# Render robustness comparisons between published and matched mined returns.
+#
+# How to run: normally run through 4_Exhibits.R from flex-mining/.
+# Inputs:  chapter-2 matched returns/correlations and cleaned published returns
+# Outputs: ../Results/Fig_PublicationsVsDataMining_*.pdf
 
 rm(list = ls())
 source('0_Environment.R')
@@ -106,7 +109,7 @@ for (jj in unique(allRetsForPlot$theory)) {
 
 
 # Excluding high correlations --------------------------------------------------
-allRhos = readRDS('../Results/PairwiseCorrelationsActualAndMatches.RDS')
+allRhos = readRDS('../Data/Processed/PairwiseCorrelationsActualAndMatches.RDS')
 
 exclCorrelations = c(10)  # c(10, 20, 30, 40, 50)
 
@@ -201,7 +204,7 @@ for (cc in exclCorrelations) {
 
 
 # Excluding high correlations and tighter returns --------------------------------------------------
-allRhos = readRDS('../Results/PairwiseCorrelationsActualAndMatches.RDS')
+allRhos = readRDS('../Data/Processed/PairwiseCorrelationsActualAndMatches.RDS')
 
 exclCorrelations = c(10)  # c(10, 20, 30, 40, 50)
 r_tol_cor <- 0.1
@@ -298,4 +301,3 @@ for (cc in exclCorrelations) {
   }
   
 }
-

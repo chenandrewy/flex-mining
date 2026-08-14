@@ -1,14 +1,23 @@
-# wrapper for generating baseline data mined strategies 
+# Chapter 2 driver: construct and match data-mined strategies.
+#
+# How to run: set the working directory to flex-mining/, then
+#   Rscript 2_DataMining.R
+# Inputs:  cleaned chapter-1 inputs
+# Outputs: core mined-strategy and matched-return caches in ../Data/Processed
+#
+# 2a takes roughly two hours. Each child runs in a separate R process so the
+# allocator's high-water memory is returned to the operating system between
+# scripts.
 
-# 2a_CompustatToLongshort.R takes about 2-3 hours.  The rest is fast
+run_script <- function(path) {
+  message("\n--- Chapter 2: ", path, " ---")
+  status <- system2(file.path(R.home("bin"), "Rscript"), path)
+  if (!identical(status, 0L)) {
+    stop("Chapter 2 script failed (exit ", status, "): ", path)
+  }
+}
 
-# Environment -------------------------------------------------------------
-
-source('0_Environment.R')
-
-
-# Mining ------------------------------------------------------------------
-source('2a_CompustatToLongshort.R') 
-source('2b_MatchDataMinedToPub.R')
-source('2c_TickerToLongshort.R')
-source('2d_RiskAdjustDataMinedSignals.R')
+run_script("2a_CompustatToLongshort.R")
+run_script("2b_MatchDataMinedToPub.R")
+run_script("2c_TickerToLongshort.R")
+run_script("2d_RiskAdjustDataMinedSignals.R")

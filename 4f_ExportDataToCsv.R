@@ -1,4 +1,8 @@
-# exports data as csv for sharing
+# Export mined-strategy data as CSV for sharing.
+#
+# How to run: normally run through 4_Exhibits.R from flex-mining/.
+# Inputs:  chapter-2 Compustat and ticker strategy caches
+# Outputs: ../Data/Export/{EW,VW,SignalList}.csv and ticker equivalents
 
 # Setup -------------------------------------------------------------------
 
@@ -74,4 +78,3 @@ rdataname = '../Data/Processed/ticker_Harvey2017JF.RDS'
 csvname = '../Data/Export/tickerHarvey2017'
 
 rdata_to_csv(rdataname = rdataname, csvname = csvname)
-

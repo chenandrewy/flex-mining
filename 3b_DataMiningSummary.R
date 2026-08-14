@@ -1,7 +1,17 @@
-# Calculate DM OOS summary stats (can take several minutes)
+# Precompute DM OOS summary statistics.
+#
+# How to run: source from 3_Precompute.R with the working directory set to
+#   flex-mining/.
+# Inputs:  ../Data/Processed/<dataVersion> LongShort.RData
+# Outputs: ../Data/Processed/Summary_StatisticsDM_{ew,vw}.csv
+#          ../Data/Processed/sumsignal_oos_30y_*.csv
+#
+# This script intentionally does not render exhibits. The corresponding tables
+# are written by 4b1_DataMiningSummaryTables.R.
 
 # Load environment
 source('0_Environment.R')
+render_legacy <- FALSE
 
 # Settings ---------------------------------------------------------------------
 var_types <- c('vw', 'ew')
@@ -17,8 +27,10 @@ dmcomp$name <- paste0('../Data/Processed/',
 
 
 # Load data ---------------------------------------------------------------
-dm_rets <- readRDS(DMname)$ret
-dm_info <- readRDS(DMname)$port_list
+stratdat <- readRDS(DMname)
+dm_rets <- stratdat$ret
+dm_info <- stratdat$port_list
+rm(stratdat)
 
 dm_rets <- dm_rets %>%
   left_join(
@@ -71,7 +83,7 @@ for (var_type in var_types) {
     pivot_longer(everything(), names_sep = "_", names_to = c( "variable", ".value")) 
   # %>%  mutate_if(is.numeric, round, 2)
   
-  fwrite(Summary_Statistics, glue::glue('../Results/Summary_StatisticsDM_{str_to_add}.csv'))
+  fwrite(Summary_Statistics, glue::glue('../Data/Processed/Summary_StatisticsDM_{str_to_add}.csv'))
   
   Summary_Statistics
   
@@ -108,18 +120,24 @@ for (var_type in var_types) {
                        caption = 'Out-of-Sample Portfolios of Strategies Sorted on Past 30 Years of Returns',
                        type = "latex"), include.colnames=FALSE)
   
-  fwrite(test$sumsignal_oos,  glue::glue('../Results/sumsignal_oos_30y_{str_to_add}_unit_level.csv'))
-  fwrite(test$sumsignal_oos_pre_2003,  glue::glue('../Results/sumsignal_oos_30y_pre_2003_{str_to_add}_unit_level.csv'))
-  fwrite(test$sumsignal_oos_post_2003,  glue::glue('../Results/sumsignal_oos_30y_post_2003_{str_to_add}_unit_level.csv'))
+  fwrite(test$sumsignal_oos,  glue::glue('../Data/Processed/sumsignal_oos_30y_{str_to_add}_unit_level.csv'))
+  fwrite(test$sumsignal_oos_pre_2003,  glue::glue('../Data/Processed/sumsignal_oos_30y_pre_2003_{str_to_add}_unit_level.csv'))
+  fwrite(test$sumsignal_oos_post_2003,  glue::glue('../Data/Processed/sumsignal_oos_30y_post_2003_{str_to_add}_unit_level.csv'))
   
 }
 
 
+# Legacy renderer --------------------------------------------------------
+# Kept temporarily for result-equivalence checks. The precompute driver does
+# not enable it; 4b1_DataMiningSummaryTables.R owns these exhibits.
+
+if (render_legacy) {
+
 # To LaTeX ----------------------------------------------------
 
 # to TeX
-fs_ew = read_csv('../Results/sumsignal_oos_30y_ew_unit_level.csv')
-fs_vw = read_csv('../Results/sumsignal_oos_30y_vw_unit_level.csv')
+fs_ew = read_csv('../Data/Processed/sumsignal_oos_30y_ew_unit_level.csv')
+fs_vw = read_csv('../Data/Processed/sumsignal_oos_30y_vw_unit_level.csv')
 
 fs_ew = fs_ew %>% 
   transmute(bin = as.integer(bin),
@@ -155,8 +173,8 @@ bind_cols(fs_ew, fs_vw) %>%
   )
 
 # post 2003
-fs_ew = read_csv('../Results/sumsignal_oos_30y_post_2003_ew_unit_level.csv')
-fs_vw = read_csv('../Results/sumsignal_oos_30y_post_2003_vw_unit_level.csv')
+fs_ew = read_csv('../Data/Processed/sumsignal_oos_30y_post_2003_ew_unit_level.csv')
+fs_vw = read_csv('../Data/Processed/sumsignal_oos_30y_post_2003_vw_unit_level.csv')
 
 fs_ew = fs_ew %>% 
   transmute(bin = as.integer(bin),
@@ -191,3 +209,4 @@ bind_cols(fs_ew, fs_vw) %>%
     file = paste0('../Results/dm-sortsPost2003.tex')
   )
 
+}

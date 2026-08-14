@@ -1,3 +1,13 @@
+# Construct the Compustat long-short strategy universe.
+#
+# How to run: normally run through 2_DataMining.R from the flex-mining/
+#   working directory; it can also be run directly with Rscript.
+# Inputs:  cleaned Compustat and CRSP files plus DataIntermediate denominators
+# Outputs: ../Data/Processed/<dataVersion> LongShort.RData
+#          ../Data/tmpAllDat.fst and ../Data/make_many_ls.log (temporary/progress)
+
+source("0_Environment.R")
+
 tic = Sys.time()
 
 # takes about 3 hours using 14 cores

@@ -1,4 +1,13 @@
-# This file produces regressions of the form 
+# Precompute MP-style decay regressions.
+#
+# How to run: source from 3_Precompute.R with the working directory set to
+#   flex-mining/.
+# Inputs:  chapter-2 mined strategies and chapter-3 matched-return panels
+# Outputs: ../Data/Processed/mp_style_decay_models.RDS
+#
+# 4c8_MPStyleDecayTables.R renders the cached models into TeX.
+#
+# This file estimates regressions of the form
 # return = constant + post-sample + post-publication + fixed effects 
 # in the published and data-mined predictors
 
@@ -6,6 +15,7 @@
 
 rm(list = ls())
 source("0_Environment.R")
+render_legacy <- FALSE
 library(doParallel)
 
 # Load and prep Data -------------------------------------------
@@ -285,7 +295,8 @@ fitLM3a_excl = fixest::feols(diffRet_excl ~ postSample + postPub | pubname + cal
                              data = regData_excl %>% filter(calendarDate >= sampstart),
                              cluster = ~pubname+calendarDate)
 
-### Main Table ---- 
+### Main Table ----
+if (render_legacy) {
 fixest::etable(
   list(fitLM1, fitLM1a, fitLM2_excl, fitLM2a_excl, fitLM3_excl, fitLM3a_excl),
   tex = TRUE,
@@ -299,6 +310,7 @@ fixest::etable(
   fitstat = ~ n + r2 + wr2,
   file = '../Results/Table_MPStyleRegsMain.tex'
 )
+}
 
 
 
@@ -320,7 +332,8 @@ fitLM3a_excl_u = fixest::feols(diffRet_unscaled_excl ~ postSample + postPub | pu
                                cluster = ~pubname+calendarDate)
 
 
-### Supporting Table: Unscaled ---- 
+### Supporting Table: Unscaled ----
+if (render_legacy) {
 fixest::etable(
   list(fitLM1_u, fitLM1a_u, fitLM2_excl_u, fitLM2a_excl_u, fitLM3_excl_u, fitLM3a_excl_u),
   tex = TRUE,
@@ -334,6 +347,7 @@ fixest::etable(
   fitstat = ~ n + r2 + wr2,
   file = '../Results/Table_MPStyleRegsMainUnscaled.tex'
 )
+}
 
 
 rm(dm_means_excl); gc()
@@ -439,6 +453,7 @@ fitDM2a = fixest::feols(ret_unscaled ~ postSample + postPub | dmname + calendarD
                         data = dmPanel, cluster = ~dmname+calendarDate)
 
 ## Save table ----
+if (render_legacy) {
 fixest::etable(
   list(fitDM1, fitDM1a, fitDM2, fitDM2a),
   tex = FALSE,
@@ -466,4 +481,14 @@ fixest::etable(
   fitstat = ~ n + r2 + wr2,
   file = '../Results/Table_MPStyleRegsIndividualDM.tex'
 )
+}
 
+saveRDS(
+  list(
+    etable_dict = etable_dict,
+    main_scaled = list(fitLM1, fitLM1a, fitLM2_excl, fitLM2a_excl, fitLM3_excl, fitLM3a_excl),
+    main_unscaled = list(fitLM1_u, fitLM1a_u, fitLM2_excl_u, fitLM2a_excl_u, fitLM3_excl_u, fitLM3a_excl_u),
+    individual_dm = list(fitDM1, fitDM1a, fitDM2, fitDM2a)
+  ),
+  "../Data/Processed/mp_style_decay_models.RDS"
+)

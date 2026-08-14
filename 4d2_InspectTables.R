@@ -1,11 +1,31 @@
-# right now, needs to be run immediately after 4d_ResearchVsDMRobustnessCorrelationsEtc
+# Inspect matched strategies and render the paper's example-match tables.
+#
+# How to run: source from 4_Exhibits.R with the working directory set to
+#   flex-mining/.
+# Inputs:  ../Data/Processed/<dataVersion> MatchPub.RData
+#          ../Data/Processed/<dataVersion> LongShort.RData
+#          cleaned published-signal inputs
+# Outputs: ../Results/InspectMatch.xlsx and inspect-*.tex
 
 # Setup -------------------------------------------------------------------------
+source("0_Environment.R")
 library(writexl)
 
-# read matched strategies and get their documentation from stratdat
-#   clean me up pls
-matchdat = candidateReturns # loaded earlier
+# Load the matched returns explicitly. This script used to depend on objects
+# left in the global environment by 4d_ResearchVsDMRobustnessCorrelationsEtc.R.
+matchname <- paste0(
+  "../Data/Processed/", globalSettings$dataVersion, " MatchPub.RData"
+)
+matchdat <- readRDS(matchname)$candidateReturns
+
+czsum <- readRDS("../Data/Processed/czsum_allpredictors.RDS") %>%
+  filter(Keep) %>%
+  setDT()
+matchdat <- matchdat %>%
+  filter(actSignal %in% czsum$signalname) %>%
+  setDT()
+czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
+  mutate(retOrig = ret)
 
 DMname = paste0('../Data/Processed/',
                 globalSettings$dataVersion, 
@@ -252,8 +272,6 @@ tab = readxl::read_xlsx(paste0(outpath,'InspectMatch.xlsx'), sheet = 'realestate
 write_tex_from_tab(tab, id1 = 1:10, id2 = 101:105, 
                    signalnamelong = 'Real Estate (Tuzel 2010)',
                    filename = 'inspect-realestate.tex')
-
-
 
 
 

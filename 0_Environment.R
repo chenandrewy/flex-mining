@@ -1082,14 +1082,16 @@ sumstats_for_DM_Strats <- function(
     DMname = paste0('../Data/Processed/',
                     globalSettings$dataVersion, 
                     ' LongShort.RData'),
-    nsampmax = Inf) {
+    nsampmax = Inf,
+    ncores = globalSettings$num_cores) {
   
   # convert czsum to data.table (this should be done more globally)
   setDT(czsum)
   
-  # read in DM strats
-  dm_rets <- readRDS(DMname)$ret
-  dm_info <- readRDS(DMname)$port_list
+  stratdat <- readRDS(DMname)
+  dm_rets <- stratdat$ret
+  dm_info <- stratdat$port_list
+  rm(stratdat)
   
   dm_rets <- dm_rets %>%
     left_join(
@@ -1107,8 +1109,22 @@ sumstats_for_DM_Strats <- function(
     arrange(sampstart, sampend)
   
   # set up for parallel
-  cl <- makePSOCKcluster(ncores)
-  registerDoParallel(cl)
+  cl <- NULL
+  if (.Platform$OS.type == "unix") {
+    doParallel::registerDoParallel(cores = ncores)
+  } else {
+    fallback_cores <- min(ncores, 2L)
+    warning(
+      "sumstats_for_DM_Strats uses at most two PSOCK workers on non-Unix systems ",
+      "to limit copies of the mined-return panel."
+    )
+    cl <- parallel::makePSOCKcluster(fallback_cores)
+    doParallel::registerDoParallel(cl)
+  }
+  on.exit({
+    if (!is.null(cl)) parallel::stopCluster(cl)
+    foreach::registerDoSEQ()
+  }, add = TRUE)
   
   # loop setup
   nsamp <- dim(samplist)[1]
@@ -1121,7 +1137,7 @@ sumstats_for_DM_Strats <- function(
     sampi = 1:nsamp,
     .combine = rbind,
     .packages = c("data.table", "tidyverse", "zoo"),
-    .export = ls(envir = globalenv())
+    .export = c("samplist", "dm_rets", "czsum", "czret", "nsamp")
   ) %dopar% {
     # ) %do% {
     # feedback
@@ -1194,7 +1210,9 @@ sumstats_for_DM_Strats <- function(
     
     return(pubsumcur)
   } # end dm_insamp loop
-  stopCluster(cl)
+  if (!is.null(cl)) parallel::stopCluster(cl)
+  foreach::registerDoSEQ()
+  on.exit(NULL, add = FALSE)
   
   # Merge with czsum
   # insampsum key is c(pubname,dmname). Each row is a dm strat that matches a pub
@@ -1278,9 +1296,12 @@ make_DM_event_returns <- function(
   # output: for each pubname-eventDate, average dm returns
   gc()
   
-  # read in DM strats
-  dm_rets <- readRDS(DMname)$ret
-  dm_info <- readRDS(DMname)$port_list
+  # Read the large serialized object once. Reading each member separately
+  # deserializes the complete file twice and creates a large transient copy.
+  stratdat <- readRDS(DMname)
+  dm_rets <- stratdat$ret
+  dm_info <- stratdat$port_list
+  rm(stratdat)
   
   dm_rets <- dm_rets %>%
     left_join(
@@ -1297,8 +1318,26 @@ make_DM_event_returns <- function(
     ) %>%
     setDT()
   
-  cl <- makePSOCKcluster(ncores)
-  registerDoParallel(cl)
+  # The Unix multicore backend shares the read-only mined-return panel
+  # copy-on-write. PSOCK workers serialize a separate multi-GB copy to every
+  # worker and previously exhausted a 62 GB machine in chapter 3. Retain a
+  # conservative portable fallback for other platforms.
+  cl <- NULL
+  if (.Platform$OS.type == "unix") {
+    doParallel::registerDoParallel(cores = ncores)
+  } else {
+    fallback_cores <- min(ncores, 2L)
+    warning(
+      "make_DM_event_returns uses at most two PSOCK workers on non-Unix systems ",
+      "to limit copies of the mined-return panel."
+    )
+    cl <- parallel::makePSOCKcluster(fallback_cores)
+    doParallel::registerDoParallel(cl)
+  }
+  on.exit({
+    if (!is.null(cl)) parallel::stopCluster(cl)
+    foreach::registerDoSEQ()
+  }, add = TRUE)
   npub <- dim(czsum)[1]
   npub <- min(npub, npubmax)
   event_dm_scaled <- foreach(
@@ -1353,7 +1392,9 @@ make_DM_event_returns <- function(
     return(eventsumscaled)
   } # end do pubi = 1:npub
   
-  stopCluster(cl)
+  if (!is.null(cl)) parallel::stopCluster(cl)
+  foreach::registerDoSEQ()
+  on.exit(NULL, add = FALSE)
   
   return(event_dm_scaled)
 } # end MakeMatchedPanel
@@ -1362,13 +1403,16 @@ adj_R2_with_PPCA <- function(
     DMname = paste0('../Data/Processed/',
                     globalSettings$dataVersion, 
                     ' LongShort.RData'),
-    nsampmax = Inf) {
+    nsampmax = Inf,
+    ncores = globalSettings$num_cores) {
   # convert czsum to data.table (this should be done more globally)
   setDT(czsum)
   
-  # read in DM strats
-  dm_rets <- readRDS(DMname)$ret
-  dm_info <- readRDS(DMname)$port_list
+  # Read the large serialized object once; see make_DM_event_returns().
+  stratdat <- readRDS(DMname)
+  dm_rets <- stratdat$ret
+  dm_info <- stratdat$port_list
+  rm(stratdat)
   
   dm_rets <- dm_rets %>%
     left_join(
@@ -1386,8 +1430,22 @@ adj_R2_with_PPCA <- function(
     arrange(sampstart, sampend)
   
   # set up for parallel
-  cl <- makePSOCKcluster(ncores)
-  registerDoParallel(cl)
+  cl <- NULL
+  if (.Platform$OS.type == "unix") {
+    doParallel::registerDoParallel(cores = ncores)
+  } else {
+    fallback_cores <- min(ncores, 2L)
+    warning(
+      "adj_R2_with_PPCA uses at most two PSOCK workers on non-Unix systems ",
+      "to limit copies of the mined-return panel."
+    )
+    cl <- parallel::makePSOCKcluster(fallback_cores)
+    doParallel::registerDoParallel(cl)
+  }
+  on.exit({
+    if (!is.null(cl)) parallel::stopCluster(cl)
+    foreach::registerDoSEQ()
+  }, add = TRUE)
   
   # loop setup
   nsamp <- dim(samplist)[1]
@@ -1483,7 +1541,9 @@ adj_R2_with_PPCA <- function(
   } # end dm_insamp loop
   stop_time <- Sys.time()
   print(stop_time - start_time)
-  stopCluster(cl)
+  if (!is.null(cl)) parallel::stopCluster(cl)
+  foreach::registerDoSEQ()
+  on.exit(NULL, add = FALSE)
   
   return(dm_insamp)
 } # end Sumstats function

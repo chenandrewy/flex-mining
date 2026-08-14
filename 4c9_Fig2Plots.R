@@ -1,7 +1,9 @@
 # Render the reorganized Figure 2 (Spec 3, meeting notes 2026-07-23) from the
-# series built by 4c20a_Fig2Data.R. Main version has no confidence intervals;
+# series built by 3d_Fig2Data.R. Main version has no confidence intervals;
 # the appendix variant shades one clustered SE around every series.
 #
+# How to run: normally run through 4_Exhibits.R from flex-mining/.
+# Inputs:  ../Data/Processed/fig2_panel_agg.RDS
 # Outputs (../Results/Fig2/):
 #   Fig2a_FactorAdj.pdf            Fig2a_FactorAdj_CI.pdf
 #   Fig2b_PubSampleLimits.pdf      Fig2b_PubSampleLimits_CI.pdf
@@ -33,7 +35,7 @@ panels = list(
                'FF3+Mom, Published', 'FF3+Mom, Data-Mined'),
     colors = colors4,
     # Spec-3 styling: pub solid, DM dashed, pairs separated by hue
-    # (grayscale-safe four-linetype variant in 4c20d)
+    # (grayscale-safe four-linetype variant retained outside the main chain)
     linetypes = c('solid', 'longdash', 'solid', 'longdash'),
     yaxislab = 'Trailing 5-Year Alpha (bps pm)',
     yl = 0, yh = 125, yh_ci = 150, legendpos = c(35, 20) / 100,

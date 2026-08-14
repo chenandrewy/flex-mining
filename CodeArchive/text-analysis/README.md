@@ -5,7 +5,7 @@ the active `MAIN.R` workflow.
 
 `6a_TextCleaning.R` is the old regeneration path for the tracked
 `DataIntermediate/TextClassification.csv`. The active
-`3e_DecayVsWordcountPlot.R` reads that checked-in CSV directly. The regeneration
+`4a5_DecayVsWordcountPlot.R` reads that checked-in CSV directly. The regeneration
 path requires R's `spacyr` package plus Python spaCy and the
 `en_core_web_sm` model, which are not part of the active project environment.
 `Papers_to_df.ipynb` is the preceding Python/OCR step that generated

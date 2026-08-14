@@ -8,3 +8,20 @@ The origins of predictability and quotes are found in [DataInput/SignalsTheoryCh
 This project uses the active R installation's default library paths and does not manage a project-local package environment.
 
 Current results were produced with **R 4.5.3** and packages from the Posit P3M snapshot dated **2026-07-15**, plus `pcaMethods` from Bioconductor. See [docs/environment.md](docs/environment.md) for the package versions and how to regenerate the list.
+
+## Pipeline
+
+Run scripts from the repository root. `MAIN.R` exposes an independent switch
+for each chapter:
+
+1. `1_Download_and_Clean.R` acquires a new external-data vintage and cleans it.
+2. `2_DataMining.R` constructs and matches the mined strategies; this takes
+   roughly two hours.
+3. `3_Precompute.R` builds reusable correlations, PCA results, summary data,
+   and plot panels under `../Data/Processed`.
+4. `4_Exhibits.R` treats processed data as read-only and renders PDFs and TeX
+   under `../Results`.
+
+For a formatting-only figure or table change, run chapter 4 alone. Chapter 1
+overwrites `../Data/Raw` with a new, non-recoverable WRDS/Google Drive vintage,
+so its `MAIN.R` switch is off by default and should be enabled deliberately.

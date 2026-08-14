@@ -1,4 +1,8 @@
-# Created 2024 06: super ez themes
+# Render the baseline economic-theme decay table.
+#
+# How to run: normally run through 4_Exhibits.R from flex-mining/.
+# Inputs:  cleaned published returns and chapter-2 mined strategies
+# Outputs: ../Results/theme_ez_decay.tex and supporting diagnostics
 # Setup --------------------------------------------------------
 
 rm(list = ls())
@@ -408,4 +412,3 @@ for (i in 1:length(subheadrow)){
 
 
 writeLines(tex1, '../Results/theme_ez_slides.tex')
-

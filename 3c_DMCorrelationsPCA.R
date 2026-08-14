@@ -1,8 +1,18 @@
-# Pairwise correlations and PCA decomp for all data mined strategies with t-stat greater than 2
+# Precompute pairwise correlations and PCA summaries for data-mined strategies.
+#
+# How to run: source from 3_Precompute.R with the working directory set to
+#   flex-mining/.
+# Inputs:  ../Data/Processed/<dataVersion> LongShort.RData
+# Outputs: ../Data/Processed/PairwiseCorrelationsDM_{ew,vw}.RDS
+#          ../Data/Processed/dm_correlation_quantiles.RDS
+#          ../Data/Processed/dm_pca_table.RDS
+#
+# Exhibit rendering is owned by 4b2_DMCorrelationsPCATables.R.
 
 # Environment ------------------------
 source('0_Environment.R')
 library(doParallel)
+render_legacy <- FALSE
 
 # settings
 ncores <- globalSettings$num_cores
@@ -20,8 +30,10 @@ dmcomp$name <- paste0('../Data/Processed/',
 
 
 # Load data ---------------------------------------------------------------
-dm_rets <- readRDS(DMname)$ret
-dm_info <- readRDS(DMname)$port_list
+stratdat <- readRDS(DMname)
+dm_rets <- stratdat$ret
+dm_info <- stratdat$port_list
+rm(stratdat)
 
 dm_rets <- dm_rets %>%
   left_join(
@@ -178,7 +190,7 @@ for (weights in c('vw', 'ew')) {
   
   # Unlist and save
   allRhosDM = cor_results %>% unlist()
-  saveRDS(allRhosDM, paste0('../Results/PairwiseCorrelationsDM_', weights, '.RDS'))
+  saveRDS(allRhosDM, paste0('../Data/Processed/PairwiseCorrelationsDM_', weights, '.RDS'))
   
   # housekeeping
   rm(cor_results, column_indices, combinations, retwide, allRhosDM)
@@ -189,7 +201,7 @@ for (weights in c('vw', 'ew')) {
 quantilesCorDM = tibble()
 for (weights in c('vw', 'ew')) {
   
-  allRhosDM = readRDS(paste0('../Results/PairwiseCorrelationsDM_', weights, '.RDS')) 
+  allRhosDM = readRDS(paste0('../Data/Processed/PairwiseCorrelationsDM_', weights, '.RDS'))
   
   tmp = tibble(rho = allRhosDM) %>% 
     summarise(
@@ -211,7 +223,11 @@ for (weights in c('vw', 'ew')) {
 }
 
 
-#Output for TeX
+# Save the plot/table-ready summary for chapter 4.
+saveRDS(quantilesCorDM, "../Data/Processed/dm_correlation_quantiles.RDS")
+
+# Legacy renderer retained for equivalence checks only.
+if (render_legacy) {
 quantilesCorDM %>% 
   mutate(Kind = ifelse(weight == 'ew', 'Equal-Weighted', 'Value-Weighted')) %>% 
   transmute(Kind,
@@ -234,6 +250,7 @@ quantilesCorDM %>%
     only.contents = TRUE,
     file = "../Results/quantilesCorDM.tex"  
   )
+}
 
 
 
@@ -273,8 +290,12 @@ tab = pca_ew %>% transmute(n_pc, pct_exp_ew = cum_pct_exp) %>%
   )  %>% 
   t() 
 
+saveRDS(tab, "../Data/Processed/dm_pca_table.RDS")
+
 alignment = paste0('cl', rep('c', ncol(tab)-1) %>% paste(collapse = ''))
 
+# Legacy renderer retained for equivalence checks only.
+if (render_legacy) {
 # initialize latex table
 library(xtable)
 xtable(tab, align = alignment) %>% 
@@ -297,3 +318,4 @@ texline = str_replace(texline, fixed('n\\_pc'), 'Number of PCs') %>%
   str_replace(fixed('pct\\_exp\\_vw'), 'Value-Weighted') 
 
 writeLines(texline, '../Results/DM_pca.tex')
+}

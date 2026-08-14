@@ -1,4 +1,8 @@
-# Created 2024 06: super ez themes
+# Render economic-theme decay robustness tables.
+#
+# How to run: normally run through 4_Exhibits.R from flex-mining/.
+# Inputs:  cleaned published returns and chapter-2 mined strategies
+# Outputs: ../Results/theme_ez_decayinSampEnd*.tex
 # Setup --------------------------------------------------------
 
 rm(list = ls())

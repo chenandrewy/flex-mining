@@ -1,4 +1,9 @@
-# 2024 10 this prep is used in many, many plots now, and is compute heavy
+# Precompute matched data-mining event-return panels used across exhibits.
+#
+# How to run: normally run through 3_Precompute.R from flex-mining/.
+# Inputs:  cleaned published returns and chapter-2 mined-strategy caches
+# Outputs: ../Data/Processed/{dmcomp,dmtic}_sumstats.RDS
+#          ../Data/Processed/plotdat0.RDS and ret_for_plot*.RDS
 
 # Setup --------------------------------------------------------
 

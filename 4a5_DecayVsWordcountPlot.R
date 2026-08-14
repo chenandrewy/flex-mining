@@ -1,5 +1,18 @@
+# Plot out-of-sample return against the risk-to-mispricing classification.
+#
+# How to run: source from 4_Exhibits.R with the working directory set to
+#   flex-mining/.
+# Inputs:  DataIntermediate/TextClassification.csv
+#          ../Data/Processed/czret_keeponly.RDS
+# Outputs: ../Results/Fig_DecayVsWords.pdf
+#          ../Results/Fig_DecayVsWords_Names2.pdf
 
-# Plot oos return vs risk to misprice -----------------------------------------------------------------
+source("0_Environment.R")
+
+czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
+  filter(date >= as.yearmon("1964-01"))
+
+# Plot oos return vs risk to misprice ------------------------------------
 
 wordcount = fread('DataIntermediate/TextClassification.csv') %>% 
   select(signalname, theory, misprice_risk_ratio)
@@ -157,5 +170,4 @@ ggplot(aes(log_risk_misprice, diff_ret), data = plotme) +
   coord_cartesian(xlim = c(-4,4))
 
 ggsave('../Results/Fig_DecayVsWords_Names2.pdf', width = 10, height = 8)
-
 

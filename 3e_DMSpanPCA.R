@@ -1,10 +1,19 @@
-# Created 2024 05. 
+# Precompute correlation- and PCA-spanning analysis.
+#
+# How to run: source from 3_Precompute.R with the working directory set to
+#   flex-mining/.
+# Inputs:  chapter-2 mined strategies and cleaned published-signal data
+# Outputs: ../Data/Processed/dm_pca_span_classification.RDS
+#          ../Data/Processed/dm_span_analysis.RDS
+#
+# Exhibit rendering is owned by 4b10_DMSpanPCAPlots.R.
 
 # Setup --------------------------------------------------------
 
 rm(list = ls())
 source("0_Environment.R")
 library(doParallel)
+render_legacy <- FALSE
 
 
 ## User Settings ------------------------------------------------
@@ -213,13 +222,6 @@ stratlist = dmcomp$insampsum[
 
 dm_rets = dm_rets[id %in% stratlist$id]
 
-# Convenience save ----------------------------------------------
-save.image('../Data/9a_DMThemes.RData')
-
-# Convenience load ----------------------------------------------
-
-load('../Data/9a_DMThemes.RData')
-
 library(pcaMethods)
 
 source('0_Environment.R')
@@ -229,11 +231,7 @@ print("Takes about 2 hours using 4 cores")
 print("It can probably be way faster")
 pca_span_dt <- adj_R2_with_PPCA(  DMname = dmcomp$name,
                                   nsampmax = Inf)
-# Convenience save ----------------------------------------------
-save.image('../Data/9a_DMThemes_with_pca.RData')
-
-# Convenience load ----------------------------------------------
-load('../Data/9a_DMThemes_with_pca.RData')
+saveRDS(pca_span_dt, "../Data/Processed/dm_pca_span_classification.RDS")
 source('0_Environment.R')
 pca_span_dt[, spanned_pca :=  ifelse(N_pca > 30 & adj_r2 > 0.25, TRUE, FALSE)]
 
@@ -320,7 +318,8 @@ ret_for_plotting_pca <- czret %>%
   # keep only rows where both matchrets are observed
   filter(!is.na(matchRet) & !is.na(matchRetAlt))
 
-## actually plot ----------------------------------------------
+## Legacy renderer retained for equivalence checks only -------
+if (render_legacy) {
 printme = ReturnPlotsWithDM4series(
   dt = ret_for_plotting_pca, 
   basepath = "../Results/Fig_DM",
@@ -342,6 +341,7 @@ printme = ReturnPlotsWithDM4series(
   yaxislab = ylaball,
   linesize = 2
 )
+}
 #####################################
 # Corrs
 #####################################
@@ -410,7 +410,8 @@ ret_for_plotting_cor <- czret %>%
   # keep only rows where both matchrets are observed
   filter(!is.na(matchRet) & !is.na(matchRetAlt))
 
-## actually plot ----------------------------------------------
+## Legacy renderer retained for equivalence checks only -------
+if (render_legacy) {
 printme = ReturnPlotsWithDM4series(
   dt = ret_for_plotting_cor,
   basepath = "../Results/Fig_DM",
@@ -432,6 +433,7 @@ printme = ReturnPlotsWithDM4series(
   yaxislab = ylaball,
   linesize = 2
 )
+}
 
 # Describe spanning over time -----------------------------------
 # Convert sampendlist to Date objects assuming all dates are the first of the month
@@ -511,7 +513,9 @@ plot <- ggplot(tab_span2_melt, aes(x = sampend, y = value, color = variable)) +
         legend.key.width = unit(1.5, units = 'cm')
   )
 # Save the plot to a PDF file
-ggsave("../Results/Fig_spanned_over_time.pdf", plot = plot, device = "pdf", width = 15, height = 12)
+if (render_legacy) {
+  ggsave("../Results/Fig_spanned_over_time.pdf", plot = plot, device = "pdf", width = 15, height = 12)
+}
 
 library(xtable)
 table_latex <- xtable(tab_span2, caption = "Spanning of Strategies Over Time", label = "tab:spanning")
@@ -621,4 +625,16 @@ plot <- ggplot(tab_span2_melt, aes(x = sampend, y = value, color = variable)) +
   )
 plot
 # Save the plot to a PDF file
-ggsave("../Results/Fig_spanned_over_time_pca.pdf", plot = plot, device = "pdf", width = 15, height = 12)
+if (render_legacy) {
+  ggsave("../Results/Fig_spanned_over_time_pca.pdf", plot = plot, device = "pdf", width = 15, height = 12)
+}
+
+saveRDS(
+  list(
+    ret_for_plotting_pca = ret_for_plotting_pca,
+    ret_for_plotting_cor = ret_for_plotting_cor,
+    tab_span_cor = tab_span2,
+    tab_span_pca = tab_span_pca
+  ),
+  "../Data/Processed/dm_span_analysis.RDS"
+)
