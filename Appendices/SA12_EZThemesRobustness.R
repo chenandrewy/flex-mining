@@ -1,4 +1,4 @@
-# Render Appendix economic-theme decay robustness tables.
+# Appendix exhibit: economic-theme decay robustness tables.
 #
 # How to run: normally run through SA_Appendices.R from flex-mining/.
 # Inputs:  cleaned published returns and chapter-2 mined strategies

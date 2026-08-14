@@ -1,4 +1,4 @@
-# Render Appendix correlation- and PCA-spanning exhibits from chapter-3 caches.
+# Appendix exhibit: correlation- and PCA-spanning plots from chapter-3 caches.
 #
 # How to run: normally run through SA_Appendices.R with the working directory set to
 #   flex-mining/.

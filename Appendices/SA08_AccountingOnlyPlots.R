@@ -1,4 +1,4 @@
-# Render Appendix accounting-only plots controlling for data source.
+# Appendix exhibit: accounting-only plots controlling for data source.
 # Creates parallel exhibits for |t|>2 and top 5% |t| filters
 # Restricted to published signals using Compustat Annual Accounting
 

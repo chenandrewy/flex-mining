@@ -1,4 +1,4 @@
-# Plot Appendix out-of-sample return against the risk-to-mispricing classification.
+# Appendix exhibit: out-of-sample return versus risk-to-mispricing classification.
 #
 # How to run: normally run through SA_Appendices.R with the working directory set to
 #   flex-mining/.

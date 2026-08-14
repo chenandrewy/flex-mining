@@ -6,7 +6,7 @@
 # Outputs: ../Data/Processed/dm_pca_span_classification.RDS
 #          ../Data/Processed/dm_span_analysis.RDS
 #
-# Exhibit rendering is owned by SA11_DMSpanPCAPlots.R.
+# Exhibit rendering is owned by Appendices/SA11_DMSpanPCAPlots.R.
 
 # Setup --------------------------------------------------------
 

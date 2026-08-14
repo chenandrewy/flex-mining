@@ -1,4 +1,4 @@
-# Render Appendix accounting-only alpha plots with risk adjustment.
+# Appendix exhibit: accounting-only alpha plots with risk adjustment.
 # Creates parallel exhibits using CAPM and FF4 alphas (TIME-VARYING betas)
 # Restricted to published signals using Compustat Annual Accounting
 # Consistent with 4c4 approach: IS betas for IS period, OOS betas for OOS period

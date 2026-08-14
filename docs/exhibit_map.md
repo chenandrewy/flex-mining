@@ -26,7 +26,7 @@ MAIN.R  (reads runStages from config.R)
   S3_Learning.R             -> S3a S3b
   S4_Heterogeneity.R        -> S4a
   S5_BestPredictors.R       -> S5a
-  SA_Appendices.R           -> SA01 SA02 SA03 SA04 SA05 SA06 SA07 SA08 SA09 SA10 SA11 SA12
+  SA_Appendices.R           -> Appendices/SA01 through Appendices/SA12
   9_ExportDataToCsv.R
 ```
 
@@ -78,29 +78,29 @@ in-chain `S3b`; Tab IA.9 comes from a spreadsheet.
 |--------------------------------------------------------------|-------------------------------|-----------------------------------------------------|-----------|
 | Table_MPStyleRegsIndividualDM.tex                            | Tab B.1                       | S3b_MPStyleDecayTables.R                            | yes       |
 | Fig2a/b/c/d_CI (4)                                           | Fig B.1                       | S2e_Fig2Plots.R                                     | yes       |
-| Fig_DM_t_top5Pct_AccountingOnly_CalendarSE.pdf               | Fig B.2                       | S2a + SA08_AccountingOnlyPlots.R                    | yes       |
-| Fig_DM_t_min_2_AccountingOnly_CalendarSE.pdf                 | Fig B.2                       | SA08_AccountingOnlyPlots.R                          | yes       |
-| Fig_DM_CAPM/FF4_tv_AccountingOnly_CalendarSE.pdf             | Fig B.2                       | SA09_AccountingOnlyAlphaPlots.R                     | yes       |
-| Fig_PublicationsVsDataMining_*_Correlation10 (4)             | Fig B.3                       | SA10_ResearchVsDMRobustnessCorrelationsEtc.R        | yes       |
-| Fig_PublicationsVsDataMining_*_d_mean_0.1 (4)                | Fig B.4                       | SA10_ResearchVsDMRobustnessCorrelationsEtc.R        | yes       |
-| Fig_DM_unspan_match_t_g_PCA/cor.pdf                          | Fig B.5                       | SA11_DMSpanPCAPlots.R                               | yes       |
+| Fig_DM_t_top5Pct_AccountingOnly_CalendarSE.pdf               | Fig B.2                       | S2a + Appendices/SA08_AccountingOnlyPlots.R         | yes       |
+| Fig_DM_t_min_2_AccountingOnly_CalendarSE.pdf                 | Fig B.2                       | Appendices/SA08_AccountingOnlyPlots.R               | yes       |
+| Fig_DM_CAPM/FF4_tv_AccountingOnly_CalendarSE.pdf             | Fig B.2                       | Appendices/SA09_AccountingOnlyAlphaPlots.R          | yes       |
+| Fig_PublicationsVsDataMining_*_Correlation10 (4)             | Fig B.3                       | Appendices/SA10_ResearchVsDMRobustnessCorrelationsEtc.R | yes       |
+| Fig_PublicationsVsDataMining_*_d_mean_0.1 (4)                | Fig B.4                       | Appendices/SA10_ResearchVsDMRobustnessCorrelationsEtc.R | yes       |
+| Fig_DM_unspan_match_t_g_PCA/cor.pdf                          | Fig B.5                       | Appendices/SA11_DMSpanPCAPlots.R                    | yes       |
 | dm-sortsPost2003.tex                                         | Tab IA.1                      | S2b_DataMiningSummaryTables.R                       | yes       |
 | quantilesCorDM.tex                                           | Tab IA.2                      | S2c_DMCorrelationsPCATables.R                       | yes       |
-| theme_ez_decayinSampEnd1990.tex                              | Tab IA.3                      | SA12_EZThemesRobustness.R                           | yes       |
-| theme_ez_decayinSampEnd2000.tex                              | Tab IA.4                      | SA12_EZThemesRobustness.R                           | yes       |
-| theme_ez_decayinSampEnd2010.tex                              | Tab IA.5                      | SA12_EZThemesRobustness.R                           | yes       |
-| Table_RiskAdjusted_FullSample_Appendix.tex                   | Tab IA.6                      | SA07_FullSampleRiskAdjustedResearchVsDMPlots.R      | yes       |
-| Table_RiskAdjusted_FullSample_DisciplineJournal_Appendix.tex | Tab IA.7                      | SA07_FullSampleRiskAdjustedResearchVsDMPlots.R      | yes       |
+| theme_ez_decayinSampEnd1990.tex                              | Tab IA.3                      | Appendices/SA12_EZThemesRobustness.R                | yes       |
+| theme_ez_decayinSampEnd2000.tex                              | Tab IA.4                      | Appendices/SA12_EZThemesRobustness.R                | yes       |
+| theme_ez_decayinSampEnd2010.tex                              | Tab IA.5                      | Appendices/SA12_EZThemesRobustness.R                | yes       |
+| Table_RiskAdjusted_FullSample_Appendix.tex                   | Tab IA.6                      | Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R | yes       |
+| Table_RiskAdjusted_FullSample_DisciplineJournal_Appendix.tex | Tab IA.7                      | Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R | yes       |
 | SignalsByTheoryAndJournal.tex                                | Tab IA.8                      | S4a_DataCounts.R                                    | yes       |
 | tab:mp-theory-no-reg (inline; hand-copied)                   | Tab IA.9                      | Excel2LaTeX (sheet "MP theory")                     | n/a       |
 | tab:hetero-model (inline; hand-copied)                       | Tab IA.10                     | 4c4 -> Table_RiskAdjusted_AnyModelVsNoModel_ff4_t2  | n/a*      |
-| Table_RiskAdjusted_FullSample_AnyModelVsNoModel_Appendix.tex | Tab IA.11                     | SA07_FullSampleRiskAdjustedResearchVsDMPlots.R      | yes       |
-| samp_split_summary.tex                                       | Tab IA.12                     | SA03_StructuralBreak.R                              | yes       |
-| Fig_FullSampleRiskAdj_capm/ff3_alpha_fs_t2.pdf               | Fig IA.1                      | SA07_FullSampleRiskAdjustedResearchVsDMPlots.R      | yes       |
-| Fig_DecayVsWords_Names2.pdf                                  | Fig IA.2                      | SA04_DecayVsWordcountPlot.R                         | yes       |
-| Fig_Risk_via_CAPM/FF3/FF5.pdf                                | Fig IA.3                      | SA01_RiskVsMispricingPlots.R                        | yes       |
-| Fig_DecayVsJournal_Means.pdf                                 | Fig IA.4                      | SA06_DecayVsJournal.R                               | yes       |
-| break_vs_sampend.pdf                                         | Fig IA.5                      | SA03_StructuralBreak.R                              | yes       |
+| Table_RiskAdjusted_FullSample_AnyModelVsNoModel_Appendix.tex | Tab IA.11                     | Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R | yes       |
+| samp_split_summary.tex                                       | Tab IA.12                     | Appendices/SA03_StructuralBreak.R                   | yes       |
+| Fig_FullSampleRiskAdj_capm/ff3_alpha_fs_t2.pdf               | Fig IA.1                      | Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R | yes       |
+| Fig_DecayVsWords_Names2.pdf                                  | Fig IA.2                      | Appendices/SA04_DecayVsWordcountPlot.R              | yes       |
+| Fig_Risk_via_CAPM/FF3/FF5.pdf                                | Fig IA.3                      | Appendices/SA01_RiskVsMispricingPlots.R             | yes       |
+| Fig_DecayVsJournal_Means.pdf                                 | Fig IA.4                      | Appendices/SA06_DecayVsJournal.R                    | yes       |
+| break_vs_sampend.pdf                                         | Fig IA.5                      | Appendices/SA03_StructuralBreak.R                   | yes       |
 
 ## Gaps
 
@@ -127,6 +127,7 @@ The eight paper tables it does **not** produce are:
   referenced by `sections/*.tex` are `HandTable_MPStyleRegsMain_Tol10.tex` and
   `HandTable_MPStyleRegsTimeFE_Tol10.tex`.
 - In-chain scripts that produce no exhibit are upstream prep: chapter 2
-  (`2a`–`2d`), chapter 3 (`3a`–`3e`, reusable caches), and `SA02`/`SA05` (decay
+  (`2a`–`2d`), chapter 3 (`3a`–`3e`, reusable caches), and
+  `Appendices/SA02`/`Appendices/SA05` (decay
   tables/plots outside the paper contract, e.g. for slides or the referee
   response).

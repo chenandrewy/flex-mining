@@ -1,4 +1,4 @@
-# Render Appendix full-sample risk-adjusted data-mining comparisons.
+# Appendix exhibit: full-sample risk-adjusted data-mining comparisons.
 # Based on 4c4_RiskAdjustedResearchVsDMPlotsTV.R but with full sample CAPM and FF3 adjustments
 # This file compares raw vs full sample risk-adjusted returns for published vs data-mined signals
 #

@@ -1,4 +1,4 @@
-# Render Appendix risk-versus-mispricing plots.
+# Appendix exhibit: risk-versus-mispricing plots.
 rm(list = ls())
 source('0_Environment.R')
 extract_beta <- function(x, y) {

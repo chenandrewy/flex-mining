@@ -103,7 +103,7 @@ separate copy.
 
 On non-Unix systems the fork helpers fall back to a PSOCK cluster capped at two
 workers, each copying the panel, so the top-group scripts are far more
-memory-hungry off Unix. `SA03_StructuralBreak.R` uses `foreach` syntax but runs
+memory-hungry off Unix. `Appendices/SA03_StructuralBreak.R` uses `foreach` syntax but runs
 sequentially (`%do%`), so it is not parallel.
 
 ### Sizing parallelism

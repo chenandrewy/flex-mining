@@ -1,4 +1,4 @@
-# Render Appendix structural-break exhibits.
+# Appendix exhibit: structural-break analysis.
 # Created 2024 10: Motivation:
 
 # Theme from the NBER Summer Institute: What if the economic ideas do help predict returns, but publicizing them makes them, in the end, similar to data mining?
