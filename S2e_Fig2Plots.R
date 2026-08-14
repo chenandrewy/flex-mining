@@ -4,11 +4,12 @@
 #
 # How to run: normally run through S2_ResearchVsDataMining.R from flex-mining/.
 # Inputs:  ../Data/Processed/fig2_panel_agg.RDS
-# Outputs (../Results/Fig2/):
+# Outputs (../Results/):
 #   Fig2a_FactorAdj.pdf            Fig2a_FactorAdj_CI.pdf
 #   Fig2b_PubSampleLimits.pdf      Fig2b_PubSampleLimits_CI.pdf
 #   Fig2c_MatchedExclCorr.pdf      Fig2c_MatchedExclCorr_CI.pdf
 #   Fig2d_AltMining.pdf            Fig2d_AltMining_CI.pdf
+#   Fig2c_MatchedExclCorr_Tol10.pdf (active draft comparison)
 
 rm(list = ls())
 source('0_Environment.R')
@@ -16,7 +17,7 @@ source('helpers/fig2_helpers.R')
 
 fig2_agg = readRDS('../Data/Processed/fig2_panel_agg.RDS')
 
-outdir = '../Results/Fig2'
+outdir = '../Results'
 dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
 
 # Lines intended for direct comparison share a hue and differ by linetype:
@@ -58,6 +59,16 @@ panels = list(
     yl = -50, yh = 170, legendpos = c(40, 22) / 100,
     file = 'Fig2c_MatchedExclCorr'
   ),
+  c10 = list(
+    series = c('Published', 'Matched, 10% t-stat and mean return',
+               'Matched and excluding correlated'),
+    colors = colors,
+    linetypes = c('solid', 'longdash', 'dashed'),
+    yaxislab = ylaball,
+    yl = -50, yh = 170, legendpos = c(40, 22) / 100,
+    file = 'Fig2c_MatchedExclCorr_Tol10',
+    ci_variants = 'none'
+  ),
   d = list(
     series = c('Published', 'Top 5% |t| Mining Accounting',
                'Top 5% |t| Mining Tickers'),
@@ -73,7 +84,8 @@ for (pk in names(panels)) {
   p = panels[[pk]]
   agg = fig2_agg %>% filter(panel == pk)
 
-  for (civ in c('none', 'all')) {
+  ci_variants = if (is.null(p$ci_variants)) c('none', 'all') else p$ci_variants
+  for (civ in ci_variants) {
     # CI ribbons extend above the lines; give them extra headroom where set
     yh_used = if (civ == 'all' && !is.null(p$yh_ci)) p$yh_ci else p$yh
     plt = fig2_overlay_plot(

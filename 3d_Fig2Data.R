@@ -10,6 +10,8 @@
 #   (b) Publication sample limits: annual-accounting-only pub/DM + pre-2003 pub/DM (4 lines)
 #   (c) Controlling for sum-stats, excluding corr: pub + matched DM + matched & cor<=0.10 (3 lines)
 #   (d) Alternative mining methods: pub + top 5% |t| accounting + top 5% |t| tickers (3 lines)
+# A draft comparison also rebuilds panel (c) after tightening the mean-return
+# match from 30% to 10% (panel key c10).
 #
 # Panel sources: (a) follows 4c4_RiskAdjustedResearchVsDMPlotsTV(FF4).R, (b) follows
 # Appendices/SA08_AccountingOnlyPlots.R, (c) follows
@@ -147,11 +149,38 @@ candidateReturns = tmp$candidateReturns %>%
   filter(actSignal %in% czsum$signalname)
 rm(tmp); gc()
 
+# Apply the adopted pair-level history floor to both the standard and Tol10
+# versions of panel (c). This also handles MatchPub caches built before the
+# floor became part of the matching specification.
+floor_pairs = candidateReturns %>%
+  filter(samptype == 'insamp') %>%
+  count(actSignal, candSignalname, name = 'nmonth_insamp') %>%
+  filter(nmonth_insamp >= globalSettings$match_nmonth_min) %>%
+  select(actSignal, candSignalname)
+
+print(paste0('Pairs passing the ', globalSettings$match_nmonth_min,
+             '-month history floor: ', nrow(floor_pairs)))
+
+candidateReturns = candidateReturns %>%
+  inner_join(floor_pairs, by = c('actSignal', 'candSignalname'))
+
 # matched DM, no correlation screen
 rbar_pair = candidateReturns %>%
   filter(samptype == 'insamp') %>%
   group_by(actSignal, candSignalname) %>%
   summarise(rbar_insampMatched = mean(ret), .groups = 'drop')
+
+# Draft comparison: 2b already limits relative t-stat distance to 10%. Apply
+# the tighter 10% mean-return tolerance at the pair level here; the standard
+# panel keeps 2b's 30% mean-return tolerance.
+tight_pairs = rbar_pair %>%
+  left_join(czsum %>% transmute(actSignal = signalname, rbar_op = rbar),
+            by = 'actSignal') %>%
+  filter(abs(rbar_insampMatched - rbar_op) / abs(rbar_op) <= 0.10) %>%
+  select(actSignal, candSignalname, rbar_insampMatched)
+
+print(paste0('Pairs passing the extra 10% mean-return screen: ',
+             nrow(tight_pairs), ' of ', nrow(rbar_pair)))
 
 matched_all = candidateReturns %>%
   left_join(rbar_pair, by = c('actSignal', 'candSignalname')) %>%
@@ -194,7 +223,42 @@ fig2_long$c = bind_rows(
   panel_c_wide %>% transmute(label = 'Matched and excluding correlated', pubname, eventDate, calendarDate, return = matchRetAlt)
 ) %>% mutate(panel = 'c')
 
-rm(candidateReturns, corCandidateReturns, matched_all, matched_cor, allRhos); gc()
+# Build the active draft's 10% t-stat / 10% mean-return version from the same
+# candidate-return and correlation inputs as the standard panel.
+cand_tight = candidateReturns %>%
+  inner_join(tight_pairs, by = c('actSignal', 'candSignalname'))
+
+matched_all_10 = cand_tight %>%
+  mutate(ret_norm = 100 * ret / rbar_insampMatched) %>%
+  group_by(actSignal, eventDate) %>%
+  summarise(matchRet = mean(ret_norm, na.rm = TRUE), .groups = 'drop')
+
+matched_cor_10 = cand_tight %>%
+  left_join(allRhos,
+            by = c('candSignalname' = 'candidateSignal', 'actSignal' = 'actSignal')) %>%
+  filter(rho <= 0.10) %>%
+  mutate(ret_norm = 100 * ret / rbar_insampMatched) %>%
+  group_by(actSignal, eventDate) %>%
+  summarise(matchRetAlt = mean(ret_norm, na.rm = TRUE), .groups = 'drop')
+
+panel_c10_wide = czret %>%
+  filter(Keep == 1) %>%
+  transmute(pubname = signalname, eventDate, calendarDate = date, ret = ret_scaled) %>%
+  left_join(matched_all_10, by = c('pubname' = 'actSignal', 'eventDate')) %>%
+  left_join(matched_cor_10, by = c('pubname' = 'actSignal', 'eventDate')) %>%
+  filter(!is.na(matchRetAlt))
+
+print(paste0('Published signals in the 10%/10% panel: ',
+             n_distinct(panel_c10_wide$pubname)))
+
+fig2_long$c10 = bind_rows(
+  panel_c10_wide %>% transmute(label = 'Published', pubname, eventDate, calendarDate, return = ret),
+  panel_c10_wide %>% transmute(label = 'Matched, 10% t-stat and mean return', pubname, eventDate, calendarDate, return = matchRet),
+  panel_c10_wide %>% transmute(label = 'Matched and excluding correlated', pubname, eventDate, calendarDate, return = matchRetAlt)
+) %>% mutate(panel = 'c10')
+
+rm(candidateReturns, corCandidateReturns, matched_all, matched_cor,
+   cand_tight, matched_all_10, matched_cor_10, floor_pairs, allRhos); gc()
 
 # Panel (a): factor adjustments (CAPM + FF3+Mom, time-varying betas) -------
 # Published side copied from 4c4_RiskAdjustedResearchVsDMPlotsTV(FF4).R; both

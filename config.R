@@ -67,6 +67,7 @@ globalSettings = list(
   t_min    = 2,  # minimum screened t-stat
   t_max    = Inf, # maximum screened t-stat
   t_rankpct_min = 100, # top x% of data mined t-stats, 100% for off
+  match_nmonth_min = 60, # minimum in-sample months for Figure 2 matched benchmarks
 
   # DM requirements
   minShareTG2 = .1,  # Include strategies with t-stat > 2 in at least X % of published time periods

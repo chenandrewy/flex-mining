@@ -33,6 +33,10 @@ MAIN.R  (reads runStages from config.R)
 `4c4_RiskAdjustedResearchVsDMPlotsTVFF4.R` is **not** run by any stage (out of
 chain); it is only used to hand-copy Tables 6, 7, and IA.10.
 
+`3d_Fig2Data.R` precomputes the standard Figure 2 series and the active Tol10
+draft comparison; `S2e_Fig2Plots.R` renders their PDFs directly into
+`../Results/`.
+
 ## Exhibit → producer
 
 Paper numbers are from the compiled paper in the separate writing repository.
