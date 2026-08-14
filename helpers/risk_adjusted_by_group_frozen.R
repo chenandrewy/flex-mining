@@ -1,6 +1,15 @@
-# Risk-Adjusted Data-mining comparisons
-# Based on 4c4_RiskAdjustedResearchVsDMPlotsTV.R but with FF4 (Carhart 4-factor) adjustments
-# This file compares raw vs risk-adjusted returns using CAPM and FF4 models
+# Frozen phase-one calculation for the sample-specific by-group tables.
+#
+# How to run: source this file from S4b_RVsDM_ByGroup.R or
+#   Appendices/SA13_RVsDM_AnyModel.R; it is not a standalone output producer.
+# Inputs: cleaned published returns, matched data-mined returns, the
+#   sample-specific risk-adjustment cache, factor returns, and manual signal
+#   classifications (all validated by the calling script).
+# Outputs: in-memory table data frames only. The calling scripts own all files.
+#
+# This is the calculation path mechanically moved from
+# 4c4_RiskAdjustedResearchVsDMPlotsTVFF4.R. Statistical cleanup is deferred to
+# phase two; do not simplify or correct these calculations in phase one.
 #
 # FIXED: Time-varying beta/alpha consistency between published and DM signals
 # - Published signals now use sampstart/sampend periods (not eventDate-based)
@@ -8,7 +17,6 @@
 # - Both use same IS/OOS period definitions for adjustments
 
 # Setup ----------------------------------------------------------------
-rm(list = ls())
 source("0_Environment.R")
 source("helpers/risk_adjusted_helpers_tv.R")
 
@@ -38,11 +46,7 @@ DMshortname = DMname %>%
   str_remove(' LongShort.RData')
 
 risk_adj_file <- paste0('../Data/Processed/', DMshortname, ' MatchPubRiskAdjusted.RData')
-summary_file <- paste0('../Data/Processed/', DMshortname, ' MatchedRiskAdjSummary.RData')
-
-missing_risk_files <- c(risk_adj_file, summary_file)[
-  !file.exists(c(risk_adj_file, summary_file))
-]
+missing_risk_files <- risk_adj_file[!file.exists(risk_adj_file)]
 if (length(missing_risk_files) > 0) {
   stop(
     "Missing chapter-2 risk-adjustment cache(s): ",
@@ -254,57 +258,6 @@ print("Risk adjustments computed successfully!")
 print(paste("Number of signals with time-varying CAPM adjustments:", sum(!is.na(czret$beta_capm_tv))))
 print(paste("Number of signals with time-varying FF4 adjustments:", sum(!is.na(czret$beta_ff4_tv))))
 
-# Risk-Adjusted Plots ----------------------------------------------------
-
-## 1. Raw Returns (baseline from 4c2) ------------------------------------
-# Filter published signals by raw t-stat threshold for raw plot
-signals_raw_t2_plot <- unique(czret[rbar_t > t_threshold]$signalname)
-tempsuffix = paste0("raw_returns_t", t_threshold)
-
-printme_raw = ReturnPlotsWithDM_std_errors_indicators(
-  dt = ret_for_plot0 %>% filter(!is.na(matchRet), pubname %in% signals_raw_t2_plot) %>% 
-      transmute(eventDate, pubname, theory, ret, matchRet) %>%
-      left_join(czret %>% select(signalname, eventDate, date) %>% distinct(), by = c("pubname" = "signalname", "eventDate" = "eventDate")) %>%
-      rename(calendarDate = date),
-  basepath = "../Results/temp_",
-  suffix = tempsuffix,
-  rollmonths = 60,
-  colors = colors,
-  labelmatch = FALSE,
-  yl = -0,
-  yh = 125,
-  xl = global_xl,
-  xh = global_xh,
-  legendlabels =
-    c(
-      paste0("Published (Raw, t>", t_threshold, ")"),
-      paste0("Data-Mined (Raw, t>", t_threshold, ")"),
-      'N/A'
-    ),
-  legendpos = c(35,20)/100,
-  fontsize = fontsizeall,
-  yaxislab = ylaball,
-  linesize = linesizeall
-)
-
-ggsave(filename = paste0(results_dir, "/Fig_RiskAdj_", tempsuffix, '.pdf'), 
-       printme_raw, width = 10, height = 8)
-
-# Print summary statistics (filtered by raw t)
-cat("\n=== RAW RETURNS PLOT STATISTICS (t > ", t_threshold, ") ===\n", sep = "")
-ret_for_plot0 %>% 
-  filter(!is.na(matchRet), pubname %in% signals_raw_t2_plot) %>%
-  summarise(
-    # FIXED: Use sampstart/sampend-based periods for consistency
-    pub_mean_insamp = mean(ret[date >= sampstart & date <= sampend], na.rm = TRUE),
-    pub_mean_oos = mean(ret[date > sampend], na.rm = TRUE),
-    dm_mean_insamp = mean(matchRet[date >= sampstart & date <= sampend], na.rm = TRUE),
-    dm_mean_oos = mean(matchRet[date > sampend], na.rm = TRUE)
-  ) %>% print()
-
-cat("\nNumber of signals:", length(unique(ret_for_plot0$pubname[!is.na(ret_for_plot0$matchRet) & ret_for_plot0$pubname %in% signals_raw_t2_plot])), "\n")
-
-
 # Filtered versions (t-stat or return) -----------------------------------------------
 
 cat("\n\n=== T-STAT FILTERED ANALYSIS (t > ", t_threshold, ") ===\n")
@@ -422,17 +375,6 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff4_tv" %in%
   cat("Published signals with filtered DM matches (time-varying):", length(unique(ret_for_plot0_capm_tv_t2$pubname)), "\n")
   cat("DM signals with time-varying CAPM t > ", t_threshold, ":", sum(dm_stats_tv$abar_capm_tv_dm_t > t_threshold, na.rm = TRUE), "\n")
   
-  # Create and save plot
-  printme_capm_tv_t2 <- create_risk_adjusted_plot(
-    ret_for_plot0_capm_tv_t2,
-    "abnormal_capm_tv_normalized",
-    "matchRet_capm_tv_t2_normalized",
-    "CAPM Alpha",
-    t_threshold,
-    "Trailing 5-Year CAPM Alpha",
-    filter_type = filter_type
-  )
-  
   # FF4 time-varying filtering (t-stat only)
   cat("\n=== FF4 TIME-VARYING (t > ", t_threshold, ") STATISTICS ===\n")
   dm_filtered_ff4_tv <- candidateReturns_adj %>%
@@ -461,17 +403,6 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff4_tv" %in%
   cat("Published signals with FF4 t > ", t_threshold, ":", length(signals_ff4_tv_t2), "\n")
   cat("Published signals with filtered DM matches (time-varying):", length(unique(ret_for_plot0_ff4_tv_t2$pubname)), "\n")
   cat("DM signals with time-varying FF4 t > ", t_threshold, ":", sum(dm_stats_tv$abar_ff4_tv_dm_t > t_threshold, na.rm = TRUE), "\n")
-  
-  # Create and save plot
-  printme_ff4_tv_t2 <- create_risk_adjusted_plot(
-    ret_for_plot0_ff4_tv_t2,
-    "abnormal_ff4_tv_normalized",
-    "matchRet_ff4_tv_t2_normalized",
-    "FF4 Alpha",
-    t_threshold,
-    "Trailing 5-Year FF4 Alpha",
-    filter_type = filter_type
-  )
   
   # Create Time-Varying Alpha Summary Tables
   cat("\n\n=== TIME-VARYING ALPHA SUMMARY TABLES ===\n")
@@ -522,11 +453,6 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff4_tv" %in%
     analysis_types = c("raw", "capm_tv", "ff4_tv"),
     analysis_labels = c("Raw", "CAPM", "FF4")
   )
-  
-  # Export alpha tables
-  export_filename <- paste0(results_dir, "/tv_alpha_summary_", paste0("t", t_threshold), ".csv")
-export_summary_tables(tv_summaries, export_filename, 
-                        filter_desc = paste0("T-stat > ", t_threshold))
   
 } else {
   cat("\nTime-varying abnormal returns not available in the data.\n")
@@ -1266,163 +1192,7 @@ for(group in groups_journal) {
               "", raw_se, raw_out_se))
 }
 
-# Export tables to CSV and LaTeX -------------------------------------------------------
-
-# REFACTORED TABLE CREATION USING NEW HELPER FUNCTIONS
-
-# Build main summary table using refactored approach
-main_groups <- c("Risk", "Mispricing", "Agnostic", "No Model", "Stylized", "Dynamic or Quantitative")
-main_categories <- c(rep("Theoretical Foundation", 3), rep("Modeling Formalism", 3))
-
-# Collect theory summaries
-theory_summaries <- list(
-  raw = raw_t2_summary_theory
-)
-
-# Collect model summaries
-model_summaries <- list(
-  raw = raw_t2_summary_model
-)
-
-# Build data for each group
-main_table_data <- list()
-for (i in 1:length(main_groups)) {
-  group <- main_groups[i]
-  
-  if (i <= 3) {
-    # Theory groups
-    main_table_data[[i]] <- build_table_row(theory_summaries, group, "theory_group")
-  } else {
-    # Model groups
-    model_group <- main_groups[i]
-    main_table_data[[i]] <- build_table_row(model_summaries, model_group, "modeltype_grouped")
-  }
-}
-
-# Add overall row
-overall_data <- list(
-  raw_pub_oos = overall_t2_summary_raw$pub_oos,
-  raw_pub_oos_se = overall_t2_summary_raw$pub_oos_se,
-  raw_outperform = overall_t2_summary_raw$outperform,
-  raw_outperform_se = overall_t2_summary_raw$outperform_se
-)
-
-main_categories <- c(main_categories, "Overall")
-main_groups <- c(main_groups, "All")
-main_table_data[[length(main_table_data) + 1]] <- overall_data
-
-# Create the main table using the new build_summary_table function
-export_table_main <- build_summary_table(
-  categories = main_categories,
-  groups = main_groups,
-  summaries = main_table_data,
-  analysis_types = c("raw"),
-  format_latex = TRUE,
-  digits = 0
-)
-
-# Build discipline/journal table using refactored approach
-discipline_groups <- c("Finance", "Accounting")
-discipline_categories <- rep("Discipline", 2)
-
-journal_groups <- c("JF, JFE, RFS", "AR, JAR, JAE", "Other")
-journal_categories <- rep("Journal Ranking", 3)
-
-# Collect discipline summaries
-discipline_summaries <- list(
-  raw = raw_t2_summary_discipline
-)
-
-# Collect journal summaries  
-journal_summaries <- list(
-  raw = raw_t2_summary_journal
-)
-
-# Build discipline data
-discipline_table_data <- list()
-for (i in 1:length(discipline_groups)) {
-  discipline_table_data[[i]] <- build_table_row(discipline_summaries, discipline_groups[i], "discipline")
-}
-
-# Build journal data
-for (i in 1:length(journal_groups)) {
-  discipline_table_data[[length(discipline_table_data) + 1]] <- build_table_row(journal_summaries, journal_groups[i], "journal_rank")
-}
-
-# Create the discipline/journal table
-export_table_discipline <- build_summary_table(
-  categories = c(discipline_categories, journal_categories),
-  groups = c(discipline_groups, journal_groups),
-  summaries = discipline_table_data,
-  analysis_types = c("raw"),
-  format_latex = TRUE,
-  digits = 0
-)
-
-# [Old repetitive code with 66+ format_with_se(get_values(...)) calls removed]
-# Now using the refactored build_summary_table() function above 
-# Export to CSV and LaTeX using new multi-format function
-# Format file suffix based on t-stat threshold
-file_suffix <- paste0("_ff4_t", t_threshold)
-
-# Export main theory/model table in multiple formats
-export_tables_multi_format(
-  export_table_main,
-  base_filename = paste0(results_dir, "/Table_RiskAdjusted_TheoryModel", file_suffix),
-  formats = c("csv", "latex"),
-  latex_options = list(
-    caption = "Risk-Adjusted Returns: Theoretical Foundation and Modeling Formalism",
-    label = "tab:risk_adjusted_theory_model",
-    group_headers = list(
-      list(title = "Post-Sample Return", span = 1),
-      list(title = "Outperformance vs Data-Mining", span = 1)
-    )
-  )
-)
-
-# Export discipline/journal table in multiple formats  
-export_tables_multi_format(
-  export_table_discipline,
-  base_filename = paste0(results_dir, "/Table_RiskAdjusted_DisciplineJournal", file_suffix),
-  formats = c("csv", "latex"),
-  latex_options = list(
-    caption = "Risk-Adjusted Returns: Discipline and Journal Rankings",
-    label = "tab:risk_adjusted_discipline_journal",
-    group_headers = list(
-      list(title = "Post-Sample Return", span = 1),
-      list(title = "Outperformance vs Data-Mining", span = 1)
-    )
-  )
-)
-
-# Create and export the Any Model vs No Model table
-if (exists("anymodel_table_data")) {
-  export_table_anymodel <- build_summary_table(
-    categories = rep("", length(anymodel_groups)),  # No categories for this table
-    groups = anymodel_groups,
-    summaries = anymodel_table_data,
-    analysis_types = c("raw"),
-    format_latex = TRUE,
-    digits = 0
-  )
-  
-  # Export Any Model vs No Model table in multiple formats
-  export_tables_multi_format(
-    export_table_anymodel %>% select(-Category),  # Remove empty Category column
-    base_filename = paste0(results_dir, "/Table_RiskAdjusted_AnyModelVsNoModel", file_suffix),
-    formats = c("csv", "latex"),
-    latex_options = list(
-      caption = "Risk-Adjusted Returns: Any Model vs No Model",
-      label = "tab:risk_adjusted_anymodel",
-      group_headers = list(
-        list(title = "Post-Sample Return", span = 1),
-        list(title = "Outperformance vs Data-Mining", span = 1)
-      )
-    )
-  )
-}
-
-# Export time-varying tables if they exist
+# Build the three retained time-varying tables in memory. Callers render them.
 if (exists("tv_theory_data") && exists("tv_model_data")) {
   # Combine theory and model data
   tv_categories <- c(rep("Theoretical Foundation", length(groups_theory)),
@@ -1441,21 +1211,6 @@ if (exists("tv_theory_data") && exists("tv_model_data")) {
   
   # Export time-varying table (remove FF3 columns for FF4 analysis)
   export_table_tv_ff4 <- export_table_tv %>% select(-matches("^FF3_"))
-  export_tables_multi_format(
-    export_table_tv_ff4,
-    base_filename = paste0(results_dir, "/Table_RiskAdjusted_TimeVarying", file_suffix),
-    formats = c("csv", "latex"),
-    latex_options = list(
-      caption = "Risk-Adjusted Returns: Theoretical Foundation and Modeling Formalism",
-      label = "tab:risk_adjusted_tv",
-      group_headers = list(
-        list(title = "Raw", span = 2),
-        list(title = "CAPM", span = 2),
-        list(title = "FF4", span = 2)
-      )
-    )
-  )
-  
   # Export time-varying discipline/journal table if data exists
   if (exists("tv_discipline_data") && exists("tv_journal_data")) {
     # Combine discipline and journal data
@@ -1473,20 +1228,6 @@ if (exists("tv_theory_data") && exists("tv_model_data")) {
     
     # Export time-varying discipline/journal table (remove FF3 columns for FF4 analysis)
     export_table_tv_dj_ff4 <- export_table_tv_dj %>% select(-matches("^FF3_"))
-    export_tables_multi_format(
-      export_table_tv_dj_ff4,
-      base_filename = paste0(results_dir, "/Table_RiskAdjusted_TimeVarying_DisciplineJournal", file_suffix),
-      formats = c("csv", "latex"),
-      latex_options = list(
-        caption = "Risk-Adjusted Returns: Discipline and Journal Rank",
-        label = "tab:risk_adjusted_tv_dj",
-        group_headers = list(
-          list(title = "Raw", span = 2),
-          list(title = "CAPM", span = 2),
-          list(title = "FF4", span = 2)
-        )
-      )
-    )
   }
   
   # Export time-varying Any Model vs No Model table if data exists
@@ -1567,52 +1308,5 @@ if (exists("tv_theory_data") && exists("tv_model_data")) {
     
     # Export time-varying Any Model vs No Model table (remove FF3 columns for FF4 analysis)
     export_table_tv_am_ff4 <- export_table_tv_am %>% select(-matches("^FF3_"))
-    export_tables_multi_format(
-      export_table_tv_am_ff4,
-      base_filename = paste0(results_dir, "/Table_RiskAdjusted_TimeVarying_AnyModelVsNoModel", file_suffix),
-      formats = c("csv", "latex"),
-      latex_options = list(
-        caption = "Risk-Adjusted Returns: Any Model vs No Model",
-        label = "tab:risk_adjusted_tv_anymodel",
-        group_headers = list(
-          list(title = "Raw", span = 2),
-          list(title = "CAPM", span = 2),
-          list(title = "FF4", span = 2)
-        )
-      )
-    )
   }
-}
-
-# Also export the raw summary data for reference (CSV only for raw data)
-# Using a loop to reduce repetition
-summary_data_list <- list(
-  list(data = raw_t2_summary_theory, name = "Raw_TheoryGroup"),
-  list(data = raw_t2_summary_model, name = "Raw_ModelGroup"),
-  list(data = raw_t2_summary_discipline, name = "Raw_Discipline"),
-  list(data = raw_t2_summary_journal, name = "Raw_Journal")
-)
-
-# Export all summary data efficiently
-for (item in summary_data_list) {
-  write.csv(item$data, paste0(results_dir, "/", item$name, file_suffix, ".csv"), row.names = FALSE)
-}
-
-cat("\n=== EXPORTED TABLES ===\n")
-cat(paste("All files saved in:", results_dir, "\n"))
-cat("\nMain summary tables:\n")
-cat(paste0("- Table_RiskAdjusted_TheoryModel", file_suffix, ".csv and .tex\n"))
-cat(paste0("- Table_RiskAdjusted_DisciplineJournal", file_suffix, ".csv and .tex\n"))
-cat(paste0("- Table_RiskAdjusted_AnyModelVsNoModel", file_suffix, ".csv and .tex\n"))
-if (exists("tv_theory_data")) {
-  cat(paste0("- Table_RiskAdjusted_TimeVarying", file_suffix, ".csv and .tex\n"))
-}
-cat("\nDetailed breakdowns:\n")
-cat("- Raw/CAPM/FF4 by TheoryGroup/ModelGroup/Discipline/Journal (12 files)\n")
-cat("\nPlots generated:\n")
-plot_files <- list.files(results_dir, pattern = "^Fig_RiskAdj_.*\\.pdf$", full.names = FALSE)
-if (length(plot_files) == 0) {
-  cat("- None found\n")
-} else {
-  cat(paste0("- ", plot_files, "\n"), sep = "")
 }

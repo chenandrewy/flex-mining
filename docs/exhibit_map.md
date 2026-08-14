@@ -24,14 +24,16 @@ MAIN.R  (reads runStages from config.R)
   3_Precompute.R            -> 3a 3b 3c 3d 3e        (prep caches; no exhibits)
   S2_ResearchVsDataMining.R -> S2a S2b S2c S2d S2e
   S3_Learning.R             -> S3a S3b
-  S4_Heterogeneity.R        -> S4a
+  S4_Heterogeneity.R        -> S4a S4b
   S5_BestPredictors.R       -> S5a
-  SA_Appendices.R           -> Appendices/SA01 through Appendices/SA12
+  SA_Appendices.R           -> Appendices/SA01 through Appendices/SA13
   9_ExportDataToCsv.R
 ```
 
-`4c4_RiskAdjustedResearchVsDMPlotsTVFF4.R` is **not** run by any stage (out of
-chain); it is only used to hand-copy Tables 6, 7, and IA.10.
+`S4b_RVsDM_ByGroup.R` owns the Table 6 and Table 7 source artifacts, and
+`Appendices/SA13_RVsDM_AnyModel.R` owns the Table IA.10 source artifacts. Both
+use the frozen calculation in `helpers/risk_adjusted_by_group_frozen.R` and are
+in the default pipeline.
 
 ## Exhibit → producer
 
@@ -42,14 +44,12 @@ already encode their section (`IA.*` = internet appendix, `B.*` = appendix B)
 so take no prefix. Each row points to a single exhibit; Tab 1 and Fig B.2 recur
 because several producers feed one exhibit.
 
-The eight `n/a`/`n/a*` rows are **hand-formatted or hand-transcribed**. Four are
-`HandTable` files included by the paper; four have numbers pasted directly into
-the paper `.tex`, so their first column gives a LaTeX label rather than a file.
-`In chain? = n/a` means `MAIN.R` does not rebuild the paper table; `n/a*`
-additionally flags that the producing script (`4c4`) is out of chain, so its
-source numbers are not rebuilt either. The `4c4` rows copy from `_ff4_t2`
-outputs under `../Results/RiskAdjusted/TstatFilter/`; `HandTable` rows copy from
-in-chain `S3b`; Tab IA.9 comes from a spreadsheet.
+Eight rows are **hand-formatted or hand-transcribed**. Four are `HandTable`
+files included by the paper; four have numbers pasted directly into the paper
+`.tex`, so their first column gives a LaTeX label rather than a file. `In
+chain? = n/a` means `MAIN.R` does not rebuild the paper table. The source
+numbers for Tables 6, 7, and IA.10 are now rebuilt in chain; `HandTable` rows
+copy from in-chain `S3b`; Tab IA.9 comes from a spreadsheet.
 
 Abbreviations used below to keep the columns narrow:
 
@@ -75,8 +75,8 @@ Abbreviations used below to keep the columns narrow:
 | HandTable_MPStyleRegsTimeFE.tex           | §3 Tab 4           | hand-transcribed from S3b output                   | n/a       |
 | HandTable_MPStyleRegsTimeFE_Tol30.tex     | §3 draft Tab 4b    | hand-transcribed from S3b output                   | n/a       |
 | ApproachVsJournalsPart1/2/3.tex           | §4 Tab 5           | S4a_DataCounts.R                                   | yes       |
-| tab:hetero-bytheory (inline)              | §4 Tab 6           | 4c4 -> Table_RiskAdjusted_TheoryModel_ff4_t2       | n/a*      |
-| tab:hetero-byjournal (inline)             | §4 Tab 7           | 4c4 -> Table_RiskAdjusted_DisciplineJournal_ff4_t2 | n/a*      |
+| tab:hetero-bytheory (inline)              | §4 Tab 6           | S4b -> Table_RiskAdjusted_TimeVarying_ff4_t2       | yes       |
+| tab:hetero-byjournal (inline)             | §4 Tab 7           | S4b -> Table_RiskAdjusted_TimeVarying_DisciplineJournal_ff4_t2 | yes |
 | inspect-BMdec.tex                         | §5 Tab 8           | S5a_InspectTables.R                                | yes       |
 | inspect-Mom12m.tex                        | §5 Tab 9           | S5a_InspectTables.R                                | yes       |
 | inspect-Size.tex                          | §5 Tab 10          | S5a_InspectTables.R                                | yes       |
@@ -102,7 +102,7 @@ Abbreviations used below to keep the columns narrow:
 | Tab_RA_FS_DisciplineJournal_Appendix.tex         | Tab IA.7  | Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R | yes       |
 | SignalsByTheoryAndJournal.tex                    | Tab IA.8  | S4a_DataCounts.R                                          | yes       |
 | tab:mp-theory-no-reg (inline)                    | Tab IA.9  | Excel2LaTeX (sheet "MP theory")                           | n/a       |
-| tab:hetero-model (inline)                        | Tab IA.10 | 4c4 -> Table_RiskAdjusted_AnyModelVsNoModel_ff4_t2        | n/a*      |
+| tab:hetero-model (inline)                        | Tab IA.10 | Appendices/SA13 -> Table_RiskAdjusted_TimeVarying_AnyModelVsNoModel_ff4_t2 | yes |
 | Tab_RA_FS_AnyModelVsNoModel_Appendix.tex         | Tab IA.11 | Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R | yes       |
 | samp_split_summary.tex                           | Tab IA.12 | Appendices/SA03_StructuralBreak.R                         | yes       |
 | Fig_FullSampleRiskAdj_capm/ff3_alpha_fs_t2.pdf   | Fig IA.1  | Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R | yes       |
@@ -118,20 +118,18 @@ files referenced by the paper. It does **not** install those outputs into a
 writing-repository `exhibits/` directory; that directory is outside this repo
 and its location is deliberately unspecified.
 
-The eight paper tables it does **not** produce are:
+The five paper tables it does **not** directly produce are:
 
 1. Tables 3 and 4 and their draft tolerance-matched comparisons (four
    `HandTable` files) — copied by hand from in-chain `S3b` output.
-2. Tables 6, 7, IA.10 — copied by hand from out-of-chain `4c4`'s `_ff4_t2`
-   output (`4c4` is not run by any stage).
-3. Table IA.9 — from an Excel sheet; no R script.
+2. Table IA.9 — from an Excel sheet; no R script.
 
 ## Notes
 
-- `4c4` = `4c4_RiskAdjustedResearchVsDMPlotsTVFF4.R`. With the hand-formatted
-  and hand-transcribed rows included, every float in the compiled paper is
-  accounted for. (Fig. B.5a/B.5b are the two panels of Fig. B.5, already
-  listed.)
+- The former `4c4_RiskAdjustedResearchVsDMPlotsTVFF4.R` monolith was split in
+  phase one. With the hand-formatted and hand-transcribed rows included, every
+  float in the compiled paper is accounted for. (Fig. B.5a/B.5b are the two
+  panels of Fig. B.5, already listed.)
 - Of the 58 files currently in the paper's `exhibits/` directory, the two not
   referenced by `sections/*.tex` are `HandTable_MPStyleRegsMain_Tol10.tex` and
   `HandTable_MPStyleRegsTimeFE_Tol10.tex`.

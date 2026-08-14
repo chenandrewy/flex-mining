@@ -638,6 +638,28 @@ export_tables_multi_format <- function(table_data, base_filename,
   return(results_files)
 } 
 
+# Write the phase-one paper-source contract: a review CSV and a LaTeX tabular
+# fragment. Captions, labels, notes, and the table float belong to the writing
+# repository, so only the tabular environment is retained here.
+export_audit_tabular <- function(table_data, base_filename, group_headers) {
+  csv_file <- paste0(base_filename, ".csv")
+  tex_file <- paste0(base_filename, ".tex")
+
+  write.csv(table_data, csv_file, row.names = FALSE)
+  latex <- create_formatted_latex_table(
+    table_data = table_data,
+    group_headers = group_headers
+  )
+  latex_lines <- strsplit(latex, "\n", fixed = TRUE)[[1]]
+  first <- grep("^\\\\begin\\{tabular\\}", latex_lines)[1]
+  last <- tail(grep("^\\\\end\\{tabular\\}", latex_lines), 1)
+  if (is.na(first) || is.na(last) || first > last) {
+    stop("Could not isolate tabular environment for ", tex_file)
+  }
+  writeLines(latex_lines[first:last], tex_file)
+  invisible(c(csv = csv_file, tex = tex_file))
+}
+
 compute_overall_summary <- function(plot_data, ret_col, dm_col) {
   # FIXED: Use sampstart/sampend-based periods for consistency
   # Subset to post-sample observations
