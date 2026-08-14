@@ -141,46 +141,212 @@ create_risk_adjusted_plot <- function(plot_data, pub_col, dm_col,
 }
 
 # Summary helpers ----------------------------------------------------------
-compute_outperformance <- function(plot_data, ret_col, dm_ret_col, group_map, group_col = "theory_group") {
+assert_dm_screen <- function(filtered_data, dm_stats, stat_col, threshold, label) {
+  keys <- c("actSignal", "candSignalname")
+  if (anyDuplicated(as.data.frame(dm_stats)[, keys, drop = FALSE])) {
+    duplicate_keys <- dm_stats %>% count(actSignal, candSignalname) %>% filter(n != 1)
+    stop(
+      label, " data-mined statistics have ", nrow(duplicate_keys),
+      " duplicated signal-pair key(s)"
+    )
+  }
+  expected <- dm_stats %>%
+    filter(!is.na(.data[[stat_col]]), .data[[stat_col]] > threshold) %>%
+    select(all_of(keys)) %>%
+    distinct()
+  actual <- filtered_data %>% select(all_of(keys)) %>% distinct()
+  missing <- anti_join(expected, actual, by = keys)
+  extra <- anti_join(actual, expected, by = keys)
+  if (nrow(missing) > 0 || nrow(extra) > 0) {
+    show_keys <- function(x) {
+      paste(head(paste0(x$actSignal, "/", x$candSignalname), 10), collapse = ", ")
+    }
+    stop(
+      label, " data-mined screen mismatch: expected=", nrow(expected),
+      ", actual=", nrow(actual), ", missing=", nrow(missing),
+      " [", show_keys(missing), "], extra=", nrow(extra),
+      " [", show_keys(extra), "]"
+    )
+  }
+  invisible(actual)
+}
+
+audit_analysis_sample <- function(data, ret_col, dm_ret_col, label) {
+  data <- as.data.frame(data)
+  required <- c("pubname", "date", ret_col, dm_ret_col)
+  missing <- setdiff(required, names(data))
+  if (length(missing) > 0) {
+    stop(label, ": missing sample-audit column(s): ", paste(missing, collapse = ", "))
+  }
+  oos_rows <- if ("sampend" %in% names(data)) {
+    !is.na(data$date > data$sampend) & data$date > data$sampend
+  } else {
+    !is.na(data$eventDate > 0) & data$eventDate > 0
+  }
+  oos <- data[oos_rows, , drop = FALSE]
+  duplicate_keys <- oos %>% count(pubname, date) %>% filter(n != 1)
+  if (nrow(duplicate_keys) > 0) {
+    examples <- duplicate_keys %>%
+      head(10) %>%
+      transmute(key = paste0(pubname, "@", date, " (n=", n, ")")) %>%
+      pull(key)
+    stop(
+      label, ": post-sample panel has ", nrow(duplicate_keys),
+      " duplicated (pubname, date) key(s): ", paste(examples, collapse = ", ")
+    )
+  }
+  paired <- complete.cases(oos[, c(ret_col, dm_ret_col), drop = FALSE])
+  if (!any(paired)) stop(label, ": no paired post-sample observations")
+  if (n_distinct(oos$date[paired]) < 2 || n_distinct(oos$pubname[paired]) < 2) {
+    stop(label, ": paired post-sample rows do not have two clusters per dimension")
+  }
+
+  tibble(
+    analysis = label,
+    screened_signals = n_distinct(data$pubname),
+    panel_rows = nrow(data),
+    oos_rows = nrow(oos),
+    pub_oos_obs = sum(!is.na(oos[[ret_col]])),
+    dm_oos_obs = sum(!is.na(oos[[dm_ret_col]])),
+    paired_oos_obs = sum(paired),
+    paired_months = n_distinct(oos$date[paired]),
+    paired_predictors = n_distinct(oos$pubname[paired])
+  )
+}
+
+# Each estimation row is a published-predictor/calendar-month observation.
+# Means are intercept-only OLS estimates. Inference uses sandwich::vcovCL with
+# two-way clustering by calendar month and published predictor, HC1 scaling,
+# and the package default G/(G - 1) cluster adjustment (cadjust = TRUE).
+estimate_clustered_mean <- function(data, value_col, context) {
+  required <- c("pubname", "date", value_col)
+  missing <- setdiff(required, names(data))
+  if (length(missing) > 0) {
+    stop(context, ": missing estimation column(s): ", paste(missing, collapse = ", "))
+  }
+
+  estimation_data <- data %>%
+    transmute(
+      pubname = as.character(pubname),
+      date = date,
+      value = .data[[value_col]]
+    ) %>%
+    filter(complete.cases(pubname, date, value))
+  estimation_data <- as.data.frame(estimation_data)
+
+  if (nrow(estimation_data) == 0) stop(context, ": no complete observations")
+  duplicate_keys <- estimation_data %>% count(pubname, date) %>% filter(n != 1)
+  if (nrow(duplicate_keys) > 0) {
+    examples <- duplicate_keys %>%
+      head(10) %>%
+      transmute(key = paste0(pubname, "@", date, " (n=", n, ")")) %>%
+      pull(key)
+    stop(
+      context, ": expected one row per (pubname, date), found ",
+      nrow(duplicate_keys), " duplicated key(s): ", paste(examples, collapse = ", ")
+    )
+  }
+
+  n_months <- n_distinct(estimation_data$date)
+  n_predictors <- n_distinct(estimation_data$pubname)
+  if (n_months < 2 || n_predictors < 2) {
+    stop(
+      context, ": two-way clustered inference needs at least two nonempty ",
+      "clusters in each dimension; months=", n_months,
+      ", predictors=", n_predictors, ", observations=", nrow(estimation_data)
+    )
+  }
+
+  fit <- stats::lm(value ~ 1, data = estimation_data)
+  variance <- unname(sandwich::vcovCL(
+    fit,
+    cluster = estimation_data[c("date", "pubname")],
+    type = "HC1",
+    cadjust = TRUE,
+    multi0 = FALSE,
+    fix = FALSE
+  )[1, 1])
+  if (!is.finite(variance) || variance < -sqrt(.Machine$double.eps)) {
+    stop(context, ": invalid two-way clustered variance: ", variance)
+  }
+
+  list(
+    estimate = unname(stats::coef(fit)[1]),
+    se = sqrt(max(variance, 0)),
+    n_obs = nrow(estimation_data),
+    n_months = n_months,
+    n_predictors = n_predictors
+  )
+}
+
+summarize_outperformance_group <- function(data, ret_col, dm_ret_col, context) {
+  oos_rows <- if ("sampend" %in% names(data)) {
+    !is.na(data$date > data$sampend) & data$date > data$sampend
+  } else {
+    !is.na(data$eventDate > 0) & data$eventDate > 0
+  }
+  oos <- data[oos_rows, , drop = FALSE]
+  pub <- estimate_clustered_mean(oos, ret_col, paste0(context, " published"))
+  dm <- estimate_clustered_mean(oos, dm_ret_col, paste0(context, " data-mined"))
+
+  paired <- oos %>%
+    filter(complete.cases(.data[[ret_col]], .data[[dm_ret_col]])) %>%
+    mutate(.paired_difference = .data[[ret_col]] - .data[[dm_ret_col]])
+  difference <- estimate_clustered_mean(
+    paired, ".paired_difference", paste0(context, " paired difference")
+  )
+
+  pub_complete <- !is.na(oos[[ret_col]])
+  dm_complete <- !is.na(oos[[dm_ret_col]])
+  if (identical(pub_complete, dm_complete)) {
+    separate_difference <- pub$estimate - dm$estimate
+    if (!isTRUE(all.equal(
+      difference$estimate, separate_difference,
+      tolerance = 1e-10, check.attributes = FALSE
+    ))) {
+      stop(
+        context, ": paired mean ", difference$estimate,
+        " disagrees with difference of means ", separate_difference,
+        " despite identical samples"
+      )
+    }
+  }
+
+  tibble(
+    n_signals = n_distinct(oos$pubname),
+    n_pub_obs = pub$n_obs,
+    n_dm_obs = dm$n_obs,
+    n_pairs = difference$n_obs,
+    n_month_clusters = difference$n_months,
+    n_predictor_clusters = difference$n_predictors,
+    pub_oos = pub$estimate,
+    pub_oos_se = pub$se,
+    dm_oos = dm$estimate,
+    dm_oos_se = dm$se,
+    outperform = difference$estimate,
+    outperform_se = difference$se
+  )
+}
+
+compute_outperformance <- function(plot_data, ret_col, dm_ret_col, group_map,
+                                   group_col = "theory_group") {
+  if (anyDuplicated(group_map$signalname)) {
+    duplicate_signals <- unique(group_map$signalname[duplicated(group_map$signalname)])
+    stop(
+      "Group mapping has duplicate signalname rows: ",
+      paste(head(duplicate_signals, 10), collapse = ", ")
+    )
+  }
+
   plot_data %>%
     left_join(group_map, by = c("pubname" = "signalname")) %>%
     filter(!is.na(.data[[group_col]])) %>%
     group_by(.data[[group_col]]) %>%
-    summarise(
-      n_signals = n_distinct(pubname),
-      # FIXED: Use sampstart/sampend-based periods for consistency
-      pub_oos = if("sampend" %in% names(plot_data)) {
-        mean(.data[[ret_col]][date > sampend], na.rm = TRUE)
-      } else {
-        mean(.data[[ret_col]][eventDate > 0], na.rm = TRUE)
-      },
-      pub_oos_se = {
-        if("sampend" %in% names(plot_data)) {
-          n <- sum(date > sampend & !is.na(.data[[ret_col]]))
-          if (n > 1) sd(.data[[ret_col]][date > sampend], na.rm = TRUE) / sqrt(n) else NA_real_
-        } else {
-          n <- sum(eventDate > 0 & !is.na(.data[[ret_col]]))
-          if (n > 1) sd(.data[[ret_col]][eventDate > 0], na.rm = TRUE) / sqrt(n) else NA_real_
-        }
-      },
-      dm_oos = if("sampend" %in% names(plot_data)) {
-        mean(.data[[dm_ret_col]][date > sampend], na.rm = TRUE)
-      } else {
-        mean(.data[[dm_ret_col]][eventDate > 0], na.rm = TRUE)
-      },
-      dm_oos_se = {
-        if("sampend" %in% names(plot_data)) {
-          n <- sum(date > sampend & !is.na(.data[[dm_ret_col]]))
-          if (n > 1) sd(.data[[dm_ret_col]][date > sampend], na.rm = TRUE) / sqrt(n) else NA_real_
-        } else {
-          n <- sum(eventDate > 0 & !is.na(.data[[dm_ret_col]]))
-          if (n > 1) sd(.data[[dm_ret_col]][eventDate > 0], na.rm = TRUE) / sqrt(n) else NA_real_
-        }
-      },
-      outperform = pub_oos - dm_oos,
-      outperform_se = sqrt(pub_oos_se^2 + dm_oos_se^2),
-      .groups = 'drop'
-    )
+    group_modify(~ summarize_outperformance_group(
+      .x, ret_col, dm_ret_col,
+      paste0(group_col, "=", .y[[group_col]])
+    )) %>%
+    ungroup()
 }
 
 create_summary_tables <- function(plot_data_list, group_mappings, table_name = "Analysis",
@@ -661,34 +827,10 @@ export_audit_tabular <- function(table_data, base_filename, group_headers) {
 }
 
 compute_overall_summary <- function(plot_data, ret_col, dm_col) {
-  # FIXED: Use sampstart/sampend-based periods for consistency
-  # Subset to post-sample observations
-  oos_rows <- if("sampend" %in% names(plot_data)) {
-    plot_data$date > plot_data$sampend
-  } else {
-    plot_data$eventDate > 0
-  }
-  ret_vals <- plot_data[[ret_col]][oos_rows]
-  dm_vals  <- plot_data[[dm_col]][oos_rows]
-  n_ret <- sum(!is.na(ret_vals))
-  n_dm  <- sum(!is.na(dm_vals))
-  pub_oos <- mean(ret_vals, na.rm = TRUE)
-  dm_oos  <- mean(dm_vals, na.rm = TRUE)
-  pub_oos_se <- if (n_ret > 1) sd(ret_vals, na.rm = TRUE) / sqrt(n_ret) else NA_real_
-  dm_oos_se  <- if (n_dm > 1) sd(dm_vals,  na.rm = TRUE) / sqrt(n_dm)  else NA_real_
-  result <- data.frame(
-    group = "Overall",
-    n_signals = length(unique(plot_data$pubname)),
-    pub_oos = pub_oos,
-    pub_oos_se = pub_oos_se,
-    dm_oos = dm_oos,
-    dm_oos_se = dm_oos_se,
-    outperform = NA_real_,
-    outperform_se = NA_real_
+  result <- summarize_outperformance_group(
+    plot_data, ret_col, dm_col, "group=Overall"
   )
-  result$outperform <- result$pub_oos - result$dm_oos
-  result$outperform_se <- sqrt(result$pub_oos_se^2 + result$dm_oos_se^2)
-  return(result)
+  result %>% mutate(group = "Overall", .before = 1)
 } 
 
 prepare_dm_filters <- function(candidateReturns_adj, czret, filter_type, t_threshold) {
@@ -769,8 +911,10 @@ load_signal_mappings <- function(signals_checked_csv, incl_signals) {
         theory %in% c("mispricing", "Mispricing") ~ "Mispricing",
         TRUE ~ "Agnostic"
       ),
+      # Discipline uses the complete accounting-journal list. Journal rank is
+      # deliberately narrower and continues to use the top-three lists below.
       discipline = case_when(
-        Journal %in% globalSettings$top3Accounting ~ "Accounting",
+        Journal %in% globalSettings$acctlistAll ~ "Accounting",
         Journal %in% c("QJE", "JPE") ~ "Economics",
         TRUE ~ "Finance"
       ),

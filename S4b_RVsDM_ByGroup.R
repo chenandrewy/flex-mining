@@ -11,9 +11,10 @@
 #          and Table_RiskAdjusted_TimeVarying_AnyModelVsNoModel_ff4_t2.{csv,tex}
 #          under ../Results/RiskAdjusted/TstatFilter
 #
-# This is the calculation path mechanically moved from
-# 4c4_RiskAdjustedResearchVsDMPlotsTVFF4.R. Statistical cleanup is deferred to
-# phase two; do not simplify or correct these calculations in phase one.
+# This calculation path was moved from
+# 4c4_RiskAdjustedResearchVsDMPlotsTVFF4.R and now uses the phase-two estimands:
+# predictor-month means, month/predictor clustered inference, and paired
+# published-minus-data-mined differences.
 #
 # FIXED: Time-varying beta/alpha consistency between published and DM signals
 # - Published signals now use sampstart/sampend periods (not eventDate-based)
@@ -364,6 +365,10 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff4_tv" %in%
       dm_stats_tv %>% filter(abar_capm_tv_dm_t > t_threshold),
       by = c("actSignal", "candSignalname")
     )
+  assert_dm_screen(
+    dm_filtered_capm_tv, dm_stats_tv, "abar_capm_tv_dm_t",
+    t_threshold, "CAPM"
+  )
 
   # Normalize and aggregate
   dm_capm_tv_aggregated <- normalize_and_aggregate_dm(
@@ -393,6 +398,10 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff4_tv" %in%
       dm_stats_tv %>% filter(abar_ff4_tv_dm_t > t_threshold),
       by = c("actSignal", "candSignalname")
     )
+  assert_dm_screen(
+    dm_filtered_ff4_tv, dm_stats_tv, "abar_ff4_tv_dm_t",
+    t_threshold, "FF4"
+  )
 
   # Normalize and aggregate
   dm_ff4_tv_aggregated <- normalize_and_aggregate_dm(
@@ -430,6 +439,48 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && "abnormal_ff4_tv" %in%
 
   tv_plot_data[["capm_tv"]] <- ret_for_plot0_capm_tv_t2
   tv_plot_data[["ff4_tv"]] <- ret_for_plot0_ff4_tv_t2
+
+  expected_raw_signals <- unique(czret[rbar_t > t_threshold]$signalname)
+  expected_capm_signals <- intersect(
+    unique(czret[abar_capm_tv_t > t_threshold]$signalname), expected_raw_signals
+  )
+  expected_ff4_signals <- intersect(
+    unique(czret[abar_ff4_tv_t > t_threshold]$signalname), expected_raw_signals
+  )
+  if (!setequal(signals_raw_t2, expected_raw_signals)) {
+    stop("Raw published screen differs from rbar_t > ", t_threshold)
+  }
+  if (!setequal(signals_capm_tv_t2, expected_capm_signals)) {
+    stop("CAPM published screen differs from alpha-t/raw intersection")
+  }
+  if (!setequal(signals_ff4_tv_t2, expected_ff4_signals)) {
+    stop("FF4 published screen differs from alpha-t/raw intersection")
+  }
+  sample_diagnostics <- bind_rows(
+    audit_analysis_sample(tv_plot_data[["raw"]], "ret", "matchRet", "Raw"),
+    audit_analysis_sample(
+      tv_plot_data[["capm_tv"]], "abnormal_capm_tv_normalized",
+      "matchRet_capm_tv_t2_normalized", "CAPM"
+    ),
+    audit_analysis_sample(
+      tv_plot_data[["ff4_tv"]], "abnormal_ff4_tv_normalized",
+      "matchRet_ff4_tv_t2_normalized", "FF4"
+    )
+  )
+  print(sample_diagnostics)
+  cat(
+    "Published screens: raw=", length(expected_raw_signals),
+    "; CAPM alpha/raw=", length(unique(czret[abar_capm_tv_t > t_threshold]$signalname)),
+    "/", length(expected_capm_signals),
+    "; FF4 alpha/raw=", length(unique(czret[abar_ff4_tv_t > t_threshold]$signalname)),
+    "/", length(expected_ff4_signals), "\n", sep = ""
+  )
+  cat(
+    "Data-mined screens: CAPM=",
+    sum(dm_stats_tv$abar_capm_tv_dm_t > t_threshold, na.rm = TRUE),
+    "; FF4=", sum(dm_stats_tv$abar_ff4_tv_dm_t > t_threshold, na.rm = TRUE),
+    " candidate signal pairs\n", sep = ""
+  )
 
   # Create mappings (reuse existing ones from main analysis)
   tv_mappings <- list(
@@ -888,25 +939,10 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_
     inner_join(discipline_mapping_filtered, by = c("pubname" = "signalname"))
 
   # Raw returns with t > t_threshold filter (by discipline) - excluding Economics
-  raw_t2_summary_discipline <- discipline_data %>%
-    group_by(discipline) %>%
-    summarise(
-      n_signals = n_distinct(pubname),
-      # FIXED: Use sampstart/sampend-based periods for consistency
-      pub_oos = mean(ret[date > sampend], na.rm = TRUE),
-      pub_oos_se = {
-        n <- sum(date > sampend & !is.na(ret))
-        if (n > 1) sd(ret[date > sampend], na.rm = TRUE) / sqrt(n) else NA_real_
-      },
-      dm_oos = mean(matchRet[date > sampend], na.rm = TRUE),
-      dm_oos_se = {
-        n <- sum(date > sampend & !is.na(matchRet))
-        if (n > 1) sd(matchRet[date > sampend], na.rm = TRUE) / sqrt(n) else NA_real_
-      },
-      outperform = pub_oos - dm_oos,
-      outperform_se = sqrt(pub_oos_se^2 + dm_oos_se^2),
-      .groups = 'drop'
-    )
+  raw_t2_summary_discipline <- compute_outperformance(
+    discipline_data %>% select(-discipline),
+    "ret", "matchRet", discipline_mapping_filtered, "discipline"
+  )
 
   # Filter data to exclude Economics journals
   journal_mapping_filtered <- journal_mapping %>% filter(journal_rank != "Economics")
@@ -917,25 +953,10 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_
     filter(rbar_t > t_threshold) %>%
     inner_join(journal_mapping_filtered, by = c("pubname" = "signalname"))
 
-  raw_t2_summary_journal <- journal_data %>%
-    group_by(journal_rank) %>%
-    summarise(
-      n_signals = n_distinct(pubname),
-      # FIXED: Use sampstart/sampend-based periods for consistency
-      pub_oos = mean(ret[date > sampend], na.rm = TRUE),
-      pub_oos_se = {
-        n <- sum(date > sampend & !is.na(ret))
-        if (n > 1) sd(ret[date > sampend], na.rm = TRUE) / sqrt(n) else NA_real_
-      },
-      dm_oos = mean(matchRet[date > sampend], na.rm = TRUE),
-      dm_oos_se = {
-        n <- sum(date > sampend & !is.na(matchRet))
-        if (n > 1) sd(matchRet[date > sampend], na.rm = TRUE) / sqrt(n) else NA_real_
-      },
-      outperform = pub_oos - dm_oos,
-      outperform_se = sqrt(pub_oos_se^2 + dm_oos_se^2),
-      .groups = 'drop'
-    )
+  raw_t2_summary_journal <- compute_outperformance(
+    journal_data %>% select(-journal_rank),
+    "ret", "matchRet", journal_mapping_filtered, "journal_rank"
+  )
 
   # Collect time-varying discipline data (if summaries exist)
   if (exists("capm_tv_t2_summary_discipline") && exists("ff4_tv_t2_summary_discipline")) {
@@ -1013,78 +1034,21 @@ if("abnormal_capm_tv" %in% names(candidateReturns_adj) && exists("ret_for_plot0_
       ff4_tv_outperform_se = get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "No Model", "outperform_se")
     )
 
-    # For Any Model, combine Stylized and Dynamic/Quantitative
-    anymodel_capm_tv_pub_oos <- mean(c(
-      get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"),
-      get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos")
-    ), na.rm = TRUE)
-
-    anymodel_capm_tv_outperform <- mean(c(
-      get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"),
-      get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform")
-    ), na.rm = TRUE)
-
-    anymodel_ff4_tv_pub_oos <- mean(c(
-      get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"),
-      get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos")
-    ), na.rm = TRUE)
-
-    anymodel_ff4_tv_outperform <- mean(c(
-      get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"),
-      get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform")
-    ), na.rm = TRUE)
-
-    # Approximate standard errors for Any Model (using pooled variance)
-    anymodel_capm_tv_pub_oos_se <- sqrt(mean(c(
-      get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos_se")^2,
-      get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos_se")^2
-    ), na.rm = TRUE))
-
-    anymodel_capm_tv_outperform_se <- sqrt(mean(c(
-      get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Stylized", "outperform_se")^2,
-      get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform_se")^2
-    ), na.rm = TRUE))
-
-    anymodel_ff4_tv_pub_oos_se <- sqrt(mean(c(
-      get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos_se")^2,
-      get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos_se")^2
-    ), na.rm = TRUE))
-
-    anymodel_ff4_tv_outperform_se <- sqrt(mean(c(
-      get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Stylized", "outperform_se")^2,
-      get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform_se")^2
-    ), na.rm = TRUE))
-
+    # Any Model is estimated on the pooled signal-month panel. It is not an
+    # equal-weighted average of the two displayed model subgroups.
     tv_anymodel_any <- list(
-      # Raw
-      raw_pub_oos = mean(c(
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"),
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos")
-      ), na.rm = TRUE),
-      raw_pub_oos_se = sqrt(mean(c(
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos_se")^2,
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos_se")^2
-      ), na.rm = TRUE)),
-      raw_outperform = mean(c(
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"),
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform")
-      ), na.rm = TRUE),
-      raw_outperform_se = sqrt(mean(c(
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "outperform_se")^2,
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform_se")^2
-      ), na.rm = TRUE)),
-
-      # CAPM
-      capm_tv_pub_oos = anymodel_capm_tv_pub_oos,
-      capm_tv_pub_oos_se = anymodel_capm_tv_pub_oos_se,
-      capm_tv_outperform = anymodel_capm_tv_outperform,
-      capm_tv_outperform_se = anymodel_capm_tv_outperform_se,
-
-      # FF4
-      ff4_tv_pub_oos = anymodel_ff4_tv_pub_oos,
-      ff4_tv_pub_oos_se = anymodel_ff4_tv_pub_oos_se,
-      ff4_tv_outperform = anymodel_ff4_tv_outperform,
-      ff4_tv_outperform_se = anymodel_ff4_tv_outperform_se
+      raw_pub_oos = get_values(raw_t2_summary_anymodel, "model_binary", "Any Model", "pub_oos"),
+      raw_pub_oos_se = get_values(raw_t2_summary_anymodel, "model_binary", "Any Model", "pub_oos_se"),
+      raw_outperform = get_values(raw_t2_summary_anymodel, "model_binary", "Any Model", "outperform"),
+      raw_outperform_se = get_values(raw_t2_summary_anymodel, "model_binary", "Any Model", "outperform_se"),
+      capm_tv_pub_oos = get_values(capm_tv_t2_summary_anymodel, "model_binary", "Any Model", "pub_oos"),
+      capm_tv_pub_oos_se = get_values(capm_tv_t2_summary_anymodel, "model_binary", "Any Model", "pub_oos_se"),
+      capm_tv_outperform = get_values(capm_tv_t2_summary_anymodel, "model_binary", "Any Model", "outperform"),
+      capm_tv_outperform_se = get_values(capm_tv_t2_summary_anymodel, "model_binary", "Any Model", "outperform_se"),
+      ff4_tv_pub_oos = get_values(ff4_tv_t2_summary_anymodel, "model_binary", "Any Model", "pub_oos"),
+      ff4_tv_pub_oos_se = get_values(ff4_tv_t2_summary_anymodel, "model_binary", "Any Model", "pub_oos_se"),
+      ff4_tv_outperform = get_values(ff4_tv_t2_summary_anymodel, "model_binary", "Any Model", "outperform"),
+      ff4_tv_outperform_se = get_values(ff4_tv_t2_summary_anymodel, "model_binary", "Any Model", "outperform_se")
     )
   }
 }
@@ -1102,25 +1066,10 @@ discipline_data <- ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
   inner_join(discipline_mapping_filtered, by = c("pubname" = "signalname"))
 
 # Raw returns with t > t_threshold filter (by discipline) - excluding Economics
-raw_t2_summary_discipline <- discipline_data %>%
-  group_by(discipline) %>%
-  summarise(
-    n_signals = n_distinct(pubname),
-    # FIXED: Use sampstart/sampend-based periods for consistency
-    pub_oos = mean(ret[date > sampend], na.rm = TRUE),
-    pub_oos_se = {
-      n <- sum(date > sampend & !is.na(ret))
-      if (n > 1) sd(ret[date > sampend], na.rm = TRUE) / sqrt(n) else NA_real_
-    },
-    dm_oos = mean(matchRet[date > sampend], na.rm = TRUE),
-    dm_oos_se = {
-      n <- sum(date > sampend & !is.na(matchRet))
-      if (n > 1) sd(matchRet[date > sampend], na.rm = TRUE) / sqrt(n) else NA_real_
-    },
-    outperform = pub_oos - dm_oos,
-    outperform_se = sqrt(pub_oos_se^2 + dm_oos_se^2),
-    .groups = 'drop'
-  )
+raw_t2_summary_discipline <- compute_outperformance(
+  discipline_data %>% select(-discipline),
+  "ret", "matchRet", discipline_mapping_filtered, "discipline"
+)
 
 
 
@@ -1135,25 +1084,10 @@ journal_data <- ret_for_plot0 %>% filter(!is.na(matchRet)) %>%
   filter(rbar_t > t_threshold) %>%
   inner_join(journal_mapping_filtered, by = c("pubname" = "signalname"))
 
-raw_t2_summary_journal <- journal_data %>%
-  group_by(journal_rank) %>%
-  summarise(
-    n_signals = n_distinct(pubname),
-    # FIXED: Use sampstart/sampend-based periods for consistency
-    pub_oos = mean(ret[date > sampend], na.rm = TRUE),
-    pub_oos_se = {
-      n <- sum(date > sampend & !is.na(ret))
-      if (n > 1) sd(ret[date > sampend], na.rm = TRUE) / sqrt(n) else NA_real_
-    },
-    dm_oos = mean(matchRet[date > sampend], na.rm = TRUE),
-    dm_oos_se = {
-      n <- sum(date > sampend & !is.na(matchRet))
-      if (n > 1) sd(matchRet[date > sampend], na.rm = TRUE) / sqrt(n) else NA_real_
-    },
-    outperform = pub_oos - dm_oos,
-    outperform_se = sqrt(pub_oos_se^2 + dm_oos_se^2),
-    .groups = 'drop'
-  )
+raw_t2_summary_journal <- compute_outperformance(
+  journal_data %>% select(-journal_rank),
+  "ret", "matchRet", journal_mapping_filtered, "journal_rank"
+)
 
 
 
@@ -1243,69 +1177,6 @@ if (exists("tv_theory_data") && exists("tv_model_data")) {
 
   # Export time-varying Any Model vs No Model table if data exists
   if (exists("tv_anymodel_data")) {
-    # Create time-varying Any Model vs No Model table
-    tv_am_categories <- c("")
-    tv_am_groups <- c("No Model")
-    tv_am_all_data <- list(tv_anymodel_data)
-
-    # Add Any Model data
-    # Calculate Any Model averages from Stylized and Dynamic or Quantitative
-    tv_anymodel_any <- list(
-      # Raw
-      raw_pub_oos = mean(c(
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"),
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos")
-      ), na.rm = TRUE),
-      raw_pub_oos_se = sqrt(mean(c(
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos_se")^2,
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos_se")^2
-      ), na.rm = TRUE)),
-      raw_outperform = mean(c(
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"),
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform")
-      ), na.rm = TRUE),
-      raw_outperform_se = sqrt(mean(c(
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Stylized", "outperform_se")^2,
-        get_values(raw_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform_se")^2
-      ), na.rm = TRUE)),
-
-      # CAPM
-      capm_tv_pub_oos = mean(c(
-        get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"),
-        get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos")
-      ), na.rm = TRUE),
-      capm_tv_pub_oos_se = sqrt(mean(c(
-        get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos_se")^2,
-        get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos_se")^2
-      ), na.rm = TRUE)),
-      capm_tv_outperform = mean(c(
-        get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"),
-        get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform")
-      ), na.rm = TRUE),
-      capm_tv_outperform_se = sqrt(mean(c(
-        get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Stylized", "outperform_se")^2,
-        get_values(capm_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform_se")^2
-      ), na.rm = TRUE)),
-
-      # FF4
-      ff4_tv_pub_oos = mean(c(
-        get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos"),
-        get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos")
-      ), na.rm = TRUE),
-      ff4_tv_pub_oos_se = sqrt(mean(c(
-        get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Stylized", "pub_oos_se")^2,
-        get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "pub_oos_se")^2
-      ), na.rm = TRUE)),
-      ff4_tv_outperform = mean(c(
-        get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Stylized", "outperform"),
-        get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform")
-      ), na.rm = TRUE),
-      ff4_tv_outperform_se = sqrt(mean(c(
-        get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Stylized", "outperform_se")^2,
-        get_values(ff4_tv_t2_summary_model, "modeltype_grouped", "Dynamic or Quantitative", "outperform_se")^2
-      ), na.rm = TRUE))
-    )
-
     tv_am_categories <- c("", "")
     tv_am_groups <- c("No Model", "Any Model")
     tv_am_all_data <- list(tv_anymodel_data, tv_anymodel_any)
