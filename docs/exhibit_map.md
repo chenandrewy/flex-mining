@@ -3,9 +3,9 @@
 Which script builds each paper exhibit, and whether `MAIN.R` rebuilds it.
 
 - **Contract:** the paper source repository currently has 58 files in its
-  `exhibits/` directory. Its `sections/*.tex` files reference 56 of them: 52
-  generated outputs and four hand-formatted MP-style tables. Two older
-  hand-formatted tolerance variants are present but unused.
+  `exhibits/` directory. Its `sections/*.tex` files reference 56 of them. The
+  six `HandTable_MPStyleRegs*` files are R-generated despite their historical
+  names; two Tol10 variants are present but unused.
 - **Producer:** the script whose write target (`ggsave`, `writeLines`,
   `saveRDS`, `kbl`, …) matches the exhibit basename.
 - **In chain:** run by `MAIN.R` at the default `runStages` (config.R): stages
@@ -42,14 +42,13 @@ already encode their section (`IA.*` = internet appendix, `B.*` = appendix B)
 so take no prefix. Each row points to a single exhibit; Tab 1 and Fig B.2 recur
 because several producers feed one exhibit.
 
-The eight `n/a`/`n/a*` rows are **hand-formatted or hand-transcribed**. Four are
-`HandTable` files included by the paper; four have numbers pasted directly into
-the paper `.tex`, so their first column gives a LaTeX label rather than a file.
-`In chain? = n/a` means `MAIN.R` does not rebuild the paper table; `n/a*`
-additionally flags that the producing script (`4c4`) is out of chain, so its
-source numbers are not rebuilt either. The `4c4` rows copy from `_ff4_t2`
-outputs under `../Results/RiskAdjusted/TstatFilter/`; `HandTable` rows copy from
-in-chain `S3b`; Tab IA.9 comes from a spreadsheet.
+The four `n/a`/`n/a*` rows have numbers pasted directly into the paper `.tex`,
+so their first column gives a LaTeX label rather than a file. `In chain? = n/a`
+means there is no R producer; `n/a*` additionally flags that the source-number
+producer (`4c4`) is out of chain. The `4c4` rows copy from `_ff4_t2` outputs
+under `../Results/RiskAdjusted/TstatFilter/`; Tab IA.9 comes from a spreadsheet.
+The tolerance-matched MP tables are generated artifacts too, but their former
+Tol10/Tol30 model builders and caches are not part of the refactored pipeline.
 
 ### Main text
 
@@ -61,10 +60,10 @@ in-chain `S3b`; Tab IA.9 comes from a spreadsheet.
 | theme_ez_decay.tex                                           | Sec. 2 Tab 2                  | S2d_EZThemes.R                                      | yes       |
 | Fig2a/b/c/d (4)                                              | Sec. 2 Fig 2                  | S2e_Fig2Plots.R                                     | yes       |
 | Fig2c_MatchedExclCorr_Tol10.pdf                              | Sec. 2 Fig 2 draft comparison | S2e_Fig2Plots.R                                     | yes       |
-| HandTable_MPStyleRegsMain.tex                                | Sec. 3 Tab 3                  | hand-transcribed from S3b output                    | n/a       |
-| HandTable_MPStyleRegsMain_Tol30.tex                          | Sec. 3 draft "Tab 3b"         | hand-transcribed from S3b output                    | n/a       |
-| HandTable_MPStyleRegsTimeFE.tex                              | Sec. 3 Tab 4                  | hand-transcribed from S3b output                    | n/a       |
-| HandTable_MPStyleRegsTimeFE_Tol30.tex                        | Sec. 3 draft "Tab 4b"         | hand-transcribed from S3b output                    | n/a       |
+| HandTable_MPStyleRegsMain.tex                                | Sec. 3 Tab 3                  | S3b_MPStyleDecayTables.R                            | yes       |
+| HandTable_MPStyleRegsMain_Tol30.tex                          | Sec. 3 draft "Tab 3b"         | historical 4c22 + mp_table_helpers.R                | no        |
+| HandTable_MPStyleRegsTimeFE.tex                              | Sec. 3 Tab 4                  | S3b_MPStyleDecayTables.R                            | yes       |
+| HandTable_MPStyleRegsTimeFE_Tol30.tex                        | Sec. 3 draft "Tab 4b"         | historical 4c22 + mp_table_helpers.R                | no        |
 | ApproachVsJournalsPart1/2/3.tex                              | Sec. 4 Tab 5                  | S4a_DataCounts.R                                    | yes       |
 | tab:hetero-bytheory (inline; hand-copied)                    | Sec. 4 Tab 6                  | 4c4 -> Table_RiskAdjusted_TheoryModel_ff4_t2        | n/a*      |
 | tab:hetero-byjournal (inline; hand-copied)                   | Sec. 4 Tab 7                  | 4c4 -> Table_RiskAdjusted_DisciplineJournal_ff4_t2  | n/a*      |
@@ -104,23 +103,24 @@ in-chain `S3b`; Tab IA.9 comes from a spreadsheet.
 
 ## Gaps
 
-At its default stages, `MAIN.R` rebuilds the source outputs for all 52 generated
-files referenced by the paper. It does **not** install those outputs into a
-writing-repository `exhibits/` directory; that directory is outside this repo
-and its location is deliberately unspecified.
+At its default stages, `MAIN.R` rebuilds the source outputs for all 52 regular
+generated exhibits plus the two generated baseline MP tables. It does **not**
+install those outputs into a writing-repository `exhibits/` directory; that
+directory is outside this repo and its location is deliberately unspecified.
 
-The eight paper tables it does **not** produce are:
+The six paper tables it does **not** produce are:
 
-1. Tables 3 and 4 and their draft tolerance-matched comparisons (four
-   `HandTable` files) — copied by hand from in-chain `S3b` output.
+1. The two draft tolerance-matched comparisons for Tables 3 and 4. They were
+   generated by the former `4c22` workflow, whose fits are not in the current
+   S3a cache. The checked-in files remain generated artifacts, not hand copies.
 2. Tables 6, 7, IA.10 — copied by hand from out-of-chain `4c4`'s `_ff4_t2`
    output (`4c4` is not run by any stage).
 3. Table IA.9 — from an Excel sheet; no R script.
 
 ## Notes
 
-- `4c4` = `4c4_RiskAdjustedResearchVsDMPlotsTVFF4.R`. With the hand-formatted
-  and hand-transcribed rows included, every float in the compiled paper is
+- `4c4` = `4c4_RiskAdjustedResearchVsDMPlotsTVFF4.R`. With the remaining
+  hand-copied inline rows included, every float in the compiled paper is
   accounted for. (Fig. B.5a/B.5b are the two panels of Fig. B.5, already
   listed.)
 - Of the 58 files currently in the paper's `exhibits/` directory, the two not

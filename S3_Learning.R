@@ -4,7 +4,8 @@
 #   Rscript S3_Learning.R
 # Inputs:  chapter-2 mined strategies and chapter-3 panels (ret_for_plot0.RDS,
 #          plotdat0.RDS, and the versioned LongShort.RData)
-# Outputs: MP-style regression tables under ../Results
+# Outputs: component and manuscript-layout MP-style regression tables under
+#          ../Results
 #
 # S3a_MPStyleDecayModels.R estimates the regression models (including
 # fixed-effect specifications); S3b_MPStyleDecayTables.R renders their tables.

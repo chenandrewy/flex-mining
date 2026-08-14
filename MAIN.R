@@ -29,8 +29,8 @@
 # Outputs: ../Data/Processed, ../Data/Export, ../Results
 #
 # Paper contract: S2 through S5 and SA rebuild paper exhibits from upstream caches.
-# S3 renders the cached MP regressions; the Section 3 presentation tables
-# are being migrated from hand formatting to direct R output.
+# S3 renders the cached MP regressions, including the Section 3 presentation
+# tables, directly from R.
 # See docs/exhibit_map.md for the script -> exhibit map.
 
 # Stage switches live in config.R (runStages). Source it directly; this avoids

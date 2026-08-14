@@ -6,8 +6,15 @@
 # Outputs: ../Results/Table_MPStyleRegsMain.tex
 #          ../Results/Table_MPStyleRegsMainUnscaled.tex
 #          ../Results/Table_MPStyleRegsIndividualDM.tex
+#          ../Results/HandTable_MPStyleRegsMain.tex
+#          ../Results/HandTable_MPStyleRegsTimeFE.tex
 
 source("0_Environment.R")
+source("helpers/mp_table_helpers.R")
+
+# An override permits render-only validation without touching ../Results.
+output_dir <- Sys.getenv("MP_TABLE_OUTPUT_DIR", unset = "../Results")
+dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
 cache_path <- "../Data/Processed/mp_style_decay_models.RDS"
 if (!file.exists(cache_path)) {
@@ -39,15 +46,24 @@ main_headers <- c(
 write_mp_table(
   models$main_scaled,
   main_headers,
-  "../Results/Table_MPStyleRegsMain.tex"
+  file.path(output_dir, "Table_MPStyleRegsMain.tex")
 )
 write_mp_table(
   models$main_unscaled,
   main_headers,
-  "../Results/Table_MPStyleRegsMainUnscaled.tex"
+  file.path(output_dir, "Table_MPStyleRegsMainUnscaled.tex")
 )
 write_mp_table(
   models$individual_dm,
   c("Scaled returns", "Scaled returns", "Unscaled returns", "Unscaled returns"),
-  "../Results/Table_MPStyleRegsIndividualDM.tex"
+  file.path(output_dir, "Table_MPStyleRegsIndividualDM.tex")
+)
+
+# Manuscript Tables 3 and 4: combine the alternating no-time-FE/time-FE
+# specifications from the scaled and unscaled model lists. Cached tolerance
+# variants can use the same helper and suffix without changing the layout.
+write_combined_mp_tables(
+  models$main_scaled,
+  models$main_unscaled,
+  output_dir = output_dir
 )
