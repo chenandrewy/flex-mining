@@ -55,5 +55,6 @@ write_mp_table(
 write_combined_mp_tables(
   models$main_scaled,
   models$main_unscaled,
+  n_signals = models$metadata$predictor_count,
   output_dir = output_dir
 )

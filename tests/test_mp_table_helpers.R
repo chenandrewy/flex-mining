@@ -23,7 +23,7 @@ fits <- rep(list(fit), 6L)
 
 output_dir <- tempfile("mp-table-helper-test-")
 dir.create(output_dir)
-write_combined_mp_tables(fits, fits, output_dir)
+write_combined_mp_tables(fits, fits, n_signals = 12L, output_dir)
 
 main_path <- file.path(output_dir, "Table_MPStyleRegsNoTimeFE.tex")
 time_path <- file.path(output_dir, "Table_MPStyleRegsTimeFE.tex")
@@ -35,9 +35,11 @@ stopifnot(
   identical(main_lines[[1]], "% GENERATED -- do not hand-edit (helpers/mp_table_helpers.R)."),
   "\\begin{tabular}{lcccccc}" %in% main_lines,
   any(grepl("& (1) & (2) & (3) & (4) & (5) & (6)", main_lines, fixed = TRUE)),
+  any(grepl("Signals          & 12 & 12 & 12 & 12 & 12 & 12", main_lines, fixed = TRUE)),
+  any(grepl("Signals          & 12 & 12 & 12 & 12 & 12 & 12", time_lines, fixed = TRUE)),
   any(grepl("Time F.E.        & No & No & No & No & No & No", main_lines, fixed = TRUE)),
   any(grepl("Time F.E.        & Yes & Yes & Yes & Yes & Yes & Yes", time_lines, fixed = TRUE))
 )
 
-bad_fit_count <- try(make_combined_table(fits[1:5], FALSE, tempfile()), silent = TRUE)
+bad_fit_count <- try(make_combined_table(fits[1:5], 12L, FALSE, tempfile()), silent = TRUE)
 stopifnot(inherits(bad_fit_count, "try-error"))
