@@ -53,6 +53,18 @@ signal-month panel used by both `3d_Fig2Data.R` and
 `S3a_MPStyleDecayModels.R`. `S2e_Fig2Plots.R` renders the four Figure 2 panels
 and appendix confidence-interval variants into `../Results/`.
 
+## LaTeX preview
+
+`LatexPreview/exhibits.tex` assembles the live files in `../Results/` into a
+navigable PDF, grouped and numbered like the paper but without captions. From
+the repository root, build it with:
+
+```bash
+./LatexPreview/build.sh
+```
+
+The build writes `LatexPreview/exhibits.pdf`; it does not rerun any R stages.
+
 ## Code Result → producer
 
 Paper numbers are from the compiled paper in the separate writing repository.
