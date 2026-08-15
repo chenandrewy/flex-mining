@@ -34,12 +34,12 @@ Measured at `num_cores = 4`.
 | ↳ `2c_TickerToLongshort.R`          |            ~1-2 min | Writes `ticker_Harvey2017JF.RDS`.                                                                                                                                                                                                                                                              |
 | ↳ `2d_RiskAdjustDataMinedSignals.R` |              ~6 min | Writes `MatchPubRiskAdjusted.RData` (2.2 GB in this vintage).                                                                                                                                                                                                                                  |
 | **`3_Precompute.R`**                | **~1h 44m baseline** | The memory-critical chapter; completes without OOM.                                                                                                                                                                                                                                            |
-| ↳ `3a_ResearchVsDMPrep.R`           |             ~12 min | Three `make_DM_event_returns()` calls.                                                                                                                                                                                                                                                         |
+| ↳ `3a_ResearchVsDMPrep.R`           |             ~11 min | Five `make_DM_event_returns()` calls; now owns raw accounting/ticker benchmark variants. Measured after the ownership refactor.                                                                                                                                                                  |
 | ↳ `3b_DataMiningSummary.R`          |             ~24 min |                                                                                                                                                                                                                                                                                                |
 | ↳ `3c_DMCorrelationsPCA.R`          |             ~15 min | Writes `PairwiseCorrelationsDM_{ew,vw}.RDS`.                                                                                                                                                                                                                                                   |
 | ↳ `3d_MatchedUncorrData.R`          |        a few minutes | Added after the full-run measurement; its runtime has not been isolated.                                                                                                                                                                                                                       |
-| ↳ `3d_Fig2Data.R`                   |              ~3 min | Two `make_DM_event_returns()` calls; writes the Figure 2 cache.                                                                                                                                                                                                                                |
-| ↳ `3e_DMSpanPCA.R`                  |         **~51 min** | Heaviest Chapter-3 script: one `adj_R2_with_PPCA()` and six `make_DM_event_returns()` calls.                                                                                                                                                                                                   |
+| ↳ `3e_FactorAdjustedDMPrep.R`       |          ~1 min 48 s | Reads the large legacy risk-adjusted pair cache and writes the calculation-owned CAPM/FF4 benchmark contract.                                                                                                                                                                                  |
+| ↳ `3f_DMSpanPCA.R`                  |         **~51 min** | Heaviest Chapter-3 script: one `adj_R2_with_PPCA()` and six `make_DM_event_returns()` calls.                                                                                                                                                                                                   |
 | **Sections S2-SA**                  | **~7 min baseline** | Exhibit stages; each child is a fresh R process reading upstream caches. Section 3 also estimates the MP-style decay models in `S3a_MPStyleDecayModels.R` (a few minutes; writes `mp_style_decay_models.RDS`, ~1 GB), then `S3b_MPStyleDecayTables.R` renders them. `SA_Appendices.R` is the longest. |
 | **`9_ExportDataToCsv.R`**           |              ~1 min | Reads chapter-2 caches; writes `../Data/Export`.                                                                                                                                                                                                                                               |
 
@@ -98,9 +98,8 @@ separate copy.
 
 | Script                      | Parallel work                                      | Footprint                               | In `MAIN.R`? |
 | --------------------------- | -------------------------------------------------- | --------------------------------------- | ------------ |
-| `3e_DMSpanPCA.R`            | 6× `make_DM_event_returns` + 1× `adj_R2_with_PPCA` | fork, shared panel (heaviest)           | yes          |
-| `3a_ResearchVsDMPrep.R`     | 3× `make_DM_event_returns`                         | fork, shared panel                      | yes          |
-| `3d_Fig2Data.R`             | 2× `make_DM_event_returns`                         | fork, shared panel                      | yes          |
+| `3f_DMSpanPCA.R`            | 6× `make_DM_event_returns` + 1× `adj_R2_with_PPCA` | fork, shared panel (heaviest)           | yes          |
+| `3a_ResearchVsDMPrep.R`     | 5× `make_DM_event_returns`                         | fork, shared panel                      | yes          |
 | `2a_CompustatToLongshort.R` | `foreach` over 29,315 signals                      | own PSOCK cluster, Compustat/CRSP panel | yes          |
 | `2b_MatchDataMinedToPub.R`  | two `foreach` loops over the mined-return panel    | own PSOCK cluster                       | yes          |
 | `3c_DMCorrelationsPCA.R`    | `parLapply` over correlation pairs                 | own `makeCluster`                       | yes          |
@@ -136,7 +135,7 @@ multi-hour `2a` stage keeps full core count.
 To measure a single script in a fresh process:
 
 ```bash
-time Rscript 3e_DMSpanPCA.R
+time Rscript 3f_DMSpanPCA.R
 ```
 
 `time` reports elapsed time; peak resident memory needs a separate monitor

@@ -3,6 +3,7 @@
 # How to run: normally run through 3_Precompute.R from flex-mining/.
 # Inputs:  cleaned published returns and chapter-2 mined-strategy caches
 # Outputs: ../Data/Processed/{dmcomp,dmtic}_sumstats.RDS
+#          ../Data/Processed/raw_dm_benchmarks.RDS
 #          ../Data/Processed/plotdat0.RDS and ret_for_plot*.RDS
 
 # Setup --------------------------------------------------------
@@ -165,6 +166,87 @@ ret_for_plot1 = ret_for_plot0 %>%
   ) %>% 
   select(eventDate, ret, matchRet, matchRetAlt, pubname, theory)
 
+## Raw benchmark contract -------------------------------------------------
+# Figure 2 and future benchmark consumers use this calculation-oriented
+# contract.  The ret_for_plot* files below remain compatibility artifacts.
+
+ticker_top5_matched <- SelectDMStrats(dmtic$insampsum, tempplotdat$matchset)
+
+print("Making ticker top 5% event time returns")
+start_time <- Sys.time()
+ticker_top5_event_time <- make_DM_event_returns(
+  DMname = dmtic$name, match_strats = ticker_top5_matched,
+  npubmax = tempplotdat$npubmax, czsum = czsum,
+  use_sign_info = tempplotdat$use_sign_info
+)
+stop_time <- Sys.time()
+print(stop_time - start_time)
+
+published_benchmark <- ret_for_plot0 %>%
+  transmute(pubname, eventDate, calendarDate, return = ret)
+accounting_t2_benchmark <- published_benchmark %>%
+  select(pubname, eventDate, calendarDate) %>%
+  left_join(
+    plotdat0$comp_event_time %>%
+      transmute(
+        pubname, eventDate, return = dm_mean,
+        n_matches_available = dm_n
+      ),
+    by = c("pubname", "eventDate")
+  ) %>%
+  select(pubname, eventDate, calendarDate, return, n_matches_available)
+accounting_top5_benchmark <- tempplotdat$comp_event_time %>%
+  transmute(
+    pubname, eventDate,
+    return = dm_mean, n_matches_available = dm_n
+  ) %>%
+  left_join(
+    published_benchmark %>% select(pubname, eventDate, calendarDate),
+    by = c("pubname", "eventDate")
+  ) %>%
+  select(pubname, eventDate, calendarDate, return, n_matches_available)
+ticker_top5_benchmark <- ticker_top5_event_time %>%
+  transmute(
+    pubname, eventDate,
+    return = dm_mean, n_matches_available = dm_n
+  ) %>%
+  left_join(
+    published_benchmark %>% select(pubname, eventDate, calendarDate),
+    by = c("pubname", "eventDate")
+  ) %>%
+  select(pubname, eventDate, calendarDate, return, n_matches_available)
+
+raw_dm_benchmarks <- list(
+  published = published_benchmark,
+  accounting_t2 = accounting_t2_benchmark,
+  accounting_top5 = accounting_top5_benchmark,
+  ticker_top5 = ticker_top5_benchmark,
+  metadata = list(
+    schema_version = 1L,
+    normalization = "100 times return divided by the strategy in-sample mean",
+    accounting_t2_screen = plotdat0$matchset,
+    top5_screen = tempplotdat$matchset,
+    mining_universes = c(
+      accounting = dmcomp$name,
+      ticker = dmtic$name
+    ),
+    source_files = c(
+      "../Data/Processed/czsum_allpredictors.RDS",
+      "../Data/Processed/czret_keeponly.RDS",
+      dmcomp$name, dmtic$name
+    )
+  )
+)
+
+stopifnot(
+  !anyDuplicated(as.data.frame(published_benchmark)[c("pubname", "eventDate")]),
+  !anyDuplicated(as.data.frame(accounting_t2_benchmark)[c("pubname", "eventDate")]),
+  !anyDuplicated(as.data.frame(accounting_top5_benchmark)[c("pubname", "eventDate")]),
+  !anyDuplicated(as.data.frame(ticker_top5_benchmark)[c("pubname", "eventDate")])
+)
+
+rm(ticker_top5_event_time, ticker_top5_matched)
+
 ## Shared data prep 3 --------------------------------------------------
 # an alternative to ret_for_plot0 and ret_for_plot1
 # uses top maxDMpredictors[rr] accounting signals
@@ -203,6 +285,7 @@ for (rr in 1:length(maxDMpredictors)) {
 
 # Save to disk -----------------------------------------------------
 
+saveRDS(raw_dm_benchmarks, "../Data/Processed/raw_dm_benchmarks.RDS")
 saveRDS(plotdat0, "../Data/Processed/plotdat0.RDS")
 saveRDS(ret_for_plot0, "../Data/Processed/ret_for_plot0.RDS")
 saveRDS(ret_for_plot1, "../Data/Processed/ret_for_plot1.RDS")

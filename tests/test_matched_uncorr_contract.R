@@ -6,7 +6,7 @@
 # Outputs: none; exits nonzero on failure.
 
 producer <- readLines("3d_MatchedUncorrData.R")
-figure_consumer <- readLines("3d_Fig2Data.R")
+figure_consumer <- readLines("S2e_Fig2Plots.R")
 table_consumer <- readLines("S3a_MPStyleDecayModels.R")
 
 cache_name <- "matched_uncorr_benchmark.RDS"

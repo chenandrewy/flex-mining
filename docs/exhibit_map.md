@@ -33,7 +33,7 @@ emits no exhibit.
 MAIN.R  (reads runStages from config.R)
   1_Download_and_Clean.R, 1a_ValidDenoms.R          [chapter 1; off by default]
   2_DataMining.R            -> 2a 2b 2c 2d           [chapter 2; off by default]
-  3_Precompute.R            -> 3a 3b 3c 3d_MatchedUncorr 3d_Fig2 3e
+  3_Precompute.R            -> 3a 3b 3c 3d_MatchedUncorr 3e_FactorAdjusted 3f
                                                         (prep caches; no exhibits)
   S2_ResearchVsDataMining.R -> S2a S2b S2c S2d S2e
   S3_Learning.R             -> S3a S3b
@@ -48,10 +48,13 @@ IA.10, and IA.11 and is in the default Section 4 pipeline. Keeping all six
 group tables together gives the sample-specific and full-sample cuts the same
 screening, paired estimands, and clustered-inference contract.
 
-`3d_MatchedUncorrData.R` builds the canonical matched-uncorr pair set and
-signal-month panel used by both `3d_Fig2Data.R` and
-`S3a_MPStyleDecayModels.R`. `S2e_Fig2Plots.R` renders the four Figure 2 panels
-and appendix confidence-interval variants into `../Results/`.
+Figure 2 consumes three calculation-owned Chapter 3 contracts:
+`3a_ResearchVsDMPrep.R` writes raw mining variants,
+`3d_MatchedUncorrData.R` writes the canonical matched-uncorr pair panel, and
+`3e_FactorAdjustedDMPrep.R` writes CAPM/FF4 published and data-mined
+benchmarks. `S2e_Fig2Plots.R` imposes Figure-specific samples, computes rolling
+display statistics, and renders the four panels plus confidence-interval
+variants into `../Results/`.
 
 ## Code Result → producer
 
