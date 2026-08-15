@@ -70,7 +70,7 @@ globalSettings = list(
   # Canonical "matched-uncorr" benchmark used by Figure 2(c) and Tables 3--4.
   # The short name is for code/artifacts; manuscript prose spells out the rule.
   matched_uncorr_t_reltol = 0.10,
-  matched_uncorr_r_reltol = 0.30,
+  matched_uncorr_r_reltol = 0.10,
   matched_uncorr_corr_max = 0.10,
   match_nmonth_min = 60, # minimum pair-level in-sample history
 
