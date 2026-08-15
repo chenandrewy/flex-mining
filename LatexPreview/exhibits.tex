@@ -1,0 +1,298 @@
+\documentclass[12pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[latin9]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage[sc]{mathpazo}
+\usepackage{amssymb}
+\usepackage{bigstrut}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage[hidelinks]{hyperref}
+\usepackage{microtype}
+\usepackage{multirow}
+\usepackage{url}
+
+% Permit row-only generated fragments to be input inside tabular environments.
+\ExplSyntaxOn
+\cs_if_exist:NF \expandableinput
+  {
+    \cs_new:Npn \expandableinput #1
+      { \use:c { @@input } { \file_full_name:n {#1} } }
+  }
+\AddToHook{env/tabular/begin}
+  { \cs_set_eq:NN \input \expandableinput }
+\ExplSyntaxOff
+
+% build.sh compiles from LatexPreview/, so this is the live pipeline output.
+\newcommand{\exhibitspath}{../../Results}
+
+\newcommand{\previewsection}[1]{%
+  \clearpage
+  \phantomsection
+  \addcontentsline{toc}{section}{#1}%
+  \section*{#1}%
+}
+
+\newcommand{\exhibitgroup}[1]{%
+  \clearpage
+  \phantomsection
+  \addcontentsline{toc}{subsection}{#1}%
+  \noindent\large\textbf{#1}\par\medskip
+}
+
+\newcommand{\previewfile}[1]{%
+  \noindent\scriptsize\path{#1}\par\smallskip
+}
+
+\newcommand{\previewfigure}[2]{%
+  \exhibitgroup{#1}%
+  \previewfile{#2}%
+  \begin{center}
+    \includegraphics[width=\textwidth,height=.82\textheight,keepaspectratio]{\exhibitspath/#2}
+  \end{center}
+}
+
+\newcommand{\previewtable}[2]{%
+  \exhibitgroup{#1}%
+  \previewfile{#2}%
+  \begin{center}
+    \small
+    \input{\exhibitspath/#2}
+  \end{center}
+}
+
+\newcommand{\previewpanel}[2][.48\textwidth]{%
+  \begin{minipage}[t]{#1}
+    \centering
+    \includegraphics[width=\linewidth,height=.35\textheight,keepaspectratio]{\exhibitspath/#2}\par
+    \scriptsize\path{#2}
+  \end{minipage}%
+}
+
+\begin{document}
+
+\begin{center}
+  \Large Exhibit Preview
+\end{center}
+
+\tableofcontents
+
+\previewsection{Main Text}
+
+\previewfigure{Figure 1}{Fig_DM_t_min_2_se_indicators_calendar.pdf}
+
+\exhibitgroup{Table 1}
+\previewfile{dm-sortsFull.tex + DM_pca.tex}
+\begingroup
+\setlength{\tabcolsep}{0.9ex}\small
+\begin{center}
+\begin{tabular}{crrrrrrrrrrrr}
+  \toprule
+  \multicolumn{13}{c}{Panel (a): ``Out-of-Sample'' Returns of All Ratios 1994--2020} \\
+  \midrule
+  In- & & \multicolumn{5}{c}{Equal-Weighted Long-Short Deciles} &&
+    \multicolumn{5}{c}{Value-Weighted Long-Short Deciles} \\
+  \cmidrule{3-7}\cmidrule{9-13}
+  Sample && \multicolumn{2}{c}{Past 30 Years (IS)} &&
+    \multicolumn{2}{c}{Next Year (OOS)} &&
+    \multicolumn{2}{c}{Past 30 Years (IS)} &&
+    \multicolumn{2}{c}{Next Year (OOS)} \\
+  \cmidrule{3-4}\cmidrule{6-7}\cmidrule{9-10}\cmidrule{12-13}
+  Bin && Return & t-stat && Return & Decay && Return & t-stat && Return & Decay \\
+      && (bps pm) &&& (bps pm) & (\%) && (bps pm) &&& (bps pm) & (\%) \\
+  \cmidrule{1-1}\cmidrule{3-4}\cmidrule{6-7}\cmidrule{9-10}\cmidrule{12-13}
+  \input{\exhibitspath/dm-sortsFull.tex}
+  \bottomrule
+\end{tabular}
+
+\vspace{2ex}
+\setlength{\tabcolsep}{1.5ex}
+\input{\exhibitspath/DM_pca.tex}
+\end{center}
+\endgroup
+
+\previewtable{Table 2}{theme_ez_decay.tex}
+
+\exhibitgroup{Figure 2}
+\begin{center}
+  \previewpanel{Fig2a_FactorAdj.pdf}\hfill
+  \previewpanel{Fig2b_PubSampleLimits.pdf}\par\medskip
+  \previewpanel{Fig2c_MatchedExclCorr.pdf}\hfill
+  \previewpanel{Fig2d_AltMining.pdf}
+\end{center}
+
+\previewtable{Table 3}{Table_MPStyleRegsNoTimeFE.tex}
+\previewtable{Table 4}{Table_MPStyleRegsTimeFE.tex}
+
+\exhibitgroup{Table 5}
+\previewfile{ApproachVsJournalsPart1/2/3.tex}
+\begin{center}
+\footnotesize
+\begin{tabular}{lrrrrr}
+  \toprule
+  \textbf{Category} & \multicolumn{5}{c}{\textbf{Journal Category}} \\
+  \cmidrule(lr){2-6}
+  & Any & JF, JFE, RFS & AR, JAE, JAR & Finance & Accounting \\
+  \midrule
+  \multicolumn{6}{l}{\textbf{Theoretical Explanation}} \\
+  \input{\exhibitspath/ApproachVsJournalsPart1.tex}
+  \multicolumn{6}{l}{\textbf{Equilibrium Modeling}} \\
+  \input{\exhibitspath/ApproachVsJournalsPart2.tex}
+  \midrule
+  \input{\exhibitspath/ApproachVsJournalsPart3.tex}
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\previewtable{Table 6}{Table_RiskAdjusted_TimeVarying_ff4_t2.tex}
+\previewtable{Table 7}{Table_RiskAdjusted_TimeVarying_DisciplineJournal_ff4_t2.tex}
+
+\newcommand{\inspecttable}[4]{%
+  \exhibitgroup{#1}%
+  \previewfile{#2}%
+  \begin{center}\footnotesize
+  \setlength{\tabcolsep}{0.4ex}%
+  \begin{tabular}{rlrrr}
+    \toprule
+    \multicolumn{1}{c}{Similarity} & \multirow{2}{*}{Signal} &
+      \multirow{2}{*}{Sign} & \multicolumn{2}{c}{Mean Return (\% p.m.)} \\
+    \multicolumn{1}{c}{Rank} &&& \multicolumn{1}{c}{#3} & \multicolumn{1}{c}{#4} \\
+    \midrule
+    \multicolumn{5}{l}{\textit{Peer-Reviewed}} \\
+    \midrule
+    \input{\exhibitspath/#2}
+    \bottomrule
+  \end{tabular}
+  \end{center}
+}
+
+\inspecttable{Table 8}{inspect-BMdec.tex}{1963--1990}{1991--2023}
+\inspecttable{Table 9}{inspect-Mom12m.tex}{1964--1989}{1990--2023}
+\inspecttable{Table 10}{inspect-Size.tex}{1926--1975}{1976--2023}
+
+\previewsection{Appendix B}
+
+\exhibitgroup{Figure B.1}
+\begin{center}
+  \previewpanel{Fig2a_FactorAdj_CI.pdf}\hfill
+  \previewpanel{Fig2b_PubSampleLimits_CI.pdf}\par\medskip
+  \previewpanel{Fig2c_MatchedExclCorr_CI.pdf}\hfill
+  \previewpanel{Fig2d_AltMining_CI.pdf}
+\end{center}
+
+\previewtable{Table B.1}{Table_MPStyleRegsIndividualDM.tex}
+
+\exhibitgroup{Figure B.2}
+\begin{center}
+  \previewpanel{Fig_DM_t_min_2_AccountingOnly_CalendarSE.pdf}\hfill
+  \previewpanel{Fig_DM_t_top5Pct_AccountingOnly_CalendarSE.pdf}\par\medskip
+  \previewpanel{Fig_DM_CAPM_tv_AccountingOnly_CalendarSE.pdf}\hfill
+  \previewpanel{Fig_DM_FF4_tv_AccountingOnly_CalendarSE.pdf}
+\end{center}
+
+\exhibitgroup{Figure B.3}
+\begin{center}
+  \previewpanel{Fig_PublicationsVsDataMining_All_DM_Correlation10.pdf}\hfill
+  \previewpanel{Fig_PublicationsVsDataMining_risk_DM_Correlation10.pdf}\par\medskip
+  \previewpanel{Fig_PublicationsVsDataMining_mispricing_DM_Correlation10.pdf}\hfill
+  \previewpanel{Fig_PublicationsVsDataMining_agnostic_DM_Correlation10.pdf}
+\end{center}
+
+\exhibitgroup{Figure B.4}
+\begin{center}
+  \previewpanel{Fig_PublicationsVsDataMining_All_DM_Correlation_10_d_mean_0.1.pdf}\hfill
+  \previewpanel{Fig_PublicationsVsDataMining_risk_DM_Correlation10_d_mean_0.1.pdf}\par\medskip
+  \previewpanel{Fig_PublicationsVsDataMining_mispricing_DM_Correlation10_d_mean_0.1.pdf}\hfill
+  \previewpanel{Fig_PublicationsVsDataMining_agnostic_DM_Correlation10_d_mean_0.1.pdf}
+\end{center}
+
+\exhibitgroup{Figure B.5}
+\begin{center}
+  \previewpanel{Fig_DM_unspan_match_t_g_cor.pdf}\hfill
+  \previewpanel{Fig_DM_unspan_match_t_g_PCA.pdf}
+\end{center}
+
+\previewsection{Internet Appendix}
+
+\exhibitgroup{Table IA.1}
+\previewfile{dm-sortsPost2003.tex}
+\begingroup
+\setlength{\tabcolsep}{1ex}\small
+\begin{center}
+\begin{tabular}{crrrrrrrrrrrr}
+  \toprule
+  In- & & \multicolumn{5}{c}{Equal-Weighted Long-Short Deciles} &&
+    \multicolumn{5}{c}{Value-Weighted Long-Short Deciles} \\
+  \cmidrule{3-7}\cmidrule{9-13}
+  Sample && \multicolumn{2}{c}{Past 30 Years (IS)} &&
+    \multicolumn{2}{c}{Next Year (OOS)} &&
+    \multicolumn{2}{c}{Past 30 Years (IS)} &&
+    \multicolumn{2}{c}{Next Year (OOS)} \\
+  \cmidrule{3-4}\cmidrule{6-7}\cmidrule{9-10}\cmidrule{12-13}
+  Bin && Return & t-stat && Return & Decay && Return & t-stat && Return & Decay \\
+      && (bps pm) &&& (bps pm) & (\%) && (bps pm) &&& (bps pm) & (\%) \\
+  \cmidrule{1-1}\cmidrule{3-4}\cmidrule{6-7}\cmidrule{9-10}\cmidrule{12-13}
+  \input{\exhibitspath/dm-sortsPost2003.tex}
+  \bottomrule
+\end{tabular}
+\end{center}
+\endgroup
+
+\exhibitgroup{Table IA.2}
+\previewfile{quantilesCorDM.tex}
+\begin{center}\small
+\begin{tabular}{clccccccccccc}
+  \toprule
+  \multicolumn{11}{c}{Pairwise correlations} \\
+  \midrule
+  Percentile && 1 & 5 & 10 & 25 & 50 & 75 & 90 & 95 & 99 \\
+  \midrule
+  \input{\exhibitspath/quantilesCorDM.tex}
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\previewtable{Table IA.3}{theme_ez_decayinSampEnd1990.tex}
+\previewtable{Table IA.4}{theme_ez_decayinSampEnd2000.tex}
+\previewtable{Table IA.5}{theme_ez_decayinSampEnd2010.tex}
+
+\exhibitgroup{Figure IA.1}
+\begin{center}
+  \previewpanel{Fig_FullSampleRiskAdj_capm_alpha_fs_t2.pdf}\hfill
+  \previewpanel{Fig_FullSampleRiskAdj_ff3_alpha_fs_t2.pdf}
+\end{center}
+
+\previewtable{Table IA.6}{Table_RiskAdjusted_FullSample_Appendix.tex}
+\previewtable{Table IA.7}{Table_RiskAdjusted_FullSample_DisciplineJournal_Appendix.tex}
+
+\previewfigure{Figure IA.2}{Fig_DecayVsWords_Names2.pdf}
+
+\exhibitgroup{Figure IA.3}
+\begin{center}
+  \previewpanel[.42\textwidth]{Fig_Risk_via_CAPM.pdf}\hfill
+  \previewpanel[.42\textwidth]{Fig_Risk_via_FF3.pdf}\par\smallskip
+  \previewpanel[.42\textwidth]{Fig_Risk_via_FF5.pdf}
+\end{center}
+
+\exhibitgroup{Table IA.8}
+\previewfile{SignalsByTheoryAndJournal.tex}
+\begin{center}
+\begin{tabular}{lrrr}
+  \toprule
+  & Agnostic & Mispricing & Risk \\
+  \midrule
+  \input{\exhibitspath/SignalsByTheoryAndJournal.tex}
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\previewfigure{Figure IA.4}{Fig_DecayVsJournal_Means.pdf}
+
+% Table IA.9 is defined inline in the paper and has no generated Results file.
+\previewtable{Table IA.10}{Table_RiskAdjusted_TimeVarying_AnyModelVsNoModel_ff4_t2.tex}
+\previewtable{Table IA.11}{Table_RiskAdjusted_FullSample_AnyModelVsNoModel_Appendix.tex}
+\previewtable{Table IA.12}{samp_split_summary.tex}
+\previewfigure{Figure IA.5}{break_vs_sampend.pdf}
+
+\end{document}

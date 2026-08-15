@@ -3,18 +3,21 @@
 How long each script in the `MAIN.R` chain takes and how much RAM it needs, so
 you can tell a slow stage from a hung one and size parallel work safely.
 
-The figures below come from a full end-to-end run of Chapters 2-9 on a
+The measured baseline below comes from a full end-to-end run of Chapters 2-9 on a
 24-core / 62 GB machine with **effectively no swap**, using
 `globalSettings$num_cores = 4` and `dataVersion = 'CZ-style-v8b'`. Total wall
 time is **~6h 14m**. Runtimes come from output-file mtimes and a stage monitor;
 treat sub-minute figures as approximate. Chapter 1 re-pulls external data and is
-run only when refreshing the vintage, so it is not part of these figures.
+run only when refreshing the vintage, so it is not part of these figures. Later
+pipeline refactors moved a few minutes of work between stages; no newer full-run
+total has been measured.
 
 ## Current pipeline
 
-`MAIN.R` starts every chapter as a separate `Rscript` process. Chapters 2-8
-also start every child script as a separate process. Consequently, memory is
-returned to the operating system at both chapter and child-script boundaries.
+`MAIN.R` starts every stage as a separate `Rscript` process. Chapters 2-3 and
+Sections S2-SA also start every child script as a separate process.
+Consequently, memory is returned to the operating system at both stage and
+child-script boundaries.
 
 ## Runtimes
 
@@ -30,13 +33,14 @@ Measured at `num_cores = 4`.
 | ↳ `2b_MatchDataMinedToPub.R`        |              ~4 min | Writes `MatchPub.RData` and `PairwiseCorrelationsActualAndMatches.RDS`.                                                                                                                                                                                                                        |
 | ↳ `2c_TickerToLongshort.R`          |            ~1-2 min | Writes `ticker_Harvey2017JF.RDS`.                                                                                                                                                                                                                                                              |
 | ↳ `2d_RiskAdjustDataMinedSignals.R` |              ~6 min | Writes `MatchPubRiskAdjusted.RData` (2.2 GB in this vintage).                                                                                                                                                                                                                                  |
-| **`3_Precompute.R`**                |         **~1h 44m** | The memory-critical chapter; completes without OOM.                                                                                                                                                                                                                                            |
+| **`3_Precompute.R`**                | **~1h 44m baseline** | The memory-critical chapter; completes without OOM.                                                                                                                                                                                                                                            |
 | ↳ `3a_ResearchVsDMPrep.R`           |             ~12 min | Three `make_DM_event_returns()` calls.                                                                                                                                                                                                                                                         |
 | ↳ `3b_DataMiningSummary.R`          |             ~24 min |                                                                                                                                                                                                                                                                                                |
 | ↳ `3c_DMCorrelationsPCA.R`          |             ~15 min | Writes `PairwiseCorrelationsDM_{ew,vw}.RDS`.                                                                                                                                                                                                                                                   |
+| ↳ `3d_MatchedUncorrData.R`          |        a few minutes | Added after the full-run measurement; its runtime has not been isolated.                                                                                                                                                                                                                       |
 | ↳ `3d_Fig2Data.R`                   |              ~3 min | Two `make_DM_event_returns()` calls; writes the Figure 2 cache.                                                                                                                                                                                                                                |
 | ↳ `3e_DMSpanPCA.R`                  |         **~51 min** | Heaviest Chapter-3 script: one `adj_R2_with_PPCA()` and six `make_DM_event_returns()` calls.                                                                                                                                                                                                   |
-| **Sections S2-SA**                  | **~7 min combined** | Exhibit stages; each child is a fresh R process reading upstream caches. Section 3 also estimates the MP-style decay models in `S3a_MPStyleDecayModels.R` (~2 min; writes `mp_style_decay_models.RDS`, ~1 GB), then `S3b_MPStyleDecayTables.R` renders them. `SA_Appendices.R` is the longest. |
+| **Sections S2-SA**                  | **~7 min baseline** | Exhibit stages; each child is a fresh R process reading upstream caches. Section 3 also estimates the MP-style decay models in `S3a_MPStyleDecayModels.R` (a few minutes; writes `mp_style_decay_models.RDS`, ~1 GB), then `S3b_MPStyleDecayTables.R` renders them. `SA_Appendices.R` is the longest. |
 | **`9_ExportDataToCsv.R`**           |              ~1 min | Reads chapter-2 caches; writes `../Data/Export`.                                                                                                                                                                                                                                               |
 
 ### Inside `2a_CompustatToLongshort.R`
@@ -65,8 +69,9 @@ Chapter 3 is the memory-critical part of the pipeline. An earlier single-process
 design kept one R process alive across all stages, peaked near the machine limit
 (~62 GB), and could be terminated by the out-of-memory killer during the work now
 in `3a_ResearchVsDMPrep.R`. The current design bounds memory by running each
-chapter -- and, within Chapters 2-8, each child script -- as its own `Rscript`
-process, so memory returns to the operating system at every boundary and no stage
+stage -- and, within Chapters 2-3 and Sections S2-SA, each child script -- as
+its own `Rscript` process, so memory returns to the operating system at every
+boundary and no stage
 inherits an earlier one's allocator high-water mark. Within Chapter 3,
 `make_DM_event_returns()` and `adj_R2_with_PPCA()` deserialize the multi-GB
 mined-strategy RDS once and drop the enclosing object, and on Unix they fork
