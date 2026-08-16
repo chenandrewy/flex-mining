@@ -7,10 +7,13 @@
 # Outputs: none; exits nonzero on failure.
 
 raw_producer <- readLines("3a_ResearchVsDMPrep.R")
+consolidated_producer <- readLines("3a_PrepDMBenchmarks.R")
 risk_producer <- readLines("3e_FactorAdjustedDMPrep.R")
 matched_producer <- readLines("3d_MatchedUncorrData.R")
 figure_producer <- readLines("S2e_Fig2Plots.R")
 precompute <- readLines("3_Precompute.R")
+section_driver <- readLines("S2_ResearchVsDataMining.R")
+section_renderer <- readLines("S2a_ResearchVsDMPlots.R")
 
 stopifnot(
   any(grepl("raw_dm_benchmarks.RDS", raw_producer, fixed = TRUE)),
@@ -25,7 +28,12 @@ stopifnot(
   !any(grepl("MatchPub|PairwiseCorrelations|make_DM_event_returns|SelectDMStrats",
              figure_producer)),
   !any(grepl("3d_Fig2Data.R", precompute, fixed = TRUE)),
-  !file.exists("3d_Fig2Data.R")
+  !file.exists("3d_Fig2Data.R"),
+  !any(grepl("ret_for_plot_MaxPredictors", raw_producer, fixed = TRUE)),
+  !any(grepl("ret_for_plot_MaxPredictors", consolidated_producer, fixed = TRUE)),
+  !any(grepl("ret_for_plot_MaxPredictors", section_driver, fixed = TRUE)),
+  !any(grepl("ret_for_plot_MaxPredictors", section_renderer, fixed = TRUE)),
+  !any(grepl("MaxDMpredsPerPublished", section_renderer, fixed = TRUE))
 )
 
 raw_path <- "../Data/Processed/raw_dm_benchmarks.RDS"

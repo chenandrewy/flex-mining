@@ -13,7 +13,7 @@
 # Outputs (in PREP_DM_OUT_DIR, default ../Data/Processed):
 #          dmcomp_sumstats.RDS, dmtic_sumstats.RDS  (compat sumstats)
 #          raw_dm_benchmarks.RDS                    (Figure 2 raw contract)
-#          plotdat0.RDS, ret_for_plot0/1/_MaxPredictors.RDS  (compat display)
+#          plotdat0.RDS, ret_for_plot0/1.RDS                 (compat display)
 #          matched_uncorr_benchmark.RDS             (Figure 2c / Section 3)
 #          risk_adjusted_dm_benchmarks.RDS          (factor-adjusted contract)
 #
@@ -196,39 +196,15 @@ stopifnot(
 )
 rm(ticker_top5_event_time, ticker_top5_matched)
 
-# max-predictor variants ---------------------------------------------------
-maxDMpredictors <- c(100, 1000)
-ret_for_plot_MaxPredictors <- tibble()
-for (rr in seq_along(maxDMpredictors)) {
-  message("Making accounting event time returns with Max DM predictors: ",
-          maxDMpredictors[rr])
-  tempMatched <- plotdat0$comp_matched %>%
-    filter(rank_tstat <= maxDMpredictors[rr] + 1)
-  tempEvent_time <- make_DM_event_returns(
-    DMname = dmcomp$name, match_strats = tempMatched, npubmax = plotdat0$npubmax,
-    czsum = czsum, use_sign_info = plotdat0$use_sign_info
-  )
-  ret_for_plot_MaxPredictors <- czret %>%
-    transmute(pubname = signalname, eventDate, ret = ret_scaled, theory) %>%
-    left_join(
-      tempEvent_time %>% transmute(pubname, eventDate, matchRet = dm_mean),
-      by = c("pubname", "eventDate")
-    ) %>%
-    select(eventDate, ret, matchRet, pubname, theory) %>%
-    mutate(maxDMpredictors = maxDMpredictors[rr]) %>%
-    bind_rows(ret_for_plot_MaxPredictors)
-}
-
 saveRDS(raw_dm_benchmarks, outp("raw_dm_benchmarks.RDS"))
 saveRDS(plotdat0, outp("plotdat0.RDS"))
 saveRDS(ret_for_plot0, outp("ret_for_plot0.RDS"))
 saveRDS(ret_for_plot1, outp("ret_for_plot1.RDS"))
-saveRDS(ret_for_plot_MaxPredictors, outp("ret_for_plot_MaxPredictors.RDS"))
 
 # Keep an in-memory copy of the raw published display panel for Phase C.
 ret_for_plot0_A <- ret_for_plot0
 
-rm(dmtic, ret_for_plot1, ret_for_plot_MaxPredictors, tempplotdat,
+rm(dmtic, ret_for_plot1, tempplotdat,
    published_benchmark, accounting_t2_benchmark, accounting_top5_benchmark,
    ticker_top5_benchmark, raw_dm_benchmarks)
 # dmcomp$insampsum and plotdat0 are large; drop them now that Phase A is done.

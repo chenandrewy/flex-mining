@@ -4,7 +4,7 @@
 # Inputs:  cleaned published returns and chapter-2 mined-strategy caches
 # Outputs: ../Data/Processed/{dmcomp,dmtic}_sumstats.RDS
 #          ../Data/Processed/raw_dm_benchmarks.RDS
-#          ../Data/Processed/plotdat0.RDS and ret_for_plot*.RDS
+#          ../Data/Processed/plotdat0.RDS and ret_for_plot{0,1}.RDS
 
 # Setup --------------------------------------------------------
 
@@ -247,46 +247,9 @@ stopifnot(
 
 rm(ticker_top5_event_time, ticker_top5_matched)
 
-## Shared data prep 3 --------------------------------------------------
-# an alternative to ret_for_plot0 and ret_for_plot1
-# uses top maxDMpredictors[rr] accounting signals
-
-# max number of DM predictors per paper
-maxDMpredictors = c(100, 1000)
-
-ret_for_plot_MaxPredictors = tibble()
-for (rr in 1:length(maxDMpredictors)) {
-  
-  print(paste0("Making accounting event time returns with Max DM predictors: ", maxDMpredictors[rr]))
-  
-  tempMatched <- plotdat0$comp_matched %>% 
-    filter(rank_tstat <= maxDMpredictors[rr] + 1) 
-  
-  print("Can take a few minutes...")
-  start_time <- Sys.time()
-  tempEvent_time <- make_DM_event_returns(
-    DMname = dmcomp$name, match_strats = tempMatched, npubmax = plotdat0$npubmax, 
-    czsum = czsum, use_sign_info = plotdat0$use_sign_info
-  )
-  stop_time <- Sys.time()
-  print(stop_time - start_time)
-  
-  ret_for_plot_MaxPredictors = czret %>%
-    transmute(pubname = signalname, eventDate, ret = ret_scaled, theory) %>%
-    left_join(
-      tempEvent_time %>% transmute(pubname, eventDate, matchRet = dm_mean),
-      by = c("pubname", "eventDate")
-    ) %>%
-    select(eventDate, ret, matchRet, pubname, theory) %>% 
-    mutate(maxDMpredictors = maxDMpredictors[rr]) %>% 
-    bind_rows(ret_for_plot_MaxPredictors)
-  
-}
-
 # Save to disk -----------------------------------------------------
 
 saveRDS(raw_dm_benchmarks, "../Data/Processed/raw_dm_benchmarks.RDS")
 saveRDS(plotdat0, "../Data/Processed/plotdat0.RDS")
 saveRDS(ret_for_plot0, "../Data/Processed/ret_for_plot0.RDS")
 saveRDS(ret_for_plot1, "../Data/Processed/ret_for_plot1.RDS")
-saveRDS(ret_for_plot_MaxPredictors, "../Data/Processed/ret_for_plot_MaxPredictors.RDS")

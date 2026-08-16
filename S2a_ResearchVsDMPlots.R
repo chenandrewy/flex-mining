@@ -35,7 +35,6 @@ dmtic <- readRDS("../Data/Processed/dmtic_sumstats.RDS")
 # Load pre-computed matched returns
 ret_for_plot0 <- readRDS("../Data/Processed/ret_for_plot0.RDS")
 ret_for_plot1 <- readRDS("../Data/Processed/ret_for_plot1.RDS")
-ret_for_plot_MaxPredictors <- readRDS("../Data/Processed/ret_for_plot_MaxPredictors.RDS")
 
 # Default Plot Settings --------------------------------------------------
 
@@ -395,44 +394,6 @@ printme2 = printme + theme(
 # save
 ggsave(paste0("../Results/Fig_DM_t_top5Pct_AccountingOnly_CalendarSE.pdf"), width = 10, height = 8)
 
-
-# Restricting the number of DM predictors per paper -----------------------
-# Note: The normalization of DM strategies to have an in-sample mean of 100
-# occurs in the `make_DM_event_returns` function in `0_Environment.R`.
-
-# Prep for plotting
-ret_for_plot_MaxPredictors1 = ret_for_plot_MaxPredictors %>%
-  filter(!is.na(matchRet), maxDMpredictors == 100) %>%
-  left_join(
-    ret_for_plot_MaxPredictors %>% 
-      filter(!is.na(matchRet), maxDMpredictors == 1000) %>%
-      transmute(eventDate, pubname, matchRetAlt = matchRet),
-    by = c("pubname", "eventDate")
-  )
-
-# Plot
-printme = ReturnPlotsWithDM(
-  dt = ret_for_plot_MaxPredictors1 %>% filter(!is.na(matchRet)),
-  basepath = "../Results/Fig_DM",
-  suffix = "MaxDMpredsPerPublished",
-  rollmonths = 60,
-  colors = colors,
-  labelmatch = FALSE,
-  yl = -0,
-  yh = 125,
-  xl = global_xl,
-  xh = global_xh,
-  legendlabels =
-    c(
-      paste0("Published (and Peer Reviewed)"),
-      paste0("Data-Mined for Top 100 |t| in Original Sample"),
-      paste0("Data-Mined for Top 1000 |t| in Original Sample")
-    ),
-  legendpos = c(47,20)/100,
-  fontsize = fontsizeall,
-  yaxislab = ylaball,
-  linesize = linesizeall
-)
 
 # Use journal definitions from globalSettings ------------------------
 top_finance = globalSettings$top3Finance

@@ -15,7 +15,6 @@ required_files <- c(
   "../Data/Processed/dmtic_sumstats.RDS",
   "../Data/Processed/ret_for_plot0.RDS",
   "../Data/Processed/ret_for_plot1.RDS",
-  "../Data/Processed/ret_for_plot_MaxPredictors.RDS",
   "../Data/Processed/sumsignal_oos_30y_ew_unit_level.csv",
   "../Data/Processed/sumsignal_oos_30y_vw_unit_level.csv",
   "../Data/Processed/sumsignal_oos_30y_post_2003_ew_unit_level.csv",
