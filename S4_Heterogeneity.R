@@ -4,7 +4,7 @@
 #   Rscript S4_Heterogeneity.R
 # Inputs:  cleaned published-predictor data, the chapter-1 denominator cache,
 #          chapter-3 raw and factor-adjusted benchmark contracts
-# Outputs: Section 4 category, journal, and risk-adjusted tables under ../Results
+# Outputs: Section 4 category, journal, and factor-adjusted tables under ../Results
 
 settings_env <- new.env(parent = globalenv())
 sys.source("config.R", envir = settings_env)
@@ -13,7 +13,7 @@ required_files <- c(
   "../Data/Processed/czsum_allpredictors.RDS",
   "../Data/Processed/czret_keeponly.RDS",
   "../Data/Processed/raw_dm_benchmarks.RDS",
-  "../Data/Processed/risk_adjusted_dm_benchmarks.RDS",
+  "../Data/Processed/factor_adjusted_dm_benchmarks.RDS",
   "DataInput/SignalsTheoryChecked.csv",
   paste0(version_prefix, " LongShort.RData")
 )

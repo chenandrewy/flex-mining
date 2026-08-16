@@ -39,7 +39,7 @@ cache. The other 1,118 legacy pairs belonged to predictors with `Keep == FALSE`
 and had no live exhibit consumer. Published/mined correlations likewise come
 from the signed `cor` column in `dmcomp_sumstats.RDS`.
 
-The former multi-GB risk-adjusted pair cache and its summary have no live
+The former multi-GB factor-adjusted pair cache and its summary have no live
 producer or consumer. Factor adjustment now streams window-level aggregates
 from the same broad accounting `|t| > 2` selection as the raw benchmark.
 
@@ -51,7 +51,7 @@ from the same broad accounting `|t| > 2` selection as the raw benchmark.
 | dmcomp_sumstats.RDS                       | 139 MB | 3a_PrepDMBenchmarks.R      | S2a; current                        |
 | dmtic_sumstats.RDS                        | 14 MB  | 3a_PrepDMBenchmarks.R      | S2a; current                        |
 | raw_dm_benchmarks.RDS                     | 8 MB   | 3a_PrepDMBenchmarks.R      | S2e, S3a; current                   |
-| risk_adjusted_dm_benchmarks.RDS           | 4 MB   | 3c_FactorAdjustedDMPrep.R  | S2e, S4b, SA09; current             |
+| factor_adjusted_dm_benchmarks.RDS           | 4 MB   | 3c_FactorAdjustedDMPrep.R  | S2e, S4b, SA09; current             |
 | ret_for_plot0.RDS                         | 3 MB   | 3a_PrepDMBenchmarks.R      | S2a; current                        |
 | ret_for_plot1.RDS                         | 2 MB   | 3a_PrepDMBenchmarks.R      | S2a, SA08; current                  |
 | PairwiseCorrelationsDM_ew.RDS             | 241 MB | Appendix SA11 PCA prep     | appendix-only cache                 |
@@ -70,11 +70,11 @@ and matched-uncorrelated event-time panel stored in `raw_dm_benchmarks.RDS`.
 The retained pair table is transient: Appendix Table B.1 recomputes it in
 memory using the same helper and validates its fingerprint against the raw
 benchmark metadata. `3c_FactorAdjustedDMPrep.R` writes both the sample-specific
-and full-sample broad-universe risk-adjusted benchmark caches from one shared
+and full-sample broad-universe factor-adjusted benchmark caches from one shared
 mined-return matrix.
 
 The in-memory matched-uncorrelated universe remains a separate robustness
-selection. The risk-adjusted benchmark starts from the 1,068,052-pair broad
+selection. The factor-adjusted benchmark starts from the 1,068,052-pair broad
 raw universe; model-specific eligible counts are recorded on regeneration.
 
 ## Section and appendix caches
@@ -103,7 +103,7 @@ raw universe; model-specific eligible counts are recorded on regeneration.
 | matched_uncorr_benchmark.RDS              | 5 MB          | Removed; panel moved to raw benchmarks; pairs rebuilt in memory |
 | matched_uncorr_pairs.RDS                  | <1 MB         | Removed; Table B.1 recomputes pairs in memory              |
 | CZ-style-v8b MatchPubRiskAdjusted.RData   | 2.34 GB       | Removed; replaced by streamed broad-universe aggregates    |
-| CZ-style-v8b MatchedRiskAdjSummary.RData  | 6 MB          | Removed; replaced by the compact risk-adjusted contract    |
+| CZ-style-v8b MatchedRiskAdjSummary.RData  | 6 MB          | Removed; replaced by the compact factor-adjusted contract    |
 ```
 
 ## Cleanup status
@@ -120,5 +120,5 @@ calculations feed live Chapter 3 outputs; PCA is isolated to Appendix SA11.
 
 The two text-analysis CSVs add another 13 MB with no live reference, but their
 external provenance makes them a confirm-before-removal category. The former
-2.35 GB risk-adjusted pair cache and summary have been replaced by two focused
+2.35 GB factor-adjusted pair cache and summary have been replaced by two focused
 contracts totaling under 8 MB.

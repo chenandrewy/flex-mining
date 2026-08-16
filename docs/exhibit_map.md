@@ -10,7 +10,7 @@ calculation and paper artifact, and whether the manuscript consumes it.
   all referenced by `sections/*.tex` and all R-generated — the Section 3
   MP-style tables
   (`Table_MPStyleRegs{NoTimeFE,TimeFE,IndividualDM}.tex`) and the six S4b
-  risk-adjusted tables included. No hand-formatted `HandTable` MP-style variants
+  factor-adjusted tables included. No hand-formatted `HandTable` MP-style variants
   remain; the one hand-transcribed number (Table IA.9) is pasted inline in the
   paper `.tex`, not a file.
 - **Producer:** the script whose write target (`ggsave`, `writeLines`,
@@ -56,7 +56,7 @@ kept in memory during preparation and recomputed in memory for Table B.1. Next,
 CAPM/FF3 to the exact same broad accounting `|t| > 2` pair universe. It writes
 compact published and data-mined panels in the main and appendix benchmark
 contracts; no broad pair-month cache is written.
-`S2e_Fig2Plots.R` reads the raw and risk-adjusted benchmark files, imposes
+`S2e_Fig2Plots.R` reads the raw and factor-adjusted benchmark files, imposes
 Figure-specific samples, computes rolling display statistics, and renders the
 four panels plus confidence-interval variants into `../Results/`.
 
@@ -111,7 +111,7 @@ Abbreviations used below to keep the columns narrow:
 - `(inline)` = number pasted inline in the paper `.tex`, hand-copied.
 - `*` in the Code Result column abbreviates part of a file basename.
 - `Tab_RA_FS_…` in the Code Result column abbreviates the file basename
-  `Table_RiskAdjusted_FullSample_…`.
+  `Table_FactorAdjusted_FullSample_…`.
 
 ### Main text
 
@@ -127,8 +127,8 @@ Abbreviations used below to keep the columns narrow:
 | §3 Tab 3    | Decay regressions without time FE     | Table_MPStyleRegsNoTimeFE.tex             | S3b_MPStyleDecayTables.R      | yes    |
 | §3 Tab 4    | Decay regressions with time FE        | Table_MPStyleRegsTimeFE.tex               | S3b_MPStyleDecayTables.R      | yes    |
 | §4 Tab 5    | Predictor counts by theory/journal    | ApproachVsJournalsPart1/2/3.tex           | S4a_DataCounts.R              | yes    |
-| §4 Tab 6    | Risk adjustment by theory/model       | Table_RiskAdjusted_TimeVarying_ff4_t2.tex | S4b_RVsDM_ByGroup.R           | yes    |
-| §4 Tab 7    | Risk adjustment by discipline/journal | Table_*_DisciplineJournal_ff4_t2.tex      | S4b_RVsDM_ByGroup.R           | yes    |
+| §4 Tab 6    | Factor adjustment by theory/model       | Table_FactorAdjusted_TimeVarying_ff4_t2.tex | S4b_RVsDM_ByGroup.R           | yes    |
+| §4 Tab 7    | Factor adjustment by discipline/journal | Table_*_DisciplineJournal_ff4_t2.tex      | S4b_RVsDM_ByGroup.R           | yes    |
 | §5 Tab 8    | Matched DM for book-to-market         | inspect-BMdec.tex                         | S5a_InspectTables.R           | yes    |
 | §5 Tab 9    | Matched DM for momentum               | inspect-Mom12m.tex                        | S5a_InspectTables.R           | yes    |
 | §5 Tab 10   | Matched DM for size                   | inspect-Size.tex                          | S5a_InspectTables.R           | yes    |
@@ -144,7 +144,7 @@ Abbreviations used below to keep the columns narrow:
 | §B Fig B.1d       | Alternative mining methods with CIs                  | Fig2d_AltMining_CI.pdf                            | S2e_Fig2Plots.R                                           | yes    |
 | §B Fig B.2a       | Accounting DM significant decay                   | Fig_DM_t_min_2_AccountingOnly_CalendarSE.pdf     | Appendices/SA08_AccountingOnlyPlots.R                     | yes    |
 | §B Fig B.2b       | Accounting DM top 5% decay                        | Fig_DM_t_top5Pct_AccountingOnly_CalendarSE.pdf   | S2a + Appendices/SA08_AccountingOnlyPlots.R               | yes    |
-| §B Fig B.2c–d     | Accounting DM risk-adjusted decay                 | Fig_DM_CAPM/FF4_tv_AccountingOnly_CalendarSE.pdf | Appendices/SA09_AccountingOnlyAlphaPlots.R                | yes    |
+| §B Fig B.2c–d     | Accounting DM factor-adjusted decay                 | Fig_DM_CAPM/FF4_tv_AccountingOnly_CalendarSE.pdf | Appendices/SA09_AccountingOnlyAlphaPlots.R                | yes    |
 | §B Fig B.3a–d     | Decay excluding correlated DM                     | Fig_PublicationsVsDataMining_*_Correlation10 (4) | Appendices/SA10_ResearchVsDMRobustnessCorrelationsEtc.R   | yes    |
 | §B Fig B.4a–d     | Decay with tighter DM matches                     | Fig_PublicationsVsDataMining_*_d_mean_0.1 (4)    | Appendices/SA10_ResearchVsDMRobustnessCorrelationsEtc.R   | yes    |
 | §B Fig B.5a–b     | Unspanned DM PCA and correlations                 | Fig_DM_unspan_match_t_g_PCA/cor.pdf              | Appendices/SA11_DMSpanPCAPlots.R                          | yes    |
@@ -154,16 +154,16 @@ Abbreviations used below to keep the columns narrow:
 | §IA.2 Tab IA.3    | Decay by theme through 1990                       | theme_ez_decayinSampEnd1990.tex                  | Appendices/SA12_EZThemesRobustness.R                      | yes    |
 | §IA.2 Tab IA.4    | Decay by theme through 2000                       | theme_ez_decayinSampEnd2000.tex                  | Appendices/SA12_EZThemesRobustness.R                      | yes    |
 | §IA.2 Tab IA.5    | Decay by theme through 2010                       | theme_ez_decayinSampEnd2010.tex                  | Appendices/SA12_EZThemesRobustness.R                      | yes    |
-| §IA.3 Tab IA.6    | Full-sample risk adjustment by theory             | Tab_RA_FS_Appendix.tex                           | Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R | yes    |
-| §IA.3 Tab IA.7    | Full-sample risk adjustment by discipline/journal | Tab_RA_FS_DisciplineJournal_Appendix.tex         | Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R | yes    |
+| §IA.3 Tab IA.6    | Full-sample factor adjustment by theory             | Tab_RA_FS_Appendix.tex                           | Appendices/SA07_FullSampleFactorAdjustedResearchVsDMPlots.R | yes    |
+| §IA.3 Tab IA.7    | Full-sample factor adjustment by discipline/journal | Tab_RA_FS_DisciplineJournal_Appendix.tex         | Appendices/SA07_FullSampleFactorAdjustedResearchVsDMPlots.R | yes    |
 | §IA.5 Tab IA.8    | Predictor counts by theory/journal                | SignalsByTheoryAndJournal.tex                    | S4a_DataCounts.R                                          | yes    |
 | §IA.5 Tab IA.9    | Predictor counts by theory                        | tab:mp-theory-no-reg (inline)                    | Excel2LaTeX (sheet "MP theory")                           | inline |
-| §IA.5 Tab IA.10   | Risk adjustment by model use                      | Table_*_AnyModelVsNoModel_ff4_t2.tex             | S4b_RVsDM_ByGroup.R                                       | yes    |
-| §IA.5 Tab IA.11   | Full-sample risk adjustment: model use            | Tab_RA_FS_AnyModelVsNoModel_Appendix.tex         | Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R | yes    |
+| §IA.5 Tab IA.10   | Factor adjustment by model use                      | Table_*_AnyModelVsNoModel_ff4_t2.tex             | S4b_RVsDM_ByGroup.R                                       | yes    |
+| §IA.5 Tab IA.11   | Full-sample factor adjustment: model use            | Tab_RA_FS_AnyModelVsNoModel_Appendix.tex         | Appendices/SA07_FullSampleFactorAdjustedResearchVsDMPlots.R | yes    |
 | §IA.6 Tab IA.12   | Returns by sample split                           | samp_split_summary.tex                           | Appendices/SA03_StructuralBreak.R                         | yes    |
-| §IA.3 Fig IA.1a–b | Full-sample risk-adjusted decay                   | Fig_FullSampleRiskAdj_capm/ff3_alpha_fs_t2.pdf   | Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R | yes    |
+| §IA.3 Fig IA.1a–b | Full-sample factor-adjusted decay                   | Fig_FullSampleFactorAdj_capm/ff3_alpha_fs_t2.pdf   | Appendices/SA07_FullSampleFactorAdjustedResearchVsDMPlots.R | yes    |
 | §IA.4 Fig IA.2    | Decay vs paper word count                         | Fig_DecayVsWords_Names2.pdf                      | Appendices/SA04_DecayVsWordcountPlot.R                    | yes    |
-| §IA.4 Fig IA.3a–c | Risk adjustment diagnostics                       | Fig_Risk_via_CAPM/FF3/FF5.pdf                    | Appendices/SA01_RiskVsMispricingPlots.R                   | yes    |
+| §IA.4 Fig IA.3a–c | Risk-vs-mispricing diagnostics                      | Fig_Risk_via_CAPM/FF3/FF5.pdf                    | Appendices/SA01_RiskVsMispricingPlots.R                   | yes    |
 | §IA.5 Fig IA.4    | Decay by journal                                  | Fig_DecayVsJournal_Means.pdf                     | Appendices/SA06_DecayVsJournal.R                          | yes    |
 | §IA.6 Fig IA.5    | Break dates vs sample ends                        | break_vs_sampend.pdf                             | Appendices/SA03_StructuralBreak.R                         | yes    |
 
@@ -187,7 +187,7 @@ The only paper number `MAIN.R` does not produce with an R script is:
 
 ## Notes
 
-- `4c4_RiskAdjustedResearchVsDMPlotsTVFF4.R` was split and its risk-adjusted
+- `4c4_FactorAdjustedResearchVsDMPlotsTVFF4.R` was split and its factor-adjusted
   logic folded into `S4b_RVsDM_ByGroup.R`; every float in the compiled paper is
   accounted for. (Fig. B.5a/B.5b are the two panels of Fig. B.5, already
   listed.)

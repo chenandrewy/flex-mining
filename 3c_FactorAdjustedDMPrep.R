@@ -5,7 +5,7 @@
 #   directory.
 # Inputs:  dmcomp_sumstats.RDS, raw_dm_benchmarks.RDS, the versioned mined
 #          long-short universe, cleaned published returns, and FF factors
-# Outputs: risk_adjusted_dm_benchmarks.RDS
+# Outputs: factor_adjusted_dm_benchmarks.RDS
 #          appendix_full_sample_dm_benchmarks.RDS
 #
 # Sample-specific CAPM/FF4 and full-sample CAPM/FF3 begin from the exact broad
@@ -438,7 +438,7 @@ build_broad_full_sample_factor_adjusted_dm <- function(
 
 out_dir <- Sys.getenv("FACTOR_DM_OUT_DIR", unset = "../Data/Processed")
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
-cache_path <- file.path(out_dir, "risk_adjusted_dm_benchmarks.RDS")
+cache_path <- file.path(out_dir, "factor_adjusted_dm_benchmarks.RDS")
 dm_path <- paste0(
   "../Data/Processed/", globalSettings$dataVersion, " LongShort.RData"
 )

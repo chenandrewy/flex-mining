@@ -4,7 +4,7 @@
 #
 # How to run: normally run through S2_ResearchVsDataMining.R from flex-mining/.
 # Inputs:  ../Data/Processed/{raw_dm_benchmarks,
-#          risk_adjusted_dm_benchmarks}.RDS plus
+#          factor_adjusted_dm_benchmarks}.RDS plus
 #          published-signal metadata
 # Outputs (../Results/):
 #   Fig2a_FactorAdj.pdf            Fig2a_FactorAdj_CI.pdf
@@ -28,7 +28,7 @@ source('0_Environment.R')
 # Compose the four Figure 2 panels from calculation-owned benchmark contracts.
 # Signal classifications are presentation-sample choices and therefore enter
 # here rather than being stored in a Chapter 3 benchmark artifact.
-fig2_assemble_long = function(raw_benchmarks, risk_benchmarks, accounting_signals,
+fig2_assemble_long = function(raw_benchmarks, factor_benchmarks, accounting_signals,
                               pre2003_signals) {
   required_raw <- c(
     "published", "accounting_t2", "accounting_top5", "ticker_top5", "matched"
@@ -113,7 +113,7 @@ fig2_assemble_long = function(raw_benchmarks, risk_benchmarks, accounting_signal
   ) %>% mutate(panel = "d")
 
   panel_a_model <- function(model_key, published_label, dm_label) {
-    model_panel <- risk_benchmarks[[model_key]]$panel
+    model_panel <- factor_benchmarks[[model_key]]$panel
     bind_rows(
       model_panel %>% transmute(
         label = published_label, pubname, eventDate, calendarDate,
@@ -261,7 +261,7 @@ accounting_signals = czacct %>% filter(!drop) %>% pull(signalname)
 pre2003_signals = czcat %>% filter(Year < 2003) %>% pull(signalname)
 
 raw_benchmarks = readRDS('../Data/Processed/raw_dm_benchmarks.RDS')
-risk_benchmarks = readRDS('../Data/Processed/risk_adjusted_dm_benchmarks.RDS')
+factor_benchmarks = readRDS('../Data/Processed/factor_adjusted_dm_benchmarks.RDS')
 
 stopifnot(
   raw_benchmarks$metadata$matched$predictor_count ==
@@ -271,7 +271,7 @@ stopifnot(
 )
 
 fig2_long = fig2_assemble_long(
-  raw_benchmarks, risk_benchmarks,
+  raw_benchmarks, factor_benchmarks,
   accounting_signals, pre2003_signals
 )
 fig2_agg = fig2_long %>%

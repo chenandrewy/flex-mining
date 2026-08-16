@@ -3,12 +3,12 @@
 # How to run: set the working directory to flex-mining/, run
 #   Rscript S4b_RVsDM_ByGroup.R
 #   Rscript tests/test_s4b_phase2_expected.R
-# Inputs:  the six live files under ../Results/RiskAdjusted/TstatFilter
+# Inputs:  the six live files under ../Results/FactorAdjusted/TstatFilter
 # Outputs: no files; exits nonzero on a displayed-value or output-contract change
 
-live_dir <- "../Results/RiskAdjusted/TstatFilter"
+live_dir <- "../Results/FactorAdjusted/TstatFilter"
 expected_csv <- list(
-  Table_RiskAdjusted_TimeVarying_ff4_t2 = c(
+  Table_FactorAdjusted_TimeVarying_ff4_t2 = c(
     '"Category","Group","Raw_Return","Raw_Outperformance","CAPM_Return","CAPM_Outperformance","FF4_Return","FF4_Outperformance"',
     '"Theoretical Foundation","Risk","43 (11)","5 (11)","38 (13)","-3 (14)","45 (13)","-5 (12)"',
     '"Theoretical Foundation","Mispricing","55 (8)","4 (7)","63 (7)","8 (7)","64 (7)","2 (9)"',
@@ -18,7 +18,7 @@ expected_csv <- list(
     '"Modeling Formalism","Dynamic or Quantitative","34 (9)","-2 (9)","48 (12)","6 (10)","39 (18)","-10 (17)"',
     '"Overall","All","56 (7)","5 (7)","62 (6)","9 (7)","68 (7)","7 (8)"'
   ),
-  Table_RiskAdjusted_TimeVarying_DisciplineJournal_ff4_t2 = c(
+  Table_FactorAdjusted_TimeVarying_DisciplineJournal_ff4_t2 = c(
     '"Category","Group","Raw_Return","Raw_Outperformance","CAPM_Return","CAPM_Outperformance","FF4_Return","FF4_Outperformance"',
     '"Discipline","Finance","59 (8)","8 (7)","67 (7)","14 (7)","77 (9)","16 (9)"',
     '"Discipline","Accounting","43 (9)","-5 (10)","48 (9)","-4 (10)","47 (9)","-16 (10)"',
@@ -26,7 +26,7 @@ expected_csv <- list(
     '"Journal Rank","AR, JAR, JAE","43 (9)","-6 (10)","45 (9)","-7 (10)","44 (8)","-19 (10)"',
     '"Journal Rank","Other","53 (9)","8 (9)","55 (9)","6 (9)","60 (12)","6 (13)"'
   ),
-  Table_RiskAdjusted_TimeVarying_AnyModelVsNoModel_ff4_t2 = c(
+  Table_FactorAdjusted_TimeVarying_AnyModelVsNoModel_ff4_t2 = c(
     '"Category","Group","Raw_Return","Raw_Outperformance","CAPM_Return","CAPM_Outperformance","FF4_Return","FF4_Outperformance"',
     '"","No Model","56 (8)","5 (7)","63 (7)","10 (7)","70 (8)","9 (9)"',
     '"","Any Model","54 (12)","10 (11)","49 (14)","0 (13)","46 (16)","-10 (12)"'
@@ -53,7 +53,7 @@ expected_files <- sort(c(
 actual_files <- sort(list.files(live_dir, all.files = FALSE, no.. = TRUE))
 if (!identical(actual_files, expected_files)) {
   stop(
-    "Risk-adjusted output contract differs. Expected: ",
+    "Factor-adjusted output contract differs. Expected: ",
     paste(expected_files, collapse = ", "), "; found: ",
     paste(actual_files, collapse = ", ")
   )
