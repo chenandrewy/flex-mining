@@ -2,8 +2,8 @@
 # Tables 3--4.
 #
 # How to run: normally run through 3_Precompute.R from flex-mining/.
-# Inputs:  <dataVersion> MatchPub.RData, published return/summary caches, and
-#          PairwiseCorrelationsActualAndMatches.RDS under ../Data/Processed
+# Inputs:  <dataVersion> MatchPub.RData, dmcomp_sumstats.RDS, and published
+#          return/summary caches under ../Data/Processed
 # Outputs: ../Data/Processed/matched_uncorr_benchmark.RDS
 #
 # "matched-uncorr" is the short code/artifact name. The benchmark matches each
@@ -18,7 +18,7 @@ cache_path <- "../Data/Processed/matched_uncorr_benchmark.RDS"
 match_path <- paste0(
   "../Data/Processed/", globalSettings$dataVersion, " MatchPub.RData"
 )
-corr_path <- "../Data/Processed/PairwiseCorrelationsActualAndMatches.RDS"
+dm_sumstats_path <- "../Data/Processed/dmcomp_sumstats.RDS"
 
 inclSignals <- restrictInclSignals(
   restrictType = globalSettings$restrictType,
@@ -32,7 +32,8 @@ czsum <- readRDS("../Data/Processed/czsum_allpredictors.RDS") %>%
   left_join(czret_dates, by = "signalname") %>%
   transmute(
     pubname = signalname, published_rbar = rbar,
-    published_tstat = tstat, sampstart, sampend, pubdate
+    published_tstat = tstat, sampstart, sampend,
+    sweight = tolower(sweight), pubdate
   ) %>%
   setDT()
 
@@ -57,10 +58,19 @@ pairs <- candidate_returns[samptype == "insamp", .(
 ), by = .(pubname = actSignal, matched_name = candSignalname)]
 
 pairs <- merge(pairs, czsum, by = "pubname", all.x = TRUE)
-all_rhos <- readRDS(corr_path) %>%
-  transmute(pubname = actSignal, matched_name = candidateSignal, rho) %>%
+pair_correlations <- readRDS(dm_sumstats_path)$insampsum %>%
+  transmute(
+    pubname, sweight = tolower(sweight), matched_name = dmname,
+    rho = cor * sign(rbar)
+  ) %>%
   setDT()
-pairs <- merge(pairs, all_rhos, by = c("pubname", "matched_name"), all.x = TRUE)
+stopifnot(
+  !anyDuplicated(pair_correlations, by = c("pubname", "sweight", "matched_name"))
+)
+pairs <- merge(
+  pairs, pair_correlations,
+  by = c("pubname", "sweight", "matched_name"), all.x = TRUE
+)
 pairs[, `:=`(
   mean_return_rel_distance = abs(rbar_insamp_matched - published_rbar) /
     abs(published_rbar),
@@ -145,7 +155,7 @@ metadata <- list(
   pair_fingerprint_sha256 = digest::digest(
     paste(pair_keys, collapse = "\n"), algo = "sha256", serialize = FALSE
   ),
-  input_files = c(match_path, corr_path,
+  input_files = c(match_path, dm_sumstats_path,
                   "../Data/Processed/czsum_allpredictors.RDS",
                   "../Data/Processed/czret_keeponly.RDS",
                   "../Data/Processed/ret_for_plot0.RDS")

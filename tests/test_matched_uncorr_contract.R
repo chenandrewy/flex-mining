@@ -8,6 +8,10 @@
 producer <- readLines("3d_MatchedUncorrData.R")
 figure_consumer <- readLines("S2e_Fig2Plots.R")
 table_consumer <- readLines("S3a_MPStyleDecayModels.R")
+appendix_consumer <- readLines("Appendices/SA10_ResearchVsDMRobustnessCorrelationsEtc.R")
+match_producer <- readLines("2b_MatchDataMinedToPub.R")
+precompute <- readLines("3_Precompute.R")
+appendix_driver <- readLines("SA_Appendices.R")
 
 cache_name <- "matched_uncorr_benchmark.RDS"
 stopifnot(
@@ -17,7 +21,12 @@ stopifnot(
   !any(grepl("MatchPub.RData|PairwiseCorrelationsActualAndMatches|plotdat0\\$comp_matched",
              figure_consumer)),
   !any(grepl("MatchPub.RData|PairwiseCorrelationsActualAndMatches|plotdat0\\$comp_matched",
-             table_consumer))
+             table_consumer)),
+  !any(grepl("PairwiseCorrelationsActualAndMatches", c(
+    producer, appendix_consumer, match_producer, precompute, appendix_driver
+  ), fixed = TRUE)),
+  any(grepl("rho = cor * sign(rbar)", producer, fixed = TRUE)),
+  any(grepl("rho = cor * sign(rbar)", appendix_consumer, fixed = TRUE))
 )
 
 cache_path <- file.path("../Data/Processed", cache_name)

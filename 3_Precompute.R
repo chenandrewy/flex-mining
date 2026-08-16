@@ -19,7 +19,6 @@ required_files <- c(
   paste0(version_prefix, " LongShort.RData"),
   paste0(version_prefix, " MatchPub.RData"),
   paste0(version_prefix, " MatchPubRiskAdjusted.RData"),
-  "../Data/Processed/PairwiseCorrelationsActualAndMatches.RDS",
   "../Data/Processed/ticker_Harvey2017JF.RDS"
 )
 rm(settings_env)

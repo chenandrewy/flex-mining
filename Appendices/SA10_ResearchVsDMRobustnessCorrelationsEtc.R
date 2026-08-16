@@ -44,7 +44,13 @@ rm(tmp)
 
 # filter for Keep only
 candidateReturns = candidateReturns %>% 
-  filter(actSignal %in% (czsum %>% filter(Keep) %>% pull(signalname)))
+  filter(actSignal %in% (czsum %>% filter(Keep) %>% pull(signalname))) %>%
+  left_join(
+    czsum %>%
+      transmute(actSignal = signalname, sweight = tolower(sweight)) %>%
+      distinct(),
+    by = "actSignal"
+  )
 
 # Normalize candidate returns
 
@@ -109,7 +115,16 @@ for (jj in unique(allRetsForPlot$theory)) {
 
 
 # Excluding high correlations --------------------------------------------------
-allRhos = readRDS('../Data/Processed/PairwiseCorrelationsActualAndMatches.RDS')
+pairCorrelations = readRDS('../Data/Processed/dmcomp_sumstats.RDS')$insampsum %>%
+  transmute(
+    actSignal = pubname, sweight = tolower(sweight),
+    candSignalname = dmname, rho = cor * sign(rbar)
+  )
+stopifnot(
+  !anyDuplicated(
+    pairCorrelations, by = c("actSignal", "sweight", "candSignalname")
+  )
+)
 
 exclCorrelations = c(10)  # c(10, 20, 30, 40, 50)
 
@@ -117,9 +132,8 @@ for (cc in exclCorrelations) {
   
   # filter high correlations from candidate returns
   corCandidateReturns = candidateReturns %>% 
-    left_join(allRhos, 
-              by = c('candSignalname' = 'candidateSignal', 
-                     'actSignal'      = 'actSignal')) %>% 
+    left_join(pairCorrelations,
+              by = c('actSignal', 'sweight', 'candSignalname')) %>%
     filter(rho <= cc/100) %>% 
     select(-rho)
   
@@ -204,17 +218,14 @@ for (cc in exclCorrelations) {
 
 
 # Excluding high correlations and tighter returns --------------------------------------------------
-allRhos = readRDS('../Data/Processed/PairwiseCorrelationsActualAndMatches.RDS')
-
 exclCorrelations = c(10)  # c(10, 20, 30, 40, 50)
 r_tol_cor <- 0.1
 for (cc in exclCorrelations) {
   
   # filter high correlations from candidate returns
   corCandidateReturns = candidateReturns %>% 
-    left_join(allRhos, 
-              by = c('candSignalname' = 'candidateSignal', 
-                     'actSignal'      = 'actSignal')) %>% 
+    left_join(pairCorrelations,
+              by = c('actSignal', 'sweight', 'candSignalname')) %>%
     filter(rho <= cc/100) %>% 
     select(-rho) %>%
     left_join(czsum %>% transmute(actSignal = signalname, rbar_op = rbar))

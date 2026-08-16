@@ -1,11 +1,11 @@
 # Intermediate data-file inventory (`../Data/Processed/`)
 
-Last verified: 2026-08-15 21:04 EDT
+Last verified: 2026-08-15 21:12 EDT
 
 This is the maintained inventory of the current `CZ-style-v8b` processed-data
 directory. Producer and consumer claims were checked against live source;
-`CodeArchive/` and journal snapshots were excluded. Sizes are rounded decimal
-sizes. The directory currently contains 31 files totaling 4.26 GB (3.97 GiB).
+archived source is outside its scope. Sizes are rounded decimal sizes. The
+directory currently contains 30 files totaling 4.26 GB (3.97 GiB).
 
 ## Chapter 1: foundational cleaned inputs
 
@@ -30,15 +30,14 @@ confirmed before deletion.
 | CZ-style-v8b LongShort.RData              | 313 MB   | 2a_CompustatToLongshort.R         | Many chapters; load-bearing              |
 | ticker_Harvey2017JF.RDS                   | 40 MB    | 2c_TickerToLongshort.R            | 3a and 9; load-bearing                   |
 | CZ-style-v8b MatchPub.RData               | 123 MB   | 2b_MatchDataMinedToPub.R          | 2d, 3d, S5a, S5, SA10; load-bearing      |
-| PairwiseCorrelationsActualAndMatches.RDS  | <1 MB    | 2b_MatchDataMinedToPub.R          | 3d and SA10; load-bearing                |
 | CZ-style-v8b MatchPubRiskAdjusted.RData   | 2,353 MB | 2d_RiskAdjustDataMinedSignals.R   | 3e, S4b, SA07, SA09; stale, load-bearing |
 | CZ-style-v8b MatchedRiskAdjSummary.RData  | 6 MB     | 2d_RiskAdjustDataMinedSignals.R   | SA07 only; stale, load-bearing           |
 ```
 
-`MatchPub.RData` and the pairwise-correlation cache were rebuilt on August 15
-under the tightened matching rule. They contain 23,275 candidate pairs and are
-the current inputs to `3d_MatchedUncorrData.R`; they are no longer candidates
-for deletion.
+`MatchPub.RData` was rebuilt on August 15 under the tightened matching rule and
+contains 23,275 candidate pairs. Published/mined correlations now come from the
+signed `cor` column in `dmcomp_sumstats.RDS`, so no separate correlation cache
+is produced or consumed.
 
 The 2.35 GB risk-adjusted pair cache and its summary were last rebuilt on
 August 14. They retain the pre-tightening 71,670-pair universe and are therefore
@@ -86,7 +85,7 @@ artifact but stale in lineage.
 | mp_style_decay_models.RDS                 | 977 MB | S3a_MPStyleDecayModels.R  | S3b; current (Tables 3 and 4) |
 ```
 
-## Removed or retired since the journal snapshot
+## Removed or retired artifacts
 
 ```text
 | File                                      | Previous size | Current status                                        |
@@ -97,6 +96,7 @@ artifact but stale in lineage.
 | ret_for_plot_MaxPredictors.RDS            | 4 MB          | Removed; retired top-N variant; no producer or reader |
 | plotdat0.RDS                              | 66 MB         | Removed; producer write also removed                  |
 | dm_pca_span_classification.RDS            | 230 MB        | Removed; producer write also removed                  |
+| PairwiseCorrelationsActualAndMatches.RDS  | <1 MB         | Removed; redundant with signed dmcomp pair statistics |
 | 3a_ResearchVsDMPrep.R                     | source file   | Removed; replaced by 3a_PrepDMBenchmarks.R            |
 ```
 

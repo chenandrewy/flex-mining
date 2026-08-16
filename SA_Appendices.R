@@ -13,8 +13,8 @@ required_files <- c(
   "../Data/Processed/czret_keeponly.RDS",
   "../Data/Processed/ret_for_plot0.RDS",
   "../Data/Processed/ret_for_plot1.RDS",
-  "../Data/Processed/dm_span_analysis.RDS",
-  "../Data/Processed/PairwiseCorrelationsActualAndMatches.RDS"
+  "../Data/Processed/dmcomp_sumstats.RDS",
+  "../Data/Processed/dm_span_analysis.RDS"
 )
 missing_files <- required_files[!file.exists(required_files)]
 if (length(missing_files) > 0) {

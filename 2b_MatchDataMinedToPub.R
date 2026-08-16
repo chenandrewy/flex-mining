@@ -1,9 +1,8 @@
 # Match mined strategies to published predictors on t-statistics and returns.
 #
 # How to run: normally run through 2_DataMining.R from flex-mining/.
-# Inputs:  chapter-1 published returns and chapter-2 mined strategies
+# Inputs:  chapter-1 published summaries and chapter-2 mined strategies
 # Outputs: ../Data/Processed/<dataVersion> MatchPub.RData
-#          ../Data/Processed/PairwiseCorrelationsActualAndMatches.RDS
 
 rm(list = ls())
 tic0 = Sys.time()
@@ -33,14 +32,6 @@ inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType,
                                   topT = globalSettings$topT)
 
 czsum = readRDS('../Data/Processed/czsum_allpredictors.RDS') %>% 
-  filter(signalname %in% inclSignals) 
-
-czcat = fread('DataInput/SignalsTheoryChecked.csv') %>% 
-  select(signalname, Year, theory) %>% 
-  filter(signalname %in% inclSignals) 
-
-czret = readRDS('../Data/Processed/czret_keeponly.RDS') %>% 
-  left_join(czcat, by = 'signalname') %>% 
   filter(signalname %in% inclSignals) 
 
 # Data mining strategies
@@ -138,8 +129,6 @@ matchsum = czsum %>% transmute(
 # Make matched panel ------------------------------------------------------
 
 
-setDT(czret)
-
 tic = Sys.time()
 cl <- makePSOCKcluster(ncores)
 registerDoParallel(cl)
@@ -205,51 +194,3 @@ saveRDS(matchdat,
 toc0 = Sys.time()
 
 toc0 - tic0
-
-
-# Compute pairwise correlations between actual signals and matched DM signals -----
-
-# filter for Keep only
-candidateReturns = candidateReturns %>% 
-  filter(actSignal %in% (czsum %>% filter(Keep) %>% pull(signalname)))
-
-
-tmpCands = candidateReturns %>% 
-  filter(actSignal %in% czsum$signalname) %>% 
-  filter(samptype == 'insamp') %>%  # interested in in-sample correlation with actual signals
-  # Merge actual returns to candidate returns
-  select(candSignalname, eventDate, ret, actSignal) %>% 
-  inner_join(czret %>% 
-               transmute(actSignal = signalname,
-                         eventDate,
-                         retActual = ret))
-
-allRhos = tibble()
-
-for (act in unique(tmpCands$actSignal)) {
-  print(act)
-  tmp = tmpCands %>% 
-    filter(actSignal == act)
-  
-  # compute correlations for one actual signal
-  tmpRhos = tibble()
-  for (i in unique(tmp$candSignalname)) {
-    
-    tmpRhos = bind_rows(
-      tmpRhos,
-      tibble(actSignal = act,
-             candidateSignal = i,
-             rho = cor(tmp$ret[tmp$candSignalname == i], tmp$retActual[tmp$candSignalname == i]))
-    )
-    
-  }
-  
-  # add to list
-  allRhos = bind_rows(
-    allRhos,
-    tmpRhos
-  )
-  
-}
-
-saveRDS(allRhos, '../Data/Processed/PairwiseCorrelationsActualAndMatches.RDS')
