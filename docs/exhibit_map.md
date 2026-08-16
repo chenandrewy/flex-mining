@@ -49,10 +49,12 @@ group tables together gives the sample-specific and full-sample cuts the same
 screening, paired estimands, and clustered-inference contract.
 
 Figure 2 consumes three calculation-owned Chapter 3 contracts:
-`3a_ResearchVsDMPrep.R` writes raw mining variants,
+`3a_PrepDMBenchmarks.R` writes raw mining variants,
 `3d_MatchedUncorrData.R` writes the canonical matched-uncorr pair panel, and
 `3e_FactorAdjustedDMPrep.R` writes CAPM/FF4 published and data-mined
-benchmarks. `S2e_Fig2Plots.R` imposes Figure-specific samples, computes rolling
+benchmarks from the legacy risk-adjusted pair cache. Raw and risk-adjusted
+preparation remain separate calculation paths. `S2e_Fig2Plots.R` imposes
+Figure-specific samples, computes rolling
 display statistics, and renders the four panels plus confidence-interval
 variants into `../Results/`.
 

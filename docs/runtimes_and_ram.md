@@ -34,7 +34,7 @@ Measured at `num_cores = 4`.
 | ↳ `2c_TickerToLongshort.R`          |            ~1-2 min | Writes `ticker_Harvey2017JF.RDS`.                                                                                                                                                                                                                                                              |
 | ↳ `2d_RiskAdjustDataMinedSignals.R` |              ~6 min | Writes `MatchPubRiskAdjusted.RData` (2.2 GB in this vintage).                                                                                                                                                                                                                                  |
 | **`3_Precompute.R`**                | **~1h 44m baseline** | The memory-critical chapter; completes without OOM.                                                                                                                                                                                                                                            |
-| ↳ `3a_ResearchVsDMPrep.R`           | needs remeasurement | Three `make_DM_event_returns()` calls; owns raw accounting/ticker benchmark variants. The prior ~11-minute measurement included two retired top-N variants.                                                                                                                                      |
+| ↳ `3a_PrepDMBenchmarks.R`           | needs remeasurement | Three `make_DM_event_returns()` calls; owns raw accounting/ticker benchmark variants. The prior ~11-minute measurement included two retired top-N variants.                                                                                                                                      |
 | ↳ `3b_DataMiningSummary.R`          |             ~24 min |                                                                                                                                                                                                                                                                                                |
 | ↳ `3c_DMCorrelationsPCA.R`          |             ~15 min | Writes `PairwiseCorrelationsDM_{ew,vw}.RDS`.                                                                                                                                                                                                                                                   |
 | ↳ `3d_MatchedUncorrData.R`          |        a few minutes | Added after the full-run measurement; its runtime has not been isolated.                                                                                                                                                                                                                       |
@@ -68,7 +68,7 @@ At `num_cores = 10`, `2a` runs in roughly half the time; see
 Chapter 3 is the memory-critical part of the pipeline. An earlier single-process
 design kept one R process alive across all stages, peaked near the machine limit
 (~62 GB), and could be terminated by the out-of-memory killer during the work now
-in `3a_ResearchVsDMPrep.R`. The current design bounds memory by running each
+in `3a_PrepDMBenchmarks.R`. The current design bounds memory by running each
 stage -- and, within Chapters 2-3 and Sections S2-SA, each child script -- as
 its own `Rscript` process, so memory returns to the operating system at every
 boundary and no stage
@@ -99,7 +99,7 @@ separate copy.
 | Script                      | Parallel work                                      | Footprint                               | In `MAIN.R`? |
 | --------------------------- | -------------------------------------------------- | --------------------------------------- | ------------ |
 | `3f_DMSpanPCA.R`            | 6× `make_DM_event_returns` + 1× `adj_R2_with_PPCA` | fork, shared panel (heaviest)           | yes          |
-| `3a_ResearchVsDMPrep.R`     | 3× `make_DM_event_returns`                         | fork, shared panel                      | yes          |
+| `3a_PrepDMBenchmarks.R`     | 3× `make_DM_event_returns`                         | fork, shared panel                      | yes          |
 | `2a_CompustatToLongshort.R` | `foreach` over 29,315 signals                      | own PSOCK cluster, Compustat/CRSP panel | yes          |
 | `2b_MatchDataMinedToPub.R`  | two `foreach` loops over the mined-return panel    | own PSOCK cluster                       | yes          |
 | `3c_DMCorrelationsPCA.R`    | `parLapply` over correlation pairs                 | own `makeCluster`                       | yes          |

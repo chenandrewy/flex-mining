@@ -6,8 +6,7 @@
 #         benchmark caches under ../Data/Processed
 # Outputs: none; exits nonzero on failure.
 
-raw_producer <- readLines("3a_ResearchVsDMPrep.R")
-consolidated_producer <- readLines("3a_PrepDMBenchmarks.R")
+raw_producer <- readLines("3a_PrepDMBenchmarks.R")
 risk_producer <- readLines("3e_FactorAdjustedDMPrep.R")
 matched_producer <- readLines("3d_MatchedUncorrData.R")
 figure_producer <- readLines("S2e_Fig2Plots.R")
@@ -19,6 +18,12 @@ stopifnot(
   any(grepl("raw_dm_benchmarks.RDS", raw_producer, fixed = TRUE)),
   any(grepl("risk_adjusted_dm_benchmarks.RDS", risk_producer, fixed = TRUE)),
   any(grepl("matched_uncorr_benchmark.RDS", matched_producer, fixed = TRUE)),
+  any(grepl('run_script("3a_PrepDMBenchmarks.R")', precompute, fixed = TRUE)),
+  any(grepl('run_script("3d_MatchedUncorrData.R")', precompute, fixed = TRUE)),
+  any(grepl('run_script("3e_FactorAdjustedDMPrep.R")', precompute, fixed = TRUE)),
+  !file.exists("3a_ResearchVsDMPrep.R"),
+  !any(grepl("risk_adjusted|FamaFrenchFactors|risk_adjusted_helpers",
+             raw_producer)),
   all(vapply(
     c("raw_dm_benchmarks.RDS", "matched_uncorr_benchmark.RDS",
       "risk_adjusted_dm_benchmarks.RDS"),
@@ -30,7 +35,6 @@ stopifnot(
   !any(grepl("3d_Fig2Data.R", precompute, fixed = TRUE)),
   !file.exists("3d_Fig2Data.R"),
   !any(grepl("ret_for_plot_MaxPredictors", raw_producer, fixed = TRUE)),
-  !any(grepl("ret_for_plot_MaxPredictors", consolidated_producer, fixed = TRUE)),
   !any(grepl("ret_for_plot_MaxPredictors", section_driver, fixed = TRUE)),
   !any(grepl("ret_for_plot_MaxPredictors", section_renderer, fixed = TRUE)),
   !any(grepl("MaxDMpredsPerPublished", section_renderer, fixed = TRUE))
