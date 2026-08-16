@@ -1,7 +1,6 @@
 # Precompute correlation- and PCA-spanning analysis.
 #
-# How to run: source from 3_Precompute.R with the working directory set to
-#   flex-mining/.
+# How to run: normally run through SA_Appendices.R from flex-mining/.
 # Inputs:  chapter-2 mined strategies and cleaned published-signal data
 # Outputs: ../Data/Processed/dm_span_analysis.RDS
 #

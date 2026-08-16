@@ -1,5 +1,6 @@
 # Appendix exhibit: decay-versus-model-count plots.
 source('0_Environment.R')
+source("helpers/stats.R")
 
 inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType, 
                                   topT = globalSettings$topT)

@@ -32,11 +32,11 @@ emits no exhibit.
 
 ```
 MAIN.R  (reads runStages from config.R)
-  1_Download_and_Clean.R, 1a_ValidDenoms.R          [chapter 1; off by default]
+  1_Download_and_Clean.R                            [chapter 1; off by default]
   2_DataMining.R            -> 2a 2c                  [chapter 2; off by default]
-  3_Precompute.R            -> 3a 2d_RiskAdjust 3b 3c 3e_FactorAdjusted 3f
+  3_Precompute.R            -> 3a 3b 3c_FactorAdjusted
                                                         (prep caches; no exhibits)
-  S2_ResearchVsDataMining.R -> S2a S2b S2c S2d S2e
+  S2_ResearchVsDataMining.R -> S2a S2b S2d S2e
   S3_Learning.R             -> S3a S3b
   S4_Heterogeneity.R        -> S4a S4b
   S5_BestPredictors.R       -> S5a
@@ -44,19 +44,18 @@ MAIN.R  (reads runStages from config.R)
   9_ExportDataToCsv.R
 ```
 
-`S4b_RVsDM_ByGroup.R` owns the source artifacts for Tables 6, 7, IA.6, IA.7,
-IA.10, and IA.11 and is in the default Section 4 pipeline. Keeping all six
-group tables together gives the sample-specific and full-sample cuts the same
-screening, paired estimands, and clustered-inference contract.
+`S4b_RVsDM_ByGroup.R` owns the sample-specific source artifacts for Tables 6,
+7, and IA.10. Chapter 3 prepares the full-sample factor-adjusted contract;
+the SA07 appendix renderer owns its robustness tables and figures.
 
 Figure 2 consumes calculation-owned Chapter 3 contracts.
 `3a_PrepDMBenchmarks.R` writes `raw_dm_benchmarks.RDS`, which contains the raw
 mining variants and matched-uncorrelated event-time panel. Pair identities are
 kept in memory during preparation and recomputed in memory for Table B.1. Next,
-`2d_RiskAdjustDataMinedSignals.R` creates the versioned risk-adjusted pair
-cache, and `3e_FactorAdjustedDMPrep.R` converts that cache into the CAPM/FF4
-published and data-mined panels in `risk_adjusted_dm_benchmarks.RDS`. Raw and
-risk-adjusted preparation remain separate calculation paths.
+`3c_FactorAdjustedDMPrep.R` applies sample-specific CAPM/FF4 and full-sample
+CAPM/FF3 to the exact same broad accounting `|t| > 2` pair universe. It writes
+compact published and data-mined panels in the main and appendix benchmark
+contracts; no broad pair-month cache is written.
 `S2e_Fig2Plots.R` reads the raw and risk-adjusted benchmark files, imposes
 Figure-specific samples, computes rolling display statistics, and renders the
 four panels plus confidence-interval variants into `../Results/`.
@@ -120,7 +119,6 @@ Abbreviations used below to keep the columns narrow:
 | ----------- | ------------------------------------- | ----------------------------------------- | ----------------------------- | ------ |
 | §1 Fig 1    | Decay plot research vs DM             | Fig_DM_t_min_2_se_indicators_calendar.pdf | S2a_ResearchVsDMPlots.R       | yes    |
 | §2 Tab 1a   | Sum stats DM                          | dm-sortsFull.tex                          | S2b_DataMiningSummaryTables.R | yes    |
-| §2 Tab 1b   | DM PCA explained variance             | DM_pca.tex                                | S2c_DMCorrelationsPCATables.R | yes    |
 | §2 Tab 2    | Decay by economic theme               | theme_ez_decay.tex                        | S2d_EZThemes.R                | yes    |
 | §2 Fig 2a   | Factor-adjusted decay                  | Fig2a_FactorAdj.pdf                       | S2e_Fig2Plots.R               | yes    |
 | §2 Fig 2b   | Decay in restricted publication samples | Fig2b_PubSampleLimits.pdf               | S2e_Fig2Plots.R               | yes    |
@@ -151,16 +149,17 @@ Abbreviations used below to keep the columns narrow:
 | §B Fig B.4a–d     | Decay with tighter DM matches                     | Fig_PublicationsVsDataMining_*_d_mean_0.1 (4)    | Appendices/SA10_ResearchVsDMRobustnessCorrelationsEtc.R   | yes    |
 | §B Fig B.5a–b     | Unspanned DM PCA and correlations                 | Fig_DM_unspan_match_t_g_PCA/cor.pdf              | Appendices/SA11_DMSpanPCAPlots.R                          | yes    |
 | §IA.1 Tab IA.1    | Post-2003 sum stats DM                            | dm-sortsPost2003.tex                             | S2b_DataMiningSummaryTables.R                             | yes    |
-| §IA.1 Tab IA.2a   | DM return correlations                            | quantilesCorDM.tex                               | S2c_DMCorrelationsPCATables.R                             | yes    |
+| §IA.1 Tab IA.2a   | DM return correlations                            | quantilesCorDM.tex                               | Appendices/SA11_DMCorrelationsPCATables.R                | yes    |
+| §IA.1 Tab IA.2b   | DM PCA explained variance                         | DM_pca.tex                                       | Appendices/SA11_DMCorrelationsPCATables.R                | yes    |
 | §IA.2 Tab IA.3    | Decay by theme through 1990                       | theme_ez_decayinSampEnd1990.tex                  | Appendices/SA12_EZThemesRobustness.R                      | yes    |
 | §IA.2 Tab IA.4    | Decay by theme through 2000                       | theme_ez_decayinSampEnd2000.tex                  | Appendices/SA12_EZThemesRobustness.R                      | yes    |
 | §IA.2 Tab IA.5    | Decay by theme through 2010                       | theme_ez_decayinSampEnd2010.tex                  | Appendices/SA12_EZThemesRobustness.R                      | yes    |
-| §IA.3 Tab IA.6    | Full-sample risk adjustment by theory             | Tab_RA_FS_Appendix.tex                           | S4b_RVsDM_ByGroup.R                                       | yes    |
-| §IA.3 Tab IA.7    | Full-sample risk adjustment by discipline/journal | Tab_RA_FS_DisciplineJournal_Appendix.tex         | S4b_RVsDM_ByGroup.R                                       | yes    |
+| §IA.3 Tab IA.6    | Full-sample risk adjustment by theory             | Tab_RA_FS_Appendix.tex                           | Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R | yes    |
+| §IA.3 Tab IA.7    | Full-sample risk adjustment by discipline/journal | Tab_RA_FS_DisciplineJournal_Appendix.tex         | Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R | yes    |
 | §IA.5 Tab IA.8    | Predictor counts by theory/journal                | SignalsByTheoryAndJournal.tex                    | S4a_DataCounts.R                                          | yes    |
 | §IA.5 Tab IA.9    | Predictor counts by theory                        | tab:mp-theory-no-reg (inline)                    | Excel2LaTeX (sheet "MP theory")                           | inline |
 | §IA.5 Tab IA.10   | Risk adjustment by model use                      | Table_*_AnyModelVsNoModel_ff4_t2.tex             | S4b_RVsDM_ByGroup.R                                       | yes    |
-| §IA.5 Tab IA.11   | Full-sample risk adjustment: model use            | Tab_RA_FS_AnyModelVsNoModel_Appendix.tex         | S4b_RVsDM_ByGroup.R                                       | yes    |
+| §IA.5 Tab IA.11   | Full-sample risk adjustment: model use            | Tab_RA_FS_AnyModelVsNoModel_Appendix.tex         | Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R | yes    |
 | §IA.6 Tab IA.12   | Returns by sample split                           | samp_split_summary.tex                           | Appendices/SA03_StructuralBreak.R                         | yes    |
 | §IA.3 Fig IA.1a–b | Full-sample risk-adjusted decay                   | Fig_FullSampleRiskAdj_capm/ff3_alpha_fs_t2.pdf   | Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R | yes    |
 | §IA.4 Fig IA.2    | Decay vs paper word count                         | Fig_DecayVsWords_Names2.pdf                      | Appendices/SA04_DecayVsWordcountPlot.R                    | yes    |
@@ -193,7 +192,7 @@ The only paper number `MAIN.R` does not produce with an R script is:
   accounted for. (Fig. B.5a/B.5b are the two panels of Fig. B.5, already
   listed.)
 - In-chain scripts that produce no exhibit are upstream prep: chapter 2
-  (`2a`–`2d`), chapter 3 (`3a`–`3e`, reusable caches), and
-  `Appendices/SA02`/`Appendices/SA05` (decay
+  (`2a` and `2c`), chapter 3 (`3a`–`3c`, reusable caches), Appendix SA11 PCA
+  preparation, and `Appendices/SA02`/`Appendices/SA05` (decay
   tables/plots outside the paper contract, e.g. for slides or the referee
   response).

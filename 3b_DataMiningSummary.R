@@ -11,6 +11,7 @@
 
 # Load environment
 source('0_Environment.R')
+source("helpers/stats.R")
 
 # Settings ---------------------------------------------------------------------
 var_types <- c('vw', 'ew')

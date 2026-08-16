@@ -1,7 +1,6 @@
-# Render Section 2 correlation-quantile and PCA tables from chapter-3 caches.
+# Render appendix correlation-quantile and PCA tables from appendix caches.
 #
-# How to run: normally run through S2_ResearchVsDataMining.R with the working directory set to
-#   flex-mining/.
+# How to run: normally run through SA_Appendices.R from flex-mining/.
 # Inputs:  ../Data/Processed/dm_correlation_quantiles.RDS
 #          ../Data/Processed/dm_pca_table.RDS
 # Outputs: ../Results/quantilesCorDM.tex

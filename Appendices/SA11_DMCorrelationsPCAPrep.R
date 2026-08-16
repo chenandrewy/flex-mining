@@ -1,16 +1,16 @@
 # Precompute pairwise correlations and PCA summaries for data-mined strategies.
 #
-# How to run: source from 3_Precompute.R with the working directory set to
-#   flex-mining/.
+# How to run: normally run through SA_Appendices.R from flex-mining/.
 # Inputs:  ../Data/Processed/<dataVersion> LongShort.RData
 # Outputs: ../Data/Processed/PairwiseCorrelationsDM_{ew,vw}.RDS
 #          ../Data/Processed/dm_correlation_quantiles.RDS
 #          ../Data/Processed/dm_pca_table.RDS
 #
-# Exhibit rendering is owned by S2c_DMCorrelationsPCATables.R.
+# Exhibit rendering is owned by the adjacent appendix table renderer.
 
 # Environment ------------------------
 source('0_Environment.R')
+source("helpers/stats.R")
 library(doParallel)
 
 # settings

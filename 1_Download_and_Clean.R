@@ -292,6 +292,7 @@ saveRDS(
 
 # Valid denominators ------------------------------------------------------
 
-# The remaining derivation (freq_obs_1963.csv and validDenomsCombinations.csv)
-# needs no WRDS connection, so it lives in 1a_ValidDenoms.R, which MAIN.R runs
-# next on both paths. Run it by hand after this script if running standalone.
+# The valid-denominator metadata (1963 non-missing frequencies and the
+# preferred denominator per variable pair) needs no WRDS connection and is used
+# only by the mined universe, so it is derived in memory inside chapter 2
+# (derive_valid_denoms in 2a_CompustatToLongshort.R) rather than written here.

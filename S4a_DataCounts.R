@@ -246,10 +246,6 @@ dmdat = readRDS(paste0('../Data/Processed/',
                        ' LongShort.RData'))
 
 
-denom_ok = fread('DataIntermediate/freq_obs_1963.csv') %>% 
-  filter(freq_obs_1963 > globalSettings$denom_min_fobs) 
-
-
 # Write to md file -------------------------------------------------------------
 
 sink('../Results/DataCounts.md')

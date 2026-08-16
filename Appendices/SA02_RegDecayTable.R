@@ -3,6 +3,16 @@ rm(list = ls())
 source('0_Environment.R')
 library(multcomp) # for glht. Not loaded by default in environment because of conflicts (?)
 
+round_numbers_in_strings <- function(strings) {
+  pattern <- "\\d+\\.?\\d*"
+  vapply(strings, function(string) {
+    matched <- regmatches(string, regexpr(pattern, string))
+    if (length(matched) == 0L) return(string)  # no number in cell: leave unchanged
+    rounded <- sprintf("%.1f", as.numeric(gsub("[^[:digit:].]", "", matched)))
+    gsub(pattern, rounded, string)
+  }, character(1))
+}
+
 # Load and prep data ------------------------------------------------------
 
 inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType, 
@@ -194,7 +204,7 @@ for (normalizeReturns in c(TRUE, FALSE)) {
   p_table_4 <- ifelse(p_val_a4_risk < 0.001, '< 0.1%', p_val_a4_risk)
   p_table_2 <- ifelse(p_val_a2 < 0.001, '< 0.1%', p_val_a2)
   p_table_3 <- ifelse(p_val_a3 < 0.001, '< 0.1%', p_val_a3)
-  p_table_1_5 <- ifelse(p_val_a3 < 0.001, '< 0.1%', p_table_1_5)
+  p_table_1_5 <- ifelse(p_val_a1_5 < 0.001, '< 0.1%', p_val_a1_5)
   
   coefeq_4_misp <- matrix(data=0, nrow=1, ncol=length(a4_model$coefficients))
   colnames(coefeq_4_misp) <- names(a4_model$coefficients)

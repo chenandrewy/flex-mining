@@ -147,13 +147,13 @@ colors = c(rgb(0,0.4470,0.7410), # MATBLUE
 
 # Functions ---------------------------------------------------------------
 
-# Reusable functions live in helpers/, sourced here so every script that
-# sources 0_Environment.R gets them. local = TRUE keeps them in this frame
-# (globalenv under source(); settings_env under the sys.source drivers).
-# NOTE: the risk_adjusted_helpers_{tv,fs}.R files are intentionally NOT sourced
-# here -- they define overlapping names and are sourced per-script instead.
-for (.helper in c("utils", "mining", "matching", "stats", "plotting", "implied_category")) {
+# Broadly shared functions live in helpers/ and are sourced here. Specialized
+# helpers are sourced by their direct consumers. local = TRUE keeps the shared
+# helpers in this frame (globalenv under source(); settings_env under the
+# sys.source drivers).
+# Specialized factor-adjustment and risk-adjusted table helpers are sourced
+# only by their Chapter 3, Section 4, and Appendix consumers.
+for (.helper in c("matching", "plotting")) {
   source(file.path("helpers", paste0(.helper, ".R")), local = TRUE)
 }
 rm(.helper)
-

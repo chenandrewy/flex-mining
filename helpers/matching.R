@@ -259,6 +259,67 @@ SelectDMStrats <- function(insampsum, settings) {
   print("end selectStrats")
 }
 
+# Select the broad accounting-mining benchmark used by the raw and
+# factor-adjusted research-versus-data-mining comparisons.  This named
+# selector deliberately ignores published-return and published-t-stat
+# distances: factor adjustment must start from the same raw |t| > 2 universe
+# as the raw benchmark.
+select_accounting_t2_pairs <- function(
+    insampsum,
+    min_num_stocks = globalSettings$minNumStocks,
+    t_threshold = 2,
+    minimum_months = 60L,
+    required_final_year_months = 12L,
+    pubnames = NULL) {
+  pairs <- data.table::copy(data.table::as.data.table(insampsum))
+  required <- c(
+    "pubname", "sampstart", "sampend", "sweight", "dmname", "rbar",
+    "tstat", "min_nstock_long", "min_nstock_short", "nmonth", "nlastyear"
+  )
+  missing <- setdiff(required, names(pairs))
+  if (length(missing) > 0L) {
+    stop("Accounting t>2 catalog is missing column(s): ",
+         paste(missing, collapse = ", "))
+  }
+
+  pairs[, sweight := tolower(sweight)]
+  pairs <- pairs[
+    !is.na(rbar) & !is.na(tstat) &
+      abs(tstat) > t_threshold &
+      min_nstock_long >= min_num_stocks / 2 &
+      min_nstock_short >= min_num_stocks / 2 &
+      nmonth >= minimum_months &
+      nlastyear == required_final_year_months
+  ]
+  if (!is.null(pubnames)) {
+    pairs <- pairs[pubname %in% pubnames]
+  }
+  pairs[, orientation := sign(rbar)]
+  pairs <- pairs[orientation != 0]
+  data.table::setorder(pairs, pubname, sweight, dmname)
+  if (anyDuplicated(pairs, by = c("pubname", "sweight", "dmname"))) {
+    stop("Accounting t>2 pair keys are not unique.")
+  }
+  pairs
+}
+
+accounting_t2_pair_fingerprint <- function(pairs) {
+  pairs <- data.table::copy(data.table::as.data.table(pairs))
+  required <- c("pubname", "sweight", "dmname", "sampstart", "sampend")
+  missing <- setdiff(required, names(pairs))
+  if (length(missing) > 0L) {
+    stop("Cannot fingerprint accounting t>2 pairs; missing: ",
+         paste(missing, collapse = ", "))
+  }
+  data.table::setorderv(pairs, required)
+  keys <- paste(
+    pairs$pubname, pairs$sweight, pairs$dmname,
+    as.numeric(pairs$sampstart), as.numeric(pairs$sampend), sep = "\t"
+  )
+  digest::digest(paste(keys, collapse = "\n"),
+                 algo = "sha256", serialize = FALSE)
+}
+
 # Select the canonical mined/published candidate-pair universe. This is the
 # compact replacement for the pair keys formerly implicit in MatchPub.RData.
 select_matched_dm_pairs <- function(
