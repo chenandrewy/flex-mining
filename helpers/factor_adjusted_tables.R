@@ -1,4 +1,4 @@
-# Shared inference and table helpers for risk-adjusted exhibits.
+# Shared inference and table helpers for factor-adjusted exhibits.
 #
 # How to run: source after 0_Environment.R from the Section 4 or SA07
 #   renderer.

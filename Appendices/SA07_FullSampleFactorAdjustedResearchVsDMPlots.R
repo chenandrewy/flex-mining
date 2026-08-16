@@ -9,7 +9,7 @@
 rm(list = ls())
 pdf(NULL)
 source("0_Environment.R")
-source("helpers/risk_adjusted_tables.R")
+source("helpers/factor_adjusted_tables.R")
 
 t_threshold <- 2
 full_path <- "../Data/Processed/appendix_full_sample_dm_benchmarks.RDS"
@@ -79,7 +79,7 @@ render_plot <- function(model, label, output) {
     )
   plot <- ReturnPlotsWithDM_std_errors_indicators(
     dt = plot_data,
-    basepath = "../Results/Fig_FullSampleRiskAdj",
+    basepath = "../Results/Fig_FullSampleFactorAdj",
     suffix = paste0(tolower(label), "_alpha_fs_t", t_threshold),
     rollmonths = 60, colors = colors, labelmatch = FALSE,
     yl = 0, yh = 125, xl = -360, xh = 300,
@@ -96,11 +96,11 @@ render_plot <- function(model, label, output) {
 }
 render_plot(
   "capm", "CAPM Alpha",
-  "../Results/Fig_FullSampleRiskAdj_capm_alpha_fs_t2.pdf"
+  "../Results/Fig_FullSampleFactorAdj_capm_alpha_fs_t2.pdf"
 )
 render_plot(
   "ff3", "FF3 Alpha",
-  "../Results/Fig_FullSampleRiskAdj_ff3_alpha_fs_t2.pdf"
+  "../Results/Fig_FullSampleFactorAdj_ff3_alpha_fs_t2.pdf"
 )
 
 summaries_for <- function(mapping, group_col) list(
@@ -201,7 +201,7 @@ anymodel_table <- build_full_sample_summary_table(
   c("", ""), groups_anymodel, anymodel_data
 )
 
-audit_dir <- "../Results/RiskAdjusted/FullSampleTstatFilter"
+audit_dir <- "../Results/FactorAdjusted/FullSampleTstatFilter"
 dir.create(audit_dir, recursive = TRUE, showWarnings = FALSE)
 headers <- list(
   list(title = "Raw", span = 2),
@@ -210,28 +210,28 @@ headers <- list(
 )
 export_audit_tabular(
   theory_model_table,
-  file.path(audit_dir, "Table_RiskAdjusted_FullSample_t2"), headers
+  file.path(audit_dir, "Table_FactorAdjusted_FullSample_t2"), headers
 )
 export_audit_tabular(
   discipline_journal_table,
-  file.path(audit_dir, "Table_RiskAdjusted_FullSample_DisciplineJournal_t2"),
+  file.path(audit_dir, "Table_FactorAdjusted_FullSample_DisciplineJournal_t2"),
   headers
 )
 export_audit_tabular(
   anymodel_table,
-  file.path(audit_dir, "Table_RiskAdjusted_FullSample_AnyModelVsNoModel_t2"),
+  file.path(audit_dir, "Table_FactorAdjusted_FullSample_AnyModelVsNoModel_t2"),
   headers
 )
 write_paper_fullsample_theory_model_tabular(
   theory_data, model_data, overall,
-  "../Results/Table_RiskAdjusted_FullSample_Appendix.tex"
+  "../Results/Table_FactorAdjusted_FullSample_Appendix.tex"
 )
 write_paper_fullsample_discipline_journal_tabular(
   discipline_data, journal_data,
-  "../Results/Table_RiskAdjusted_FullSample_DisciplineJournal_Appendix.tex"
+  "../Results/Table_FactorAdjusted_FullSample_DisciplineJournal_Appendix.tex"
 )
 write_paper_fullsample_anymodel_tabular(
   anymodel_data,
-  "../Results/Table_RiskAdjusted_FullSample_AnyModelVsNoModel_Appendix.tex"
+  "../Results/Table_FactorAdjusted_FullSample_AnyModelVsNoModel_Appendix.tex"
 )
 message("Wrote appendix-only full-sample figures and tables.")

@@ -18,7 +18,7 @@ required_files <- c(
   "../Data/Processed/ret_for_plot1.RDS",
   "../Data/Processed/dmcomp_sumstats.RDS",
   "../Data/Processed/raw_dm_benchmarks.RDS",
-  "../Data/Processed/risk_adjusted_dm_benchmarks.RDS",
+  "../Data/Processed/factor_adjusted_dm_benchmarks.RDS",
   "../Data/Processed/appendix_full_sample_dm_benchmarks.RDS",
   paste0(version_prefix, " LongShort.RData")
 )
@@ -49,7 +49,7 @@ run_script("Appendices/SA03_StructuralBreak.R")
 run_script("Appendices/SA04_DecayVsWordcountPlot.R")
 run_script("Appendices/SA05_DecayVsModelcountPlot.R")
 run_script("Appendices/SA06_DecayVsJournal.R")
-run_script("Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R")
+run_script("Appendices/SA07_FullSampleFactorAdjustedResearchVsDMPlots.R")
 run_script("Appendices/SA08_AccountingOnlyPlots.R")
 run_script("Appendices/SA09_AccountingOnlyAlphaPlots.R")
 run_script("Appendices/SA10_ResearchVsDMRobustnessCorrelationsEtc.R")

@@ -1,7 +1,7 @@
 # Appendix accounting-only CAPM and FF4 alpha-decay plots.
 #
 # How to run: normally run through SA_Appendices.R.
-# Inputs: risk_adjusted_dm_benchmarks.RDS, published-signal documentation, and
+# Inputs: factor_adjusted_dm_benchmarks.RDS, published-signal documentation, and
 #   DataInput/SignalsTheoryChecked.csv
 # Outputs: ../Results/Fig_DM_{CAPM,FF4}_tv_AccountingOnly_CalendarSE.pdf
 
@@ -9,13 +9,13 @@ rm(list = ls())
 pdf(NULL)
 source("0_Environment.R")
 
-risk_path <- "../Data/Processed/risk_adjusted_dm_benchmarks.RDS"
-if (!file.exists(risk_path)) {
-  stop("Missing risk_adjusted_dm_benchmarks.RDS; run 3_Precompute.R first.")
+factor_path <- "../Data/Processed/factor_adjusted_dm_benchmarks.RDS"
+if (!file.exists(factor_path)) {
+  stop("Missing factor_adjusted_dm_benchmarks.RDS; run 3_Precompute.R first.")
 }
-risk <- readRDS(risk_path)
-if (!identical(risk$metadata$schema_version, 2L)) {
-  stop("Accounting-only alpha plots require risk benchmark schema version 2.")
+factor_benchmarks <- readRDS(factor_path)
+if (!identical(factor_benchmarks$metadata$schema_version, 2L)) {
+  stop("Accounting-only alpha plots require factor benchmark schema version 2.")
 }
 
 incl_signals <- restrictInclSignals(
@@ -44,7 +44,7 @@ theory <- fread("DataInput/SignalsTheoryChecked.csv") %>%
   select(signalname, theory)
 
 render_model <- function(model, label, output_file) {
-  plot_data <- risk[[model]]$panel %>%
+  plot_data <- factor_benchmarks[[model]]$panel %>%
     filter(pubname %in% accounting_signals) %>%
     left_join(theory, by = c("pubname" = "signalname")) %>%
     transmute(

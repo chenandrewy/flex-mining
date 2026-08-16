@@ -20,7 +20,7 @@ required_files <- c(
   "../Data/Processed/sumsignal_oos_30y_post_2003_ew_unit_level.csv",
   "../Data/Processed/sumsignal_oos_30y_post_2003_vw_unit_level.csv",
   "../Data/Processed/raw_dm_benchmarks.RDS",
-  "../Data/Processed/risk_adjusted_dm_benchmarks.RDS"
+  "../Data/Processed/factor_adjusted_dm_benchmarks.RDS"
 )
 missing_files <- required_files[!file.exists(required_files)]
 if (length(missing_files) > 0) {

@@ -1,10 +1,10 @@
-# Render sample-specific risk-adjusted by-group tables for Section 4.
+# Render sample-specific factor-adjusted by-group tables for Section 4.
 #
 # How to run: normally run through S4_Heterogeneity.R.
-# Inputs: raw_dm_benchmarks.RDS, risk_adjusted_dm_benchmarks.RDS, and
+# Inputs: raw_dm_benchmarks.RDS, factor_adjusted_dm_benchmarks.RDS, and
 #   DataInput/SignalsTheoryChecked.csv
 # Outputs: sample-specific CAPM/FF4 audit tables under
-#   ../Results/RiskAdjusted/TstatFilter and paper-facing fragments under
+#   ../Results/FactorAdjusted/TstatFilter and paper-facing fragments under
 #   ../Results.
 #
 # Factor fitting and DM alpha screening belong to 3c_FactorAdjustedDMPrep.R.
@@ -14,15 +14,15 @@
 rm(list = ls())
 pdf(NULL)
 source("0_Environment.R")
-source("helpers/risk_adjusted_tables.R")
+source("helpers/factor_adjusted_tables.R")
 
 t_threshold <- 2
-results_dir <- "../Results/RiskAdjusted/TstatFilter"
+results_dir <- "../Results/FactorAdjusted/TstatFilter"
 dir.create(results_dir, recursive = TRUE, showWarnings = FALSE)
 
 required_files <- c(
   "../Data/Processed/raw_dm_benchmarks.RDS",
-  "../Data/Processed/risk_adjusted_dm_benchmarks.RDS",
+  "../Data/Processed/factor_adjusted_dm_benchmarks.RDS",
   "DataInput/SignalsTheoryChecked.csv"
 )
 missing_files <- required_files[!file.exists(required_files)]
@@ -31,13 +31,13 @@ if (length(missing_files) > 0L) {
 }
 
 raw_contract <- readRDS(required_files[1])
-risk_contract <- readRDS(required_files[2])
-if (!identical(risk_contract$metadata$schema_version, 2L)) {
-  stop("Section 4 requires risk_adjusted_dm_benchmarks schema version 2.")
+factor_contract <- readRDS(required_files[2])
+if (!identical(factor_contract$metadata$schema_version, 2L)) {
+  stop("Section 4 requires factor_adjusted_dm_benchmarks schema version 2.")
 }
 stopifnot(identical(
   raw_contract$metadata$accounting_t2$pair_fingerprint_sha256,
-  risk_contract$metadata$base_pair_fingerprint_sha256
+  factor_contract$metadata$base_pair_fingerprint_sha256
 ))
 
 incl_signals <- restrictInclSignals(
@@ -60,7 +60,7 @@ anymodel_mapping <- mappings$czcat_full %>%
 # Build panels with all eligible published observations. DM values remain NA
 # where no factor-adjusted comparator is available, so published-only means do
 # not inherit the paired sample restriction.
-raw_eligible <- risk_contract$published_stats %>%
+raw_eligible <- factor_contract$published_stats %>%
   filter(eligible_raw_t2) %>%
   pull(signalname)
 raw_panel <- raw_contract$published %>%
@@ -73,12 +73,12 @@ raw_panel <- raw_contract$published %>%
   )
 
 factor_panel <- function(model, published_name, dm_name) {
-  published <- risk_contract[[model]]$published_panel %>%
+  published <- factor_contract[[model]]$published_panel %>%
     transmute(
       pubname, eventDate, date = calendarDate,
       !!published_name := published_return
     )
-  dm <- risk_contract[[model]]$panel %>%
+  dm <- factor_contract[[model]]$panel %>%
     transmute(pubname, eventDate, !!dm_name := dm_return)
   published %>% left_join(dm, by = c("pubname", "eventDate"))
 }
@@ -208,38 +208,38 @@ headers <- list(
 )
 export_audit_tabular(
   theory_model_table,
-  file.path(results_dir, paste0("Table_RiskAdjusted_TimeVarying", suffix)),
+  file.path(results_dir, paste0("Table_FactorAdjusted_TimeVarying", suffix)),
   headers
 )
 export_audit_tabular(
   discipline_journal_table,
   file.path(results_dir, paste0(
-    "Table_RiskAdjusted_TimeVarying_DisciplineJournal", suffix
+    "Table_FactorAdjusted_TimeVarying_DisciplineJournal", suffix
   )), headers
 )
 export_audit_tabular(
   anymodel_table,
   file.path(results_dir, paste0(
-    "Table_RiskAdjusted_TimeVarying_AnyModelVsNoModel", suffix
+    "Table_FactorAdjusted_TimeVarying_AnyModelVsNoModel", suffix
   )), headers
 )
 
 write_paper_theory_model_tabular(
   tv_theory_data, tv_model_data, tv_overall_data,
   file.path("../Results", paste0(
-    "Table_RiskAdjusted_TimeVarying", suffix, ".tex"
+    "Table_FactorAdjusted_TimeVarying", suffix, ".tex"
   ))
 )
 write_paper_discipline_journal_tabular(
   tv_discipline_data, tv_journal_data,
   file.path("../Results", paste0(
-    "Table_RiskAdjusted_TimeVarying_DisciplineJournal", suffix, ".tex"
+    "Table_FactorAdjusted_TimeVarying_DisciplineJournal", suffix, ".tex"
   ))
 )
 write_paper_anymodel_tabular(
   tv_anymodel_data,
   file.path("../Results", paste0(
-    "Table_RiskAdjusted_TimeVarying_AnyModelVsNoModel", suffix, ".tex"
+    "Table_FactorAdjusted_TimeVarying_AnyModelVsNoModel", suffix, ".tex"
   ))
 )
 
