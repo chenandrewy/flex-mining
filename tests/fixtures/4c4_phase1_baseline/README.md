@@ -1,5 +1,10 @@
 # `4c4` phase-one baseline
 
+These fixtures are retained only as a known-bug regression guard. They use the
+10% t-stat/30% mean-return restricted DM universe documented in
+`docs/journal/FOUND_BUGS_in_risk_adjusted_code.md`; live outputs must not match
+them after the broad-universe correction.
+
 These six files are the retained manuscript-source outputs from the final run
 of `4c4_RiskAdjustedResearchVsDMPlotsTVFF4.R` against the 2026-08-14 processed
 data vintage. The baseline completed in 118.889 seconds (101.147 user and

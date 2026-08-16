@@ -7,8 +7,8 @@
 # Outputs: none; exits nonzero on failure.
 
 raw_producer <- readLines("3a_PrepDMBenchmarks.R")
-risk_producer <- readLines("3e_FactorAdjustedDMPrep.R")
-span_producer <- readLines("3f_DMSpanPCA.R")
+risk_producer <- readLines("3c_FactorAdjustedDMPrep.R")
+span_producer <- readLines("Appendices/SA11_DMSpanPCAPrep.R")
 figure_producer <- readLines("S2e_Fig2Plots.R")
 precompute <- readLines("3_Precompute.R")
 section_driver <- readLines("S2_ResearchVsDataMining.R")
@@ -21,10 +21,13 @@ stopifnot(
   !any(grepl("matched_uncorr_pairs.RDS", raw_producer, fixed = TRUE)),
   any(grepl('run_script("3a_PrepDMBenchmarks.R")', precompute, fixed = TRUE)),
   !any(grepl("3d_MatchedUncorrData.R", precompute, fixed = TRUE)),
-  any(grepl('run_script("3e_FactorAdjustedDMPrep.R")', precompute, fixed = TRUE)),
+  any(grepl('run_script("3c_FactorAdjustedDMPrep.R")', precompute, fixed = TRUE)),
+  !file.exists("2d_RiskAdjustDataMinedSignals.R"),
+  !file.exists("3e_FactorAdjustedDMPrep.R"),
   !file.exists("3a_ResearchVsDMPrep.R"),
-  !any(grepl("risk_adjusted|FamaFrenchFactors|risk_adjusted_helpers",
-             raw_producer)),
+  any(grepl("select_accounting_t2_pairs", raw_producer, fixed = TRUE)),
+  any(grepl("select_accounting_t2_pairs", risk_producer, fixed = TRUE)),
+  !any(grepl("risk_adjusted_[tr]_reltol", risk_producer)),
   all(vapply(
     c("raw_dm_benchmarks.RDS", "risk_adjusted_dm_benchmarks.RDS"),
     function(cache) any(grepl(cache, figure_producer, fixed = TRUE)),
@@ -63,7 +66,7 @@ risk_path <- "../Data/Processed/risk_adjusted_dm_benchmarks.RDS"
 if (file.exists(risk_path)) {
   risk <- readRDS(risk_path)
   stopifnot(
-    all(c("capm", "ff4", "published_stats", "pair_stats", "metadata") %in%
+    all(c("capm", "ff4", "published_stats", "window_diagnostics", "metadata") %in%
           names(risk)),
     all(vapply(risk[c("capm", "ff4")], function(model) {
       all(c("pubname", "eventDate", "calendarDate", "published_return",
@@ -72,55 +75,15 @@ if (file.exists(risk_path)) {
     }, logical(1))),
     all(c("eligible_raw_t2", "eligible_capm_t2", "eligible_ff4_t2") %in%
           names(risk$published_stats)),
-    all(c("eligible_capm_t2", "eligible_ff4_t2") %in%
-          names(risk$pair_stats)),
-    identical(risk$metadata$schema_version, 1L)
-  )
-}
-
-# The pre-refactor display caches remain useful characterization oracles until
-# a full Chapter 3 regeneration has established equivalence.
-legacy_long_path <- "../Data/Processed/fig2_panel_long.RDS"
-legacy_agg_path <- "../Data/Processed/fig2_panel_agg.RDS"
-if (file.exists(legacy_long_path) && file.exists(legacy_agg_path)) {
-  legacy_long <- readRDS(legacy_long_path)
-  legacy_agg <- readRDS(legacy_agg_path)
-  expected_panel_rows <- c(a = 306774L, b = 161368L,
-                           c = 244212L, d = 310944L)
-  actual_panel_rows <- table(legacy_long$panel)
-  stopifnot(
-    identical(names(legacy_long),
-              c("label", "pubname", "eventDate", "calendarDate", "return", "panel")),
-    identical(names(legacy_agg),
-              c("panel", "label", "eventDate", "roll_rbar", "se", "upper", "lower")),
-    identical(sort(unique(legacy_long$panel)), letters[1:4]),
-    identical(as.integer(actual_panel_rows[names(expected_panel_rows)]),
-              unname(expected_panel_rows)),
-    nrow(legacy_long) == 1023298L,
-    nrow(legacy_agg) == 17229L,
-    range(legacy_long$eventDate) == c(-701, 660)
-  )
-}
-
-# To compare a candidate S2e assembly with the legacy oracle, run S2e with
-# FIG2_DATA_OUTPUT_DIR set and point this test at that directory.
-candidate_dir <- Sys.getenv("FIG2_CANDIDATE_DIR", unset = "")
-if (nzchar(candidate_dir)) {
-  if (!file.exists(legacy_long_path) || !file.exists(legacy_agg_path)) {
-    stop("FIG2_CANDIDATE_DIR comparison requires the legacy Figure 2 oracles.")
-  }
-  candidate_long <- readRDS(file.path(candidate_dir, "fig2_panel_long.RDS"))
-  candidate_agg <- readRDS(file.path(candidate_dir, "fig2_panel_agg.RDS"))
-  sort_long <- function(x) {
-    x[order(x$panel, x$label, x$pubname, x$eventDate), ]
-  }
-  sort_agg <- function(x) {
-    x[order(x$panel, x$label, x$eventDate), ]
-  }
-  stopifnot(
-    isTRUE(all.equal(sort_long(candidate_long), sort_long(legacy_long),
-                     tolerance = 1e-12, check.attributes = FALSE)),
-    isTRUE(all.equal(sort_agg(candidate_agg), sort_agg(legacy_agg),
-                     tolerance = 1e-12, check.attributes = FALSE))
+    all(vapply(risk[c("capm", "ff4")], function(model) {
+      all(c("pubname", "eventDate", "calendarDate", "published_return") %in%
+            names(model$published_panel))
+    }, logical(1))),
+    identical(risk$metadata$schema_version, 2L),
+    identical(risk$metadata$base_universe, "accounting_t2"),
+    identical(
+      risk$metadata$base_pair_fingerprint_sha256,
+      raw$metadata$accounting_t2$pair_fingerprint_sha256
+    )
   )
 }

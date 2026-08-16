@@ -97,8 +97,31 @@ accounting_t2_screen <- list(
 # here, matchRet uses accounting signals with t>2
 
 # make event time returns for Compustat DM
-accounting_t2_matched <- SelectDMStrats(
-  dmcomp$insampsum, accounting_t2_screen
+accounting_t2_matched <- select_accounting_t2_pairs(
+  dmcomp$insampsum,
+  min_num_stocks = globalSettings$minNumStocks,
+  t_threshold = globalSettings$t_min,
+  minimum_months = 60L,
+  required_final_year_months = 12L,
+  pubnames = czsum$signalname
+)
+accounting_t2_metadata <- list(
+  pair_count = nrow(accounting_t2_matched),
+  predictor_count = data.table::uniqueN(accounting_t2_matched$pubname),
+  sample_window_count = data.table::uniqueN(
+    accounting_t2_matched[, .(sampstart, sampend)]
+  ),
+  pair_fingerprint_sha256 = accounting_t2_pair_fingerprint(
+    accounting_t2_matched
+  ),
+  specification = list(
+    oriented_raw_t_threshold = globalSettings$t_min,
+    minimum_stocks_per_leg = globalSettings$minNumStocks / 2,
+    minimum_insample_months = 60L,
+    required_final_year_months = 12L,
+    published_mean_return_tolerance = Inf,
+    published_tstat_tolerance = Inf
+  )
 )
 
 print("Making accounting event time returns")
@@ -331,6 +354,7 @@ raw_dm_benchmarks <- list(
     schema_version = 1L,
     normalization = "100 times return divided by the strategy in-sample mean",
     accounting_t2_screen = accounting_t2_screen,
+    accounting_t2 = accounting_t2_metadata,
     top5_screen = top5_screen,
     mining_universes = c(
       accounting = dmcomp$name,

@@ -3,8 +3,7 @@
 # How to run: set the working directory to flex-mining/, then
 #   Rscript S4_Heterogeneity.R
 # Inputs:  cleaned published-predictor data, the chapter-1 denominator cache,
-#          chapter-2 mined strategies and matched risk-adjustment cache, and
-#          factor returns
+#          chapter-3 raw and factor-adjusted benchmark contracts
 # Outputs: Section 4 category, journal, and risk-adjusted tables under ../Results
 
 settings_env <- new.env(parent = globalenv())
@@ -13,9 +12,8 @@ version_prefix <- file.path("../Data/Processed", settings_env$globalSettings$dat
 required_files <- c(
   "../Data/Processed/czsum_allpredictors.RDS",
   "../Data/Processed/czret_keeponly.RDS",
-  "../Data/Processed/ret_for_plot0.RDS",
-  paste0(version_prefix, " MatchPubRiskAdjusted.RData"),
-  "../Data/Raw/FamaFrenchFactors.RData",
+  "../Data/Processed/raw_dm_benchmarks.RDS",
+  "../Data/Processed/risk_adjusted_dm_benchmarks.RDS",
   "DataInput/SignalsTheoryChecked.csv",
   paste0(version_prefix, " LongShort.RData"),
   "DataIntermediate/freq_obs_1963.csv"

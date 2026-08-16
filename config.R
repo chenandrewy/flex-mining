@@ -73,12 +73,6 @@ globalSettings = list(
   matched_uncorr_r_reltol = 0.10,
   matched_uncorr_corr_max = 0.10,
   match_nmonth_min = 60, # minimum pair-level in-sample history
-  # Legacy risk-adjusted exhibit specification. Keep this named separately
-  # from matched-uncorr: Tables 6--7 and their appendix variants were
-  # characterized with a 30% mean-return matching tolerance.
-  risk_adjusted_t_reltol = 0.10,
-  risk_adjusted_r_reltol = 0.30,
-
   # DM requirements
   minShareTG2 = .1,  # Include strategies with t-stat > 2 in at least X % of published time periods
   TG2Set = '1994-2020', # 1994-2020: DM strategies evaluated over 1994-2020

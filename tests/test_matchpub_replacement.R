@@ -49,12 +49,14 @@ if (file.exists(dm_sumstats_path)) {
 
 live_files <- c(
   "2_DataMining.R", "3_Precompute.R", "3a_PrepDMBenchmarks.R",
-  "2d_RiskAdjustDataMinedSignals.R", "S5_BestPredictors.R",
+  "3c_FactorAdjustedDMPrep.R", "S5_BestPredictors.R",
   "S5a_InspectTables.R",
   "Appendices/SA10_ResearchVsDMRobustnessCorrelationsEtc.R"
 )
 live_source <- unlist(lapply(live_files, readLines), use.names = FALSE)
 stopifnot(
   !file.exists("2b_MatchDataMinedToPub.R"),
-  !any(grepl("MatchPub.RData", live_source, fixed = TRUE))
+  !file.exists("2d_RiskAdjustDataMinedSignals.R"),
+  !any(grepl("MatchPub.RData", live_source, fixed = TRUE)),
+  !any(grepl("MatchPubRiskAdjusted.RData", live_source, fixed = TRUE))
 )

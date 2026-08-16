@@ -31,14 +31,13 @@ Measured at `num_cores = 4`.
 | **`2_DataMining.R`**                | needs remeasurement | Now owns only construction of the two mined universes; the prior total included matching and risk adjustment.                                                                                                                                                                                 |
 | ↳ `2a_CompustatToLongshort.R`       |         **~4h 05m** | See the phase breakdown below.                                                                                                                                                                                                                                                                 |
 | ↳ `2c_TickerToLongshort.R`          |            ~1-2 min | Writes `ticker_Harvey2017JF.RDS`.                                                                                                                                                                                                                                                              |
-| **`3_Precompute.R`**                | **~1h 44m baseline** | The memory-critical chapter; completes without OOM.                                                                                                                                                                                                                                            |
+| **`3_Precompute.R`**                | needs remeasurement | Now contains raw benchmark prep, DM summaries, and the broad-universe sample-specific factor adjustment.                                                                                                                                                                                       |
 | ↳ `3a_PrepDMBenchmarks.R`           |          ~9 min 20 s | Four-worker measurement; owns raw accounting/ticker variants, the matched event-time panel, and compact matched-uncorrelated pairs.                                                                                                                                                             |
-| ↳ `2d_RiskAdjustDataMinedSignals.R` |              ~6 min | Transitional Chapter-3 child after `3a`; materializes selected pairs from `dmcomp_sumstats.RDS` and writes `MatchPubRiskAdjusted.RData`.                                                                                                                                                         |
 | ↳ `3b_DataMiningSummary.R`          |             ~24 min |                                                                                                                                                                                                                                                                                                |
-| ↳ `3c_DMCorrelationsPCA.R`          |             ~15 min | Writes `PairwiseCorrelationsDM_{ew,vw}.RDS`.                                                                                                                                                                                                                                                   |
-| ↳ `3e_FactorAdjustedDMPrep.R`       |          ~1 min 48 s | Reads the large legacy risk-adjusted pair cache and writes the calculation-owned CAPM/FF4 benchmark contract.                                                                                                                                                                                  |
-| ↳ `3f_DMSpanPCA.R`                  |         **~51 min** | Heaviest Chapter-3 script: one `adj_R2_with_PPCA()` and six `make_DM_event_returns()` calls.                                                                                                                                                                                                   |
-| **Sections S2-SA**                  | **~7 min baseline** | Exhibit stages; each child is a fresh R process reading upstream caches. Section 3 estimates the main MP-style decay models in `S3a_MPStyleDecayModels.R` (writes `mp_style_decay_models.RDS`, ~31 MB), then `S3b_MPStyleDecayTables.R` renders them. Appendix Table B.1 recomputes its pair universe and models in memory without an intermediate cache. `SA_Appendices.R` is the longest. |
+| ↳ `3c_FactorAdjustedDMPrep.R`       |          ~2 min 10 s | Measured on the broad accounting `|t| > 2` universe. Fits CAPM/FF4 by 127 sample windows and streams aggregates into a 3.8 MB contract.                                                                                                                                                         |
+| Appendix SA07 factor prep           |          ~1 min 52 s | Full-sample CAPM/FF3 robustness preparation; writes a 3.9 MB appendix-only contract.                                                                                                                                                                                                          |
+| Appendix SA11 PCA preparation       | ~66 min historical | The former Chapter 3 correlation/PCA and PCA-span stages now run only with `SA_Appendices.R`.                                                                                                                                                                                                  |
+| **Sections S2-S4**                  | **~7 min baseline** | Main-text exhibit stages; each child is a fresh R process reading upstream caches. Section 3 estimates the main MP-style decay models in `S3a_MPStyleDecayModels.R` (writes `mp_style_decay_models.RDS`, ~31 MB), then `S3b_MPStyleDecayTables.R` renders them. Appendix runtimes are listed separately because SA11 dominates them.                               |
 | **`9_ExportDataToCsv.R`**           |              ~1 min | Reads chapter-2 caches; writes `../Data/Export`.                                                                                                                                                                                                                                               |
 
 ### Inside `2a_CompustatToLongshort.R`
@@ -78,7 +77,8 @@ rather than copied per worker; the non-Unix fallback is a PSOCK cluster capped a
 two workers.
 
 At `num_cores = 4`, Chapter 3 completes with no OOM. Aggregate R resident memory
-(master plus 4 forked workers) peaks around **23-27 GB** during `3d`/`3e`, well
+(master plus 4 forked workers) historically peaks around **23-27 GB** during
+the work now isolated in Appendix SA11, well
 under a 62 GB machine, with the fork workers running at ~100% CPU and ~2.3-5 GB
 private each -- consistent with the read-only panel being shared rather than
 copied. Chapter 2 holds around 22-23 GB during `2a` and drops to ~12 GB at each
@@ -96,10 +96,10 @@ separate copy.
 
 | Script                      | Parallel work                                      | Footprint                               | In `MAIN.R`? |
 | --------------------------- | -------------------------------------------------- | --------------------------------------- | ------------ |
-| `3f_DMSpanPCA.R`            | 6× `make_DM_event_returns` + 1× `adj_R2_with_PPCA` | fork, shared panel (heaviest)           | yes          |
+| `Appendices/SA11_DMSpanPCAPrep.R` | 6× `make_DM_event_returns` + 1× `adj_R2_with_PPCA` | fork, shared panel (heaviest)       | appendices   |
 | `3a_PrepDMBenchmarks.R`     | 3× `make_DM_event_returns`                         | fork, shared panel                      | yes          |
 | `2a_CompustatToLongshort.R` | `foreach` over 29,315 signals                      | own PSOCK cluster, Compustat/CRSP panel | yes          |
-| `3c_DMCorrelationsPCA.R`    | `parLapply` over correlation pairs                 | own `makeCluster`                       | yes          |
+| `Appendices/SA11_DMCorrelationsPCAPrep.R` | `parLapply` over correlation pairs          | own `makeCluster`                   | appendices   |
 
 On non-Unix systems the fork helpers fall back to a PSOCK cluster capped at two
 workers, each copying the panel, so the top-group scripts are far more
@@ -132,7 +132,7 @@ multi-hour `2a` stage keeps full core count.
 To measure a single script in a fresh process:
 
 ```bash
-time Rscript 3f_DMSpanPCA.R
+time Rscript Appendices/SA11_DMSpanPCAPrep.R
 ```
 
 `time` reports elapsed time; peak resident memory needs a separate monitor
@@ -141,16 +141,18 @@ it runs).
 
 ## Rules of thumb
 
-- `2a` dominates the runtime (~4h at `num_cores = 4`); `3e` is the second-longest
-  script (~51 min).
+- `2a` dominates the runtime (~4h at `num_cores = 4`); appendix PCA spanning
+  remains the longest robustness stage (~51 min).
 - Silence during `2a`'s straggler tail or combine/save phase, or during a
   Chapter-3 parallel event-return section, is not by itself evidence of a hang;
   check the process with `ps` before stopping it. Workers near 100% CPU or a
   master using ~1 core mean it is working.
 - `../Data/make_many_ls.log` carries `2a`'s dispatch progress and ETA, but the
   ETA reaches zero ~30 min before `2a` actually finishes (straggler + save).
-- Sections S2-SA can be run independently for paper iteration, provided their
-  upstream caches exist; together they take only a few minutes.
+- Main-text Sections S2-S4 can be run independently for paper iteration,
+  provided their upstream caches exist; together they take only a few minutes.
+  A full `SA_Appendices.R` run additionally includes the much slower SA11 PCA
+  robustness preparation.
 - With effectively no swap, memory exhaustion has no slow thrashing phase.
   Chapter 3 stays at 23-27 GB at `num_cores = 4`, but it is still the stretch to
   watch if `num_cores` is raised or the vintage grows.

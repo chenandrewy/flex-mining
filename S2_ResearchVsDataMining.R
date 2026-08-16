@@ -19,8 +19,6 @@ required_files <- c(
   "../Data/Processed/sumsignal_oos_30y_vw_unit_level.csv",
   "../Data/Processed/sumsignal_oos_30y_post_2003_ew_unit_level.csv",
   "../Data/Processed/sumsignal_oos_30y_post_2003_vw_unit_level.csv",
-  "../Data/Processed/dm_correlation_quantiles.RDS",
-  "../Data/Processed/dm_pca_table.RDS",
   "../Data/Processed/raw_dm_benchmarks.RDS",
   "../Data/Processed/risk_adjusted_dm_benchmarks.RDS"
 )
@@ -30,6 +28,10 @@ if (length(missing_files) > 0) {
     "Missing Section 2 input(s): ", paste(missing_files, collapse = ", "),
     ". Run the required upstream chapter first."
   )
+}
+if ("--preflight-only" %in% commandArgs(trailingOnly = TRUE)) {
+  message("Section 2 preflight passed.")
+  quit(save = "no", status = 0)
 }
 
 run_script <- function(path) {
@@ -44,6 +46,5 @@ run_script <- function(path) {
 # research-versus-data-mining empirical chapter.
 run_script("S2a_ResearchVsDMPlots.R")
 run_script("S2b_DataMiningSummaryTables.R")
-run_script("S2c_DMCorrelationsPCATables.R")
 run_script("S2d_EZThemes.R")
 run_script("S2e_Fig2Plots.R")

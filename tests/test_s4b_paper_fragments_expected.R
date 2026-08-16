@@ -1,9 +1,10 @@
-# Validate all six paper-facing S4b tabular fragments.
+# Validate the three main-text and three appendix risk-adjusted tabular fragments.
 #
 # How to run: set the working directory to flex-mining/, run
 #   Rscript S4b_RVsDM_ByGroup.R
+#   Rscript Appendices/SA07_FullSampleRiskAdjustedResearchVsDMPlots.R
 #   Rscript tests/test_s4b_paper_fragments_expected.R
-# Inputs:  the six live S4b paper-facing .tex files under
+# Inputs:  the six live paper-facing .tex files under
 #          ../Results and their exact fixtures under tests/fixtures
 # Outputs: no files; exits nonzero on content or fragment-contract changes
 
