@@ -8,7 +8,6 @@
 
 raw_producer <- readLines("3a_PrepDMBenchmarks.R")
 risk_producer <- readLines("3e_FactorAdjustedDMPrep.R")
-matched_producer <- readLines("3d_MatchedUncorrData.R")
 span_producer <- readLines("3f_DMSpanPCA.R")
 figure_producer <- readLines("S2e_Fig2Plots.R")
 precompute <- readLines("3_Precompute.R")
@@ -18,16 +17,16 @@ section_renderer <- readLines("S2a_ResearchVsDMPlots.R")
 stopifnot(
   any(grepl("raw_dm_benchmarks.RDS", raw_producer, fixed = TRUE)),
   any(grepl("risk_adjusted_dm_benchmarks.RDS", risk_producer, fixed = TRUE)),
-  any(grepl("matched_uncorr_benchmark.RDS", matched_producer, fixed = TRUE)),
+  any(grepl("matched = matched_panel", raw_producer, fixed = TRUE)),
+  any(grepl("matched_uncorr_pairs.RDS", raw_producer, fixed = TRUE)),
   any(grepl('run_script("3a_PrepDMBenchmarks.R")', precompute, fixed = TRUE)),
-  any(grepl('run_script("3d_MatchedUncorrData.R")', precompute, fixed = TRUE)),
+  !any(grepl("3d_MatchedUncorrData.R", precompute, fixed = TRUE)),
   any(grepl('run_script("3e_FactorAdjustedDMPrep.R")', precompute, fixed = TRUE)),
   !file.exists("3a_ResearchVsDMPrep.R"),
   !any(grepl("risk_adjusted|FamaFrenchFactors|risk_adjusted_helpers",
              raw_producer)),
   all(vapply(
-    c("raw_dm_benchmarks.RDS", "matched_uncorr_benchmark.RDS",
-      "risk_adjusted_dm_benchmarks.RDS"),
+    c("raw_dm_benchmarks.RDS", "risk_adjusted_dm_benchmarks.RDS"),
     function(cache) any(grepl(cache, figure_producer, fixed = TRUE)),
     logical(1)
   )),
@@ -44,17 +43,20 @@ stopifnot(
 )
 
 raw_path <- "../Data/Processed/raw_dm_benchmarks.RDS"
-if (file.exists(raw_path)) {
+pair_path <- "../Data/Processed/matched_uncorr_pairs.RDS"
+if (file.exists(raw_path) && file.exists(pair_path)) {
   raw <- readRDS(raw_path)
   stopifnot(
     all(c("published", "accounting_t2", "accounting_top5", "ticker_top5",
-          "metadata") %in% names(raw)),
+          "matched", "metadata") %in% names(raw)),
     all(vapply(
       raw[c("published", "accounting_t2", "accounting_top5", "ticker_top5")],
       function(x) all(c("pubname", "eventDate", "calendarDate", "return") %in%
                         names(x)), logical(1)
     )),
-    identical(raw$metadata$schema_version, 1L)
+    identical(raw$metadata$schema_version, 1L),
+    all(c("published_ret_scaled", "matched_ret_scaled",
+          "matched_uncorr_ret_scaled") %in% names(raw$matched))
   )
 }
 

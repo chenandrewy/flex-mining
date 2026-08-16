@@ -55,10 +55,10 @@ frozen S4b exhibit contracts.
 |-------------------------------------------|--------|----------------------------|-------------------------------------|
 | dmcomp_sumstats.RDS                       | 139 MB | 3a_PrepDMBenchmarks.R      | S2a; current                        |
 | dmtic_sumstats.RDS                        | 14 MB  | 3a_PrepDMBenchmarks.R      | S2a; current                        |
-| raw_dm_benchmarks.RDS                     | 4 MB   | 3a_PrepDMBenchmarks.R      | S2e; current                        |
-| matched_uncorr_benchmark.RDS              | 5 MB   | 3d_MatchedUncorrData.R     | S2e, S3a; current                   |
+| raw_dm_benchmarks.RDS                     | 8 MB   | 3a_PrepDMBenchmarks.R      | S2e, S3a; current                   |
+| matched_uncorr_pairs.RDS                  | <1 MB  | 3a_PrepDMBenchmarks.R      | S3a; current                        |
 | risk_adjusted_dm_benchmarks.RDS           | 6 MB   | 3e_FactorAdjustedDMPrep.R  | S2e; current                        |
-| ret_for_plot0.RDS                         | 3 MB   | 3a_PrepDMBenchmarks.R      | S2a, S4b, 3d, SA07; current         |
+| ret_for_plot0.RDS                         | 3 MB   | 3a_PrepDMBenchmarks.R      | S2a, S4b, SA07; current             |
 | ret_for_plot1.RDS                         | 2 MB   | 3a_PrepDMBenchmarks.R      | S2a, SA08; current                  |
 | PairwiseCorrelationsDM_ew.RDS             | 241 MB | 3c_DMCorrelationsPCA.R     | 3c; live phase cache                |
 | PairwiseCorrelationsDM_vw.RDS             | 18 MB  | 3c_DMCorrelationsPCA.R     | 3c; live phase cache                |
@@ -70,12 +70,13 @@ frozen S4b exhibit contracts.
 | sumsignal_oos_30y_*.csv (6 files)         | <1 MB  | 3b_DataMiningSummary.R     | S2b / export; current               |
 ```
 
-`3a_PrepDMBenchmarks.R` is now wired into `3_Precompute.R` and owns only the
-raw benchmark family. Matching and factor-adjusted outputs remain separate:
-`3d_MatchedUncorrData.R` writes the matched-uncorrelated cache, and
-`3e_FactorAdjustedDMPrep.R` writes the risk-adjusted benchmark cache.
+`3a_PrepDMBenchmarks.R` owns the raw benchmark family, including the matched
+and matched-uncorrelated event-time panel stored in `raw_dm_benchmarks.RDS`.
+It writes the compact retained-pair table separately for S3a's individual-DM
+regressions. `3e_FactorAdjustedDMPrep.R` writes the risk-adjusted benchmark
+cache.
 
-The current matched-uncorrelated cache contains 12,666 retained pairs across
+The compact matched-uncorrelated table contains 12,666 retained pairs across
 137 predictors. The separately specified risk-adjusted benchmark contains
 57,173 CAPM-eligible and 47,603 FF4-eligible pairs.
 
@@ -102,6 +103,7 @@ The current matched-uncorrelated cache contains 12,666 retained pairs across
 | CZ-style-v8b MatchPub.RData               | 123 MB        | Removed; exactly replaced by dmcomp keys + on-demand LongShort joins |
 | 2b_MatchDataMinedToPub.R                  | source file   | Removed with the broad raw pair-month cache            |
 | 3a_ResearchVsDMPrep.R                     | source file   | Removed; replaced by 3a_PrepDMBenchmarks.R            |
+| matched_uncorr_benchmark.RDS              | 5 MB          | Removed; panel moved to raw benchmarks and pairs split out |
 ```
 
 ## Cleanup status

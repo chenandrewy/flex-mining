@@ -48,7 +48,7 @@ if (file.exists(dm_sumstats_path)) {
 }
 
 live_files <- c(
-  "2_DataMining.R", "3_Precompute.R", "3d_MatchedUncorrData.R",
+  "2_DataMining.R", "3_Precompute.R", "3a_PrepDMBenchmarks.R",
   "2d_RiskAdjustDataMinedSignals.R", "S5_BestPredictors.R",
   "S5a_InspectTables.R",
   "Appendices/SA10_ResearchVsDMRobustnessCorrelationsEtc.R"

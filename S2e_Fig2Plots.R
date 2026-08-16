@@ -4,7 +4,7 @@
 #
 # How to run: normally run through S2_ResearchVsDataMining.R from flex-mining/.
 # Inputs:  ../Data/Processed/{raw_dm_benchmarks,
-#          matched_uncorr_benchmark,risk_adjusted_dm_benchmarks}.RDS plus
+#          risk_adjusted_dm_benchmarks}.RDS plus
 #          published-signal metadata
 # Outputs (../Results/):
 #   Fig2a_FactorAdj.pdf            Fig2a_FactorAdj_CI.pdf
@@ -46,18 +46,17 @@ accounting_signals = czacct %>% filter(!drop) %>% pull(signalname)
 pre2003_signals = czcat %>% filter(Year < 2003) %>% pull(signalname)
 
 raw_benchmarks = readRDS('../Data/Processed/raw_dm_benchmarks.RDS')
-matched_benchmark = readRDS('../Data/Processed/matched_uncorr_benchmark.RDS')
 risk_benchmarks = readRDS('../Data/Processed/risk_adjusted_dm_benchmarks.RDS')
 
 stopifnot(
-  matched_benchmark$metadata$pair_count ==
-    sum(matched_benchmark$pairs$keep_matched_uncorr),
-  matched_benchmark$metadata$predictor_count ==
-    n_distinct(matched_benchmark$panel$pubname)
+  raw_benchmarks$metadata$matched$predictor_count ==
+    n_distinct(raw_benchmarks$matched$pubname),
+  raw_benchmarks$metadata$matched$panel_observation_count ==
+    nrow(raw_benchmarks$matched)
 )
 
 fig2_long = fig2_assemble_long(
-  raw_benchmarks, matched_benchmark, risk_benchmarks,
+  raw_benchmarks, risk_benchmarks,
   accounting_signals, pre2003_signals
 )
 fig2_agg = fig2_long %>%

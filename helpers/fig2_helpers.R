@@ -10,18 +10,15 @@
 # Compose the four Figure 2 panels from calculation-owned benchmark contracts.
 # Signal classifications are presentation-sample choices and therefore enter
 # here rather than being stored in a Chapter 3 benchmark artifact.
-fig2_assemble_long = function(raw_benchmarks, matched_benchmark,
-                              risk_benchmarks, accounting_signals,
+fig2_assemble_long = function(raw_benchmarks, risk_benchmarks, accounting_signals,
                               pre2003_signals) {
-  required_raw <- c("published", "accounting_t2", "accounting_top5", "ticker_top5")
+  required_raw <- c(
+    "published", "accounting_t2", "accounting_top5", "ticker_top5", "matched"
+  )
   if (!all(required_raw %in% names(raw_benchmarks))) {
     stop("Raw benchmark contract is missing: ",
          paste(setdiff(required_raw, names(raw_benchmarks)), collapse = ", "))
   }
-  if (is.null(matched_benchmark$panel)) {
-    stop("Matched benchmark contract has no panel.")
-  }
-
   published <- raw_benchmarks$published %>%
     select(pubname, eventDate, calendarDate, published_return = return)
 
@@ -53,7 +50,7 @@ fig2_assemble_long = function(raw_benchmarks, matched_benchmark,
                  "Pub, Pre-2003 Only", "DM, Pre-2003 Pubs")
   ) %>% mutate(panel = "b")
 
-  panel_c_wide <- matched_benchmark$panel
+  panel_c_wide <- raw_benchmarks$matched
   panel_c <- bind_rows(
     panel_c_wide %>% transmute(
       label = "Published", pubname, eventDate, calendarDate,

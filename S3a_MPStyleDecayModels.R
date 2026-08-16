@@ -1,9 +1,9 @@
-# Estimate Section 3 MP-style decay regressions on the canonical
-# matched-uncorr benchmark.
+# Estimate Section 3 MP-style decay regressions on the matched event-time panel
+# and compact retained-pair table produced by 3a_PrepDMBenchmarks.R.
 #
 # How to run: normally run through S3_Learning.R from flex-mining/.
-# Inputs:  ../Data/Processed/matched_uncorr_benchmark.RDS and the versioned
-#          LongShort.RData (for the individual-DM appendix regressions)
+# Inputs:  ../Data/Processed/{raw_dm_benchmarks,matched_uncorr_pairs}.RDS and
+#          the versioned LongShort.RData
 # Outputs: ../Data/Processed/mp_style_decay_models.RDS
 #
 # S3b_MPStyleDecayTables.R renders the cached models into TeX.
@@ -11,19 +11,25 @@
 rm(list = ls())
 source("0_Environment.R")
 
-benchmark_path <- "../Data/Processed/matched_uncorr_benchmark.RDS"
+benchmark_path <- "../Data/Processed/raw_dm_benchmarks.RDS"
+pair_path <- "../Data/Processed/matched_uncorr_pairs.RDS"
 benchmark <- readRDS(benchmark_path)
-panel <- benchmark$panel
-metadata <- benchmark$metadata
+panel <- benchmark$matched
+metadata <- benchmark$metadata$matched
+matched_pairs <- readRDS(pair_path) %>% setDT()
+pair_keys <- paste(matched_pairs$pubname, matched_pairs$matched_name, sep = "\t")
+pair_fingerprint <- digest::digest(
+  paste(pair_keys, collapse = "\n"), algo = "sha256", serialize = FALSE
+)
 
 stopifnot(
-  identical(metadata$short_name, "matched-uncorr"),
-  metadata$pair_count == sum(benchmark$pairs$keep_matched_uncorr),
+  metadata$pair_count == nrow(matched_pairs),
   metadata$predictor_count == dplyr::n_distinct(panel$pubname),
-  identical(sort(benchmark$surviving_predictors), sort(unique(panel$pubname)))
+  metadata$predictor_count == dplyr::n_distinct(matched_pairs$pubname),
+  identical(metadata$pair_fingerprint_sha256, pair_fingerprint)
 )
 cat(
-  "S3a matched-uncorr cache:", metadata$pair_count, "pairs,",
+  "S3a matched-uncorr inputs:", metadata$pair_count, "pairs,",
   metadata$predictor_count, "predictors, fingerprint",
   metadata$pair_fingerprint_sha256, "\n"
 )
@@ -106,10 +112,9 @@ stopifnot(
 # Cap at 100 pairs per predictor to keep this diagnostic model manageable.
 max_strats_per_pub <- 100L
 subsample_seed <- 42L
-matchinfo <- benchmark$pairs %>%
-  filter(keep_matched_uncorr) %>%
+matchinfo <- matched_pairs %>%
   select(pubname, matched_name, sign, rbar_insamp_matched,
-         sampstart, sampend, pubdate) %>%
+         sweight, sampstart, sampend, pubdate) %>%
   setDT()
 set.seed(subsample_seed)
 matchinfo <- matchinfo[, .SD[sample(.N, min(.N, max_strats_per_pub))], by = pubname]
@@ -117,12 +122,23 @@ matchinfo <- matchinfo[, .SD[sample(.N, min(.N, max_strats_per_pub))], by = pubn
 dm_path <- paste0(
   "../Data/Processed/", globalSettings$dataVersion, " LongShort.RData"
 )
-dm_rets <- readRDS(dm_path)$ret %>%
-  transmute(matched_name = signalid, calendarDate = yearm, raw_ret = ret) %>%
+dm_longshort <- readRDS(dm_path)
+dm_rets <- dm_longshort$ret %>%
+  left_join(
+    dm_longshort$port_list %>% select(portid, sweight),
+    by = "portid"
+  ) %>%
+  transmute(
+    matched_name = signalid,
+    sweight = tolower(sweight),
+    calendarDate = yearm,
+    raw_ret = ret
+  ) %>%
   setDT()
-dm_rets <- dm_rets[unique(matchinfo[, .(matched_name)]),
-                   on = "matched_name", nomatch = 0]
-dmPanel <- matchinfo[dm_rets, on = "matched_name",
+rm(dm_longshort)
+dm_rets <- dm_rets[unique(matchinfo[, .(matched_name, sweight)]),
+                   on = c("matched_name", "sweight"), nomatch = 0]
+dmPanel <- matchinfo[dm_rets, on = c("matched_name", "sweight"),
                      allow.cartesian = TRUE, nomatch = 0]
 rm(dm_rets, matchinfo); gc()
 
@@ -152,6 +168,7 @@ saveRDS(
   list(
     metadata = list(
       benchmark_path = benchmark_path,
+      pair_path = pair_path,
       pair_count = metadata$pair_count,
       predictor_count = metadata$predictor_count,
       pair_fingerprint_sha256 = metadata$pair_fingerprint_sha256,

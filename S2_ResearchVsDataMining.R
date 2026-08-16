@@ -22,7 +22,6 @@ required_files <- c(
   "../Data/Processed/dm_correlation_quantiles.RDS",
   "../Data/Processed/dm_pca_table.RDS",
   "../Data/Processed/raw_dm_benchmarks.RDS",
-  "../Data/Processed/matched_uncorr_benchmark.RDS",
   "../Data/Processed/risk_adjusted_dm_benchmarks.RDS"
 )
 missing_files <- required_files[!file.exists(required_files)]
