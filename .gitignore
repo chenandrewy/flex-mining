@@ -42,3 +42,6 @@ slides_*.tex
 slides_*.pdf
 
 .DS_Store
+
+# LaTeX preview build artifact
+LatexPreview/exhibits.pdf
