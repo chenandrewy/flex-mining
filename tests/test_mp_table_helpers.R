@@ -2,10 +2,19 @@
 #
 # How to run: from flex-mining/, run
 #   Rscript tests/test_mp_table_helpers.R
-# Inputs:  helpers/mp_table_helpers.R
+# Inputs:  the embedded table-rendering functions in S3b_MPStyleDecayTables.R
 # Outputs: temporary TeX files only; exits nonzero on failure.
 
-source("helpers/mp_table_helpers.R")
+required_functions <- c("make_combined_table", "write_combined_mp_tables")
+for (expression in parse("S3b_MPStyleDecayTables.R")) {
+  if (is.call(expression) &&
+      as.character(expression[[1]]) %in% c("<-", "=") &&
+      is.symbol(expression[[2]]) &&
+      as.character(expression[[2]]) %in% required_functions) {
+    eval(expression, envir = globalenv())
+  }
+}
+stopifnot(all(vapply(required_functions, exists, logical(1), mode = "function")))
 
 set.seed(42)
 n <- 240L
@@ -32,7 +41,7 @@ stopifnot(file.exists(main_path), file.exists(time_path))
 main_lines <- readLines(main_path)
 time_lines <- readLines(time_path)
 stopifnot(
-  identical(main_lines[[1]], "% GENERATED -- do not hand-edit (helpers/mp_table_helpers.R)."),
+  identical(main_lines[[1]], "% GENERATED -- do not hand-edit (S3b_MPStyleDecayTables.R)."),
   "\\begin{tabular}{lcccccc}" %in% main_lines,
   any(grepl("& (1) & (2) & (3) & (4) & (5) & (6)", main_lines, fixed = TRUE)),
   any(grepl("Signals          & 12 & 12 & 12 & 12 & 12 & 12", main_lines, fixed = TRUE)),

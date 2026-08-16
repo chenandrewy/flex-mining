@@ -16,6 +16,28 @@
 rm(list = ls())
 source("0_Environment.R")
 
+tic_kth_letter_port <- function(k) {
+  # create portfolio assignments
+  crsp2 <- copy(crsp)
+  crsp2[!is.na(lag_tic), `:=`(port = paste0("tic", k, substr(lag_tic, k, k)))]
+
+  # find EW and VW returns
+  port <- crsp2[!is.na(ret) & !is.na(port) & !is.na(lag_me),
+                .(
+                  ret_ew = mean(ret), ret_vw = weighted.mean(ret, lag_me),
+                  nstock = .N
+                ),
+                by = c("yearm", "port")
+  ] %>%
+    pivot_longer(
+      cols = c("ret_ew", "ret_vw"), names_to = "sweight", values_to = "ret",
+      names_prefix = "ret_"
+    ) %>%
+    setDT()
+
+  return(port)
+} # end tic_kth_letter_port
+
 # import crsp data
 crsp0 <- readRDS("../Data/Raw/crspm.RData")
 setDT(crsp0)

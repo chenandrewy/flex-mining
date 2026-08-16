@@ -1,8 +1,9 @@
 # Statistical helpers: summary stats, EZ-theme sorts, and PCA.
 #
-# Sourced by 0_Environment.R after packages and config.R. These functions
-# rely on objects from the sourcing environment (e.g. globalSettings and
-# chapter-local data frames); do not source this file in isolation.
+# How to run: source after 0_Environment.R from a DM summary or PCA producer.
+# Inputs: return vectors/panels supplied to the functions below; the EZ-theme
+#   sorter also uses its producer's chapter-local `yz_dt` object.
+# Outputs: in-memory summary statistics, sorted returns, and PCA summaries.
 
 
 

@@ -14,7 +14,7 @@
 rm(list = ls())
 pdf(NULL)
 source("0_Environment.R")
-source("helpers/risk_adjusted_helpers_tv.R")
+source("helpers/risk_adjusted_tables.R")
 
 t_threshold <- 2
 results_dir <- "../Results/RiskAdjusted/TstatFilter"

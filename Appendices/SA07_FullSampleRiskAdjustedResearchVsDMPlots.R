@@ -1,7 +1,6 @@
 # Render appendix-only full-sample CAPM/FF3 comparisons and grouped tables.
 #
-# How to run: normally run through SA_Appendices.R after
-#   SA07_FullSampleFactorAdjustedDMPrep.R.
+# How to run: normally run through SA_Appendices.R after 3_Precompute.R.
 # Inputs: raw_dm_benchmarks.RDS,
 #   appendix_full_sample_dm_benchmarks.RDS, and signal classifications
 # Outputs: Figure IA.1 PDFs, full-sample audit tables, and paper-facing TeX
@@ -10,7 +9,7 @@
 rm(list = ls())
 pdf(NULL)
 source("0_Environment.R")
-source("helpers/risk_adjusted_helpers_tv.R")
+source("helpers/risk_adjusted_tables.R")
 
 t_threshold <- 2
 full_path <- "../Data/Processed/appendix_full_sample_dm_benchmarks.RDS"

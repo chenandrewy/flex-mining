@@ -45,16 +45,17 @@ MAIN.R  (reads runStages from config.R)
 ```
 
 `S4b_RVsDM_ByGroup.R` owns the sample-specific source artifacts for Tables 6,
-7, and IA.10. The full-sample robustness tables and figures are owned wholly
-by the SA07 appendix preparation/rendering pair.
+7, and IA.10. Chapter 3 prepares the full-sample factor-adjusted contract;
+the SA07 appendix renderer owns its robustness tables and figures.
 
 Figure 2 consumes calculation-owned Chapter 3 contracts.
 `3a_PrepDMBenchmarks.R` writes `raw_dm_benchmarks.RDS`, which contains the raw
 mining variants and matched-uncorrelated event-time panel. Pair identities are
 kept in memory during preparation and recomputed in memory for Table B.1. Next,
-`3c_FactorAdjustedDMPrep.R` applies CAPM/FF4 to the exact same broad accounting
-`|t| > 2` pair universe and writes compact published and data-mined panels in
-`risk_adjusted_dm_benchmarks.RDS`; no broad pair-month cache is written.
+`3c_FactorAdjustedDMPrep.R` applies sample-specific CAPM/FF4 and full-sample
+CAPM/FF3 to the exact same broad accounting `|t| > 2` pair universe. It writes
+compact published and data-mined panels in the main and appendix benchmark
+contracts; no broad pair-month cache is written.
 `S2e_Fig2Plots.R` reads the raw and risk-adjusted benchmark files, imposes
 Figure-specific samples, computes rolling display statistics, and renders the
 four panels plus confidence-interval variants into `../Results/`.
@@ -191,7 +192,7 @@ The only paper number `MAIN.R` does not produce with an R script is:
   accounted for. (Fig. B.5a/B.5b are the two panels of Fig. B.5, already
   listed.)
 - In-chain scripts that produce no exhibit are upstream prep: chapter 2
-  (`2a` and `2c`), chapter 3 (`3a`–`3c`, reusable caches), Appendix SA07/SA11
-  factor and PCA preparation, and `Appendices/SA02`/`Appendices/SA05` (decay
+  (`2a` and `2c`), chapter 3 (`3a`–`3c`, reusable caches), Appendix SA11 PCA
+  preparation, and `Appendices/SA02`/`Appendices/SA05` (decay
   tables/plots outside the paper contract, e.g. for slides or the referee
   response).

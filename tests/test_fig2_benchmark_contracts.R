@@ -17,6 +17,7 @@ section_renderer <- readLines("S2a_ResearchVsDMPlots.R")
 stopifnot(
   any(grepl("raw_dm_benchmarks.RDS", raw_producer, fixed = TRUE)),
   any(grepl("risk_adjusted_dm_benchmarks.RDS", risk_producer, fixed = TRUE)),
+  any(grepl("appendix_full_sample_dm_benchmarks.RDS", risk_producer, fixed = TRUE)),
   any(grepl("matched = matched_panel", raw_producer, fixed = TRUE)),
   !any(grepl("matched_uncorr_pairs.RDS", raw_producer, fixed = TRUE)),
   any(grepl('run_script("3a_PrepDMBenchmarks.R")', precompute, fixed = TRUE)),
@@ -24,6 +25,7 @@ stopifnot(
   any(grepl('run_script("3c_FactorAdjustedDMPrep.R")', precompute, fixed = TRUE)),
   !file.exists("2d_RiskAdjustDataMinedSignals.R"),
   !file.exists("3e_FactorAdjustedDMPrep.R"),
+  !file.exists("Appendices/SA07_FullSampleFactorAdjustedDMPrep.R"),
   !file.exists("3a_ResearchVsDMPrep.R"),
   any(grepl("select_accounting_t2_pairs", raw_producer, fixed = TRUE)),
   any(grepl("select_accounting_t2_pairs", risk_producer, fixed = TRUE)),
@@ -83,6 +85,21 @@ if (file.exists(risk_path)) {
     identical(risk$metadata$base_universe, "accounting_t2"),
     identical(
       risk$metadata$base_pair_fingerprint_sha256,
+      raw$metadata$accounting_t2$pair_fingerprint_sha256
+    )
+  )
+}
+
+full_sample_path <- "../Data/Processed/appendix_full_sample_dm_benchmarks.RDS"
+if (file.exists(full_sample_path) && file.exists(raw_path)) {
+  full_sample <- readRDS(full_sample_path)
+  stopifnot(
+    all(c("capm", "ff3", "published_stats", "window_diagnostics", "metadata") %in%
+          names(full_sample)),
+    identical(full_sample$metadata$schema_version, 1L),
+    identical(full_sample$metadata$base_universe, "accounting_t2"),
+    identical(
+      full_sample$metadata$base_pair_fingerprint_sha256,
       raw$metadata$accounting_t2$pair_fingerprint_sha256
     )
   )

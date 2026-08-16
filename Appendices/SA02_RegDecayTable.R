@@ -3,6 +3,15 @@ rm(list = ls())
 source('0_Environment.R')
 library(multcomp) # for glht. Not loaded by default in environment because of conflicts (?)
 
+round_numbers_in_strings <- function(strings) {
+  pattern <- "\\d+\\.?\\d*"
+  vapply(strings, function(string) {
+    matched <- regmatches(string, regexpr(pattern, string))
+    rounded <- sprintf("%.1f", as.numeric(gsub("[^[:digit:].]", "", matched)))
+    gsub(pattern, rounded, string)
+  }, character(1))
+}
+
 # Load and prep data ------------------------------------------------------
 
 inclSignals = restrictInclSignals(restrictType = globalSettings$restrictType, 
