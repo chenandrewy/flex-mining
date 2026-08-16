@@ -2,8 +2,8 @@
 # Tables 3--4.
 #
 # How to run: normally run through 3_Precompute.R from flex-mining/.
-# Inputs:  <dataVersion> MatchPub.RData, dmcomp_sumstats.RDS, and published
-#          return/summary caches under ../Data/Processed
+# Inputs:  dmcomp_sumstats.RDS, the versioned LongShort.RData mined universe,
+#          and published return/summary caches under ../Data/Processed
 # Outputs: ../Data/Processed/matched_uncorr_benchmark.RDS
 #
 # "matched-uncorr" is the short code/artifact name. The benchmark matches each
@@ -14,11 +14,14 @@
 rm(list = ls())
 source("0_Environment.R")
 
-cache_path <- "../Data/Processed/matched_uncorr_benchmark.RDS"
-match_path <- paste0(
-  "../Data/Processed/", globalSettings$dataVersion, " MatchPub.RData"
+cache_path <- Sys.getenv(
+  "MATCHED_UNCORR_OUTPUT_PATH",
+  unset = "../Data/Processed/matched_uncorr_benchmark.RDS"
 )
 dm_sumstats_path <- "../Data/Processed/dmcomp_sumstats.RDS"
+dm_returns_path <- paste0(
+  "../Data/Processed/", globalSettings$dataVersion, " LongShort.RData"
+)
 
 inclSignals <- restrictInclSignals(
   restrictType = globalSettings$restrictType,
@@ -37,12 +40,16 @@ czsum <- readRDS("../Data/Processed/czsum_allpredictors.RDS") %>%
   ) %>%
   setDT()
 
-message("Loading the matched candidate-return cache (large file)...")
-match_cache <- readRDS(match_path)
-candidate_returns <- match_cache$candidateReturns %>%
-  filter(actSignal %in% czsum$pubname) %>%
-  setDT()
-rm(match_cache, czret_dates); gc()
+message("Selecting matched candidate pairs from the compact pair catalog...")
+dm_sumstats <- readRDS(dm_sumstats_path)$insampsum
+pair_catalog <- select_matched_dm_pairs(
+  dm_sumstats, pubnames = czsum$pubname
+)
+message("Materializing monthly returns for selected candidate pairs...")
+candidate_returns <- materialize_matched_dm_returns(
+  pair_catalog, dm_returns_path
+)
+rm(czret_dates); gc()
 
 # Pair-level diagnostics and the standing history floor. candidate_returns$ret
 # is already signed to align each mined strategy with its published target.
@@ -58,7 +65,7 @@ pairs <- candidate_returns[samptype == "insamp", .(
 ), by = .(pubname = actSignal, matched_name = candSignalname)]
 
 pairs <- merge(pairs, czsum, by = "pubname", all.x = TRUE)
-pair_correlations <- readRDS(dm_sumstats_path)$insampsum %>%
+pair_correlations <- dm_sumstats %>%
   transmute(
     pubname, sweight = tolower(sweight), matched_name = dmname,
     rho = cor * sign(rbar)
@@ -155,7 +162,7 @@ metadata <- list(
   pair_fingerprint_sha256 = digest::digest(
     paste(pair_keys, collapse = "\n"), algo = "sha256", serialize = FALSE
   ),
-  input_files = c(match_path, dm_sumstats_path,
+  input_files = c(dm_sumstats_path, dm_returns_path,
                   "../Data/Processed/czsum_allpredictors.RDS",
                   "../Data/Processed/czret_keeponly.RDS",
                   "../Data/Processed/ret_for_plot0.RDS")

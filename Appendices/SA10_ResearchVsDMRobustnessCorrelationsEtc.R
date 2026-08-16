@@ -1,7 +1,7 @@
 # Appendix exhibit: robustness comparisons of published and matched mined returns.
 #
 # How to run: normally run through SA_Appendices.R from flex-mining/.
-# Inputs:  chapter-2 matched returns/correlations and cleaned published returns
+# Inputs:  chapter-3 mined pair catalog, mined universe, and published returns
 # Outputs: ../Results/Fig_PublicationsVsDataMining_*.pdf
 
 rm(list = ls())
@@ -10,8 +10,6 @@ source('0_Environment.R')
 # x-axis range for all plots
 global_xl = -360  # x-axis lower bound
 global_xh = 300   # x-axis upper bound
-
-matchname = paste0('../Data/Processed/', globalSettings$dataVersion, ' MatchPub.RData')
 
 # Import and Clean Matched Data ------------------------------------------------------
 
@@ -36,21 +34,16 @@ czret = readRDS('../Data/Processed/czret_keeponly.RDS') %>%
   ) %>% 
   filter(signalname %in% inclSignals)
 
-# matched DM data
-tmp = readRDS(matchname)
-candidateReturns = tmp$candidateReturns
-user = tmp$user
-rm(tmp)
-
-# filter for Keep only
-candidateReturns = candidateReturns %>% 
-  filter(actSignal %in% (czsum %>% filter(Keep) %>% pull(signalname))) %>%
-  left_join(
-    czsum %>%
-      transmute(actSignal = signalname, sweight = tolower(sweight)) %>%
-      distinct(),
-    by = "actSignal"
-  )
+# Materialize only the matched pair-month returns required by this appendix.
+DMname <- paste0(
+  "../Data/Processed/", globalSettings$dataVersion, " LongShort.RData"
+)
+pairCatalog <- select_matched_dm_pairs(
+  readRDS("../Data/Processed/dmcomp_sumstats.RDS")$insampsum,
+  pubnames = czsum$signalname
+)
+candidateReturns <- materialize_matched_dm_returns(pairCatalog, DMname)
+rm(pairCatalog); gc()
 
 # Normalize candidate returns
 

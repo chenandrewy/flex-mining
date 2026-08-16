@@ -32,8 +32,9 @@ emits no exhibit.
 ```
 MAIN.R  (reads runStages from config.R)
   1_Download_and_Clean.R, 1a_ValidDenoms.R          [chapter 1; off by default]
-  2_DataMining.R            -> 2a 2b 2c 2d           [chapter 2; off by default]
-  3_Precompute.R            -> 3a 3b 3c 3d_MatchedUncorr 3e_FactorAdjusted 3f
+  2_DataMining.R            -> 2a 2c                  [chapter 2; off by default]
+  3_Precompute.R            -> 3a 2d_RiskAdjust 3b 3c 3d_MatchedUncorr
+                               3e_FactorAdjusted 3f
                                                         (prep caches; no exhibits)
   S2_ResearchVsDataMining.R -> S2a S2b S2c S2d S2e
   S3_Learning.R             -> S3a S3b
@@ -52,7 +53,8 @@ Figure 2 consumes three calculation-owned Chapter 3 contracts:
 `3a_PrepDMBenchmarks.R` writes raw mining variants,
 `3d_MatchedUncorrData.R` writes the canonical matched-uncorr pair panel, and
 `3e_FactorAdjustedDMPrep.R` writes CAPM/FF4 published and data-mined
-benchmarks from the legacy risk-adjusted pair cache. Raw and risk-adjusted
+benchmarks from the risk-adjusted pair cache regenerated after `3a` from the
+compact pair catalog. Raw and risk-adjusted
 preparation remain separate calculation paths. `S2e_Fig2Plots.R` imposes
 Figure-specific samples, computes rolling
 display statistics, and renders the four panels plus confidence-interval

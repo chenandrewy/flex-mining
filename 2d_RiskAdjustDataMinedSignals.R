@@ -1,5 +1,13 @@
-# Risk-adjust data-mined signals using CAPM, FF3, and FF4 (Carhart)
-# Uses matched DM signals from 2b_MatchDataMinedToPub.R
+# Risk-adjust data-mined signals using CAPM, FF3, and FF4 (Carhart).
+#
+# How to run: normally run through 3_Precompute.R after 3a has written
+#   dmcomp_sumstats.RDS.
+# Inputs:  dmcomp_sumstats.RDS, the versioned LongShort.RData mined universe,
+#          published sample metadata, and Fama-French factors
+# Outputs: versioned MatchPubRiskAdjusted.RData and MatchedRiskAdjSummary.RData
+#
+# Matched pair-month returns are materialized on demand; no raw MatchPub cache
+# is read or written.
 # Computes full-sample betas (from sampstart onwards) for each DM signal
 #
 # FIXED: Time-varying beta/alpha consistency with published signals
@@ -36,9 +44,15 @@ czsum = readRDS('../Data/Processed/czsum_allpredictors.RDS') %>%
   filter(signalname %in% inclSignals, Keep) %>%
   select(signalname, sampstart, sampend)
 
-# Load matched DM returns
-matchdat = readRDS(paste0('../Data/Processed/', DMshortname, ' MatchPub.RData'))
-candidateReturns = matchdat$candidateReturns
+# Select matched pairs from the compact catalog and materialize their returns.
+pair_catalog <- select_matched_dm_pairs(
+  readRDS("../Data/Processed/dmcomp_sumstats.RDS")$insampsum,
+  t_reltol = globalSettings$risk_adjusted_t_reltol,
+  r_reltol = globalSettings$risk_adjusted_r_reltol,
+  pubnames = czsum$signalname
+)
+candidateReturns <- materialize_matched_dm_returns(pair_catalog, DMname)
+rm(pair_catalog); gc()
 
 # Load Fama-French factors
 FamaFrenchFactors <- readRDS('../Data/Raw/FamaFrenchFactors.RData') %>%
@@ -244,22 +258,6 @@ saveRDS(candidateReturns,
 
 print(paste("Risk-adjusted DM returns saved to:", 
             paste0('../Data/Processed/', DMshortname, ' MatchPubRiskAdjusted.RData')))
-
-# Also save just the coefficients for easy access
-dm_coefficients <- candidateReturns %>%
-  group_by(actSignal, candSignalname) %>%
-  slice(1) %>%
-  select(actSignal, candSignalname,
-         beta_capm, beta_ff3, s_ff3, h_ff3, beta_ff4, s_ff4, h_ff4, u_ff4,  # Full sample
-         beta_capm_is, beta_ff3_is, s_ff3_is, h_ff3_is, beta_ff4_is, s_ff4_is, h_ff4_is, u_ff4_is,  # In-sample
-         beta_capm_post, beta_ff3_post, s_ff3_post, h_ff3_post, beta_ff4_post, s_ff4_post, h_ff4_post, u_ff4_post) %>%  # Post-sample
-  ungroup()
-
-saveRDS(dm_coefficients,
-        file = paste0('../Data/Processed/', DMshortname, ' MatchPubCoefficients.RData'))
-
-print(paste("Risk coefficients saved to:", 
-            paste0('../Data/Processed/', DMshortname, ' MatchPubCoefficients.RData')))
 
 # Also save summary statistics for matched returns ------------------------
 

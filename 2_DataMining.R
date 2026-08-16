@@ -1,9 +1,9 @@
-# Chapter 2 driver: construct and match data-mined strategies.
+# Chapter 2 driver: construct the accounting and ticker mined universes.
 #
 # How to run: set the working directory to flex-mining/, then
 #   Rscript 2_DataMining.R
 # Inputs:  cleaned chapter-1 inputs
-# Outputs: core mined-strategy and matched-return caches in ../Data/Processed
+# Outputs: core mined-strategy caches in ../Data/Processed
 #
 # 2a takes roughly two hours. Each child runs in a separate R process so the
 # allocator's high-water memory is returned to the operating system between
@@ -18,6 +18,4 @@ run_script <- function(path) {
 }
 
 run_script("2a_CompustatToLongshort.R")
-run_script("2b_MatchDataMinedToPub.R")
 run_script("2c_TickerToLongshort.R")
-run_script("2d_RiskAdjustDataMinedSignals.R")

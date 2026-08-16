@@ -9,7 +9,7 @@ producer <- readLines("3d_MatchedUncorrData.R")
 figure_consumer <- readLines("S2e_Fig2Plots.R")
 table_consumer <- readLines("S3a_MPStyleDecayModels.R")
 appendix_consumer <- readLines("Appendices/SA10_ResearchVsDMRobustnessCorrelationsEtc.R")
-match_producer <- readLines("2b_MatchDataMinedToPub.R")
+matching_helpers <- readLines("helpers/matching.R")
 precompute <- readLines("3_Precompute.R")
 appendix_driver <- readLines("SA_Appendices.R")
 
@@ -23,8 +23,13 @@ stopifnot(
   !any(grepl("MatchPub.RData|PairwiseCorrelationsActualAndMatches|plotdat0\\$comp_matched",
              table_consumer)),
   !any(grepl("PairwiseCorrelationsActualAndMatches", c(
-    producer, appendix_consumer, match_producer, precompute, appendix_driver
+    producer, appendix_consumer, matching_helpers, precompute, appendix_driver
   ), fixed = TRUE)),
+  !any(grepl("MatchPub.RData", c(
+    producer, appendix_consumer, precompute, appendix_driver
+  ), fixed = TRUE)),
+  any(grepl("select_matched_dm_pairs", matching_helpers, fixed = TRUE)),
+  any(grepl("materialize_matched_dm_returns", matching_helpers, fixed = TRUE)),
   any(grepl("rho = cor * sign(rbar)", producer, fixed = TRUE)),
   any(grepl("rho = cor * sign(rbar)", appendix_consumer, fixed = TRUE))
 )
