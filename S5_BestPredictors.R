@@ -2,7 +2,7 @@
 #
 # How to run: set the working directory to flex-mining/, then
 #   Rscript S5_BestPredictors.R
-# Inputs:  cleaned published returns and chapter-2 matched mined strategies
+# Inputs:  cleaned published returns and chapter-3 mined-strategy pair catalog
 # Outputs: Section 5 inspect-*.tex tables under ../Results
 
 settings_env <- new.env(parent = globalenv())
@@ -14,7 +14,7 @@ required_files <- c(
   "../Data/Processed/czsum_allpredictors.RDS",
   "../Data/Processed/czret_keeponly.RDS",
   paste0(version_prefix, " LongShort.RData"),
-  paste0(version_prefix, " MatchPub.RData")
+  "../Data/Processed/dmcomp_sumstats.RDS"
 )
 rm(settings_env)
 
@@ -24,6 +24,10 @@ if (length(missing_files) > 0) {
     "Missing Section 5 input(s): ", paste(missing_files, collapse = ", "),
     ". Run the required upstream chapter first."
   )
+}
+if ("--preflight-only" %in% commandArgs(trailingOnly = TRUE)) {
+  message("Section 5 preflight passed.")
+  quit(save = "no", status = 0)
 }
 
 run_script <- function(path) {

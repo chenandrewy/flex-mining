@@ -17,9 +17,7 @@ required_files <- c(
   "../Data/Processed/czsum_allpredictors.RDS",
   "../Data/Processed/czret_keeponly.RDS",
   paste0(version_prefix, " LongShort.RData"),
-  paste0(version_prefix, " MatchPub.RData"),
-  paste0(version_prefix, " MatchPubRiskAdjusted.RData"),
-  "../Data/Processed/PairwiseCorrelationsActualAndMatches.RDS",
+  "../Data/Raw/FamaFrenchFactors.RData",
   "../Data/Processed/ticker_Harvey2017JF.RDS"
 )
 rm(settings_env)
@@ -31,6 +29,10 @@ if (length(missing_files) > 0) {
     ". Run the required upstream chapter before 3_Precompute.R."
   )
 }
+if ("--preflight-only" %in% commandArgs(trailingOnly = TRUE)) {
+  message("Chapter 3 preflight passed.")
+  quit(save = "no", status = 0)
+}
 
 run_script <- function(path) {
   message("\n--- Chapter 3: ", path, " ---")
@@ -40,9 +42,9 @@ run_script <- function(path) {
   }
 }
 
-run_script("3a_ResearchVsDMPrep.R")
+run_script("3a_PrepDMBenchmarks.R")
+run_script("2d_RiskAdjustDataMinedSignals.R")
 run_script("3b_DataMiningSummary.R")
 run_script("3c_DMCorrelationsPCA.R")
-run_script("3d_MatchedUncorrData.R")
-run_script("3d_Fig2Data.R")
-run_script("3e_DMSpanPCA.R")
+run_script("3e_FactorAdjustedDMPrep.R")
+run_script("3f_DMSpanPCA.R")

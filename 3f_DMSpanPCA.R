@@ -3,8 +3,7 @@
 # How to run: source from 3_Precompute.R with the working directory set to
 #   flex-mining/.
 # Inputs:  chapter-2 mined strategies and cleaned published-signal data
-# Outputs: ../Data/Processed/dm_pca_span_classification.RDS
-#          ../Data/Processed/dm_span_analysis.RDS
+# Outputs: ../Data/Processed/dm_span_analysis.RDS
 #
 # Exhibit rendering is owned by Appendices/SA11_DMSpanPCAPlots.R.
 
@@ -15,41 +14,21 @@ source("0_Environment.R")
 library(doParallel)
 
 
-## User Settings ------------------------------------------------
+## Settings -----------------------------------------------------
 
-# in serial, 300 strats in 6 sec, 30000 in 17 hours
-# with 4 cores, 1500 strats in 20 sec, 30000 strats in 2.5 hours
-# for 6000 strats, minutes  = 6000^2/1500^2 * 20/60 = 5
-
-# number of cores
-ncores = globalSettings$num_cores
-
-# name of compustat LS file
-dmcomp <- list()
-dmcomp$name <- paste0('../Data/Processed/',
-                      globalSettings$dataVersion, 
-                      ' LongShort.RData')
+# Compustat mined-strategy file
+dm_path <- paste0(
+  "../Data/Processed/", globalSettings$dataVersion, " LongShort.RData"
+)
 
 # maximum correlation (signed)
 # For ref, cor(ret BMdec, ret diff(at)/lag(at)) = -0.64
 maxcor = 0.5
 
-# Settings for correlation computation
-# in serial, 300 strats in 6 sec, 30000 in 17 hours
-# with 4 cores, 1500 strats in 20 sec, 30000 strats in 2.5 hours
-# for 6000 strats, minutes  = 6000^2/1500^2 * 20/60 = 5
-# for now, limit to n_dm_for_cor strats sorted by in-samp abs(tstat)
-n_dm_for_cor = 6000 
-
-# Plot settings
-plotdat <- list()
-
-plotdat$name <- "t_min_2"
-plotdat$legprefix = "|t|>2.0"
-plotdat$npubmax = Inf
-plotdat$use_sign_info = TRUE
-
-plotdat$matchset <- list(
+# Matching settings
+npubmax <- Inf
+use_sign_info <- TRUE
+match_screen <- list(
   # tolerance in levels
   t_tol = globalSettings$t_tol,
   r_tol = globalSettings$r_tol,
@@ -75,47 +54,17 @@ czsum <- readRDS("../Data/Processed/czsum_allpredictors.RDS") %>%
     filter(signalname %in% inclSignals) %>% 
     setDT()
 
-czcat <- fread("DataInput/SignalsTheoryChecked.csv") %>%
-    select(signalname, Year, theory) %>% 
-    filter(signalname %in% inclSignals) 
-
 czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
-  left_join(czcat, by = "signalname") %>% 
-  filter(signalname %in% inclSignals) %>% 
+  filter(signalname %in% inclSignals) %>%
   mutate(ret_scaled = ret / rbar * 100)
-
-## dm signal descriptions ---------------------------------------
-
-# read compustat acronyms
-dmdoc = readRDS(dmcomp$name)$signal_list %>%  setDT() 
-yzdoc = readxl::read_xlsx('DataInput/Yan-Zheng-Compustat-Vars.xlsx') %>% 
-  transmute(acronym = tolower(acronym), longname , shortername ) %>% 
-  setDT() 
-
-# merge
-dmdoc = dmdoc[ , signal_form := if_else(signal_form == 'diff(v1)/lag(v2)', 'd_', '')] %>% 
-  merge(yzdoc[,.(acronym,shortername)], by.x = 'v1', by.y = 'acronym') %>%
-  rename(v1long = shortername) %>%
-  merge(yzdoc[,.(acronym,shortername)], by.x = 'v2', by.y = 'acronym') %>%
-  rename(v2long = shortername) 
-
-# create link table
-dm_linktable = expand_grid(sweight = c('ew','vw'), dmname =  dmdoc$signalid) %>% 
-  mutate(dmcode = paste0(sweight, '|', dmname))  %>% 
-  left_join(dmdoc, by = c('dmname' = 'signalid')) %>%
-  mutate(desc = paste0(substr(dmcode,1,3), signal_form, v1long, '/', v2long)
-    , shortdesc = paste0(substr(dmcode,1,3), signal_form, v1, '/', v2)) %>% 
-  setDT()
-
-rm('dmdoc', 'yzdoc')
 
 # Generate Compustat DM sumstats --------------------------------
 
 print("creating Compustat mining in-sample sumstats")
 print("Takes about 4 minutes using 4 cores")
 start_time <- Sys.time()
-dmcomp$insampsum <- sumstats_for_DM_Strats(
-  DMname = dmcomp$name,
+dm_insamp_sum <- sumstats_for_DM_Strats(
+  DMname = dm_path,
   nsampmax = Inf
 )
 print("finished")
@@ -123,35 +72,25 @@ stop_time <- Sys.time()
 stop_time - start_time
 
 
-# Create dmpred: matched dm strats and spanning cat -----------------------
+# Select matched DM strategies and classify correlation spanning ----------
 
 ## Select strats -----------------------
 
-# notation follows make_ret_for_plotting function
-# not sure it's optimal here
-dmpred = list()
-dmpred$matched <- SelectDMStrats(dmcomp$insampsum, plotdat$matchset)
-dmpred$unique_match = dmpred$matched %>% 
-  .[,.(mean_tabs = mean(abs(tstat)), npubmatch = .N), by = c('sweight', 'dmname')]
+matched_strategies <- SelectDMStrats(dm_insamp_sum, match_screen)
 
 ## Loop -----------------------
-# make list of samples
-samplist <- czsum %>%
-    distinct(sampstart, sampend) %>%
-    arrange(sampstart, sampend)
-
 # mark dm strats that are spanned by current pub or previous pub
-sampendlist = samplist$sampend %>% sort() %>% unique()
+sampendlist <- sort(unique(czsum$sampend))
 
 for (i in 1:length(sampendlist)){
 
   # initialize
   if (i==1) {
-    spanned = data.table(); dmpred$matched$spanned_ever = FALSE
+    spanned = data.table(); matched_strategies$spanned_ever = FALSE
   }
   
   # find sweight, dmnames that are spanned now
-  spanned_now = dmpred$matched[sampend == sampendlist[i]] %>% 
+  spanned_now = matched_strategies[sampend == sampendlist[i]] %>%
     filter(sign(rbar)*cor > maxcor) %>% 
     mutate(sampend = sampendlist[i]) %>%
     select(sampend, sweight, dmname) 
@@ -161,75 +100,25 @@ for (i in 1:length(sampendlist)){
 
   # mark ew dm strats that have ever been spanned
   badlist_ew = spanned[sampend <= sampendlist[i] & sweight == 'ew']$dmname
-  dmpred$matched[sampend == sampendlist[i] & sweight == 'ew'
+  matched_strategies[sampend == sampendlist[i] & sweight == 'ew'
     , spanned_ever := dmname %in% badlist_ew]
 
   # mark vw dm strats that have ever been spanned
   badlist_vw = spanned[sampend <= sampendlist[i] & sweight == 'vw']$dmname
-  dmpred$matched[sampend == sampendlist[i] & sweight == 'vw'
+  matched_strategies[sampend == sampendlist[i] & sweight == 'vw'
     , spanned_ever := dmname %in% badlist_vw]
   
 } # end for i in 1:length sampendlist
-
-# Compute correlations ---------------------------------------
-# used only for the clustering, not for the decay chart
-
-## Data setup --------------------------------------------------
-# read in DM strats (only used in this section)
-DMname <- paste0(
-    "../Data/Processed/",
-    globalSettings$dataVersion,
-    " LongShort.RData"
-)
-dm_rets <- readRDS(DMname)$ret
-dm_info <- readRDS(DMname)$port_list
-
-dm_rets <- dm_rets %>%
-    left_join(
-        dm_info %>% select(portid, sweight),
-        by = c("portid")
-    ) %>%
-    transmute(
-        sweight,
-        dmname = signalid, yearm, ret, nstock_long, nstock_short
-    ) %>%
-    setDT()
-
-# tighten up for leaner correlation computation
-dm_rets[, id := paste0(sweight, '|', dmname)][
-  , ':=' (sweight = NULL, dmname = NULL)]
-setcolorder(dm_rets, c('id', 'yearm', 'ret'))
-
-# filter based on mean(abs(tstat)) for now
-# tbc: compute all correlations, perhaps in a different file
-stratlist = dmcomp$insampsum[
-  min_nstock_long >= 10 & min_nstock_short >= 10 & abs(tstat) > 2
-  , .(mean_tabs = mean(abs(tstat)), npubmatch = .N)
-  , by = c('sweight', 'dmname')
-] %>% 
-  mutate(id = paste0(sweight, '|', dmname)) %>%
-  select(id, mean_tabs, npubmatch) %>%
-  arrange(-mean_tabs) %>% 
-  head(n_dm_for_cor) %>% 
-  arrange(id)
-
-dm_rets = dm_rets[id %in% stratlist$id]
 
 library(pcaMethods)
 
 print("Running span against PCA")
 print("Takes about 2 hours using 4 cores")
 print("It can probably be way faster")
-pca_span_dt <- adj_R2_with_PPCA(  DMname = dmcomp$name,
+pca_span_dt <- adj_R2_with_PPCA(  DMname = dm_path,
                                   nsampmax = Inf)
-saveRDS(pca_span_dt, "../Data/Processed/dm_pca_span_classification.RDS")
 pca_span_dt[, spanned_pca :=  ifelse(N_pca > 30 & adj_r2 > 0.25, TRUE, FALSE)]
 
-pca_span_dt[, spanned_pca_ever_end := any(spanned_pca), by = .(sweight, dmname)]
-pca_span_dt[spanned_pca_ever_end == FALSE,
-            paste(sweight, dmname) %>%
-              unique() %>% length()]/pca_span_dt[,
-                paste(sweight, dmname) %>% unique() %>% length()]
 pca_span_dt %>% setorder(dmname, sweight, sampend)
 
 pca_span_dt[, spanned_ever:= as.logical(cummax(as.integer(spanned_pca))), by = .(dmname, sweight)]
@@ -238,7 +127,7 @@ pca_span_dt[, spanned_ever:= as.logical(cummax(as.integer(spanned_pca))), by = .
 dt_with_spanned_ever <- pca_span_dt[
   , .(sweight, dmname, sampstart, sampend, adj_r2,
       npcs, N_pca, spanned_pca, spanned_ever)][
-    dmpred$matched, on = c('dmname', 'sampstart', 'sampend', 'sweight'  )]
+    matched_strategies, on = c('dmname', 'sampstart', 'sampend', 'sweight'  )]
 
 #####################################
 # PCA
@@ -250,59 +139,54 @@ print("Making spanned accounting event time returns")
 print("Can take a few minutes...")
 start_time <- Sys.time()
 
-dmpred$event_time <- make_DM_event_returns(
-  DMname = dmcomp$name, match_strats = dt_with_spanned_ever[spanned_ever==TRUE]
-  , npubmax = plotdat$npubmax, 
-  czsum = czsum, use_sign_info = plotdat$use_sign_info
+pca_spanned_event_time <- make_DM_event_returns(
+  DMname = dm_path, match_strats = dt_with_spanned_ever[spanned_ever == TRUE],
+  npubmax = npubmax, czsum = czsum, use_sign_info = use_sign_info
 )
 stop_time <- Sys.time()
 print(stop_time - start_time)
-
-plotdat$comp_matched <- dt_with_spanned_ever[spanned_ever==TRUE]
-plotdat$comp_event_time <- dmpred$event_time
 
 # Plot decay t > t op --------------------------------------------------
 
 print("Making unspanned accounting event time returns t > t op")
 print("Can take a few minutes...")
 start_time <- Sys.time()
-dmpred$event_time <- make_DM_event_returns(
-  DMname = dmcomp$name, match_strats = dt_with_spanned_ever[spanned_ever==FALSE  & abs(tstat) > tstat_op]
-  , npubmax = plotdat$npubmax, 
-  czsum = czsum, use_sign_info = plotdat$use_sign_info
+pca_unspanned_gt_event_time <- make_DM_event_returns(
+  DMname = dm_path,
+  match_strats = dt_with_spanned_ever[
+    spanned_ever == FALSE & abs(tstat) > tstat_op
+  ],
+  npubmax = npubmax, czsum = czsum, use_sign_info = use_sign_info
 )
 stop_time <- Sys.time()
 print(stop_time - start_time)
-
-plotdat$unspan_matched_t_g <- dt_with_spanned_ever[spanned_ever==FALSE   & abs(tstat) > tstat_op]
-plotdat$unspan_event_time_t_g <- dmpred$event_time
 
 print("Making unspanned accounting event time returns t < t op")
 print("Can take a few minutes...")
 start_time <- Sys.time()
-dmpred$event_time <- make_DM_event_returns(
-  DMname = dmcomp$name, match_strats = dt_with_spanned_ever[spanned_ever==FALSE  & abs(tstat) <= tstat_op]
-  , npubmax = plotdat$npubmax, 
-  czsum = czsum, use_sign_info = plotdat$use_sign_info
+pca_unspanned_le_event_time <- make_DM_event_returns(
+  DMname = dm_path,
+  match_strats = dt_with_spanned_ever[
+    spanned_ever == FALSE & abs(tstat) <= tstat_op
+  ],
+  npubmax = npubmax, czsum = czsum, use_sign_info = use_sign_info
 )
 stop_time <- Sys.time()
 print(stop_time - start_time)
-
-plotdat$unspan_matched_t_l <- dt_with_spanned_ever[spanned_ever==FALSE & abs(tstat) <= tstat_op]
-plotdat$unspan_event_time_t_l <- dmpred$event_time
-
 
 # join and reformat for plotting function
 ret_for_plotting_pca <- czret %>%
   transmute(pubname = signalname, eventDate, ret = ret_scaled) %>%
   left_join(
-    plotdat$comp_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
+    pca_spanned_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
   ) %>%
   left_join(
-    plotdat$unspan_event_time_t_g %>% transmute(pubname, eventDate, matchRetAlt = dm_mean)
+    pca_unspanned_gt_event_time %>%
+      transmute(pubname, eventDate, matchRetAlt = dm_mean)
   ) %>%
   left_join(
-    plotdat$unspan_event_time_t_l %>% transmute(pubname, eventDate, newRet = dm_mean)
+    pca_unspanned_le_event_time %>%
+      transmute(pubname, eventDate, newRet = dm_mean)
   ) %>%
   select(eventDate, ret, matchRet, matchRetAlt, newRet, pubname) %>%
   # keep only rows where both matchrets are observed
@@ -318,75 +202,60 @@ ret_for_plotting_pca <- czret %>%
 print("Making spanned accounting event time returns")
 print("Can take a few minutes...")
 start_time <- Sys.time()
-dmpred$event_time <- make_DM_event_returns(
-  DMname = dmcomp$name, match_strats = dmpred$matched[spanned_ever==TRUE]
-  , npubmax = plotdat$npubmax, 
-  czsum = czsum, use_sign_info = plotdat$use_sign_info
+corr_spanned_event_time <- make_DM_event_returns(
+  DMname = dm_path, match_strats = matched_strategies[spanned_ever == TRUE],
+  npubmax = npubmax, czsum = czsum, use_sign_info = use_sign_info
 )
 stop_time <- Sys.time()
 print(stop_time - start_time)
-
-plotdat$comp_matched_cor <- dmpred$matched[spanned_ever==TRUE]
-plotdat$comp_event_time_cor <- dmpred$event_time
 
 # Plot decay t > t op --------------------------------------------------
 
 print("Making unspanned accounting event time returns t > t op")
 print("Can take a few minutes...")
 start_time <- Sys.time()
-dmpred$event_time <- make_DM_event_returns(
-  DMname = dmcomp$name, match_strats = dmpred$matched[spanned_ever==FALSE  & abs(tstat) > tstat_op]
-  , npubmax = plotdat$npubmax, 
-  czsum = czsum, use_sign_info = plotdat$use_sign_info
+corr_unspanned_gt_event_time <- make_DM_event_returns(
+  DMname = dm_path,
+  match_strats = matched_strategies[
+    spanned_ever == FALSE & abs(tstat) > tstat_op
+  ],
+  npubmax = npubmax, czsum = czsum, use_sign_info = use_sign_info
 )
 stop_time <- Sys.time()
 print(stop_time - start_time)
-
-plotdat$unspan_matched_t_g_cor <- dmpred$matched[spanned_ever==FALSE   & abs(tstat) > tstat_op]
-plotdat$unspan_event_time_t_g_cor <- dmpred$event_time
 
 print("Making unspanned accounting event time returns t < t op")
 print("Can take a few minutes...")
 start_time <- Sys.time()
-dmpred$event_time <- make_DM_event_returns(
-  DMname = dmcomp$name, match_strats = dmpred$matched[spanned_ever==FALSE  & abs(tstat) <= tstat_op]
-  , npubmax = plotdat$npubmax, 
-  czsum = czsum, use_sign_info = plotdat$use_sign_info
+corr_unspanned_le_event_time <- make_DM_event_returns(
+  DMname = dm_path,
+  match_strats = matched_strategies[
+    spanned_ever == FALSE & abs(tstat) <= tstat_op
+  ],
+  npubmax = npubmax, czsum = czsum, use_sign_info = use_sign_info
 )
 stop_time <- Sys.time()
 print(stop_time - start_time)
-
-plotdat$unspan_matched_t_l_cor <- dmpred$matched[spanned_ever==FALSE & abs(tstat) <= tstat_op]
-plotdat$unspan_event_time_t_l_cor <- dmpred$event_time
-
 
 # join and reformat for plotting function
 ret_for_plotting_cor <- czret %>%
   transmute(pubname = signalname, eventDate, ret = ret_scaled) %>%
   left_join(
-    plotdat$comp_event_time_cor %>% transmute(pubname, eventDate, matchRet = dm_mean)
+    corr_spanned_event_time %>% transmute(pubname, eventDate, matchRet = dm_mean)
   ) %>%
   left_join(
-    plotdat$unspan_event_time_t_g_cor %>% transmute(pubname, eventDate, matchRetAlt = dm_mean)
+    corr_unspanned_gt_event_time %>%
+      transmute(pubname, eventDate, matchRetAlt = dm_mean)
   ) %>%
   left_join(
-    plotdat$unspan_event_time_t_l_cor %>% transmute(pubname, eventDate, newRet = dm_mean)
+    corr_unspanned_le_event_time %>%
+      transmute(pubname, eventDate, newRet = dm_mean)
   ) %>%
   select(eventDate, ret, matchRet, matchRetAlt, newRet, pubname) %>%
   # keep only rows where both matchrets are observed
   filter(!is.na(matchRet) & !is.na(matchRetAlt))
 
 # Describe spanning over time -----------------------------------
-# Convert sampendlist to Date objects assuming all dates are the first of the month
-# make list of samples
-samplist <- czsum %>%
-  distinct(sampstart, sampend) %>%
-  arrange(sampstart, sampend)
-
-# mark dm strats that are spanned by current pub or previous pub
-sampendlist = samplist$sampend %>% sort() %>% unique()
-# sampendlist <- as.Date(paste0(sampendlist, "-01"), format="%b %Y-%d")
-
 # Initialize an empty data frame to store the results
 tab_span2 <- data.table(sampend = character(),
                         n_dm_tg2 = integer(),
@@ -399,7 +268,7 @@ tab_span2 <- data.table(sampend = character(),
 for (sampend_loop in sampendlist %>% as.character()) {
   print(sampend_loop)
   # Subset data up to the current sampend
-  data_subset <- dmpred$matched[sampend <= sampend_loop, ]
+  data_subset <- matched_strategies[sampend <= sampend_loop, ]
   
   # Calculate the total number of strategies
   n_dm_tg2 <- nrow(unique(data_subset[, .(sweight, dmname)]))
@@ -426,16 +295,6 @@ tab_span2$sampend <- dmy(paste("01", tab_span2$sampend))
 #####################################
 # PCA
 #####################################
-
-# Convert sampendlist to Date objects assuming all dates are the first of the month
-# make list of samples
-samplist <- czsum %>%
-  distinct(sampstart, sampend) %>%
-  arrange(sampstart, sampend)
-
-# mark dm strats that are spanned by current pub or previous pub
-sampendlist = samplist$sampend %>% sort() %>% unique()
-# sampendlist <- as.Date(paste0(sampendlist, "-01"), format="%b %Y-%d")
 
 # Initialize an empty data frame to store the results
 tab_span_pca <- data.table(sampend = character(),

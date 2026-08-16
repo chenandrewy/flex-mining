@@ -3,11 +3,12 @@
 Which script builds each paper exhibit, whether `MAIN.R` rebuilds its
 calculation and paper artifact, and whether the manuscript consumes it.
 
-- **Contract:** for live writing the paper source repository reads its exhibits
-  from top-level `../Results/` (`\exhibitspath` points there); a snapshot
-  `exhibits/` directory in the writing repo mirrors the referenced basenames for
-  arXiv packaging. As of this merge that snapshot holds 56 files, all referenced
-  by `sections/*.tex` and all R-generated — the Section 3 MP-style tables
+- **Contract:** analysis scripts write paper artifacts to top-level
+  `../Results/`. For live writing, the paper source repository sets
+  `\exhibitspath` to `../../Results`; its `exhibits/` directory mirrors the
+  referenced basenames for arXiv packaging. The current snapshot holds 56 files,
+  all referenced by `sections/*.tex` and all R-generated — the Section 3
+  MP-style tables
   (`Table_MPStyleRegs{NoTimeFE,TimeFE,IndividualDM}.tex`) and the six S4b
   risk-adjusted tables included. No hand-formatted `HandTable` MP-style variants
   remain; the one hand-transcribed number (Table IA.9) is pasted inline in the
@@ -32,8 +33,8 @@ emits no exhibit.
 ```
 MAIN.R  (reads runStages from config.R)
   1_Download_and_Clean.R, 1a_ValidDenoms.R          [chapter 1; off by default]
-  2_DataMining.R            -> 2a 2b 2c 2d           [chapter 2; off by default]
-  3_Precompute.R            -> 3a 3b 3c 3d_MatchedUncorr 3d_Fig2 3e
+  2_DataMining.R            -> 2a 2c                  [chapter 2; off by default]
+  3_Precompute.R            -> 3a 2d_RiskAdjust 3b 3c 3e_FactorAdjusted 3f
                                                         (prep caches; no exhibits)
   S2_ResearchVsDataMining.R -> S2a S2b S2c S2d S2e
   S3_Learning.R             -> S3a S3b
@@ -48,10 +49,34 @@ IA.10, and IA.11 and is in the default Section 4 pipeline. Keeping all six
 group tables together gives the sample-specific and full-sample cuts the same
 screening, paired estimands, and clustered-inference contract.
 
-`3d_MatchedUncorrData.R` builds the canonical matched-uncorr pair set and
-signal-month panel used by both `3d_Fig2Data.R` and
-`S3a_MPStyleDecayModels.R`. `S2e_Fig2Plots.R` renders the four Figure 2 panels
-and appendix confidence-interval variants into `../Results/`.
+Figure 2 consumes calculation-owned Chapter 3 contracts.
+`3a_PrepDMBenchmarks.R` writes `raw_dm_benchmarks.RDS`, which contains the raw
+mining variants and matched-uncorrelated event-time panel. Pair identities are
+kept in memory during preparation and recomputed in memory for Table B.1. Next,
+`2d_RiskAdjustDataMinedSignals.R` creates the versioned risk-adjusted pair
+cache, and `3e_FactorAdjustedDMPrep.R` converts that cache into the CAPM/FF4
+published and data-mined panels in `risk_adjusted_dm_benchmarks.RDS`. Raw and
+risk-adjusted preparation remain separate calculation paths.
+`S2e_Fig2Plots.R` reads the raw and risk-adjusted benchmark files, imposes
+Figure-specific samples, computes rolling display statistics, and renders the
+four panels plus confidence-interval variants into `../Results/`.
+
+### `S2e_Fig2Plots.R` outputs
+
+The normal run writes eight paper artifacts. The four files without `_CI` make
+up main-text Figure 2; the four `_CI` variants make up Appendix Figure B.1.
+
+| Panel | Main-text output                  | Appendix output                       | Comparison |
+| ----- | --------------------------------- | ------------------------------------- | ---------- |
+| a     | `Fig2a_FactorAdj.pdf`             | `Fig2a_FactorAdj_CI.pdf`              | CAPM and FF3+Mom factor-adjusted returns |
+| b     | `Fig2b_PubSampleLimits.pdf`       | `Fig2b_PubSampleLimits_CI.pdf`        | Annual-accounting and pre-2003 publication samples |
+| c     | `Fig2c_MatchedExclCorr.pdf`       | `Fig2c_MatchedExclCorr_CI.pdf`        | Matched data mining, with and without correlated matches |
+| d     | `Fig2d_AltMining.pdf`             | `Fig2d_AltMining_CI.pdf`              | Top-5% accounting and ticker-symbol mining |
+
+For diagnostics, setting `FIG2_OUTPUT_DIR` redirects the eight PDFs away from
+`../Results/`. Setting `FIG2_DATA_OUTPUT_DIR` additionally writes
+`fig2_panel_long.RDS` and `fig2_panel_agg.RDS` to the requested directory; these
+opt-in data files are validation artifacts, not manuscript exhibits.
 
 ## LaTeX preview
 
@@ -68,7 +93,8 @@ The build writes `LatexPreview/exhibits.pdf`; it does not rerun any R stages.
 ## Code Result → producer
 
 Paper numbers are from the compiled paper in the separate writing repository.
-No particular location of that repository relative to this one is assumed.
+The map itself keys on exhibit basenames and does not depend on the writing
+repository's relative location.
 Each exhibit carries its manuscript section as a prefix: `§N` in the main
 text, `§B` in Appendix B, and `§IA.N` in the internet appendix. Each row
 points to a single exhibit; Tab 1 and Fig B.2 recur because several producers
@@ -96,7 +122,10 @@ Abbreviations used below to keep the columns narrow:
 | §2 Tab 1a   | Sum stats DM                          | dm-sortsFull.tex                          | S2b_DataMiningSummaryTables.R | yes    |
 | §2 Tab 1b   | DM PCA explained variance             | DM_pca.tex                                | S2c_DMCorrelationsPCATables.R | yes    |
 | §2 Tab 2    | Decay by economic theme               | theme_ez_decay.tex                        | S2d_EZThemes.R                | yes    |
-| §2 Fig 2a–d | Decay robustness comparisons          | Fig2a/b/c/d (4)                           | S2e_Fig2Plots.R               | yes    |
+| §2 Fig 2a   | Factor-adjusted decay                  | Fig2a_FactorAdj.pdf                       | S2e_Fig2Plots.R               | yes    |
+| §2 Fig 2b   | Decay in restricted publication samples | Fig2b_PubSampleLimits.pdf               | S2e_Fig2Plots.R               | yes    |
+| §2 Fig 2c   | Matched decay excluding correlated DM  | Fig2c_MatchedExclCorr.pdf                 | S2e_Fig2Plots.R               | yes    |
+| §2 Fig 2d   | Decay under alternative mining methods | Fig2d_AltMining.pdf                       | S2e_Fig2Plots.R               | yes    |
 | §3 Tab 3    | Decay regressions without time FE     | Table_MPStyleRegsNoTimeFE.tex             | S3b_MPStyleDecayTables.R      | yes    |
 | §3 Tab 4    | Decay regressions with time FE        | Table_MPStyleRegsTimeFE.tex               | S3b_MPStyleDecayTables.R      | yes    |
 | §4 Tab 5    | Predictor counts by theory/journal    | ApproachVsJournalsPart1/2/3.tex           | S4a_DataCounts.R              | yes    |
@@ -110,8 +139,11 @@ Abbreviations used below to keep the columns narrow:
 
 | Exhibit           | Description                                       | Code Result                                      | Producer                                                  | Wired? |
 | ----------------- | ------------------------------------------------- | ------------------------------------------------ | --------------------------------------------------------- | ------ |
-| §B Tab B.1        | Decay regressions by DM predictor                 | Table_MPStyleRegsIndividualDM.tex                | S3b_MPStyleDecayTables.R                                  | yes    |
-| §B Fig B.1a–d     | Decay robustness comparisons with CIs             | Fig2a/b/c/d_CI (4)                               | S2e_Fig2Plots.R                                           | yes    |
+| §B Tab B.1        | Decay regressions by DM predictor                 | Table_MPStyleRegsIndividualDM.tex                | Appendices/SA13_MPStyleRegsIndividualDM.R                 | yes    |
+| §B Fig B.1a       | Factor-adjusted decay with CIs                       | Fig2a_FactorAdj_CI.pdf                            | S2e_Fig2Plots.R                                           | yes    |
+| §B Fig B.1b       | Restricted publication samples with CIs             | Fig2b_PubSampleLimits_CI.pdf                      | S2e_Fig2Plots.R                                           | yes    |
+| §B Fig B.1c       | Matched decay excluding correlated DM, with CIs      | Fig2c_MatchedExclCorr_CI.pdf                      | S2e_Fig2Plots.R                                           | yes    |
+| §B Fig B.1d       | Alternative mining methods with CIs                  | Fig2d_AltMining_CI.pdf                            | S2e_Fig2Plots.R                                           | yes    |
 | §B Fig B.2a       | Accounting DM significant decay                   | Fig_DM_t_min_2_AccountingOnly_CalendarSE.pdf     | Appendices/SA08_AccountingOnlyPlots.R                     | yes    |
 | §B Fig B.2b       | Accounting DM top 5% decay                        | Fig_DM_t_top5Pct_AccountingOnly_CalendarSE.pdf   | S2a + Appendices/SA08_AccountingOnlyPlots.R               | yes    |
 | §B Fig B.2c–d     | Accounting DM risk-adjusted decay                 | Fig_DM_CAPM/FF4_tv_AccountingOnly_CalendarSE.pdf | Appendices/SA09_AccountingOnlyAlphaPlots.R                | yes    |
@@ -144,7 +176,8 @@ writing-repository `exhibits/` directory; that directory is outside this repo
 and its location is deliberately unspecified.
 
 For live writing, the manuscript reads exhibit basenames directly from top-level
-`../Results/` (`\exhibitspath` points there). For an arXiv package, copy those
+`../Results/` (the writing repository sets `\exhibitspath` to
+`../../Results`). For an arXiv package, copy those
 basenames into the writing repository's `exhibits/` directory and switch
 `\exhibitspath` to `exhibits`; the checked-in copies there verify that alternate
 path and preserve the package snapshot.

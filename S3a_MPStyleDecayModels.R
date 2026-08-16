@@ -1,9 +1,7 @@
-# Estimate Section 3 MP-style decay regressions on the canonical
-# matched-uncorr benchmark.
+# Estimate Section 3 MP-style decay regressions on the matched event-time panel.
 #
 # How to run: normally run through S3_Learning.R from flex-mining/.
-# Inputs:  ../Data/Processed/matched_uncorr_benchmark.RDS and the versioned
-#          LongShort.RData (for the individual-DM appendix regressions)
+# Inputs:  ../Data/Processed/raw_dm_benchmarks.RDS
 # Outputs: ../Data/Processed/mp_style_decay_models.RDS
 #
 # S3b_MPStyleDecayTables.R renders the cached models into TeX.
@@ -11,19 +9,17 @@
 rm(list = ls())
 source("0_Environment.R")
 
-benchmark_path <- "../Data/Processed/matched_uncorr_benchmark.RDS"
+benchmark_path <- "../Data/Processed/raw_dm_benchmarks.RDS"
 benchmark <- readRDS(benchmark_path)
-panel <- benchmark$panel
-metadata <- benchmark$metadata
+panel <- benchmark$matched
+metadata <- benchmark$metadata$matched
 
 stopifnot(
-  identical(metadata$short_name, "matched-uncorr"),
-  metadata$pair_count == sum(benchmark$pairs$keep_matched_uncorr),
   metadata$predictor_count == dplyr::n_distinct(panel$pubname),
-  identical(sort(benchmark$surviving_predictors), sort(unique(panel$pubname)))
+  !is.null(metadata$pair_fingerprint_sha256)
 )
 cat(
-  "S3a matched-uncorr cache:", metadata$pair_count, "pairs,",
+  "S3a matched-uncorr inputs:", metadata$pair_count, "pairs,",
   metadata$predictor_count, "predictors, fingerprint",
   metadata$pair_fingerprint_sha256, "\n"
 )
@@ -102,52 +98,6 @@ stopifnot(
   fit_predictors[[1]] == metadata$predictor_count
 )
 
-# Individual-DM appendix regressions use the same matched-uncorr pair universe.
-# Cap at 100 pairs per predictor to keep this diagnostic model manageable.
-max_strats_per_pub <- 100L
-subsample_seed <- 42L
-matchinfo <- benchmark$pairs %>%
-  filter(keep_matched_uncorr) %>%
-  select(pubname, matched_name, sign, rbar_insamp_matched,
-         sampstart, sampend, pubdate) %>%
-  setDT()
-set.seed(subsample_seed)
-matchinfo <- matchinfo[, .SD[sample(.N, min(.N, max_strats_per_pub))], by = pubname]
-
-dm_path <- paste0(
-  "../Data/Processed/", globalSettings$dataVersion, " LongShort.RData"
-)
-dm_rets <- readRDS(dm_path)$ret %>%
-  transmute(matched_name = signalid, calendarDate = yearm, raw_ret = ret) %>%
-  setDT()
-dm_rets <- dm_rets[unique(matchinfo[, .(matched_name)]),
-                   on = "matched_name", nomatch = 0]
-dmPanel <- matchinfo[dm_rets, on = "matched_name",
-                     allow.cartesian = TRUE, nomatch = 0]
-rm(dm_rets, matchinfo); gc()
-
-dmPanel[, `:=`(
-  dmname = matched_name,
-  ret_scaled = raw_ret * sign / rbar_insamp_matched * 100,
-  ret_unscaled = raw_ret * sign * 100,
-  postSample = data.table::fifelse(calendarDate >= sampend, 1, 0),
-  postPub = data.table::fifelse(calendarDate >= pubdate, 1, 0)
-)]
-dmPanel <- dmPanel[calendarDate >= sampstart]
-
-fit_individual <- function(lhs, time_fe = FALSE) {
-  fixed_effects <- if (time_fe) "dmname + calendarDate" else "dmname"
-  fixest::feols(
-    stats::as.formula(paste0(lhs, " ~ postSample + postPub | ", fixed_effects)),
-    data = dmPanel,
-    cluster = ~dmname + calendarDate
-  )
-}
-individual_dm <- list(
-  fit_individual("ret_scaled"), fit_individual("ret_scaled", TRUE),
-  fit_individual("ret_unscaled"), fit_individual("ret_unscaled", TRUE)
-)
-
 saveRDS(
   list(
     metadata = list(
@@ -160,8 +110,7 @@ saveRDS(
     ),
     etable_dict = etable_dict,
     main_scaled = main_scaled,
-    main_unscaled = main_unscaled,
-    individual_dm = individual_dm
+    main_unscaled = main_unscaled
   ),
   "../Data/Processed/mp_style_decay_models.RDS"
 )

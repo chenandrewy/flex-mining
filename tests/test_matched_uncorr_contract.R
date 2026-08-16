@@ -1,47 +1,67 @@
-# Focused checks for the canonical matched-uncorr producer/consumer contract.
+# Focused checks for the matched event-panel and in-memory pair contract.
 #
 # How to run: from flex-mining/, run
 #   Rscript tests/test_matched_uncorr_contract.R
-# Inputs:  Chapter 3 and Section 3 R scripts; optionally the generated caches
+# Inputs: Chapter 3 and Section 2/3 scripts; optionally generated caches
 # Outputs: none; exits nonzero on failure.
 
-producer <- readLines("3d_MatchedUncorrData.R")
-figure_consumer <- readLines("3d_Fig2Data.R")
+producer <- readLines("3a_PrepDMBenchmarks.R")
+figure_consumer <- readLines("S2e_Fig2Plots.R")
 table_consumer <- readLines("S3a_MPStyleDecayModels.R")
+table_renderer <- readLines("S3b_MPStyleDecayTables.R")
+appendix_consumer <- readLines("Appendices/SA13_MPStyleRegsIndividualDM.R")
+appendix_driver <- readLines("SA_Appendices.R")
+matching_helpers <- readLines("helpers/matching.R")
+precompute <- readLines("3_Precompute.R")
 
-cache_name <- "matched_uncorr_benchmark.RDS"
+old_cache <- "matched_uncorr_benchmark.RDS"
+pair_cache <- "matched_uncorr_pairs.RDS"
 stopifnot(
-  sum(grepl(cache_name, producer, fixed = TRUE)) >= 1L,
-  sum(grepl(cache_name, figure_consumer, fixed = TRUE)) == 1L,
-  sum(grepl(cache_name, table_consumer, fixed = TRUE)) >= 1L,
-  !any(grepl("MatchPub.RData|PairwiseCorrelationsActualAndMatches|plotdat0\\$comp_matched",
-             figure_consumer)),
-  !any(grepl("MatchPub.RData|PairwiseCorrelationsActualAndMatches|plotdat0\\$comp_matched",
-             table_consumer))
+  !file.exists(file.path("../Data/Processed", pair_cache)),
+  !file.exists("3d_MatchedUncorrData.R"),
+  !any(grepl("3d_MatchedUncorrData.R", precompute, fixed = TRUE)),
+  !any(grepl(old_cache, c(producer, figure_consumer, table_consumer),
+             fixed = TRUE)),
+  any(grepl("matched = matched_panel", producer, fixed = TRUE)),
+  !any(grepl(pair_cache, c(producer, table_consumer, appendix_consumer),
+             fixed = TRUE)),
+  any(grepl("raw_benchmarks$matched", figure_consumer, fixed = TRUE)),
+  any(grepl("benchmark$matched", table_consumer, fixed = TRUE)),
+  any(grepl("build_matched_uncorr_pair_data", producer, fixed = TRUE)),
+  any(grepl("build_matched_uncorr_pair_data", appendix_consumer, fixed = TRUE)),
+  any(grepl("rho = cor * sign(rbar)", matching_helpers, fixed = TRUE)),
+  any(grepl("matched_pair_fingerprint", appendix_consumer, fixed = TRUE)),
+  any(grepl("Table_MPStyleRegsIndividualDM.tex", appendix_consumer,
+             fixed = TRUE)),
+  !any(grepl("individual_dm", table_renderer, fixed = TRUE)),
+  any(grepl('run_script("Appendices/SA13_MPStyleRegsIndividualDM.R")',
+             appendix_driver, fixed = TRUE))
 )
 
-cache_path <- file.path("../Data/Processed", cache_name)
-if (file.exists(cache_path)) {
-  benchmark <- readRDS(cache_path)
+raw_path <- "../Data/Processed/raw_dm_benchmarks.RDS"
+if (file.exists(raw_path)) {
+  raw <- readRDS(raw_path)
+  metadata <- raw$metadata$matched
   stopifnot(
-    identical(benchmark$metadata$short_name, "matched-uncorr"),
-    benchmark$metadata$pair_count == sum(benchmark$pairs$keep_matched_uncorr),
-    benchmark$metadata$predictor_count == length(benchmark$surviving_predictors),
-    benchmark$metadata$predictor_count == length(unique(benchmark$panel$pubname)),
-    nzchar(benchmark$metadata$pair_fingerprint_sha256)
+    all(c("matched", "metadata") %in% names(raw)),
+    all(c(
+      "published_ret_scaled", "matched_ret_scaled",
+      "matched_uncorr_ret_scaled"
+    ) %in% names(raw$matched)),
+    metadata$predictor_count == length(unique(raw$matched$pubname)),
+    metadata$pair_count > 0L,
+    nzchar(metadata$pair_fingerprint_sha256)
   )
 }
 
 model_path <- "../Data/Processed/mp_style_decay_models.RDS"
-if (file.exists(model_path)) {
+if (file.exists(model_path) && file.exists(raw_path)) {
   models <- readRDS(model_path)
-  if (!is.null(models$metadata$pair_fingerprint_sha256) && file.exists(cache_path)) {
-    stopifnot(
-      identical(models$metadata$pair_fingerprint_sha256,
-                benchmark$metadata$pair_fingerprint_sha256),
-      models$metadata$predictor_count == benchmark$metadata$predictor_count,
-      length(unique(vapply(c(models$main_scaled, models$main_unscaled),
-                           stats::nobs, numeric(1)))) == 1L
-    )
-  }
+  stopifnot(
+    identical(models$metadata$pair_fingerprint_sha256,
+              raw$metadata$matched$pair_fingerprint_sha256),
+    !"individual_dm" %in% names(models),
+    length(unique(vapply(c(models$main_scaled, models$main_unscaled),
+                         stats::nobs, numeric(1)))) == 1L
+  )
 }

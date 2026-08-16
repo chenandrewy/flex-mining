@@ -2,7 +2,7 @@
 #
 # How to run: normally run through S5_BestPredictors.R with the working directory set to
 #   flex-mining/.
-# Inputs:  ../Data/Processed/<dataVersion> MatchPub.RData
+# Inputs:  ../Data/Processed/dmcomp_sumstats.RDS
 #          ../Data/Processed/<dataVersion> LongShort.RData
 #          cleaned published-signal inputs
 # Outputs: ../Results/InspectMatch.xlsx and inspect-*.tex
@@ -11,18 +11,8 @@
 source("0_Environment.R")
 library(writexl)
 
-# Load the matched returns explicitly. This script used to depend on objects
-# left in the global environment by 4d_ResearchVsDMRobustnessCorrelationsEtc.R.
-matchname <- paste0(
-  "../Data/Processed/", globalSettings$dataVersion, " MatchPub.RData"
-)
-matchdat <- readRDS(matchname)$candidateReturns
-
 czsum <- readRDS("../Data/Processed/czsum_allpredictors.RDS") %>%
   filter(Keep) %>%
-  setDT()
-matchdat <- matchdat %>%
-  filter(actSignal %in% czsum$signalname) %>%
   setDT()
 czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
   mutate(retOrig = ret)
@@ -30,6 +20,15 @@ czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
 DMname = paste0('../Data/Processed/',
                 globalSettings$dataVersion, 
                 ' LongShort.RData')
+
+pair_catalog <- select_matched_dm_pairs(
+  readRDS("../Data/Processed/dmcomp_sumstats.RDS")$insampsum,
+  pubnames = czsum$signalname
+)
+matchdat <- materialize_matched_dm_returns(pair_catalog, DMname)[, .(
+  candSignalname, eventDate, sign, ret, samptype, actSignal
+)]
+rm(pair_catalog); gc()
 
 stratdat = readRDS(DMname) # only really need the signal_list from here
 

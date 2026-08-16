@@ -40,3 +40,5 @@ Rplots.pdf
 # Removed from history in 2026-07; do not re-add.
 slides_*.tex
 slides_*.pdf
+
+.DS_Store
