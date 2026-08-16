@@ -3,7 +3,7 @@
 # How to run: normally run through 3_Precompute.R from flex-mining/.
 # Inputs:  cleaned published returns and chapter-2 mined-strategy caches
 # Outputs: ../Data/Processed/{dmcomp,dmtic}_sumstats.RDS
-#          ../Data/Processed/{raw_dm_benchmarks,matched_uncorr_pairs}.RDS
+#          ../Data/Processed/raw_dm_benchmarks.RDS
 #          ../Data/Processed/ret_for_plot{0,1}.RDS
 
 # Setup --------------------------------------------------------
@@ -156,9 +156,8 @@ ret_for_plot1 = ret_for_plot0 %>%
   select(eventDate, ret, matchRet, matchRetAlt, pubname, theory)
 
 ## Matched and matched-uncorrelated benchmark ------------------------------
-# Keep the event-time benchmark with the other raw benchmark panels. Only the
-# compact retained-pair table is stored separately for S3's individual-DM
-# regressions.
+# Keep the event-time benchmark with the other raw benchmark panels. Pair-level
+# inputs are transient and are recomputed only by the Appendix Table B.1 script.
 
 matched_czsum <- czsum %>%
   as_tibble() %>%
@@ -177,85 +176,15 @@ matched_czsum <- czsum %>%
   ) %>%
   setDT()
 
-message("Selecting matched candidate pairs from dmcomp_sumstats...")
-matched_pair_catalog <- select_matched_dm_pairs(
+message("Building matched candidate pairs and returns in memory...")
+matched_pair_data <- build_matched_uncorr_pair_data(
   dmcomp$insampsum,
-  pubnames = matched_czsum$pubname
-)
-message("Materializing returns for the matched candidate pairs...")
-matched_candidate_returns <- materialize_matched_dm_returns(
-  matched_pair_catalog,
+  matched_czsum,
   dmcomp$name
 )
-
-matched_pair_diagnostics <- matched_candidate_returns[
-  samptype == "insamp",
-  .(
-    sign = data.table::first(sign),
-    nmonth_insamp = sum(!is.na(ret)),
-    rbar_insamp_matched = mean(ret),
-    tstat_insamp_matched = {
-      n <- sum(!is.na(ret))
-      s <- stats::sd(ret, na.rm = TRUE)
-      if (n > 1L && is.finite(s) && s > 0) {
-        mean(ret, na.rm = TRUE) / s * sqrt(n)
-      } else {
-        NA_real_
-      }
-    }
-  ),
-  by = .(pubname = actSignal, matched_name = candSignalname)
-]
-matched_pair_diagnostics <- merge(
-  matched_pair_diagnostics,
-  matched_czsum,
-  by = "pubname",
-  all.x = TRUE
-)
-matched_correlations <- dmcomp$insampsum %>%
-  transmute(
-    pubname,
-    sweight = tolower(sweight),
-    matched_name = dmname,
-    rho = cor * sign(rbar)
-  ) %>%
-  setDT()
-stopifnot(
-  !anyDuplicated(
-    matched_correlations,
-    by = c("pubname", "sweight", "matched_name")
-  )
-)
-matched_pair_diagnostics <- merge(
-  matched_pair_diagnostics,
-  matched_correlations,
-  by = c("pubname", "sweight", "matched_name"),
-  all.x = TRUE
-)
-matched_pair_diagnostics[, `:=`(
-  mean_return_rel_distance =
-    abs(rbar_insamp_matched - published_rbar) / abs(published_rbar),
-  tstat_rel_distance =
-    abs(tstat_insamp_matched - published_tstat) / abs(published_tstat),
-  passes_history = nmonth_insamp >= globalSettings$match_nmonth_min,
-  passes_correlation =
-    !is.na(rho) & rho <= globalSettings$matched_uncorr_corr_max
-)]
-matched_pair_diagnostics[
-  , keep_matched_uncorr := passes_history & passes_correlation
-]
-data.table::setorder(
-  matched_pair_diagnostics,
-  pubname,
-  sweight,
-  matched_name
-)
-
-history_qualified_pairs <- matched_pair_diagnostics[passes_history == TRUE]
-matched_uncorr_pairs <- matched_pair_diagnostics[keep_matched_uncorr == TRUE]
-if (nrow(matched_uncorr_pairs) == 0L) {
-  stop("The matched-uncorrelated screens retained no pairs.")
-}
+matched_candidate_returns <- matched_pair_data$candidate_returns
+history_qualified_pairs <- matched_pair_data$history_pairs
+matched_uncorr_pairs <- matched_pair_data$uncorr_pairs
 
 aggregate_matched_pairs <- function(pair_set) {
   selected <- matched_candidate_returns[
@@ -309,11 +238,6 @@ matched_panel <- ret_for_plot0 %>%
   ) %>%
   left_join(as_tibble(matched_czsum), by = "pubname")
 
-matched_pair_keys <- paste(
-  matched_uncorr_pairs$pubname,
-  matched_uncorr_pairs$matched_name,
-  sep = "\t"
-)
 matched_metadata <- list(
   specification = list(
     tstat_relative_tolerance = globalSettings$matched_uncorr_t_reltol,
@@ -325,39 +249,21 @@ matched_metadata <- list(
   pair_count = nrow(matched_uncorr_pairs),
   predictor_count = dplyr::n_distinct(matched_panel$pubname),
   panel_observation_count = nrow(matched_panel),
-  pair_fingerprint_sha256 = digest::digest(
-    paste(matched_pair_keys, collapse = "\n"),
-    algo = "sha256",
-    serialize = FALSE
-  )
+  pair_fingerprint_sha256 = matched_pair_fingerprint(matched_uncorr_pairs)
 )
-
-matched_uncorr_pairs_compact <- matched_uncorr_pairs[, .(
-  pubname,
-  sweight,
-  matched_name,
-  sign,
-  rbar_insamp_matched,
-  sampstart,
-  sampend,
-  pubdate,
-  rho
-)]
 stopifnot(
-  matched_metadata$pair_count == nrow(matched_uncorr_pairs_compact),
+  matched_metadata$pair_count == nrow(matched_uncorr_pairs),
   matched_metadata$predictor_count ==
-    data.table::uniqueN(matched_uncorr_pairs_compact$pubname),
+    data.table::uniqueN(matched_uncorr_pairs$pubname),
   !anyDuplicated(
-    matched_uncorr_pairs_compact,
+    matched_uncorr_pairs,
     by = c("pubname", "sweight", "matched_name")
   )
 )
 
 rm(
   matched_candidate_returns,
-  matched_pair_catalog,
-  matched_pair_diagnostics,
-  matched_correlations,
+  matched_pair_data,
   history_qualified_pairs,
   matched_uncorr_pairs,
   matched_event_panel,
@@ -451,9 +357,5 @@ rm(ticker_top5_event_time, ticker_top5_matched)
 # Save to disk -----------------------------------------------------
 
 saveRDS(raw_dm_benchmarks, "../Data/Processed/raw_dm_benchmarks.RDS")
-saveRDS(
-  matched_uncorr_pairs_compact,
-  "../Data/Processed/matched_uncorr_pairs.RDS"
-)
 saveRDS(ret_for_plot0, "../Data/Processed/ret_for_plot0.RDS")
 saveRDS(ret_for_plot1, "../Data/Processed/ret_for_plot1.RDS")

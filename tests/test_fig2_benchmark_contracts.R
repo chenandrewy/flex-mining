@@ -18,7 +18,7 @@ stopifnot(
   any(grepl("raw_dm_benchmarks.RDS", raw_producer, fixed = TRUE)),
   any(grepl("risk_adjusted_dm_benchmarks.RDS", risk_producer, fixed = TRUE)),
   any(grepl("matched = matched_panel", raw_producer, fixed = TRUE)),
-  any(grepl("matched_uncorr_pairs.RDS", raw_producer, fixed = TRUE)),
+  !any(grepl("matched_uncorr_pairs.RDS", raw_producer, fixed = TRUE)),
   any(grepl('run_script("3a_PrepDMBenchmarks.R")', precompute, fixed = TRUE)),
   !any(grepl("3d_MatchedUncorrData.R", precompute, fixed = TRUE)),
   any(grepl('run_script("3e_FactorAdjustedDMPrep.R")', precompute, fixed = TRUE)),
@@ -43,8 +43,7 @@ stopifnot(
 )
 
 raw_path <- "../Data/Processed/raw_dm_benchmarks.RDS"
-pair_path <- "../Data/Processed/matched_uncorr_pairs.RDS"
-if (file.exists(raw_path) && file.exists(pair_path)) {
+if (file.exists(raw_path)) {
   raw <- readRDS(raw_path)
   stopifnot(
     all(c("published", "accounting_t2", "accounting_top5", "ticker_top5",

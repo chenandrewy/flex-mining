@@ -359,6 +359,110 @@ materialize_matched_dm_returns <- function(pair_catalog, DMname) {
   candidate_returns
 }
 
+# Build the matched and matched-uncorrelated pair universes in memory. The
+# returned candidate-month panel is intentionally transient: Chapter 3 uses it
+# to aggregate the benchmark, while Appendix Table B.1 reuses it to estimate
+# individual-DM regressions without a durable pair-cache file.
+build_matched_uncorr_pair_data <- function(
+    insampsum,
+    published_metadata,
+    DMname,
+    minimum_insample_months = globalSettings$match_nmonth_min,
+    maximum_pairwise_correlation = globalSettings$matched_uncorr_corr_max) {
+  published_metadata <- data.table::copy(
+    data.table::as.data.table(published_metadata)
+  )
+  required_published <- c(
+    "pubname", "published_rbar", "published_tstat", "sampstart",
+    "sampend", "sweight", "pubdate"
+  )
+  missing <- setdiff(required_published, names(published_metadata))
+  if (length(missing) > 0L) {
+    stop(
+      "Published matching metadata is missing column(s): ",
+      paste(missing, collapse = ", ")
+    )
+  }
+  published_metadata[, sweight := tolower(sweight)]
+
+  pair_catalog <- select_matched_dm_pairs(
+    insampsum,
+    pubnames = published_metadata$pubname
+  )
+  candidate_returns <- materialize_matched_dm_returns(pair_catalog, DMname)
+
+  diagnostics <- candidate_returns[
+    samptype == "insamp",
+    .(
+      sign = data.table::first(sign),
+      nmonth_insamp = sum(!is.na(ret)),
+      rbar_insamp_matched = mean(ret),
+      tstat_insamp_matched = {
+        n <- sum(!is.na(ret))
+        s <- stats::sd(ret, na.rm = TRUE)
+        if (n > 1L && is.finite(s) && s > 0) {
+          mean(ret, na.rm = TRUE) / s * sqrt(n)
+        } else {
+          NA_real_
+        }
+      }
+    ),
+    by = .(pubname = actSignal, matched_name = candSignalname)
+  ]
+  diagnostics <- merge(
+    diagnostics,
+    published_metadata,
+    by = "pubname",
+    all.x = TRUE
+  )
+
+  correlations <- data.table::as.data.table(insampsum)[, .(
+    pubname,
+    sweight = tolower(sweight),
+    matched_name = dmname,
+    rho = cor * sign(rbar)
+  )]
+  if (anyDuplicated(correlations, by = c("pubname", "sweight", "matched_name"))) {
+    stop("Matched-pair correlations do not have unique composite keys.")
+  }
+  diagnostics <- merge(
+    diagnostics,
+    correlations,
+    by = c("pubname", "sweight", "matched_name"),
+    all.x = TRUE
+  )
+  diagnostics[, `:=`(
+    mean_return_rel_distance =
+      abs(rbar_insamp_matched - published_rbar) / abs(published_rbar),
+    tstat_rel_distance =
+      abs(tstat_insamp_matched - published_tstat) / abs(published_tstat),
+    passes_history = nmonth_insamp >= minimum_insample_months,
+    passes_correlation =
+      !is.na(rho) & rho <= maximum_pairwise_correlation
+  )]
+  diagnostics[, keep_matched_uncorr := passes_history & passes_correlation]
+  data.table::setorder(diagnostics, pubname, sweight, matched_name)
+
+  history_pairs <- diagnostics[passes_history == TRUE]
+  uncorr_pairs <- diagnostics[keep_matched_uncorr == TRUE]
+  if (nrow(uncorr_pairs) == 0L) {
+    stop("The matched-uncorrelated screens retained no pairs.")
+  }
+
+  list(
+    candidate_returns = candidate_returns,
+    history_pairs = history_pairs,
+    uncorr_pairs = uncorr_pairs
+  )
+}
+
+matched_pair_fingerprint <- function(pairs) {
+  pairs <- data.table::as.data.table(pairs)
+  keys <- paste(pairs$pubname, pairs$matched_name, sep = "\t")
+  digest::digest(paste(keys, collapse = "\n"),
+                 algo = "sha256", serialize = FALSE)
+}
+
 
 make_DM_event_returns <- function(
     match_strats,

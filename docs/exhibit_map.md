@@ -51,8 +51,8 @@ screening, paired estimands, and clustered-inference contract.
 
 Figure 2 consumes calculation-owned Chapter 3 contracts.
 `3a_PrepDMBenchmarks.R` writes `raw_dm_benchmarks.RDS`, which contains the raw
-mining variants and matched-uncorrelated event-time panel; it also writes the
-compact `matched_uncorr_pairs.RDS` contract used by Section 3. Next,
+mining variants and matched-uncorrelated event-time panel. Pair identities are
+kept in memory during preparation and recomputed in memory for Table B.1. Next,
 `2d_RiskAdjustDataMinedSignals.R` creates the versioned risk-adjusted pair
 cache, and `3e_FactorAdjustedDMPrep.R` converts that cache into the CAPM/FF4
 published and data-mined panels in `risk_adjusted_dm_benchmarks.RDS`. Raw and
@@ -127,7 +127,7 @@ Abbreviations used below to keep the columns narrow:
 
 | Exhibit           | Description                                       | Code Result                                      | Producer                                                  | Wired? |
 | ----------------- | ------------------------------------------------- | ------------------------------------------------ | --------------------------------------------------------- | ------ |
-| §B Tab B.1        | Decay regressions by DM predictor                 | Table_MPStyleRegsIndividualDM.tex                | S3b_MPStyleDecayTables.R                                  | yes    |
+| §B Tab B.1        | Decay regressions by DM predictor                 | Table_MPStyleRegsIndividualDM.tex                | Appendices/SA13_MPStyleRegsIndividualDM.R                 | yes    |
 | §B Fig B.1a       | Factor-adjusted decay with CIs                       | Fig2a_FactorAdj_CI.pdf                            | S2e_Fig2Plots.R                                           | yes    |
 | §B Fig B.1b       | Restricted publication samples with CIs             | Fig2b_PubSampleLimits_CI.pdf                      | S2e_Fig2Plots.R                                           | yes    |
 | §B Fig B.1c       | Matched decay excluding correlated DM, with CIs      | Fig2c_MatchedExclCorr_CI.pdf                      | S2e_Fig2Plots.R                                           | yes    |
