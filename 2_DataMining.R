@@ -8,6 +8,10 @@
 # 2a takes roughly two hours. Each child runs in a separate R process so the
 # allocator's high-water memory is returned to the operating system between
 # scripts.
+#
+# 2a derives its valid-denominator metadata in memory from
+# ../Data/Raw/CompustatAnnual.RData (see derive_valid_denoms in 2a), so chapter
+# 2 is self-contained and needs no precomputed DataIntermediate CSVs.
 
 run_script <- function(path) {
   message("\n--- Chapter 2: ", path, " ---")

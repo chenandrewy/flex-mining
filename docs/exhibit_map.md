@@ -32,7 +32,7 @@ emits no exhibit.
 
 ```
 MAIN.R  (reads runStages from config.R)
-  1_Download_and_Clean.R, 1a_ValidDenoms.R          [chapter 1; off by default]
+  1_Download_and_Clean.R                            [chapter 1; off by default]
   2_DataMining.R            -> 2a 2c                  [chapter 2; off by default]
   3_Precompute.R            -> 3a 3b 3c_FactorAdjusted
                                                         (prep caches; no exhibits)

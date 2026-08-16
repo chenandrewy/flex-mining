@@ -49,7 +49,6 @@ run_script <- function(path) {
 
 if (runStages$download_and_clean) {
   run_script("1_Download_and_Clean.R")
-  run_script("1a_ValidDenoms.R")
 }
 
 # Chapter 2: mined-strategy construction ---------------------------------

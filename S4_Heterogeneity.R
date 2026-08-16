@@ -15,8 +15,7 @@ required_files <- c(
   "../Data/Processed/raw_dm_benchmarks.RDS",
   "../Data/Processed/risk_adjusted_dm_benchmarks.RDS",
   "DataInput/SignalsTheoryChecked.csv",
-  paste0(version_prefix, " LongShort.RData"),
-  "DataIntermediate/freq_obs_1963.csv"
+  paste0(version_prefix, " LongShort.RData")
 )
 rm(settings_env)
 

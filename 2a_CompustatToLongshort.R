@@ -2,7 +2,8 @@
 #
 # How to run: normally run through 2_DataMining.R from the flex-mining/
 #   working directory; it can also be run directly with Rscript.
-# Inputs:  cleaned Compustat and CRSP files plus DataIntermediate denominators
+# Inputs:  cleaned Compustat and CRSP files (../Data/Raw). Valid-denominator
+#          metadata is derived in memory here (see derive_valid_denoms).
 # Outputs: ../Data/Processed/<dataVersion> LongShort.RData
 #          ../Data/tmpAllDat.fst and ../Data/make_many_ls.log (temporary/progress)
 
@@ -12,7 +13,7 @@ make_signal_list = function(signal_form, xvars, scale_vars, validDenoms = NULL) 
 
   #' @param xvars Unique names of variables used for creating strategies
   #' @param scale_vars Scaling variables used in ratios (or NULL for unrestricted)
-  #' @param validDenoms Dataset of valid denominator for each combination of signals (created in 1_Download_and_Clean.R)
+  #' @param validDenoms Dataset of valid denominator for each combination of signals (from derive_valid_denoms())
 
   # make list of all possible xused combinations
   tmp = expand.grid(signal_form = signal_form,
@@ -76,6 +77,66 @@ make_signal_list = function(signal_form, xvars, scale_vars, validDenoms = NULL) 
 
 
 
+
+
+# Derive valid-denominator metadata in memory from raw Compustat.
+# Formerly the standalone 1a_ValidDenoms.R, which round-tripped the results
+# through DataIntermediate CSVs. 2a is the only consumer, so it is kept in
+# memory here: the metadata always matches the raw vintage 2a is mining, and
+# there is no regenerable artifact to fall out of sync (~2 min to compute).
+#
+#' @param comp0 Raw annual Compustat (../Data/Raw/CompustatAnnual.RData).
+#' @param keepnames Accounting/CRSP variable names to retain (numer + denom).
+#' @return list(freq_obs, validDenoms): 1963 non-missing frequencies used for
+#'   denominator eligibility, and the preferred denominator for each variable
+#'   pair (the variable with more non-missing obs in the first year both appear).
+derive_valid_denoms = function(comp0, keepnames) {
+
+  # fraction of first-per-gvkey rows that are present and non-zero, by year
+  year_freq = function(yy) {
+    comp0 %>%
+      filter(year(datadate) == yy, !is.na(permno)) %>%
+      arrange(gvkey, datadate) %>%
+      group_by(gvkey) %>%
+      filter(row_number() == 1) %>%
+      ungroup() %>%
+      summarise(across(everything(),
+                       function(x) sum(!is.na(x) & x != 0) / length(x))) %>%
+      pivot_longer(cols = everything(), names_to = 'name', values_to = 'freq_obs')
+  }
+
+  # 1963 frequencies: denominator eligibility screen
+  freq_obs = year_freq(1963) %>%
+    transmute(name, freq_obs_1963 = freq_obs) %>%
+    filter(name %in% keepnames) %>%
+    arrange(-freq_obs_1963)
+
+  # annual frequencies for every year, long form
+  fobs_list_annual = lapply(1963:max(year(comp0$datadate)), function(yy) {
+    year_freq(yy) %>% mutate(year = yy)
+  }) %>%
+    bind_rows() %>%
+    filter(name %in% keepnames)
+
+  # for each ordered variable pair, in the first year both are non-missing,
+  # the denominator is whichever has more non-missing obs (ties: alphabetical)
+  validDenoms = fobs_list_annual %>%
+    full_join(fobs_list_annual, by = 'year', relationship = 'many-to-many') %>%
+    filter(name.x != name.y) %>%
+    filter(freq_obs.x > 0, freq_obs.y > 0) %>%
+    group_by(name.x, name.y) %>%
+    filter(row_number() == 1) %>%
+    ungroup() %>%
+    mutate(combName = ifelse(name.x < name.y, paste(name.x, name.y, sep = '|'),
+                             paste(name.y, name.x, sep = '|')) %>% as.character()) %>%
+    mutate(denom = ifelse(freq_obs.x > freq_obs.y |
+                            (freq_obs.x == freq_obs.y & name.x < name.y),
+                          name.x, name.y)) %>%
+    select(combName, year, denom) %>%
+    distinct()
+
+  list(freq_obs = freq_obs, validDenoms = validDenoms)
+}
 
 
 # function for turning xused into a signal
@@ -374,10 +435,18 @@ numer_ok = readxl::read_excel('DataInput/Yan-Zheng-Compustat-Vars.xlsx') %>%
   filter(in_yz_table_a_1 == 1 | in_yz_table_a_2 == 1) %>% 
   mutate(name = tolower(acronym))
 
-denom_ok = fread('DataIntermediate/freq_obs_1963.csv') %>% 
-  filter(freq_obs_1963 > user$signal$denom_min_fobs) 
+# Valid-denominator metadata, derived in memory from raw Compustat (see
+# derive_valid_denoms above). comp0 stays loaded and is reused by the data-prep
+# block below, so CompustatAnnual.RData is read only once.
+comp0 = readRDS('../Data/Raw/CompustatAnnual.RData')
+valid_denom_meta = derive_valid_denoms(
+  comp0, keepnames = union(compnames$yz.numer, compnames$yz.denom)
+)
 
-validDenoms = read_csv('DataIntermediate/validDenomsCombinations.csv')
+denom_ok = valid_denom_meta$freq_obs %>%
+  filter(freq_obs_1963 > user$signal$denom_min_fobs)
+
+validDenoms = valid_denom_meta$validDenoms
 
 if (debugset$shortlist == F){
   varlist = list(
@@ -443,8 +512,8 @@ if (debugset$prep_data){
   file.remove('../Data/tmpAllDat.fst')
   
   # import and merge ===
-  ## import compustat, convert to monthly
-  comp0 = readRDS('../Data/Raw/CompustatAnnual.RData')
+  ## comp0 (raw annual Compustat) is already in memory from the
+  ## valid-denominator step above; reuse it rather than re-reading the file.
   comp1 = copy(comp0 %>% select(all_of(varlist$xall), gvkey, permno, datayearm))
   
   #Yan and Zheng (2017): To mitigate a backfilling bias, we require that a firm be listed on Compustat for two years
