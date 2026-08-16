@@ -4,7 +4,7 @@
 # Inputs:  cleaned published returns and chapter-2 mined-strategy caches
 # Outputs: ../Data/Processed/{dmcomp,dmtic}_sumstats.RDS
 #          ../Data/Processed/raw_dm_benchmarks.RDS
-#          ../Data/Processed/plotdat0.RDS and ret_for_plot{0,1}.RDS
+#          ../Data/Processed/ret_for_plot{0,1}.RDS
 
 # Setup --------------------------------------------------------
 
@@ -12,9 +12,6 @@ rm(list = ls())
 
 source("0_Environment.R")
 library(doParallel)
-
-# settings
-ncores = globalSettings$num_cores
 
 dmcomp <- list()
 dmtic <- list()
@@ -35,7 +32,7 @@ czsum <- readRDS("../Data/Processed/czsum_allpredictors.RDS") %>%
   setDT()
 
 czcat <- fread("DataInput/SignalsTheoryChecked.csv") %>%
-  select(signalname, Year, theory) %>%
+  select(signalname, theory) %>%
   filter(signalname %in% inclSignals)
 
 czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
@@ -79,15 +76,10 @@ saveRDS(dmtic, "../Data/Processed/dmtic_sumstats.RDS")
 # Generate Matched Returns (ret_for_plot[x]) ---------------------------------
 
 ## Default Match Settings --------------------------------------------------
-# this should be cleaned up, ideally
 
-plotdat0 <- list()
-
-plotdat0$name <- "t_min_2"
-plotdat0$npubmax = Inf
-plotdat0$use_sign_info = TRUE
-
-plotdat0$matchset <- list(
+npubmax <- Inf
+use_sign_info <- TRUE
+accounting_t2_screen <- list(
   # tolerance in levels
   t_tol = globalSettings$t_tol,
   r_tol = globalSettings$r_tol,
@@ -105,30 +97,29 @@ plotdat0$matchset <- list(
 # here, matchRet uses accounting signals with t>2
 
 # make event time returns for Compustat DM
-temp = list()
-temp$matched <- SelectDMStrats(dmcomp$insampsum, plotdat0$matchset)
+accounting_t2_matched <- SelectDMStrats(
+  dmcomp$insampsum, accounting_t2_screen
+)
 
 print("Making accounting event time returns")
 print("Can take a few minutes...")
 start_time <- Sys.time()
-temp$event_time <- make_DM_event_returns(
-  DMname = dmcomp$name, match_strats = temp$matched, npubmax = plotdat0$npubmax,
-  czsum = czsum, use_sign_info = plotdat0$use_sign_info
+accounting_t2_event_time <- make_DM_event_returns(
+  DMname = dmcomp$name, match_strats = accounting_t2_matched,
+  npubmax = npubmax, czsum = czsum, use_sign_info = use_sign_info
 )
 stop_time <- Sys.time()
 print(stop_time - start_time)
 
-plotdat0$comp_matched <- temp$matched
-plotdat0$comp_event_time <- temp$event_time
-rm(temp)
+rm(accounting_t2_matched)
 
 ret_for_plot0 = czret %>%
     transmute(pubname = signalname, eventDate, calendarDate = date,
               ret_unscaled = ret * 100, ret = ret_scaled, theory) %>%
     left_join(
-        plotdat0$comp_event_time %>% transmute(pubname, eventDate,
-                                               matchRet = dm_mean,
-                                               matchRet_unscaled = dm_mean_unscaled),
+        accounting_t2_event_time %>% transmute(pubname, eventDate,
+                                                matchRet = dm_mean,
+                                                matchRet_unscaled = dm_mean_unscaled),
         by = c("pubname", "eventDate")
     ) %>%
     select(eventDate, calendarDate, ret, ret_unscaled, matchRet, matchRet_unscaled, pubname, theory)
@@ -137,31 +128,29 @@ ret_for_plot0 = czret %>%
 # adds to the previous ret_for_plot0
 # creates matchRetAlt, which uses the top 5% t-stats
 
-tempplotdat = plotdat0
-tempplotdat$matchset$t_min = 0 # turn off t_min filter
-tempplotdat$matchset$t_rankpct_min = 5 # add top 5% t filter
+top5_screen <- accounting_t2_screen
+top5_screen$t_min <- 0 # turn off t_min filter
+top5_screen$t_rankpct_min <- 5 # add top 5% t filter
 
 # make event time returns for Compustat DM
-temp = list()
-temp$matched <- SelectDMStrats(dmcomp$insampsum, tempplotdat$matchset)
+accounting_top5_matched <- SelectDMStrats(dmcomp$insampsum, top5_screen)
 
 print("Making accounting event time returns")
 print("Can take a few minutes...")
 start_time <- Sys.time()
-temp$event_time <- make_DM_event_returns(
-  DMname = dmcomp$name, match_strats = temp$matched, npubmax = tempplotdat$npubmax,
-  czsum = czsum, use_sign_info = tempplotdat$use_sign_info
+accounting_top5_event_time <- make_DM_event_returns(
+  DMname = dmcomp$name, match_strats = accounting_top5_matched,
+  npubmax = npubmax, czsum = czsum, use_sign_info = use_sign_info
 )
 stop_time <- Sys.time()
 print(stop_time - start_time)
 
-tempplotdat$comp_matched <- temp$matched
-tempplotdat$comp_event_time <- temp$event_time
-rm(temp)
+rm(accounting_top5_matched)
 
 ret_for_plot1 = ret_for_plot0 %>%
   left_join(
-    tempplotdat$comp_event_time %>% transmute(pubname, eventDate, matchRetAlt = dm_mean),
+    accounting_top5_event_time %>%
+      transmute(pubname, eventDate, matchRetAlt = dm_mean),
     by = c("pubname", "eventDate")
   ) %>%
   select(eventDate, ret, matchRet, matchRetAlt, pubname, theory)
@@ -170,14 +159,13 @@ ret_for_plot1 = ret_for_plot0 %>%
 # Figure 2 and future benchmark consumers use this calculation-oriented
 # contract.  The ret_for_plot* files below remain compatibility artifacts.
 
-ticker_top5_matched <- SelectDMStrats(dmtic$insampsum, tempplotdat$matchset)
+ticker_top5_matched <- SelectDMStrats(dmtic$insampsum, top5_screen)
 
 print("Making ticker top 5% event time returns")
 start_time <- Sys.time()
 ticker_top5_event_time <- make_DM_event_returns(
   DMname = dmtic$name, match_strats = ticker_top5_matched,
-  npubmax = tempplotdat$npubmax, czsum = czsum,
-  use_sign_info = tempplotdat$use_sign_info
+  npubmax = npubmax, czsum = czsum, use_sign_info = use_sign_info
 )
 stop_time <- Sys.time()
 print(stop_time - start_time)
@@ -187,7 +175,7 @@ published_benchmark <- ret_for_plot0 %>%
 accounting_t2_benchmark <- published_benchmark %>%
   select(pubname, eventDate, calendarDate) %>%
   left_join(
-    plotdat0$comp_event_time %>%
+    accounting_t2_event_time %>%
       transmute(
         pubname, eventDate, return = dm_mean,
         n_matches_available = dm_n
@@ -195,7 +183,7 @@ accounting_t2_benchmark <- published_benchmark %>%
     by = c("pubname", "eventDate")
   ) %>%
   select(pubname, eventDate, calendarDate, return, n_matches_available)
-accounting_top5_benchmark <- tempplotdat$comp_event_time %>%
+accounting_top5_benchmark <- accounting_top5_event_time %>%
   transmute(
     pubname, eventDate,
     return = dm_mean, n_matches_available = dm_n
@@ -224,8 +212,8 @@ raw_dm_benchmarks <- list(
   metadata = list(
     schema_version = 1L,
     normalization = "100 times return divided by the strategy in-sample mean",
-    accounting_t2_screen = plotdat0$matchset,
-    top5_screen = tempplotdat$matchset,
+    accounting_t2_screen = accounting_t2_screen,
+    top5_screen = top5_screen,
     mining_universes = c(
       accounting = dmcomp$name,
       ticker = dmtic$name
@@ -250,6 +238,5 @@ rm(ticker_top5_event_time, ticker_top5_matched)
 # Save to disk -----------------------------------------------------
 
 saveRDS(raw_dm_benchmarks, "../Data/Processed/raw_dm_benchmarks.RDS")
-saveRDS(plotdat0, "../Data/Processed/plotdat0.RDS")
 saveRDS(ret_for_plot0, "../Data/Processed/ret_for_plot0.RDS")
 saveRDS(ret_for_plot1, "../Data/Processed/ret_for_plot1.RDS")

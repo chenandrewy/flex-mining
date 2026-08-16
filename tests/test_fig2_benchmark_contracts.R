@@ -9,6 +9,7 @@
 raw_producer <- readLines("3a_PrepDMBenchmarks.R")
 risk_producer <- readLines("3e_FactorAdjustedDMPrep.R")
 matched_producer <- readLines("3d_MatchedUncorrData.R")
+span_producer <- readLines("3f_DMSpanPCA.R")
 figure_producer <- readLines("S2e_Fig2Plots.R")
 precompute <- readLines("3_Precompute.R")
 section_driver <- readLines("S2_ResearchVsDataMining.R")
@@ -37,6 +38,8 @@ stopifnot(
   !any(grepl("ret_for_plot_MaxPredictors", raw_producer, fixed = TRUE)),
   !any(grepl("ret_for_plot_MaxPredictors", section_driver, fixed = TRUE)),
   !any(grepl("ret_for_plot_MaxPredictors", section_renderer, fixed = TRUE)),
+  !any(grepl("plotdat0", raw_producer, fixed = TRUE)),
+  !any(grepl("dm_pca_span_classification.RDS", span_producer, fixed = TRUE)),
   !any(grepl("MaxDMpredsPerPublished", section_renderer, fixed = TRUE))
 )
 
