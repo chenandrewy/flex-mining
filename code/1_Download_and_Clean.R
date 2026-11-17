@@ -1,6 +1,16 @@
 # Setup -------------------------------------------------------------------
 source('0_Environment.R')
-library(googledrive)
+# WRDS and Open Source Asset Pricing access is needed only here, so these are
+# not loaded by 0_Environment.R.
+library(RPostgres)
+library(getPass)
+library(OpenSourceAP.DownloadR)
+
+# Versions before 0.2.0 read the retired Google Drive folders.
+if (packageVersion('OpenSourceAP.DownloadR') < '0.2.0') {
+  stop("OpenSourceAP.DownloadR >= 0.2.0 is required (Hugging Face downloads). ",
+       "Run install.packages('OpenSourceAP.DownloadR').")
+}
 
 # Load credentials from .env file
 if (file.exists('.env')) {
@@ -31,32 +41,26 @@ if (!exists('wrds') || !dbIsValid(wrds)) {
 
 numRowsToPull <- -1 # Set to -1 for all rows and to some positive value for testing
 
-# August 2023 CZ Data
-# url <- "https://drive.google.com/drive/folders/1EP6oEabyZRamveGNyzYU0u6qJ-N43Qfq"
+# Chen-Zimmermann release on Hugging Face:
+# https://huggingface.co/datasets/OpenSourceAP/CrossSection
+# Other releases: e.g. '2023' (August 2023), '2026_10'.
+czRelease = '2024_10' # October 2024 CZ Data
 
-# October 2024 CZ Data
-url = "https://drive.google.com/drive/folders/1SSoHGbwgyhRwUCzLE0YWvUlS0DjLCd4k"
-
-# trigger login
-url %>% drive_ls()
+openap = OpenAP$new(release_year = czRelease)
 
 # Chen-Zimmermann data -------------------------------------------
 
-## dl from gdrive ====
+## dl from Hugging Face ====
 
-SUBDIR = 'Full Sets OP'; 
-FILENAME = 'PredictorPortsFull.csv'
+# original-paper portfolios (Portfolios/Full Sets OP/PredictorPortsFull)
+openap$dl_port('op') %>%
+  data.table::fwrite('../Data/Raw/PredictorPortsFull.csv')
 
-url %>% drive_ls() %>%
-  filter(name == "Portfolios") %>% drive_ls() %>% 
-  filter(name == SUBDIR) %>% drive_ls() %>% 
-  filter(name == FILENAME) %>% 
-  drive_download(path = paste0("../Data/Raw/",FILENAME), overwrite = TRUE)
-
-# signal doc 
-url %>% drive_ls() %>% 
-  filter(name == "SignalDoc.csv") %>% 
-  drive_download(path = "../Data/Raw/SignalDoc.csv", overwrite = TRUE)
+# signal doc: fetch the raw csv so the original column names are kept
+# (openap$dl_signal_doc() goes through read.csv, which renames e.g.
+# `Predictability in OP` to Predictability.in.OP)
+download.file(openap$get_url('signal_doc'), '../Data/Raw/SignalDoc.csv'
+              , mode = 'wb')
 
 ## Cleaning 1 ====
 
