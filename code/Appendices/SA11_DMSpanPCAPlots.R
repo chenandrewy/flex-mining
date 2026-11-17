@@ -9,9 +9,7 @@
 source("0_Environment.R")
 
 cache_path <- "../Data/Processed/dm_span_analysis.RDS"
-if (!file.exists(cache_path)) {
-  stop("Missing chapter-3 spanning cache: ", cache_path, ". Run 3_Precompute.R first.")
-}
+require_files(cache_path, "chapter-3 spanning cache", "Run 3_Precompute.R first.")
 
 span_analysis <- readRDS(cache_path)
 

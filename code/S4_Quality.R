@@ -6,9 +6,8 @@
 #          chapter-3 raw and factor-adjusted benchmark contracts
 # Outputs: Section 4 journal-ranking and renowned-match tables under ../Results
 
-settings_env <- new.env(parent = globalenv())
-sys.source("config.R", envir = settings_env)
-version_prefix <- file.path("../Data/Processed", settings_env$globalSettings$universe$dataVersion)
+source("helpers/driver.R")
+
 required_files <- c(
   "../Data/Processed/czsum_allpredictors.RDS",
   "../Data/Processed/czret_keeponly.RDS",
@@ -16,29 +15,10 @@ required_files <- c(
   "../Data/Processed/factor_adjusted_dm_benchmarks.RDS",
   "DataInput/SignalsTheoryChecked.csv",
   "../Data/Processed/dmcomp_sumstats.RDS",
-  paste0(version_prefix, " LongShort.RData")
+  longshort_path()
 )
-rm(settings_env)
+require_files(required_files, "Section 4")
+exit_if_preflight_only("Section 4")
 
-missing_files <- required_files[!file.exists(required_files)]
-if (length(missing_files) > 0) {
-  stop(
-    "Missing Section 4 input(s): ", paste(missing_files, collapse = ", "),
-    ". Run the required upstream chapter first."
-  )
-}
-if ("--preflight-only" %in% commandArgs(trailingOnly = TRUE)) {
-  message("Section 4 preflight passed.")
-  quit(save = "no", status = 0)
-}
-
-run_script <- function(path) {
-  message("\n--- Section 4: ", path, " ---")
-  status <- system2(file.path(R.home("bin"), "Rscript"), path)
-  if (!identical(status, 0L)) {
-    stop("Section 4 script failed (exit ", status, "): ", path)
-  }
-}
-
-run_script("S4a_ByJournal.R")
-run_script("S4b_RenownedMatches.R")
+run_script("S4a_ByJournal.R", "Section 4")
+run_script("S4b_RenownedMatches.R", "Section 4")

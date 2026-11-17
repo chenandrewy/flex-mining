@@ -13,13 +13,7 @@
 # ../Data/Raw/CompustatAnnual.RData (see derive_valid_denoms in 2a), so chapter
 # 2 is self-contained and needs no precomputed DataIntermediate CSVs.
 
-run_script <- function(path) {
-  message("\n--- Chapter 2: ", path, " ---")
-  status <- system2(file.path(R.home("bin"), "Rscript"), path)
-  if (!identical(status, 0L)) {
-    stop("Chapter 2 script failed (exit ", status, "): ", path)
-  }
-}
+source("helpers/driver.R")
 
-run_script("2a_CompustatToLongshort.R")
-run_script("2c_TickerToLongshort.R")
+run_script("2a_CompustatToLongshort.R", "Chapter 2")
+run_script("2c_TickerToLongshort.R", "Chapter 2")

@@ -15,14 +15,10 @@ required_files <- c(
   "../Data/Processed/sumsignal_oos_30y_post_2003_ew_unit_level.csv",
   "../Data/Processed/sumsignal_oos_30y_post_2003_vw_unit_level.csv"
 )
-missing_files <- required_files[!file.exists(required_files)]
-if (length(missing_files) > 0) {
-  stop(
-    "Missing chapter-3 data-mining summary cache(s): ",
-    paste(missing_files, collapse = ", "),
-    ". Run 3_Precompute.R first."
-  )
-}
+require_files(
+  required_files, "chapter-3 data-mining summary cache",
+  "Run 3_Precompute.R first."
+)
 
 format_sort_data <- function(ew_path, vw_path) {
   fs_ew <- readr::read_csv(ew_path, show_col_types = FALSE) %>%

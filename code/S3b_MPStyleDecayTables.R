@@ -127,9 +127,10 @@ if (!identical(Sys.getenv("MP_TABLE_FUNCTIONS_ONLY"), "true")) {
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
   cache_path <- "../Data/Processed/mp_style_decay_models.RDS"
-  if (!file.exists(cache_path)) {
-    stop("Missing MP-style model cache: ", cache_path, ". Run S3a_MPStyleDecayModels.R first.")
-  }
+  require_files(
+    cache_path, "MP-style model cache",
+    "Run S3a_MPStyleDecayModels.R first."
+  )
   models <- readRDS(cache_path)
   stopifnot(
     !is.null(models$metadata$panel_a$pair_fingerprint_sha256),

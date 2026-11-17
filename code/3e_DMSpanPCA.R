@@ -1,7 +1,8 @@
 # Precompute correlation- and PCA-spanning analysis.
 #
 # How to run: normally run through 3_Precompute.R from flex-mining/.
-# Inputs:  chapter-2 mined strategies and cleaned published-signal data
+# Inputs:  chapter-2 mined strategies, cleaned published-signal data, and
+#          ../Data/Processed/dmcomp_sumstats.RDS from 3a_PrepDMBenchmarks.R
 # Outputs: ../Data/Processed/dm_span_analysis.RDS
 #
 # Exhibit rendering is owned by Appendices/SA11_DMSpanPCAPlots.R.
@@ -58,18 +59,31 @@ czret <- readRDS("../Data/Processed/czret_keeponly.RDS") %>%
   filter(signalname %in% inclSignals) %>%
   mutate(ret_scaled = ret / rbar * 100)
 
-# Generate Compustat DM sumstats --------------------------------
+# Load Compustat DM sumstats -------------------------------------
 
-print("creating Compustat mining in-sample sumstats")
-print("Takes about 4 minutes using 4 cores")
-start_time <- Sys.time()
-dm_insamp_sum <- sumstats_for_DM_Strats(
-  DMname = dm_path,
-  nsampmax = Inf
+# 3a_PrepDMBenchmarks.R already computes the in-sample summary for the same
+# mined universe and published sample periods, so it is read from the cache
+# rather than recomputed.
+sumstats_path <- "../Data/Processed/dmcomp_sumstats.RDS"
+require_files(
+  sumstats_path, "chapter-3 in-sample summary cache",
+  "Run 3a_PrepDMBenchmarks.R first."
 )
-print("finished")
-stop_time <- Sys.time()
-stop_time - start_time
+dmcomp <- readRDS(sumstats_path)
+stopifnot(
+  # Same mined universe and the same published sample periods as this script.
+  identical(dmcomp$name, dm_path),
+  nrow(fsetdiff(
+    unique(czsum[, .(sampstart, sampend)]),
+    unique(dmcomp$insampsum[, .(sampstart, sampend)])
+  )) == 0L,
+  nrow(fsetdiff(
+    unique(dmcomp$insampsum[, .(sampstart, sampend)]),
+    unique(czsum[, .(sampstart, sampend)])
+  )) == 0L
+)
+dm_insamp_sum <- dmcomp$insampsum
+rm(dmcomp)
 
 
 # Select matched DM strategies and classify correlation spanning ----------

@@ -12,14 +12,10 @@ required_files <- c(
   "../Data/Processed/dm_correlation_quantiles.RDS",
   "../Data/Processed/dm_pca_table.RDS"
 )
-missing_files <- required_files[!file.exists(required_files)]
-if (length(missing_files) > 0) {
-  stop(
-    "Missing chapter-3 correlation/PCA cache(s): ",
-    paste(missing_files, collapse = ", "),
-    ". Run 3_Precompute.R first."
-  )
-}
+require_files(
+  required_files, "chapter-3 correlation/PCA cache",
+  "Run 3_Precompute.R first."
+)
 
 quantiles_cor_dm <- readRDS(required_files[1])
 quantiles_cor_dm %>%
