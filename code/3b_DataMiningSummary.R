@@ -73,7 +73,7 @@ for (var_type in var_types) {
                             SD = sd,
                             Min = min,
                             q01 = ~quantile(., 0.01), 
-                            q05 = ~quantile(., 0.01), 
+                            q05 = ~quantile(., 0.05), 
                             q25 = ~quantile(., 0.25), 
                             Median = median,
                             q75 = ~quantile(., 0.75),
