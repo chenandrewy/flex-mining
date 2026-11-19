@@ -42,11 +42,17 @@ dplyr 1.2.1                   kableExtra 1.4.1              strucchange 1.5.4
 fixest 0.14.2                 latex2exp 0.9.8               tictoc 1.2.1
 foreach 1.5.2                 lmtest 0.9.40                 tidyr 1.3.2
 fst 0.9.8                     lubridate 1.9.5               withr 3.0.3
-getPass 0.2.4                 OpenSourceAP.DownloadR 0.1.0  writexl 1.5.4
+getPass 0.2.4                 OpenSourceAP.DownloadR 0.2.0  writexl 1.5.4
 ggplot2 4.0.3                 pcaMethods 2.2.0              xtable 1.8.8
 glue 1.8.1                    readr 2.2.0                   zoo 1.8.15
-googledrive 2.1.2             readxl 1.5.0
+readxl 1.5.0
 ```
+
+`OpenSourceAP.DownloadR` is the one exception to the snapshot: chapter 1 needs
+0.2.0 (CRAN, 2026-10-26), the first version that reads the Chen-Zimmermann data
+from Hugging Face instead of the retired Google Drive folders. The snapshot
+only has 0.1.0, so install it from current CRAN with
+`install.packages("OpenSourceAP.DownloadR")`. `googledrive` is no longer used.
 
 Regenerate this list with `docs/record-r-environment.R`.
 
