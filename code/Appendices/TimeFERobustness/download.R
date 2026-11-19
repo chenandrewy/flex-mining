@@ -2,9 +2,10 @@
 #
 # How to run: from flex-mining/,
 #   Rscript Appendices/TimeFERobustness/run.R download
-# Inputs:  the pinned Open Source Asset Pricing release (firm characteristics,
-#            signal documentation, original portfolio returns), the pinned
-#            meta-replication mapping, and CRSP.MSF via WRDS for the three
+# Inputs:  the pinned Open Source Asset Pricing release on Hugging Face
+#            (OpenSourceAP/CrossSection: firm characteristics, signal
+#            documentation, original portfolio returns), the pinned
+#            meta-replication mapping, and CRSP via WRDS for the three
 #            CRSP-derived signals the bulk file omits
 #          WRDS credentials, resolved as in 1_Download_and_Clean.R: from a
 #            .env file if present, then WRDS_USERNAME/WRDS_PASSWORD in the
@@ -15,8 +16,9 @@
 #
 # This stage is separate from the build because it downloads several gigabytes
 # and can require a WRDS connection. The Parquet output is a directory-backed
-# Arrow dataset: the bulk archive is about 2.3 GB compressed and 8+ GB as CSV,
-# so it is streamed into Parquet rather than read into an R data.frame.
+# Arrow dataset: the bulk firm-characteristic file is about 2 GB as Parquet and
+# far larger in memory, so it is streamed rather than read into an R
+# data.frame.
 
 source("Appendices/TimeFERobustness/setup.R")
 suppressPackageStartupMessages({
@@ -27,11 +29,8 @@ suppressPackageStartupMessages({
 
 release <- timefeSettings$pins$release
 raw_dir <- timefeSettings$paths$openap_raw
-archive_zip <- file.path(
-  raw_dir, paste0("signed_predictors_dl_wide-", release, ".zip")
-)
-archive_csv <- file.path(
-  raw_dir, paste0("signed_predictors_dl_wide-", release, ".csv")
+firm_char_parquet <- file.path(
+  raw_dir, paste0("signed_predictors_dl_wide-", release, ".parquet")
 )
 doc_csv <- timefeSettings$files$signal_doc
 op_csv <- timefeSettings$files$op_portfolios
@@ -59,17 +58,37 @@ if (!nzchar(Sys.getenv("WRDS_PASS")) &&
   Sys.setenv(WRDS_PASS = Sys.getenv("WRDS_PASSWORD"))
 }
 
-# Google Drive downloads can fail under libcurl's HTTP/2 implementation in
-# this container. In httr/libcurl, http_version = 2 requests HTTP/1.1.
+# Versions before 0.2.0 read the retired Google Drive folders.
+check(packageVersion("OpenSourceAP.DownloadR") >= "0.2.0",
+      "OpenSourceAP.DownloadR >= 0.2.0 is required (Hugging Face downloads).")
+
+# Carried over from the Google Drive downloads, which could fail under
+# libcurl's HTTP/2 implementation in this container. In httr/libcurl,
+# http_version = 2 requests HTTP/1.1.
 httr::set_config(httr::config(http_version = 2))
+
+# Download to a temporary name and rename on success, so an interrupted
+# transfer is not mistaken for a finished file on the next run.
+download_pinned <- function(url, path, timeout = 3600) {
+  partial <- paste0(path, ".part")
+  on.exit(unlink(partial), add = TRUE)
+  status <- withr::with_options(
+    new = list(timeout = timeout),
+    code = download.file(url, partial, mode = "wb", quiet = FALSE)
+  )
+  check(status == 0L && file.exists(partial) && file.info(partial)$size > 0,
+        "Could not download %s.", url)
+  check(file.rename(partial, path), "Could not move the download to %s.", path)
+}
 
 message("Initializing Open Source Asset Pricing release ", release, " ...")
 openap <- OpenAP$new(release_year = release)
 
 if (!file.exists(doc_csv) || file.info(doc_csv)$size == 0) {
   message("Downloading signal documentation ...")
-  signal_doc <- as.data.table(openap$dl_signal_doc())
-  fwrite(signal_doc, doc_csv)
+  # Fetch the release's SignalDoc.csv as is: dl_signal_doc() goes through
+  # read.csv(), which rewrites headers such as `Predictability in OP`.
+  download_pinned(openap$get_url("signal_doc"), doc_csv)
 }
 
 if (!file.exists(op_csv) || file.info(op_csv)$size == 0) {
@@ -96,35 +115,12 @@ check(
 )
 
 # Use the package to resolve the selected release's official bulk-file URL,
-# but avoid dl_all_signals(): that method calls base read.csv() on the 8+ GB
-# extracted file and exceeds the devcontainer's memory.
-if (!file.exists(archive_zip) || file.info(archive_zip)$size == 0) {
-  message("Downloading the bulk CZ firm-characteristic archive ...")
-  firm_characteristic_url <- openap$get_url("firm_char")
-  withr::with_options(
-    new = list(timeout = 3600),
-    code = download.file(
-      firm_characteristic_url, archive_zip, mode = "wb", quiet = FALSE
-    )
-  )
-}
-
-if (!file.exists(archive_csv) || file.info(archive_csv)$size == 0) {
-  message("Extracting the bulk CZ firm-characteristic CSV ...")
-  archive_listing <- unzip(archive_zip, list = TRUE)
-  csv_member <- archive_listing$Name[
-    grepl("signed_predictors_dl_wide\\.csv$", archive_listing$Name)
-  ]
-  check(length(csv_member) == 1L,
-        "Expected exactly one signed_predictors_dl_wide.csv in the archive.")
-  extracted <- unzip(
-    archive_zip, files = csv_member, exdir = raw_dir, overwrite = TRUE
-  )
-  check(length(extracted) == 1L && file.exists(extracted),
-        "Could not extract the bulk firm-characteristic CSV.")
-  check(file.rename(extracted, archive_csv),
-        "Could not move the extracted firm-characteristic CSV to %s.",
-        archive_csv)
+# but avoid dl_all_signals(): that method reads the whole signed file into an
+# R data.frame and exceeds the devcontainer's memory.
+if (!file.exists(firm_char_parquet) ||
+    file.info(firm_char_parquet)$size == 0) {
+  message("Downloading the bulk CZ firm-characteristic file ...")
+  download_pinned(openap$get_url("firm_char"), firm_char_parquet)
 }
 
 if (!dir.exists(panel_parquet)) {
@@ -132,29 +128,25 @@ if (!dir.exists(panel_parquet)) {
   # The bulk file is already signed. dl_signal_crsp3() likewise constructs
   # signed Price, Size, and STreversal, so no second sign transformation is
   # appropriate here.
-  crsp_signals <- as.data.table(openap$dl_signal_crsp3())
+  crsp_signals <- as.data.table(openap$dl_signal_crsp3(signed = TRUE))
   crsp_signals[, `:=`(
     permno = as.integer(permno),
     yyyymm = as.integer(yyyymm)
   )]
 
   message("Streaming the merged CZ signal panel to Parquet ...")
-  csv_columns <- names(fread(archive_csv, nrows = 0L))
-  csv_types <- setNames(
-    lapply(csv_columns, function(column) {
-      if (column %in% c("permno", "yyyymm")) int32() else float64()
-    }),
-    csv_columns
-  )
-  # Several sparse characteristics are empty in Arrow's inference sample and
-  # would otherwise be assigned the unsupported `null` type.
-  openap_dataset <- open_csv_dataset(
-    archive_csv,
-    schema = do.call(schema, csv_types),
-    skip = 1L,
-    col_names = csv_columns
-  )
+  openap_dataset <- open_dataset(firm_char_parquet, format = "parquet")
+  bulk_columns <- openap_dataset$schema$names
+  check(all(c("permno", "yyyymm") %in% bulk_columns),
+        "The bulk firm-characteristic file has no permno/yyyymm keys.")
+  check(!any(names(crsp_signals) %in% setdiff(bulk_columns,
+                                              c("permno", "yyyymm"))),
+        "The bulk file already contains a CRSP-derived signal column.")
+  # Fix the column types the downstream stages rely on, whatever the
+  # release's Parquet file stores: integer keys and double characteristics.
   merged_dataset <- openap_dataset |>
+    mutate(across(all_of(c("permno", "yyyymm")), ~ cast(.x, int32()))) |>
+    mutate(across(-all_of(c("permno", "yyyymm")), ~ cast(.x, float64()))) |>
     left_join(arrow_table(crsp_signals), by = c("permno", "yyyymm"))
   write_dataset(
     merged_dataset,

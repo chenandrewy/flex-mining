@@ -44,7 +44,7 @@ own with `Rscript <driver>.R` while iterating on one exhibit.
 
 The paper-section stages treat processed data as read-only. For a formatting-only
 figure or table change, run only the corresponding section. Chapter 1 overwrites
-`../Data/Raw` with a new, non-recoverable WRDS/Google Drive vintage, so its
+`../Data/Raw` with a new, non-recoverable WRDS vintage (plus the pinned CZ release from Hugging Face), so its
 `MAIN.R` switch is off by default and should be enabled deliberately.
 
 The time-FE robustness stage is enabled in `config.R`. See

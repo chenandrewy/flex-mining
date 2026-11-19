@@ -9,25 +9,14 @@
 # S3a_MPStyleDecayModels.R estimates the regression models (including
 # fixed-effect specifications); S3b_MPStyleDecayTables.R renders their tables.
 
+source("helpers/driver.R")
+
 required_files <- c(
   "../Data/Processed/raw_dm_benchmarks.RDS"
 )
 
-missing_files <- required_files[!file.exists(required_files)]
-if (length(missing_files) > 0) {
-  stop(
-    "Missing Section 3 input(s): ", paste(missing_files, collapse = ", "),
-    ". Run 3_Precompute.R first."
-  )
-}
+require_files(required_files, "Section 3", "Run 3_Precompute.R first.")
+exit_if_preflight_only("Section 3")
 
-run_script <- function(path) {
-  message("\n--- Section 3: ", path, " ---")
-  status <- system2(file.path(R.home("bin"), "Rscript"), path)
-  if (!identical(status, 0L)) {
-    stop("Section 3 script failed (exit ", status, "): ", path)
-  }
-}
-
-run_script("S3a_MPStyleDecayModels.R")
-run_script("S3b_MPStyleDecayTables.R")
+run_script("S3a_MPStyleDecayModels.R", "Section 3")
+run_script("S3b_MPStyleDecayTables.R", "Section 3")

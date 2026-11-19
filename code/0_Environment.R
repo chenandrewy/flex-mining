@@ -1,8 +1,5 @@
 # Libraries ====
 library(data.table)
-library(RPostgres)
-library(haven)
-library(getPass)
 library(dplyr)
 library(fst)
 library(lubridate)
@@ -153,7 +150,7 @@ colors = c(rgb(0,0.4470,0.7410), # MATBLUE
 # sys.source drivers).
 # Specialized factor-adjustment and factor-adjusted table helpers are sourced
 # only by their Chapter 3, Section 4, and Appendix consumers.
-for (.helper in c("matching", "plotting")) {
+for (.helper in c("driver", "matching", "plotting")) {
   source(file.path("helpers", paste0(.helper, ".R")), local = TRUE)
 }
 rm(.helper)

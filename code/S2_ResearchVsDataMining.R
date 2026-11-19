@@ -8,6 +8,8 @@
 # Some renderers also emit closely related appendix variants. Each child runs
 # in a separate R process so memory is returned before the next exhibit.
 
+source("helpers/driver.R")
+
 required_files <- c(
   "../Data/Processed/czsum_allpredictors.RDS",
   "../Data/Processed/czret_keeponly.RDS",
@@ -21,30 +23,13 @@ required_files <- c(
   "../Data/Processed/dm_correlation_quantiles.RDS",
   "../Data/Processed/dm_pca_table.RDS"
 )
-missing_files <- required_files[!file.exists(required_files)]
-if (length(missing_files) > 0) {
-  stop(
-    "Missing Section 2 input(s): ", paste(missing_files, collapse = ", "),
-    ". Run the required upstream chapter first."
-  )
-}
-if ("--preflight-only" %in% commandArgs(trailingOnly = TRUE)) {
-  message("Section 2 preflight passed.")
-  quit(save = "no", status = 0)
-}
-
-run_script <- function(path) {
-  message("\n--- Section 2: ", path, " ---")
-  status <- system2(file.path(R.home("bin"), "Rscript"), path)
-  if (!identical(status, 0L)) {
-    stop("Section 2 script failed (exit ", status, "): ", path)
-  }
-}
+require_files(required_files, "Section 2")
+exit_if_preflight_only("Section 2")
 
 # The headline comparison is displayed in the introduction but belongs to the
 # research-versus-data-mining empirical chapter.
-run_script("S2a_ResearchVsDMPlots.R")
-run_script("S2b_DataMiningSummaryTables.R")
-run_script("S2c_DMCorrelationsPCATables.R")
-run_script("S2d_EZThemes.R")
-run_script("S2e_Fig2Plots.R")
+run_script("S2a_ResearchVsDMPlots.R", "Section 2")
+run_script("S2b_DataMiningSummaryTables.R", "Section 2")
+run_script("S2c_DMCorrelationsPCATables.R", "Section 2")
+run_script("S2d_EZThemes.R", "Section 2")
+run_script("S2e_Fig2Plots.R", "Section 2")

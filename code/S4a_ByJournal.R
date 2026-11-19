@@ -25,10 +25,7 @@ required_files <- c(
   "../Data/Processed/factor_adjusted_dm_benchmarks.RDS",
   "DataInput/SignalsTheoryChecked.csv"
 )
-missing_files <- required_files[!file.exists(required_files)]
-if (length(missing_files) > 0L) {
-  stop("Missing Section 4 input(s): ", paste(missing_files, collapse = ", "))
-}
+require_files(required_files, "Section 4")
 
 raw_contract <- readRDS(required_files[1])
 factor_contract <- readRDS(required_files[2])

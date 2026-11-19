@@ -1,6 +1,6 @@
 # Main script for rebuilding the data and paper exhibits.
 #
-# How to run: set the working directory to flex-mining/, then
+# How to run: set the working directory to code/, then
 #   Rscript MAIN.R
 #
 # Data stages, paper-section exhibit stages, and exports, grouped by the
@@ -27,7 +27,7 @@
 # skipping is a real decision. Changes to matching or statistical analysis
 # require chapter 3; changes to mined signals require chapter 2.
 #
-# Chapter 1 pulls fresh data from WRDS and Google Drive and OVERWRITES
+# Chapter 1 pulls fresh data from WRDS and Hugging Face and OVERWRITES
 # ../Data/Raw.
 # WRDS is not versioned and offers no as-of retrieval, so setting
 # run_download_and_clean = TRUE replaces the current data vintage irreversibly
@@ -44,14 +44,7 @@
 # Stage switches live in config.R (runStages). Source it directly; this avoids
 # loading the analysis packages just to decide which stages to run.
 source("config.R")
-
-run_script <- function(path) {
-  message("\n=== Running ", path, " ===")
-  status <- system2(file.path(R.home("bin"), "Rscript"), path)
-  if (!identical(status, 0L)) {
-    stop("Pipeline stage failed (exit ", status, "): ", path)
-  }
-}
+source("helpers/driver.R")
 
 # Chapter 1: acquisition and cleaning ------------------------------------
 

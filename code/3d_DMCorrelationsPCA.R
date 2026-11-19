@@ -147,7 +147,7 @@ if (TG2Set == 'Matches') {
   )  
   
 } else {
-  print('TG2Set has to be one of Matches or 1994-2020 or Rolling1994-2020')
+  stop('TG2Set has to be one of Matches or 1994-2020 or Rolling1994-2020')
 }
 
 
